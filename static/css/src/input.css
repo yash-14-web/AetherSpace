@@ -1,0 +1,36 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply font-sans antialiased transition-colors duration-150;
+  }
+  
+  /* Custom scrollbar for dark/light theme */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-slate-300 dark:bg-zinc-800 rounded-full;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-slate-400 dark:bg-zinc-700;
+  }
+}
+
+@layer components {
+  .aether-card {
+    @apply bg-white dark:bg-obsidian-800 border border-slate-border dark:border-obsidian-border rounded-xl shadow-sm;
+  }
+  .aether-button-primary {
+    @apply inline-flex items-center justify-center px-4 py-2 font-medium text-sm rounded-lg bg-aether-blue hover:bg-aether-blue-hover text-white transition-all shadow-sm focus:outline-none focus:ring-2 focus:ring-aether-blue/50;
+  }
+  .aether-button-secondary {
+    @apply inline-flex items-center justify-center px-4 py-2 font-medium text-sm rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 dark:bg-obsidian-700 dark:hover:bg-zinc-800 dark:text-zinc-200 border border-slate-border dark:border-obsidian-border transition-all focus:outline-none;
+  }
+}

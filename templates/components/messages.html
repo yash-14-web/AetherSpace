@@ -1,0 +1,16 @@
+<div class="fixed top-4 right-4 z-50 space-y-2 max-w-sm w-full" x-data="{ show: true }">
+    {% for message in messages %}
+        <div x-show="show" x-init="setTimeout(() => show = false, 5000)"
+             class="p-4 rounded-xl aether-card border shadow-lg flex items-start space-x-3 transition-all
+             {% if message.tags == 'error' %}border-rose-500/30 bg-rose-50/50 dark:bg-rose-950/20 text-rose-800 dark:text-rose-200
+             {% elif message.tags == 'success' %}border-emerald-500/30 bg-emerald-50/50 dark:bg-emerald-950/20 text-emerald-800 dark:text-emerald-200
+             {% else %}border-blue-500/30 bg-blue-50/50 dark:bg-blue-950/20 text-blue-800 dark:text-blue-200{% endif %}">
+            <div class="flex-1 text-xs font-medium">
+                {{ message }}
+            </div>
+            <button @click="show = false" class="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 text-xs font-bold focus:outline-none">
+                ✕
+            </button>
+        </div>
+    {% endfor %}
+</div>

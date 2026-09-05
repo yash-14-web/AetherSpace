@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+
+{% block title %}400 — Bad Request{% endblock %}
+
+{% block sidebar %}{% endblock %}
+
+{% block content %}
+<div class="min-h-[70vh] flex items-center justify-center py-12 px-4">
+    <div class="max-w-md w-full aether-card p-8 text-center space-y-6 shadow-xl">
+        <div class="inline-flex px-3 py-1 rounded-full text-xs font-bold bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-900/50">
+            Error 400
+        </div>
+        <h1 class="text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-50">
+            Invalid Request
+        </h1>
+        <p class="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed">
+            The request could not be processed due to invalid parameters.
+        </p>
+        <div class="pt-4 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-center gap-3">
+            <button onclick="window.history.back()" class="aether-button-secondary text-xs py-2 px-4">
+                Go Back
+            </button>
+            <a href="{% url 'core:landing' %}" class="aether-button-primary text-xs py-2 px-4">
+                Dashboard
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

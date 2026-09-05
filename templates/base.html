@@ -1,0 +1,75 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{{ APP_NAME }} — Agile Team Collaboration{% endblock %}</title>
+    <meta name="description" content="AetherSpace is a high-performance team collaboration and agile workspace platform.">
+    
+    <!-- Script to prevent flash of unstyled theme (FOUC) -->
+    <script>
+        if (localStorage.getItem('color-theme') === 'dark' || (!('color-theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+    </script>
+    
+    <!-- Inter Google Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Compiled Tailwind Styles -->
+    <link rel="stylesheet" href="{% static 'css/dist/styles.css' %}">
+
+    <!-- Alpine.js -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
+
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="h-full bg-slate-canvas text-slate-900 dark:bg-obsidian-950 dark:text-zinc-100 flex flex-col font-sans"
+      x-data="{
+          theme: localStorage.getItem('color-theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'),
+          toggleTheme() {
+              if (this.theme === 'dark') {
+                  this.theme = 'light';
+                  localStorage.setItem('color-theme', 'light');
+                  document.documentElement.classList.remove('dark');
+              } else {
+                  this.theme = 'dark';
+                  localStorage.setItem('color-theme', 'dark');
+                  document.documentElement.classList.add('dark');
+              }
+          },
+          mobileSidebarOpen: false
+      }">
+
+    {% if messages %}
+        {% include 'components/messages.html' %}
+    {% endif %}
+
+    {% block layout %}
+        <div class="flex h-full overflow-hidden">
+            {% block sidebar %}
+                {% if user.is_authenticated %}
+                    {% include 'components/sidebar.html' %}
+                {% endif %}
+            {% endblock %}
+
+            <div class="flex flex-col flex-1 min-w-0 overflow-hidden">
+                {% block header %}
+                    {% include 'components/header.html' %}
+                {% endblock %}
+
+                <main class="flex-1 relative overflow-y-auto focus:outline-none p-4 sm:p-6 lg:p-8">
+                    {% block content %}{% endblock %}
+                </main>
+            </div>
+        </div>
+    {% endblock %}
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

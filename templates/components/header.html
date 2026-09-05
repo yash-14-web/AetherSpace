@@ -1,0 +1,115 @@
+<header class="h-16 bg-white dark:bg-obsidian-900 border-b border-slate-border dark:border-obsidian-border px-4 sm:px-6 flex items-center justify-between z-20 shrink-0">
+    <div class="flex items-center space-x-3">
+        <!-- Mobile Sidebar Toggle -->
+        <button type="button" @click="mobileSidebarOpen = !mobileSidebarOpen" 
+                class="lg:hidden p-2 rounded-lg text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-obsidian-800 focus:outline-none">
+            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+            </svg>
+        </button>
+
+        <!-- Brand / Workspace Context -->
+        <div class="flex items-center space-x-2">
+            <a href="{% url 'core:landing' %}" class="flex items-center space-x-2 font-bold text-lg tracking-tight">
+                <div class="w-8 h-8 rounded-lg bg-aether-blue flex items-center justify-center text-white font-black shadow-sm">
+                    Æ
+                </div>
+                <span class="hidden sm:inline bg-gradient-to-r from-blue-600 to-indigo-500 bg-clip-text text-transparent font-extrabold">AetherSpace</span>
+            </a>
+            
+            {% if user.is_authenticated %}
+                <span class="text-slate-300 dark:text-zinc-700">/</span>
+                <span class="text-xs font-semibold px-2 py-0.5 rounded bg-slate-100 dark:bg-obsidian-800 text-slate-600 dark:text-zinc-400 border border-slate-200 dark:border-zinc-800">
+                    Smart Classroom
+                </span>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Center Search Bar (for authenticated view) -->
+    {% if user.is_authenticated %}
+    <div class="hidden md:flex items-center max-w-md w-full mx-4">
+        <div class="relative w-full">
+            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 dark:text-zinc-500">
+                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                </svg>
+            </div>
+            <input type="text" placeholder="Search tasks (619347), bugs (B-...), files..." 
+                   class="w-full pl-9 pr-4 py-1.5 text-xs bg-slate-50 dark:bg-obsidian-800 border border-slate-200 dark:border-zinc-800 rounded-lg text-slate-800 dark:text-zinc-200 placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-aether-blue">
+            <div class="absolute inset-y-0 right-0 pr-2.5 flex items-center">
+                <kbd class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-200 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400">⌘K</kbd>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Right Controls: Theme Toggle, Notifications, Profile / Auth Links -->
+    <div class="flex items-center space-x-2 sm:space-x-3">
+        <!-- Theme Toggle Button -->
+        <button type="button" @click="toggleTheme()" 
+                class="p-2 rounded-lg text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-obsidian-800 transition-colors focus:outline-none"
+                aria-label="Toggle Theme">
+            <template x-if="theme === 'dark'">
+                <!-- Sun Icon for switching to light -->
+                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
+                </svg>
+            </template>
+            <template x-if="theme !== 'dark'">
+                <!-- Moon Icon for switching to dark -->
+                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+                </svg>
+            </template>
+        </button>
+
+        {% if user.is_authenticated %}
+            <!-- Notifications Indicator -->
+            <a href="#" class="p-2 relative rounded-lg text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-obsidian-800 transition-colors">
+                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                </svg>
+                <span class="absolute top-1.5 right-1.5 block h-2 w-2 rounded-full bg-aether-rose ring-2 ring-white dark:ring-obsidian-900"></span>
+            </a>
+
+            <!-- User Profile Dropdown (Alpine.js) -->
+            <div class="relative" x-data="{ open: false }">
+                <button type="button" @click="open = !open" @click.outside="open = false" 
+                        class="flex items-center space-x-2 focus:outline-none">
+                    <div class="w-8 h-8 rounded-full bg-aether-blue/20 border border-aether-blue/40 flex items-center justify-center text-aether-blue font-semibold text-xs">
+                        {{ user.full_name|default:user.email|slice:":2"|upper }}
+                    </div>
+                </button>
+
+                <div x-show="open" x-transition:enter="transition ease-out duration-100" 
+                     x-transition:enter-start="transform opacity-0 scale-95" 
+                     x-transition:enter-end="transform opacity-100 scale-100"
+                     x-transition:leave="transition ease-in duration-75"
+                     x-transition:leave-start="transform opacity-100 scale-100" 
+                     x-transition:leave-end="transform opacity-0 scale-95"
+                     class="absolute right-0 mt-2 w-56 rounded-xl aether-card py-1.5 z-50 divide-y divide-slate-100 dark:divide-zinc-800">
+                    <div class="px-4 py-2">
+                        <p class="text-xs font-medium text-slate-900 dark:text-zinc-100 truncate">{{ user.full_name|default:user.email }}</p>
+                        <p class="text-[11px] text-slate-500 dark:text-zinc-400 truncate">{{ user.email }}</p>
+                    </div>
+                    <div class="py-1">
+                        <a href="{% url 'accounts:logout' %}" class="block px-4 py-1.5 text-xs text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30">
+                            Sign out
+                        </a>
+                    </div>
+                </div>
+            </div>
+        {% else %}
+            <!-- Public Auth Navigation -->
+            <div class="flex items-center space-x-2">
+                <a href="{% url 'accounts:login' %}" class="px-3 py-1.5 text-xs font-medium rounded-lg text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-obsidian-800 transition-colors">
+                    Sign in
+                </a>
+                <a href="{% url 'accounts:register' %}" class="aether-button-primary text-xs !py-1.5 !px-3">
+                    Get Started
+                </a>
+            </div>
+        {% endif %}
+    </div>
+</header>

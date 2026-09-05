@@ -1,0 +1,31 @@
+{
+  "name": "aetherspace",
+  "version": "1.0.0",
+  "description": "> **Purpose:** This is the single living README for the AetherSpace project. > > It is written for both: > 1. the **Antigravity coding agent**, which must follow these rules exactly, and > 2. the **project owner/developer**, who needs a clear record of what is complete, pending, missing, blocked, and what must be manually verified. > > **IMPORTANT:** This README must be updated continuously during development. Do not create a separate hidden progress system that contradicts this file.",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "build:css": "tailwindcss -i ./static/css/src/input.css -o ./static/css/dist/styles.css --minify",
+    "watch:css": "tailwindcss -i ./static/css/src/input.css -o ./static/css/dist/styles.css --watch",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yash-14-web/AetherSpace.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/yash-14-web/AetherSpace/issues"
+  },
+  "homepage": "https://github.com/yash-14-web/AetherSpace#readme",
+  "devDependencies": {
+    "@tailwindcss/forms": "^0.5.11",
+    "@tailwindcss/typography": "^0.5.20",
+    "tailwindcss": "^3.4.17"
+  }
+}

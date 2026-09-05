@@ -1,0 +1,17 @@
+"""
+AetherSpace URL Configuration
+"""
+from django.contrib import admin
+from django.urls import path, include
+
+urlpatterns = [
+    path('admin/', admin.site.urls),
+    path('auth/', include('accounts.urls')),
+    path('', include('core.urls')),
+]
+
+# Custom Error Handlers per docs/08_ERROR_HANDLERS.md
+handler400 = 'core.views.error_400'
+handler403 = 'core.views.error_403'
+handler404 = 'core.views.error_404'
+handler500 = 'core.views.error_500'

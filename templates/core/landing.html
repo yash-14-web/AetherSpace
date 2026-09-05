@@ -1,0 +1,119 @@
+{% extends 'base.html' %}
+
+{% block title %}AetherSpace — Lightweight Team Collaboration & Agile Workspace{% endblock %}
+
+{% block sidebar %}
+    <!-- Landing page has no sidebar -->
+{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto space-y-16 py-8">
+    <!-- Hero Section -->
+    <div class="text-center space-y-6 pt-8 pb-4">
+        <div class="inline-flex items-center space-x-2 px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 dark:bg-blue-950/50 text-aether-blue border border-blue-200 dark:border-blue-900/50">
+            <span class="w-2 h-2 rounded-full bg-aether-blue animate-pulse"></span>
+            <span>AetherSpace Phase 1 — Foundation Deployed</span>
+        </div>
+
+        <h1 class="text-4xl sm:text-6xl font-extrabold tracking-tight text-slate-900 dark:text-zinc-50 max-w-3xl mx-auto leading-tight">
+            Lightweight agile workspace for <span class="bg-gradient-to-r from-blue-600 via-indigo-500 to-cyan-400 bg-clip-text text-transparent">high-performance teams</span>.
+        </h1>
+
+        <p class="text-base sm:text-lg text-slate-600 dark:text-zinc-400 max-w-2xl mx-auto font-normal">
+            The all-in-one platform unifying task workflows, bug tracking, communication, meeting rooms, files, and workspace governance for agile teams.
+        </p>
+
+        <div class="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2">
+            {% if user.is_authenticated %}
+                <a href="{% url 'accounts:logout' %}" class="aether-button-secondary w-full sm:w-auto px-6 py-2.5">
+                    Sign Out
+                </a>
+            {% else %}
+                <a href="{% url 'accounts:register' %}" class="aether-button-primary w-full sm:w-auto px-6 py-2.5 text-sm font-semibold shadow-lg shadow-blue-500/20">
+                    Get Started Free →
+                </a>
+                <a href="{% url 'accounts:login' %}" class="aether-button-secondary w-full sm:w-auto px-6 py-2.5 text-sm font-semibold">
+                    Sign In
+                </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Feature Pillars (Tasks, Bugs, Collaboration, Meet Hub) -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+        <!-- Tasks -->
+        <div class="aether-card p-6 space-y-3 hover:border-blue-500/50 transition-all">
+            <div class="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/60 flex items-center justify-center text-aether-blue">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+                </svg>
+            </div>
+            <h2 class="text-base font-bold text-slate-900 dark:text-zinc-100">Agile Tasks</h2>
+            <p class="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed">
+                6-digit numeric task codes (e.g. 619347), Kanban workflows, sprint progress, and activity logs.
+            </p>
+        </div>
+
+        <!-- Bugs -->
+        <div class="aether-card p-6 space-y-3 hover:border-blue-500/50 transition-all">
+            <div class="w-10 h-10 rounded-xl bg-rose-50 dark:bg-rose-950/60 flex items-center justify-center text-rose-500">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                </svg>
+            </div>
+            <h2 class="text-base font-bold text-slate-900 dark:text-zinc-100">Bug Tracking</h2>
+            <p class="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed">
+                Standardized bug IDs (e.g. B-882316), severity metrics, reproduction steps, and attachments.
+            </p>
+        </div>
+
+        <!-- Chat & Meet -->
+        <div class="aether-card p-6 space-y-3 hover:border-blue-500/50 transition-all">
+            <div class="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 flex items-center justify-center text-indigo-500">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                </svg>
+            </div>
+            <h2 class="text-base font-bold text-slate-900 dark:text-zinc-100">Meet & Channels</h2>
+            <p class="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed">
+                Integrated WebRTC rooms, team channels, pinned assets, and real-time collaboration.
+            </p>
+        </div>
+
+        <!-- Storage & Governance -->
+        <div class="aether-card p-6 space-y-3 hover:border-blue-500/50 transition-all">
+            <div class="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 flex items-center justify-center text-emerald-500">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                </svg>
+            </div>
+            <h2 class="text-base font-bold text-slate-900 dark:text-zinc-100">Supabase RBAC</h2>
+            <p class="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed">
+                Supabase PostgreSQL isolation, Supabase Storage uploads, and strict server-side permissions.
+            </p>
+        </div>
+    </div>
+
+    <!-- Status & Architecture Details -->
+    <div class="aether-card p-8 space-y-4">
+        <h3 class="text-lg font-bold text-slate-900 dark:text-zinc-100">System Architecture Foundation</h3>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+            <div class="p-4 rounded-lg bg-slate-50 dark:bg-obsidian-900 border border-slate-200 dark:border-zinc-800 space-y-1">
+                <span class="text-slate-400 dark:text-zinc-500 block">Database</span>
+                <span class="font-bold text-slate-800 dark:text-zinc-200">Supabase PostgreSQL</span>
+                <span class="text-[11px] text-emerald-600 dark:text-emerald-400 block">✓ Configured via .env</span>
+            </div>
+            <div class="p-4 rounded-lg bg-slate-50 dark:bg-obsidian-900 border border-slate-200 dark:border-zinc-800 space-y-1">
+                <span class="text-slate-400 dark:text-zinc-500 block">Identity Layer</span>
+                <span class="font-bold text-slate-800 dark:text-zinc-200">Custom User & RBAC</span>
+                <span class="text-[11px] text-emerald-600 dark:text-emerald-400 block">✓ accounts.User (UUID)</span>
+            </div>
+            <div class="p-4 rounded-lg bg-slate-50 dark:bg-obsidian-900 border border-slate-200 dark:border-zinc-800 space-y-1">
+                <span class="text-slate-400 dark:text-zinc-500 block">Theme Engine</span>
+                <span class="font-bold text-slate-800 dark:text-zinc-200">Dark Obsidian & Clean Slate</span>
+                <span class="text-[11px] text-emerald-600 dark:text-emerald-400 block">✓ Tailwind + Alpine.js</span>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
