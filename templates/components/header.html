@@ -1,3 +1,4 @@
+{% load static %}
 <header class="h-16 bg-white dark:bg-obsidian-900 border-b border-slate-border dark:border-obsidian-border px-4 sm:px-6 flex items-center justify-between z-20 shrink-0">
     <div class="flex items-center space-x-3">
         <!-- Mobile Sidebar Toggle -->
@@ -10,11 +11,9 @@
 
         <!-- Brand / Workspace Context -->
         <div class="flex items-center space-x-2">
-            <a href="{% url 'core:landing' %}" class="flex items-center space-x-2 font-bold text-lg tracking-tight">
-                <div class="w-8 h-8 rounded-lg bg-aether-blue flex items-center justify-center text-white font-black shadow-sm">
-                    Æ
-                </div>
-                <span class="hidden sm:inline bg-gradient-to-r from-blue-600 to-indigo-500 bg-clip-text text-transparent font-extrabold">AetherSpace</span>
+            <a href="{% url 'core:landing' %}" class="flex items-center space-x-2.5 font-bold text-lg tracking-tight group">
+                <img src="{% static 'images/logo.png' %}" alt="AetherSpace Logo" class="w-9 h-9 object-contain drop-shadow-md group-hover:scale-105 transition-transform">
+                <span class="inline-block bg-gradient-to-r from-blue-600 to-indigo-500 bg-clip-text text-transparent font-extrabold text-xl tracking-tight">AetherSpace</span>
             </a>
             
             {% if user.is_authenticated %}

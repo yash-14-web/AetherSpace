@@ -1,11 +1,12 @@
+{% load static %}
 <!-- Desktop & Mobile Shell Navigation -->
 <div class="flex shrink-0">
     <!-- 1. Global Narrow Icon Rail (Obsidian Dark / Slate Light) -->
     <aside class="w-16 bg-white dark:bg-obsidian-950 border-r border-slate-border dark:border-obsidian-border flex flex-col items-center py-4 justify-between z-30 shrink-0">
         <div class="flex flex-col items-center space-y-5">
             <!-- App Logo Icon -->
-            <a href="{% url 'core:landing' %}" class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-white font-black text-sm shadow-md hover:scale-105 transition-transform" title="AetherSpace">
-                Æ
+            <a href="{% url 'core:landing' %}" class="w-10 h-10 rounded-xl flex items-center justify-center shadow-md hover:scale-110 transition-transform overflow-hidden group" title="AetherSpace">
+                <img src="{% static 'images/logo.png' %}" alt="AetherSpace Logo" class="w-full h-full object-contain drop-shadow-md">
             </a>
 
             <!-- Global Module Icons -->

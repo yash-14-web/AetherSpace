@@ -7,6 +7,10 @@
     <title>{% block title %}{{ APP_NAME }} — Agile Team Collaboration{% endblock %}</title>
     <meta name="description" content="AetherSpace is a high-performance team collaboration and agile workspace platform.">
     
+    <!-- Favicon & Brand Icons -->
+    <link rel="icon" type="image/png" href="{% static 'images/favicon.png' %}">
+    <link rel="apple-touch-icon" href="{% static 'images/logo.png' %}">
+    
     <!-- Script to prevent flash of unstyled theme (FOUC) -->
     <script>
         if (localStorage.getItem('color-theme') === 'dark' || (!('color-theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
