@@ -4,9 +4,12 @@ AetherSpace URL Configuration
 from django.contrib import admin
 from django.urls import path, include
 
+from django.views.generic import RedirectView
+
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('auth/', include('accounts.urls')),
+    path('accounts/<path:subpath>', RedirectView.as_view(url='/auth/%(subpath)s', permanent=False)),
     path('', include('core.urls')),
 ]
 

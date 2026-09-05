@@ -4,6 +4,12 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 
 
+class UserRole(models.TextChoices):
+    ADMIN = 'ADMIN', _('Admin')
+    MANAGER = 'MANAGER', _('Manager')
+    CONTRIBUTOR = 'CONTRIBUTOR', _('Contributor')
+
+
 class UserManager(BaseUserManager):
     """Custom user manager where email is the unique identifier for auth."""
 
@@ -12,6 +18,7 @@ class UserManager(BaseUserManager):
             raise ValueError(_('The Email must be set'))
         email = self.normalize_email(email)
         extra_fields.setdefault('username', email)
+        extra_fields.setdefault('role', UserRole.CONTRIBUTOR)
         user = self.model(email=email, **extra_fields)
         if password:
             user.set_password(password)
@@ -24,6 +31,8 @@ class UserManager(BaseUserManager):
         extra_fields.setdefault('is_staff', True)
         extra_fields.setdefault('is_superuser', True)
         extra_fields.setdefault('is_active', True)
+        extra_fields.setdefault('is_verified', True)
+        extra_fields.setdefault('role', UserRole.ADMIN)
 
         if extra_fields.get('is_staff') is not True:
             raise ValueError(_('Superuser must have is_staff=True.'))
@@ -42,6 +51,16 @@ class User(AbstractUser):
     email = models.EmailField(_('email address'), unique=True)
     full_name = models.CharField(max_length=255, blank=True)
     avatar = models.CharField(max_length=1024, blank=True, help_text="Supabase storage path or URL")
+    role = models.CharField(
+        max_length=20,
+        choices=UserRole.choices,
+        default=UserRole.CONTRIBUTOR,
+        help_text="System/Platform role"
+    )
+    is_verified = models.BooleanField(
+        default=False,
+        help_text="Designates whether this user has verified their email address."
+    )
     timezone = models.CharField(max_length=50, default='UTC')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -55,7 +74,20 @@ class User(AbstractUser):
         ordering = ['-created_at']
         indexes = [
             models.Index(fields=['email']),
+            models.Index(fields=['role']),
         ]
+
+    @property
+    def is_admin_role(self):
+        return self.role == UserRole.ADMIN or self.is_superuser
+
+    @property
+    def is_manager_role(self):
+        return self.role == UserRole.MANAGER
+
+    @property
+    def is_contributor_role(self):
+        return self.role == UserRole.CONTRIBUTOR
 
     def __str__(self):
         return self.full_name or self.email

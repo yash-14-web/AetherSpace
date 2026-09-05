@@ -1,84 +1,296 @@
 {% extends 'base.html' %}
 
-{% block title %}Create an Account — AetherSpace{% endblock %}
+{% block title %}Create Your Account — AetherSpace{% endblock %}
 
 {% block sidebar %}{% endblock %}
 
 {% block content %}
-<div class="min-h-[75vh] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-    <div class="max-w-md w-full space-y-8">
-        <div class="text-center space-y-2">
-            <div class="inline-flex w-12 h-12 rounded-2xl bg-aether-blue items-center justify-center text-white font-black text-xl shadow-lg shadow-blue-500/25">
-                Æ
+<div class="min-h-[85vh] flex flex-col items-center justify-center py-8 px-4 sm:px-6 lg:px-8">
+    <!-- Auth Main Card (Split Container on desktop) -->
+    <div class="max-w-4xl w-full aether-card overflow-hidden grid grid-cols-1 lg:grid-cols-12 shadow-2xl border border-slate-200 dark:border-zinc-800">
+        <!-- Left Side: Invitation / Team Showcase -->
+        <div class="hidden lg:flex lg:col-span-5 bg-gradient-to-br from-slate-900 via-slate-950 to-blue-950 text-white p-10 flex-col justify-between relative overflow-hidden border-r border-slate-800 dark:border-zinc-800/80">
+            <div class="absolute -top-24 -left-24 w-64 h-64 bg-aether-blue/20 rounded-full blur-3xl pointer-events-none"></div>
+
+            <div class="space-y-6 relative z-10">
+                <a href="{% url 'core:landing' %}" class="flex items-center space-x-2.5">
+                    <div class="w-8 h-8 rounded-lg bg-aether-blue flex items-center justify-center text-white font-black text-sm shadow-md">
+                        Æ
+                    </div>
+                    <span class="font-extrabold text-xl tracking-tight text-white">AetherSpace</span>
+                </a>
+
+                <!-- Invitation Graphic Card -->
+                <div class="pt-6 text-center space-y-4">
+                    <div class="w-20 h-20 mx-auto rounded-3xl bg-blue-500/10 border border-blue-400/30 flex items-center justify-center relative shadow-lg shadow-blue-500/10">
+                        <svg class="w-10 h-10 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                        </svg>
+                        <span class="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-emerald-500 border-2 border-slate-900 flex items-center justify-center text-white text-xs">
+                            ✓
+                        </span>
+                    </div>
+
+                    <div class="space-y-2">
+                        <h3 class="text-xl font-extrabold text-white">You've been invited!</h3>
+                        <p class="text-xs text-slate-300 leading-relaxed max-w-xs mx-auto">
+                            Accept the invitation and create your account to join your workspace and start collaborating.
+                        </p>
+                    </div>
+                </div>
             </div>
-            <h1 class="text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-50">
-                Join AetherSpace
-            </h1>
-            <p class="text-xs text-slate-500 dark:text-zinc-400">
-                Create your team account or accept an invitation.
-            </p>
+
+            <div class="relative z-10 pt-8 text-[11px] text-slate-400">
+                © 2026 AetherSpace. Fast, secure team workspace.
+            </div>
         </div>
 
-        <div class="aether-card p-8 shadow-xl">
-            <form method="POST" action="{% url 'accounts:register' %}" class="space-y-4">
-                {% csrf_token %}
-
-                {% if form.non_field_errors %}
-                    <div class="p-3 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 text-xs text-rose-700 dark:text-rose-300">
-                        {{ form.non_field_errors.0 }}
+        <!-- Right Side: Register Form -->
+        <div class="lg:col-span-7 p-6 sm:p-10 flex flex-col justify-center bg-white dark:bg-zinc-900"
+             x-data="{
+                 showPass: false,
+                 showConfirmPass: false,
+                 password: '',
+                 get strength() {
+                     if (!this.password) return 0;
+                     let score = 0;
+                     if (this.password.length >= 8) score += 1;
+                     if (/[A-Z]/.test(this.password)) score += 1;
+                     if (/[0-9]/.test(this.password)) score += 1;
+                     if (/[^A-Za-z0-9]/.test(this.password)) score += 1;
+                     return score;
+                 },
+                 get strengthLabel() {
+                     if (this.strength <= 1) return 'Weak';
+                     if (this.strength <= 3) return 'Medium';
+                     return 'Strong';
+                 },
+                 get strengthColor() {
+                     if (this.strength <= 1) return 'bg-rose-500';
+                     if (this.strength <= 3) return 'bg-amber-500';
+                     return 'bg-emerald-500';
+                 },
+                 get strengthWidth() {
+                     if (this.strength === 0) return '0%';
+                     if (this.strength === 1) return '25%';
+                     if (this.strength === 2) return '50%';
+                     if (this.strength === 3) return '75%';
+                     return '100%';
+                 }
+             }">
+            <div class="w-full max-w-md mx-auto space-y-5">
+                <!-- Mobile brand logo -->
+                <div class="lg:hidden flex items-center space-x-2 pb-1">
+                    <div class="w-8 h-8 rounded-lg bg-aether-blue flex items-center justify-center text-white font-black text-sm">
+                        Æ
                     </div>
-                {% endif %}
-
-                <div class="space-y-1.5">
-                    <label for="{{ form.full_name.id_for_label }}" class="block text-xs font-semibold text-slate-700 dark:text-zinc-300">
-                        {{ form.full_name.label }}
-                    </label>
-                    {{ form.full_name }}
-                    {% if form.full_name.errors %}
-                        <p class="text-[11px] text-rose-500">{{ form.full_name.errors.0 }}</p>
-                    {% endif %}
+                    <span class="font-extrabold text-lg tracking-tight text-slate-900 dark:text-zinc-50">AetherSpace</span>
                 </div>
 
-                <div class="space-y-1.5">
-                    <label for="{{ form.email.id_for_label }}" class="block text-xs font-semibold text-slate-700 dark:text-zinc-300">
-                        {{ form.email.label }}
-                    </label>
-                    {{ form.email }}
-                    {% if form.email.errors %}
-                        <p class="text-[11px] text-rose-500">{{ form.email.errors.0 }}</p>
-                    {% endif %}
+                <div class="space-y-1">
+                    <h1 class="text-2xl font-black tracking-tight text-slate-900 dark:text-zinc-50">
+                        Create your account
+                    </h1>
+                    <p class="text-xs text-slate-500 dark:text-zinc-400">
+                        Join your team and start collaborating in seconds.
+                    </p>
                 </div>
 
-                <div class="space-y-1.5">
-                    <label for="{{ form.password.id_for_label }}" class="block text-xs font-semibold text-slate-700 dark:text-zinc-300">
-                        {{ form.password.label }}
-                    </label>
-                    {{ form.password }}
-                    {% if form.password.errors %}
-                        <p class="text-[11px] text-rose-500">{{ form.password.errors.0 }}</p>
+                <form method="post" action="{% url 'accounts:register' %}" class="space-y-4">
+                    {% csrf_token %}
+
+                    {% if form.non_field_errors %}
+                        <div class="p-3 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 text-rose-700 dark:text-rose-300 text-xs flex items-start space-x-2">
+                            <svg class="w-4 h-4 text-rose-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                            <div>
+                                {% for error in form.non_field_errors %}
+                                    <p>{{ error }}</p>
+                                {% endfor %}
+                            </div>
+                        </div>
                     {% endif %}
-                </div>
 
-                <div class="space-y-1.5">
-                    <label for="{{ form.confirm_password.id_for_label }}" class="block text-xs font-semibold text-slate-700 dark:text-zinc-300">
-                        {{ form.confirm_password.label }}
-                    </label>
-                    {{ form.confirm_password }}
-                    {% if form.confirm_password.errors %}
-                        <p class="text-[11px] text-rose-500">{{ form.confirm_password.errors.0 }}</p>
+                    <!-- Full Name -->
+                    <div class="space-y-1">
+                        <label for="register-fullname" class="block text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                            Full name
+                        </label>
+                        <input type="text" name="full_name" id="register-fullname" required autocomplete="name"
+                               placeholder="Yaswanth M"
+                               value="{{ form.full_name.value|default:'' }}"
+                               class="w-full px-3.5 py-2 text-sm rounded-lg border transition-colors focus:outline-none focus:ring-2 focus:ring-aether-blue border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-800/50 text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500">
+                        {% if form.full_name.errors %}
+                            <p class="text-[11px] text-rose-600 dark:text-rose-400 font-medium">{{ form.full_name.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Email Field -->
+                    <div class="space-y-1">
+                        <label for="register-email" class="block text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                            Email address
+                        </label>
+                        <input type="email" name="email" id="register-email" required autocomplete="email"
+                               placeholder="yaswanth@example.com"
+                               value="{{ form.email.value|default:'' }}"
+                               class="w-full px-3.5 py-2 text-sm rounded-lg border transition-colors focus:outline-none focus:ring-2 focus:ring-aether-blue border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-800/50 text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500">
+                        {% if form.email.errors %}
+                            <p class="text-[11px] text-rose-600 dark:text-rose-400 font-medium">{{ form.email.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Password with Toggle and Strength Meter -->
+                    <div class="space-y-1">
+                        <label for="register-password" class="block text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                            Password
+                        </label>
+                        <div class="relative">
+                            <input :type="showPass ? 'text' : 'password'" name="password" id="register-password" required autocomplete="new-password"
+                                   placeholder="Minimum 8 characters"
+                                   x-model="password"
+                                   class="w-full pl-3.5 pr-10 py-2 text-sm rounded-lg border transition-colors focus:outline-none focus:ring-2 focus:ring-aether-blue border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-800/50 text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500">
+                            <button type="button" @click="showPass = !showPass"
+                                    class="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 dark:text-zinc-500 dark:hover:text-zinc-300 focus:outline-none">
+                                <template x-if="!showPass">
+                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                    </svg>
+                                </template>
+                                <template x-if="showPass">
+                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18"/>
+                                    </svg>
+                                </template>
+                            </button>
+                        </div>
+                        <!-- Real-time Password Strength Meter Bar -->
+                        <div class="pt-1 space-y-1" x-show="password.length > 0">
+                            <div class="flex justify-between text-[10px]">
+                                <span class="text-slate-400">Strength:</span>
+                                <span class="font-bold" :class="{ 'text-rose-500': strength <= 1, 'text-amber-500': strength > 1 && strength <= 3, 'text-emerald-500': strength > 3 }" x-text="strengthLabel"></span>
+                            </div>
+                            <div class="w-full h-1 rounded-full bg-slate-200 dark:bg-zinc-800 overflow-hidden">
+                                <div class="h-full transition-all duration-300 rounded-full" :class="strengthColor" :style="{ width: strengthWidth }"></div>
+                            </div>
+                        </div>
+                        {% if form.password.errors %}
+                            <p class="text-[11px] text-rose-600 dark:text-rose-400 font-medium">{{ form.password.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Confirm Password -->
+                    <div class="space-y-1">
+                        <label for="register-confirm-password" class="block text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                            Confirm password
+                        </label>
+                        <div class="relative">
+                            <input :type="showConfirmPass ? 'text' : 'password'" name="confirm_password" id="register-confirm-password" required autocomplete="new-password"
+                                   placeholder="••••••••••••"
+                                   class="w-full pl-3.5 pr-10 py-2 text-sm rounded-lg border transition-colors focus:outline-none focus:ring-2 focus:ring-aether-blue border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-800/50 text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500">
+                            <button type="button" @click="showConfirmPass = !showConfirmPass"
+                                    class="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 dark:text-zinc-500 dark:hover:text-zinc-300 focus:outline-none">
+                                <template x-if="!showConfirmPass">
+                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                    </svg>
+                                </template>
+                                <template x-if="showConfirmPass">
+                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18"/>
+                                    </svg>
+                                </template>
+                            </button>
+                        </div>
+                        {% if form.confirm_password.errors %}
+                            <p class="text-[11px] text-rose-600 dark:text-rose-400 font-medium">{{ form.confirm_password.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Terms Agreement Checkbox -->
+                    <div class="flex items-start space-x-2 pt-1">
+                        <input type="checkbox" name="agree_terms" id="agree-terms" required
+                               class="h-4 w-4 mt-0.5 rounded border-slate-300 dark:border-zinc-700 text-aether-blue focus:ring-aether-blue dark:bg-zinc-800">
+                        <label for="agree-terms" class="text-xs text-slate-600 dark:text-zinc-400 leading-snug cursor-pointer select-none">
+                            I agree to the <a href="#" class="text-aether-blue hover:underline">Terms of Service</a> and <a href="#" class="text-aether-blue hover:underline">Privacy Policy</a>
+                        </label>
+                    </div>
+                    {% if form.agree_terms.errors %}
+                        <p class="text-[11px] text-rose-600 dark:text-rose-400 font-medium">{{ form.agree_terms.errors.0 }}</p>
                     {% endif %}
+
+                    <!-- Submit Button -->
+                    <button type="submit"
+                            class="w-full aether-button-primary py-2.5 text-sm font-semibold shadow-lg shadow-blue-500/20 flex items-center justify-center space-x-2">
+                        <span>Create Account</span>
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+                        </svg>
+                    </button>
+                </form>
+
+                <!-- Footer Navigation -->
+                <div class="text-center pt-2">
+                    <p class="text-xs text-slate-600 dark:text-zinc-400">
+                        Already have an account?
+                        <a href="{% url 'accounts:login' %}" class="font-semibold text-aether-blue hover:underline">
+                            Sign In
+                        </a>
+                    </p>
                 </div>
+            </div>
+        </div>
+    </div>
 
-                <button type="submit" class="aether-button-primary w-full py-2.5 text-sm font-semibold shadow-md mt-2">
-                    Create Account & Continue
-                </button>
-            </form>
+    <!-- Enterprise Security & Trust Badges -->
+    <div class="max-w-4xl w-full mt-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-slate-600 dark:text-zinc-400">
+        <div class="flex items-start space-x-3 p-3.5 rounded-xl bg-slate-100/50 dark:bg-zinc-900/50 border border-slate-200/60 dark:border-zinc-800/60">
+            <div class="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-aether-blue flex items-center justify-center shrink-0">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                </svg>
+            </div>
+            <div>
+                <h4 class="text-xs font-bold text-slate-900 dark:text-zinc-100">Secure. Private.</h4>
+                <p class="text-[11px] text-slate-500 dark:text-zinc-400">Enterprise security safeguards.</p>
+            </div>
+        </div>
 
-            <div class="mt-6 pt-5 border-t border-slate-100 dark:border-zinc-800 text-center text-xs text-slate-500 dark:text-zinc-400">
-                Already have an account?
-                <a href="{% url 'accounts:login' %}" class="font-semibold text-aether-blue hover:underline">
-                    Sign in instead
-                </a>
+        <div class="flex items-start space-x-3 p-3.5 rounded-xl bg-slate-100/50 dark:bg-zinc-900/50 border border-slate-200/60 dark:border-zinc-800/60">
+            <div class="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-500 flex items-center justify-center shrink-0">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                </svg>
+            </div>
+            <div>
+                <h4 class="text-xs font-bold text-slate-900 dark:text-zinc-100">End-to-End Encryption</h4>
+                <p class="text-[11px] text-slate-500 dark:text-zinc-400">Encrypted in transit and at rest.</p>
+            </div>
+        </div>
+
+        <div class="flex items-start space-x-3 p-3.5 rounded-xl bg-slate-100/50 dark:bg-zinc-900/50 border border-slate-200/60 dark:border-zinc-800/60">
+            <div class="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-500 flex items-center justify-center shrink-0">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+                </svg>
+            </div>
+            <div>
+                <h4 class="text-xs font-bold text-slate-900 dark:text-zinc-100">Role-Based Access</h4>
+                <p class="text-[11px] text-slate-500 dark:text-zinc-400">Granular workspace controls.</p>
+            </div>
+        </div>
+
+        <div class="flex items-start space-x-3 p-3.5 rounded-xl bg-slate-100/50 dark:bg-zinc-900/50 border border-slate-200/60 dark:border-zinc-800/60">
+            <div class="w-8 h-8 rounded-lg bg-rose-50 dark:bg-rose-950/60 text-rose-500 flex items-center justify-center shrink-0">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/>
+                </svg>
+            </div>
+            <div>
+                <h4 class="text-xs font-bold text-slate-900 dark:text-zinc-100">Trusted by Teams</h4>
+                <p class="text-[11px] text-slate-500 dark:text-zinc-400">High-performance agile teams.</p>
             </div>
         </div>
     </div>
