@@ -4,125 +4,508 @@
 {% block title %}AetherSpace — Lightweight Team Collaboration & Agile Workspace{% endblock %}
 
 {% block sidebar %}
-    <!-- Landing page has no sidebar -->
+    <!-- Landing page uses full-width container without sidebar -->
 {% endblock %}
 
 {% block content %}
-<div class="max-w-6xl mx-auto space-y-16 py-8">
-    <!-- Hero Section -->
-    <div class="text-center space-y-6 pt-6 pb-4">
-        <!-- Official Logo Emblem -->
-        <div class="flex justify-center pb-1">
-            <div class="relative group">
-                <div class="absolute -inset-4 bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-400 rounded-3xl blur-2xl opacity-25 group-hover:opacity-50 transition duration-500"></div>
-                <img src="{% static 'images/logo.png' %}" alt="AetherSpace Emblem" class="relative w-24 h-24 sm:w-28 sm:h-28 object-contain drop-shadow-2xl transform hover:scale-105 transition-transform duration-300">
+<div class="max-w-7xl mx-auto space-y-24 py-6 sm:py-10 px-4 sm:px-6 lg:px-8">
+    
+    <!-- 1. HERO SECTION (2-Column Desktop Grid) -->
+    <section class="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center pt-4 sm:pt-8">
+        <!-- Left Hero Column: Headline, Copy, CTAs, Trust Items -->
+        <div class="lg:col-span-6 space-y-8 text-left">
+            <div class="space-y-4">
+                <h1 class="text-4xl sm:text-6xl font-black tracking-tight text-slate-900 dark:text-zinc-50 leading-[1.1]">
+                    Your Team.<br>
+                    Your Workspace.<br>
+                    One <span class="bg-gradient-to-r from-blue-600 via-indigo-500 to-cyan-400 bg-clip-text text-transparent">AetherSpace.</span>
+                </h1>
+                <p class="text-base sm:text-lg text-slate-600 dark:text-zinc-400 max-w-xl font-normal leading-relaxed">
+                    A modern collaboration and agile workspace to manage tasks, bugs, meetings, chats and files — built for focused teams of 5–15 members.
+                </p>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 pt-2">
+                {% if user.is_authenticated %}
+                    <a href="{% url 'accounts:logout' %}" class="aether-button-secondary px-6 py-3 text-sm font-semibold text-center">
+                        Sign Out
+                    </a>
+                {% else %}
+                    <a href="{% url 'accounts:register' %}" class="aether-button-primary px-7 py-3 text-sm font-semibold shadow-xl shadow-blue-500/25 flex items-center justify-center space-x-2">
+                        <span>Get Started Free</span>
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+                        </svg>
+                    </a>
+                    <a href="#features" class="aether-button-secondary px-6 py-3 text-sm font-semibold flex items-center justify-center space-x-2">
+                        <span>Explore AetherSpace</span>
+                        <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+                            <polygon points="5 3 19 12 5 21 5 3"/>
+                        </svg>
+                    </a>
+                {% endif %}
+            </div>
+
+            <!-- 3 Trust Metrics (Row from Mockup) -->
+            <div class="pt-4 grid grid-cols-1 sm:grid-cols-3 gap-4 border-t border-slate-200/80 dark:border-zinc-800">
+                <div class="flex items-start space-x-2.5">
+                    <div class="w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-aether-blue flex items-center justify-center shrink-0 mt-0.5">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h4 class="text-xs font-bold text-slate-900 dark:text-zinc-100">Secure by design</h4>
+                        <p class="text-[11px] text-slate-500 dark:text-zinc-400">Enterprise grade security</p>
+                    </div>
+                </div>
+
+                <div class="flex items-start space-x-2.5">
+                    <div class="w-7 h-7 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-500 flex items-center justify-center shrink-0 mt-0.5">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h4 class="text-xs font-bold text-slate-900 dark:text-zinc-100">Built for small teams</h4>
+                        <p class="text-[11px] text-slate-500 dark:text-zinc-400">Perfect for 5–15 members</p>
+                    </div>
+                </div>
+
+                <div class="flex items-start space-x-2.5">
+                    <div class="w-7 h-7 rounded-lg bg-cyan-50 dark:bg-cyan-950/60 text-cyan-500 flex items-center justify-center shrink-0 mt-0.5">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h4 class="text-xs font-bold text-slate-900 dark:text-zinc-100">Fast & intuitive</h4>
+                        <p class="text-[11px] text-slate-500 dark:text-zinc-400">Get started in minutes</p>
+                    </div>
+                </div>
             </div>
         </div>
 
-        <div class="inline-flex items-center space-x-2 px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 dark:bg-blue-950/50 text-aether-blue border border-blue-200 dark:border-blue-900/50">
-            <span class="w-2 h-2 rounded-full bg-aether-blue animate-pulse"></span>
-            <span>AetherSpace Phase 2 — Authentication & Foundation Deployed</span>
+        <!-- Right Hero Column: High-Fidelity Workspace Dashboard Preview Widget (From Mockup) -->
+        <div class="lg:col-span-6 relative">
+            <!-- Glowing Blue Ambient Halo -->
+            <div class="absolute -inset-2 rounded-3xl bg-gradient-to-tr from-blue-600/30 via-indigo-600/20 to-cyan-400/30 blur-2xl opacity-75"></div>
+
+            <div class="relative rounded-2xl border border-blue-500/30 dark:border-blue-500/20 bg-slate-900 text-white shadow-2xl overflow-hidden text-xs">
+                <!-- Browser-like Top Bar -->
+                <div class="bg-slate-950/90 px-4 py-2.5 border-b border-slate-800 flex items-center justify-between">
+                    <div class="flex items-center space-x-2">
+                        <img src="{% static 'images/logo.png' %}" alt="AetherSpace" class="w-5 h-5 object-contain">
+                        <span class="font-bold text-xs text-white">AetherSpace</span>
+                    </div>
+
+                    <!-- Search Input Widget -->
+                    <div class="hidden sm:flex items-center w-64 bg-slate-900 border border-slate-800 rounded-md px-2.5 py-1 text-[11px] text-slate-400">
+                        <svg class="w-3.5 h-3.5 mr-1.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                        </svg>
+                        <span>Search tasks, bugs, people...</span>
+                        <kbd class="ml-auto font-mono text-[9px] px-1 bg-slate-800 rounded text-slate-400">⌘K</kbd>
+                    </div>
+
+                    <div class="flex items-center space-x-2">
+                        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                        <span class="text-[10px] text-slate-300 font-medium">Live</span>
+                    </div>
+                </div>
+
+                <!-- Dashboard Preview Body -->
+                <div class="grid grid-cols-12 bg-slate-950/60 p-4 gap-4">
+                    <!-- Mini Sidebar Rail -->
+                    <div class="col-span-4 border-r border-slate-800/80 pr-3 space-y-3 hidden sm:block">
+                        <div class="space-y-1">
+                            <span class="text-[9px] uppercase tracking-wider text-slate-400 font-bold">Workspaces</span>
+                            <div class="p-1.5 rounded-lg bg-blue-600/20 text-blue-400 border border-blue-500/30 flex items-center space-x-1.5 font-bold text-[11px]">
+                                <span class="w-4 h-4 rounded bg-aether-blue text-white flex items-center justify-center text-[9px]">SC</span>
+                                <span class="truncate">Smart Classroom</span>
+                            </div>
+                            <div class="p-1.5 text-slate-400 flex items-center space-x-1.5 text-[11px]">
+                                <span class="w-4 h-4 rounded bg-slate-800 text-slate-300 flex items-center justify-center text-[9px]">FL</span>
+                                <span class="truncate">Flora</span>
+                            </div>
+                        </div>
+
+                        <div class="space-y-1 text-[11px] pt-1">
+                            <span class="text-[9px] uppercase tracking-wider text-slate-400 font-bold">Navigation</span>
+                            <div class="px-2 py-1 rounded bg-slate-900 text-white font-medium">Dashboard</div>
+                            <div class="px-2 py-1 text-slate-400">Tasks (#619347)</div>
+                            <div class="px-2 py-1 text-slate-400">Bug Reports</div>
+                            <div class="px-2 py-1 text-slate-400">Team Chat</div>
+                        </div>
+                    </div>
+
+                    <!-- Mini Dashboard Main View -->
+                    <div class="col-span-12 sm:col-span-8 space-y-3">
+                        <!-- Welcome Header -->
+                        <div class="flex items-center justify-between pb-1 border-b border-slate-800/60">
+                            <div>
+                                <h3 class="font-bold text-xs text-white">Welcome back, Yaswanth 👋</h3>
+                                <p class="text-[10px] text-slate-400">Here's what's happening today.</p>
+                            </div>
+                            <span class="text-[9px] px-2 py-0.5 rounded bg-slate-800 text-slate-300 font-medium">This Week ▾</span>
+                        </div>
+
+                        <!-- 4 Mini Metric Cards -->
+                        <div class="grid grid-cols-4 gap-2">
+                            <div class="p-2 rounded-lg bg-slate-900 border border-slate-800 text-center space-y-0.5">
+                                <span class="text-[9px] text-slate-400 block">Tasks</span>
+                                <span class="text-sm font-extrabold text-white">128</span>
+                                <span class="text-[8px] text-emerald-400 font-medium block">↑ 12%</span>
+                            </div>
+                            <div class="p-2 rounded-lg bg-slate-900 border border-slate-800 text-center space-y-0.5">
+                                <span class="text-[9px] text-slate-400 block">Bugs</span>
+                                <span class="text-sm font-extrabold text-white">23</span>
+                                <span class="text-[8px] text-rose-400 font-medium block">↑ 8%</span>
+                            </div>
+                            <div class="p-2 rounded-lg bg-slate-900 border border-slate-800 text-center space-y-0.5">
+                                <span class="text-[9px] text-slate-400 block">Meetings</span>
+                                <span class="text-sm font-extrabold text-white">8</span>
+                                <span class="text-[8px] text-indigo-400 font-medium block">↑ 5%</span>
+                            </div>
+                            <div class="p-2 rounded-lg bg-slate-900 border border-slate-800 text-center space-y-0.5">
+                                <span class="text-[9px] text-slate-400 block">Members</span>
+                                <span class="text-sm font-extrabold text-white">12</span>
+                                <span class="text-[8px] text-cyan-400 font-medium block">↑ 2</span>
+                            </div>
+                        </div>
+
+                        <!-- Mini Task & Activity Split -->
+                        <div class="grid grid-cols-2 gap-2 text-[10px] pt-1">
+                            <div class="p-2.5 rounded-lg bg-slate-900 border border-slate-800 space-y-1.5">
+                                <div class="flex justify-between font-bold text-slate-200">
+                                    <span>My Tasks</span>
+                                    <span class="text-aether-blue">View all</span>
+                                </div>
+                                <div class="space-y-1">
+                                    <div class="flex items-center justify-between">
+                                        <span class="truncate text-slate-300">Design landing page</span>
+                                        <span class="px-1 py-0.2 rounded bg-rose-500/20 text-rose-400 text-[8px] font-bold">High</span>
+                                    </div>
+                                    <div class="flex items-center justify-between">
+                                        <span class="truncate text-slate-300">Fix login issue</span>
+                                        <span class="px-1 py-0.2 rounded bg-amber-500/20 text-amber-400 text-[8px] font-bold">Medium</span>
+                                    </div>
+                                    <div class="flex items-center justify-between">
+                                        <span class="truncate text-slate-300">API integration</span>
+                                        <span class="px-1 py-0.2 rounded bg-blue-500/20 text-blue-400 text-[8px] font-bold">Low</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="p-2.5 rounded-lg bg-slate-900 border border-slate-800 space-y-1.5">
+                                <div class="flex justify-between font-bold text-slate-200">
+                                    <span>Recent Activity</span>
+                                    <span class="text-aether-blue">View all</span>
+                                </div>
+                                <div class="space-y-1 text-slate-400">
+                                    <div class="truncate">Yaswanth created <span class="text-blue-400">#619347</span></div>
+                                    <div class="truncate"><span class="text-rose-400">B-882316</span> assigned</div>
+                                    <div class="truncate">Standup meeting scheduled</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 2. ALL-IN-ONE WORKSPACE SECTION (6 Feature Cards) -->
+    <section id="features" class="space-y-10 text-center pt-8">
+        <div class="space-y-3 max-w-3xl mx-auto">
+            <div class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 dark:bg-blue-950/60 text-aether-blue border border-blue-200 dark:border-blue-900/50 uppercase tracking-wider">
+                All-in-One Workspace
+            </div>
+            <h2 class="text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900 dark:text-zinc-50">
+                Everything your team needs in one <span class="bg-gradient-to-r from-blue-600 via-indigo-500 to-cyan-400 bg-clip-text text-transparent">intelligent workspace</span>.
+            </h2>
         </div>
 
-        <h1 class="text-4xl sm:text-6xl font-extrabold tracking-tight text-slate-900 dark:text-zinc-50 max-w-3xl mx-auto leading-tight">
-            Lightweight agile workspace for <span class="bg-gradient-to-r from-blue-600 via-indigo-500 to-cyan-400 bg-clip-text text-transparent">high-performance teams</span>.
-        </h1>
+        <!-- 6 Feature Cards (3x2 Grid) -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 text-left">
+            <!-- 1. Task Management -->
+            <div class="aether-card p-6 space-y-3 hover:border-blue-500/50 hover:shadow-lg transition-all group">
+                <div class="w-11 h-11 rounded-xl bg-blue-500/10 text-aether-blue flex items-center justify-center group-hover:scale-105 transition-transform">
+                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+                    </svg>
+                </div>
+                <h3 class="text-base font-bold text-slate-900 dark:text-zinc-100">Task Management</h3>
+                <p class="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed font-normal">
+                    Plan, track and deliver projects with clarity and speed using 6-digit numeric task identifiers and Kanban boards.
+                </p>
+            </div>
 
-        <p class="text-base sm:text-lg text-slate-600 dark:text-zinc-400 max-w-2xl mx-auto font-normal">
-            The all-in-one platform unifying task workflows, bug tracking, communication, meeting rooms, files, and workspace governance for agile teams.
-        </p>
+            <!-- 2. Bug Tracking -->
+            <div class="aether-card p-6 space-y-3 hover:border-rose-500/50 hover:shadow-lg transition-all group">
+                <div class="w-11 h-11 rounded-xl bg-rose-500/10 text-rose-500 flex items-center justify-center group-hover:scale-105 transition-transform">
+                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                    </svg>
+                </div>
+                <h3 class="text-base font-bold text-slate-900 dark:text-zinc-100">Bug Tracking</h3>
+                <p class="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed font-normal">
+                    Report, prioritize and resolve bugs efficiently with standardized B-###### keys and severity metrics.
+                </p>
+            </div>
 
-        <div class="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2">
-            {% if user.is_authenticated %}
-                <a href="{% url 'accounts:logout' %}" class="aether-button-secondary w-full sm:w-auto px-6 py-2.5">
-                    Sign Out
+            <!-- 3. Team Chat -->
+            <div class="aether-card p-6 space-y-3 hover:border-emerald-500/50 hover:shadow-lg transition-all group">
+                <div class="w-11 h-11 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center group-hover:scale-105 transition-transform">
+                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+                    </svg>
+                </div>
+                <h3 class="text-base font-bold text-slate-900 dark:text-zinc-100">Team Chat</h3>
+                <p class="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed font-normal">
+                    Real-time conversations with project channels, direct messages, and contextual asset mentions.
+                </p>
+            </div>
+
+            <!-- 4. Meet Hub -->
+            <div class="aether-card p-6 space-y-3 hover:border-indigo-500/50 hover:shadow-lg transition-all group">
+                <div class="w-11 h-11 rounded-xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center group-hover:scale-105 transition-transform">
+                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                    </svg>
+                </div>
+                <h3 class="text-base font-bold text-slate-900 dark:text-zinc-100">Meet Hub</h3>
+                <p class="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed font-normal">
+                    Start instant meetings or schedule them with one click using integrated WebRTC rooms.
+                </p>
+            </div>
+
+            <!-- 5. Calendar & Agenda -->
+            <div class="aether-card p-6 space-y-3 hover:border-amber-500/50 hover:shadow-lg transition-all group">
+                <div class="w-11 h-11 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center group-hover:scale-105 transition-transform">
+                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                    </svg>
+                </div>
+                <h3 class="text-base font-bold text-slate-900 dark:text-zinc-100">Calendar & Agenda</h3>
+                <p class="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed font-normal">
+                    Stay on top of deadlines, standups, sprint cycles and delivery milestones in unified agendas.
+                </p>
+            </div>
+
+            <!-- 6. Files & Sharing -->
+            <div class="aether-card p-6 space-y-3 hover:border-cyan-500/50 hover:shadow-lg transition-all group">
+                <div class="w-11 h-11 rounded-xl bg-cyan-500/10 text-cyan-500 flex items-center justify-center group-hover:scale-105 transition-transform">
+                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
+                    </svg>
+                </div>
+                <h3 class="text-base font-bold text-slate-900 dark:text-zinc-100">Files & Sharing</h3>
+                <p class="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed font-normal">
+                    Store, organize and share files securely with your team powered by Supabase Storage.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- 3. WHY TEAMS LOVE AETHERSPACE SECTION (4 Value Pillars) -->
+    <section id="solutions" class="space-y-10 text-center pt-8">
+        <div class="space-y-3 max-w-3xl mx-auto">
+            <div class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-500 border border-indigo-200 dark:border-indigo-900/50 uppercase tracking-wider">
+                Why Teams Love AetherSpace
+            </div>
+            <h2 class="text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900 dark:text-zinc-50">
+                Built for teams that <span class="bg-gradient-to-r from-blue-600 to-cyan-500 bg-clip-text text-transparent">move fast</span>.
+            </h2>
+            <p class="text-xs sm:text-sm text-slate-600 dark:text-zinc-400 max-w-xl mx-auto leading-relaxed">
+                AetherSpace brings together the right tools in a clean, minimal and distraction-free workspace so your team can focus on what matters.
+            </p>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 text-center">
+            <!-- Pillar 1 -->
+            <div class="aether-card p-6 space-y-3 hover:border-blue-500/40 transition-colors">
+                <div class="w-12 h-12 mx-auto rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-aether-blue flex items-center justify-center">
+                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+                    </svg>
+                </div>
+                <h4 class="text-sm font-bold text-slate-900 dark:text-zinc-100">Collaborate Seamlessly</h4>
+                <p class="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed font-normal">
+                    Chat, meet and share in real-time without switching between disconnected apps.
+                </p>
+            </div>
+
+            <!-- Pillar 2 -->
+            <div class="aether-card p-6 space-y-3 hover:border-indigo-500/40 transition-colors">
+                <div class="w-12 h-12 mx-auto rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-500 flex items-center justify-center">
+                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <circle cx="12" cy="12" r="9" stroke-width="2"/>
+                        <circle cx="12" cy="12" r="5" stroke-width="2"/>
+                        <circle cx="12" cy="12" r="1" stroke-width="2"/>
+                    </svg>
+                </div>
+                <h4 class="text-sm font-bold text-slate-900 dark:text-zinc-100">Stay Organized</h4>
+                <p class="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed font-normal">
+                    Tasks, bugs, files and schedules — everything structured cleanly in one place.
+                </p>
+            </div>
+
+            <!-- Pillar 3 -->
+            <div class="aether-card p-6 space-y-3 hover:border-emerald-500/40 transition-colors">
+                <div class="w-12 h-12 mx-auto rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-500 flex items-center justify-center">
+                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                    </svg>
+                </div>
+                <h4 class="text-sm font-bold text-slate-900 dark:text-zinc-100">Secure & Private</h4>
+                <p class="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed font-normal">
+                    Your data is protected with enterprise-grade encryption and Supabase isolation.
+                </p>
+            </div>
+
+            <!-- Pillar 4 -->
+            <div class="aether-card p-6 space-y-3 hover:border-cyan-500/40 transition-colors">
+                <div class="w-12 h-12 mx-auto rounded-2xl bg-cyan-50 dark:bg-cyan-950/60 text-cyan-500 flex items-center justify-center">
+                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/>
+                    </svg>
+                </div>
+                <h4 class="text-sm font-bold text-slate-900 dark:text-zinc-100">Simple & Intuitive</h4>
+                <p class="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed font-normal">
+                    A clean, modern interface that your team will genuinely love to use every day.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- 4. CALL TO ACTION BANNER (From Mockup) -->
+    <section class="relative rounded-2xl border border-blue-500/40 dark:border-blue-500/30 bg-gradient-to-r from-slate-900 via-slate-950 to-blue-950 text-white p-8 sm:p-10 shadow-2xl overflow-hidden">
+        <div class="absolute -right-16 -bottom-16 w-64 h-64 bg-aether-blue/20 rounded-full blur-3xl pointer-events-none"></div>
+
+        <div class="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
+            <div class="flex items-center space-x-4">
+                <div class="w-14 h-14 rounded-2xl bg-blue-500/10 border border-blue-400/30 flex items-center justify-center shrink-0 shadow-lg shadow-blue-500/20">
+                    <img src="{% static 'images/logo.png' %}" alt="AetherSpace Emblem" class="w-9 h-9 object-contain drop-shadow-md">
+                </div>
+                <div class="space-y-1">
+                    <h3 class="text-xl sm:text-2xl font-black tracking-tight text-white">
+                        Ready to create your workspace?
+                    </h3>
+                    <p class="text-xs sm:text-sm text-slate-300 font-normal">
+                        Join AetherSpace today and bring your team together.
+                    </p>
+                </div>
+            </div>
+
+            <div class="flex items-center space-x-3 w-full md:w-auto">
+                <a href="{% url 'accounts:register' %}" class="aether-button-primary w-full md:w-auto px-6 py-2.5 text-xs font-semibold shadow-lg shadow-blue-500/25 flex items-center justify-center space-x-2">
+                    <span>Create Workspace</span>
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+                    </svg>
                 </a>
-            {% else %}
-                <a href="{% url 'accounts:register' %}" class="aether-button-primary w-full sm:w-auto px-6 py-2.5 text-sm font-semibold shadow-lg shadow-blue-500/20">
-                    Get Started Free →
-                </a>
-                <a href="{% url 'accounts:login' %}" class="aether-button-secondary w-full sm:w-auto px-6 py-2.5 text-sm font-semibold">
+                <a href="{% url 'accounts:login' %}" class="aether-button-secondary w-full md:w-auto px-5 py-2.5 text-xs font-semibold text-center border-slate-700 bg-slate-900/80 text-slate-200 hover:bg-slate-800">
                     Sign In
                 </a>
-            {% endif %}
+            </div>
         </div>
-    </div>
+    </section>
 
-    <!-- Feature Pillars (Tasks, Bugs, Collaboration, Meet Hub) -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-        <!-- Tasks -->
-        <div class="aether-card p-6 space-y-3 hover:border-blue-500/50 transition-all">
-            <div class="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/60 flex items-center justify-center text-aether-blue">
-                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
-                </svg>
+    <!-- 5. COMPREHENSIVE FOOTER (From Mockup) -->
+    <footer id="about" class="pt-12 border-t border-slate-200 dark:border-zinc-800 text-slate-600 dark:text-zinc-400 space-y-12">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-8">
+            <!-- Col 1: Brand & Social (4 cols) -->
+            <div class="lg:col-span-4 space-y-4">
+                <a href="{% url 'core:landing' %}" class="flex items-center space-x-2.5 group">
+                    <img src="{% static 'images/logo.png' %}" alt="AetherSpace Logo" class="w-8 h-8 object-contain drop-shadow-md">
+                    <span class="font-extrabold text-xl tracking-tight text-slate-900 dark:text-zinc-50">AetherSpace</span>
+                </a>
+                <p class="text-xs text-slate-500 dark:text-zinc-400 max-w-sm leading-relaxed font-normal">
+                    A modern collaboration and agile workspace for focused teams of 5–15 members.
+                </p>
+                <div class="flex items-center space-x-3 pt-1 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200">
+                    <!-- Twitter/X -->
+                    <a href="#" class="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors" title="Twitter/X">
+                        <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                            <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                        </svg>
+                    </a>
+                    <!-- LinkedIn -->
+                    <a href="#" class="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors" title="LinkedIn">
+                        <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                            <path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.28 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.75M6.46 8.76c.97 0 1.75-.79 1.75-1.76s-.78-1.75-1.75-1.75a1.75 1.75 0 0 0-1.75 1.75c0 .97.78 1.76 1.75 1.76m1.39 9.74v-8.37H5.07v8.37h2.78z"/>
+                        </svg>
+                    </a>
+                    <!-- GitHub -->
+                    <a href="https://github.com/yash-14-web/AetherSpace" target="_blank" rel="noopener noreferrer" class="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors" title="GitHub">
+                        <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                            <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
+                        </svg>
+                    </a>
+                </div>
             </div>
-            <h2 class="text-base font-bold text-slate-900 dark:text-zinc-100">Agile Tasks</h2>
-            <p class="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed">
-                6-digit numeric task codes (e.g. 619347), Kanban workflows, sprint progress, and activity logs.
-            </p>
+
+            <!-- Col 2: Product (2 cols) -->
+            <div id="pricing" class="lg:col-span-2 space-y-3 text-xs">
+                <h4 class="font-bold text-slate-900 dark:text-zinc-100">Product</h4>
+                <ul class="space-y-2 text-slate-500 dark:text-zinc-400">
+                    <li><a href="#features" class="hover:text-aether-blue transition-colors">Features</a></li>
+                    <li><a href="#pricing" class="hover:text-aether-blue transition-colors">Pricing</a></li>
+                    <li><a href="#" class="hover:text-aether-blue transition-colors">Changelog</a></li>
+                    <li><a href="#" class="hover:text-aether-blue transition-colors">Roadmap</a></li>
+                </ul>
+            </div>
+
+            <!-- Col 3: Resources (2 cols) -->
+            <div id="resources" class="lg:col-span-2 space-y-3 text-xs">
+                <h4 class="font-bold text-slate-900 dark:text-zinc-100">Resources</h4>
+                <ul class="space-y-2 text-slate-500 dark:text-zinc-400">
+                    <li><a href="#" class="hover:text-aether-blue transition-colors">Documentation</a></li>
+                    <li><a href="#" class="hover:text-aether-blue transition-colors">Guides</a></li>
+                    <li><a href="#" class="hover:text-aether-blue transition-colors">Help Center</a></li>
+                    <li><a href="#" class="hover:text-aether-blue transition-colors">Blog</a></li>
+                </ul>
+            </div>
+
+            <!-- Col 4: Company (2 cols) -->
+            <div class="lg:col-span-2 space-y-3 text-xs">
+                <h4 class="font-bold text-slate-900 dark:text-zinc-100">Company</h4>
+                <ul class="space-y-2 text-slate-500 dark:text-zinc-400">
+                    <li><a href="#about" class="hover:text-aether-blue transition-colors">About Us</a></li>
+                    <li><a href="#" class="hover:text-aether-blue transition-colors">Careers</a></li>
+                    <li><a href="#" class="hover:text-aether-blue transition-colors">Contact</a></li>
+                    <li><a href="#" class="hover:text-aether-blue transition-colors">Privacy Policy</a></li>
+                </ul>
+            </div>
+
+            <!-- Col 5: Newsletter Subscribe (2 cols) -->
+            <div class="lg:col-span-2 space-y-3 text-xs">
+                <h4 class="font-bold text-slate-900 dark:text-zinc-100">Stay Updated</h4>
+                <p class="text-[11px] text-slate-500 dark:text-zinc-400">
+                    Subscribe to our newsletter for the latest product updates.
+                </p>
+                <div class="flex items-center space-x-1 pt-1">
+                    <input type="email" placeholder="Enter your email" 
+                           class="w-full px-2.5 py-1.5 text-xs bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-lg focus:outline-none focus:ring-1 focus:ring-aether-blue">
+                    <button type="button" class="aether-button-primary !p-2 shrink-0">
+                        <svg class="w-3.5 h-3.5 transform rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
         </div>
 
-        <!-- Bugs -->
-        <div class="aether-card p-6 space-y-3 hover:border-blue-500/50 transition-all">
-            <div class="w-10 h-10 rounded-xl bg-rose-50 dark:bg-rose-950/60 flex items-center justify-center text-rose-500">
-                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-                </svg>
-            </div>
-            <h2 class="text-base font-bold text-slate-900 dark:text-zinc-100">Bug Tracking</h2>
-            <p class="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed">
-                Standardized bug IDs (e.g. B-882316), severity metrics, reproduction steps, and attachments.
-            </p>
-        </div>
-
-        <!-- Chat & Meet -->
-        <div class="aether-card p-6 space-y-3 hover:border-blue-500/50 transition-all">
-            <div class="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 flex items-center justify-center text-indigo-500">
-                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
-                </svg>
-            </div>
-            <h2 class="text-base font-bold text-slate-900 dark:text-zinc-100">Meet & Channels</h2>
-            <p class="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed">
-                Integrated WebRTC rooms, team channels, pinned assets, and real-time collaboration.
-            </p>
-        </div>
-
-        <!-- Storage & Governance -->
-        <div class="aether-card p-6 space-y-3 hover:border-blue-500/50 transition-all">
-            <div class="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 flex items-center justify-center text-emerald-500">
-                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
-                </svg>
-            </div>
-            <h2 class="text-base font-bold text-slate-900 dark:text-zinc-100">Supabase RBAC</h2>
-            <p class="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed">
-                Supabase PostgreSQL isolation, Supabase Storage uploads, and strict server-side permissions.
-            </p>
-        </div>
-    </div>
-
-    <!-- Status & Architecture Details -->
-    <div class="aether-card p-8 space-y-4">
-        <h3 class="text-lg font-bold text-slate-900 dark:text-zinc-100">System Architecture Foundation</h3>
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
-            <div class="p-4 rounded-lg bg-slate-50 dark:bg-obsidian-900 border border-slate-200 dark:border-zinc-800 space-y-1">
-                <span class="text-slate-400 dark:text-zinc-500 block">Database</span>
-                <span class="font-bold text-slate-800 dark:text-zinc-200">Supabase PostgreSQL</span>
-                <span class="text-[11px] text-emerald-600 dark:text-emerald-400 block">✓ Configured via .env</span>
-            </div>
-            <div class="p-4 rounded-lg bg-slate-50 dark:bg-obsidian-900 border border-slate-200 dark:border-zinc-800 space-y-1">
-                <span class="text-slate-400 dark:text-zinc-500 block">Identity Layer</span>
-                <span class="font-bold text-slate-800 dark:text-zinc-200">Custom User & RBAC</span>
-                <span class="text-[11px] text-emerald-600 dark:text-emerald-400 block">✓ accounts.User (UUID)</span>
-            </div>
-            <div class="p-4 rounded-lg bg-slate-50 dark:bg-obsidian-900 border border-slate-200 dark:border-zinc-800 space-y-1">
-                <span class="text-slate-400 dark:text-zinc-500 block">Theme Engine</span>
-                <span class="font-bold text-slate-800 dark:text-zinc-200">Dark Obsidian & Clean Slate</span>
-                <span class="text-[11px] text-emerald-600 dark:text-emerald-400 block">✓ Tailwind + Alpine.js</span>
+        <!-- Bottom Copyright Row -->
+        <div class="pt-6 border-t border-slate-100 dark:border-zinc-800/80 flex flex-col sm:flex-row items-center justify-between text-[11px] text-slate-400 dark:text-zinc-500 gap-4">
+            <span>© 2026 AetherSpace. All rights reserved.</span>
+            <div class="flex items-center space-x-4">
+                <a href="#" class="hover:text-slate-600 dark:hover:text-zinc-300 transition-colors">Terms of Service</a>
+                <a href="#" class="hover:text-slate-600 dark:hover:text-zinc-300 transition-colors">Privacy Policy</a>
             </div>
         </div>
-    </div>
+    </footer>
 </div>
 {% endblock %}
