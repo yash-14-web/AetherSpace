@@ -10,16 +10,18 @@ test.describe('Landing Page & Base Shell (Phase 2.5)', () => {
     await expect(brand).toBeVisible();
     await expect(brand.locator('img')).toBeVisible();
 
-    // Verify public navigation items in header
-    await expect(page.getByRole('link', { name: 'Features' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Solutions' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Resources' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Pricing' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'About' })).toBeVisible();
+    // Verify public navigation items in header (scoped to navigation landmark)
+    const nav = page.getByRole('navigation');
+    await expect(nav.getByRole('link', { name: 'Features' })).toBeVisible();
+    await expect(nav.getByRole('link', { name: 'Solutions' })).toBeVisible();
+    await expect(nav.getByRole('link', { name: 'Resources' })).toBeVisible();
+    await expect(nav.getByRole('link', { name: 'Pricing' })).toBeVisible();
+    await expect(nav.getByRole('link', { name: 'About' })).toBeVisible();
 
-    // Verify header authentication links
-    await expect(page.getByRole('link', { name: 'Sign In' })).toBeVisible();
-    await expect(page.getByRole('banner').getByRole('link', { name: /Get Started/i })).toBeVisible();
+    // Verify header authentication links (scoped to banner landmark)
+    const header = page.getByRole('banner');
+    await expect(header.getByRole('link', { name: 'Sign In' })).toBeVisible();
+    await expect(header.getByRole('link', { name: /Get Started/i })).toBeVisible();
 
     // Verify hero section headline and primary call to action
     await expect(page.getByRole('heading', { name: /Your Team.*One AetherSpace/i })).toBeVisible();
