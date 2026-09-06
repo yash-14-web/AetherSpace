@@ -228,32 +228,105 @@
                     {% endif %}
                 </div>
 
-                <!-- Acceptance Criteria Checklist (Panel 3 Reference) -->
-                <div class="aether-card p-6 space-y-4">
+                <!-- Acceptance Criteria Checklist (Panel 3 Reference - Fully Interactive with Dynamic Count & Persistence) -->
+                <div class="aether-card p-6 space-y-4" x-data="{
+                    criteria: JSON.parse(localStorage.getItem('task_criteria_{{ task.task_code }}') || JSON.stringify([
+                        { id: 1, text: 'User authentication flow implemented with session cookie handling', completed: true },
+                        { id: 2, text: 'RBAC permission checks enforced server-side for workspace roles', completed: true },
+                        { id: 3, text: 'Assignee avatar preview integrated across list, board, and details views', completed: false },
+                        { id: 4, text: 'Unit tests passing with 90%+ branch coverage', completed: false }
+                    ])),
+                    newCriteriaText: '',
+                    showAddForm: false,
+                    toggleCriteria(item) {
+                        item.completed = !item.completed;
+                        localStorage.setItem('task_criteria_{{ task.task_code }}', JSON.stringify(this.criteria));
+                    },
+                    addCriteria() {
+                        const trimmed = this.newCriteriaText.trim();
+                        if (!trimmed) return;
+                        this.criteria.push({ id: Date.now(), text: trimmed, completed: false });
+                        this.newCriteriaText = '';
+                        this.showAddForm = false;
+                        localStorage.setItem('task_criteria_{{ task.task_code }}', JSON.stringify(this.criteria));
+                    },
+                    removeCriteria(index) {
+                        this.criteria.splice(index, 1);
+                        localStorage.setItem('task_criteria_{{ task.task_code }}', JSON.stringify(this.criteria));
+                    },
+                    get completedCount() {
+                        return this.criteria.filter(i => i.completed).length;
+                    },
+                    get totalCount() {
+                        return this.criteria.length;
+                    },
+                    get remainingCount() {
+                        return this.totalCount - this.completedCount;
+                    },
+                    get progressPercent() {
+                        return this.totalCount > 0 ? Math.round((this.completedCount / this.totalCount) * 100) : 0;
+                    }
+                }">
                     <div class="flex items-center justify-between">
-                        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500">
-                            Acceptance Criteria
-                        </h3>
-                        <span class="text-xs font-semibold text-emerald-600 dark:text-emerald-400">2 of 4 completed</span>
+                        <div class="flex items-center space-x-2">
+                            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500">
+                                Acceptance Criteria
+                            </h3>
+                            <button type="button" @click="showAddForm = !showAddForm" 
+                                    class="text-[11px] font-semibold text-aether-blue hover:underline">
+                                + Add
+                            </button>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <span class="text-xs font-semibold px-2 py-0.5 rounded-md"
+                                  :class="remainingCount === 0 && totalCount > 0 ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800' : 'bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300'"
+                                  x-text="remainingCount === 0 && totalCount > 0 ? `${completedCount} of ${totalCount} completed • All done!` : `${completedCount} of ${totalCount} completed • ${remainingCount} remaining`">
+                            </span>
+                        </div>
                     </div>
 
-                    <div class="space-y-2.5">
-                        <label class="flex items-start space-x-3 p-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-zinc-800/40 cursor-pointer transition">
-                            <input type="checkbox" checked class="mt-0.5 rounded border-slate-300 text-aether-blue focus:ring-aether-blue">
-                            <span class="text-xs text-slate-600 dark:text-zinc-300 line-through">User authentication flow implemented with session cookie handling</span>
-                        </label>
-                        <label class="flex items-start space-x-3 p-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-zinc-800/40 cursor-pointer transition">
-                            <input type="checkbox" checked class="mt-0.5 rounded border-slate-300 text-aether-blue focus:ring-aether-blue">
-                            <span class="text-xs text-slate-600 dark:text-zinc-300 line-through">RBAC permission checks enforced server-side for workspace roles</span>
-                        </label>
-                        <label class="flex items-start space-x-3 p-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-zinc-800/40 cursor-pointer transition">
-                            <input type="checkbox" class="mt-0.5 rounded border-slate-300 text-aether-blue focus:ring-aether-blue">
-                            <span class="text-xs text-slate-800 dark:text-zinc-200 font-medium">Assignee avatar preview integrated across list, board, and details views</span>
-                        </label>
-                        <label class="flex items-start space-x-3 p-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-zinc-800/40 cursor-pointer transition">
-                            <input type="checkbox" class="mt-0.5 rounded border-slate-300 text-aether-blue focus:ring-aether-blue">
-                            <span class="text-xs text-slate-800 dark:text-zinc-200 font-medium">Unit tests passing with 90%+ branch coverage</span>
-                        </label>
+                    <!-- Progress bar -->
+                    <div class="w-full bg-slate-100 dark:bg-zinc-800 h-1.5 rounded-full overflow-hidden">
+                        <div class="h-full bg-emerald-500 transition-all duration-300 rounded-full" 
+                             :style="`width: ${progressPercent}%`"></div>
+                    </div>
+
+                    <!-- Inline Add Form -->
+                    <div x-show="showAddForm" style="display: none;" class="flex items-center space-x-2 p-2 rounded-xl bg-slate-50 dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800">
+                        <input type="text" x-model="newCriteriaText" @keydown.enter.prevent="addCriteria()"
+                               placeholder="Add acceptance criterion (press Enter)..." 
+                               class="flex-1 px-3 py-1.5 text-xs rounded-lg bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 text-slate-800 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-aether-blue">
+                        <button type="button" @click="addCriteria()" 
+                                class="px-3 py-1.5 text-xs font-bold rounded-lg bg-aether-blue text-white hover:bg-blue-600 transition">
+                            Add
+                        </button>
+                        <button type="button" @click="showAddForm = false" 
+                                class="px-2 py-1.5 text-xs text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300">
+                            Cancel
+                        </button>
+                    </div>
+
+                    <!-- Criteria list -->
+                    <div class="space-y-2">
+                        <template x-for="(item, idx) in criteria" :key="item.id">
+                            <div class="group flex items-center justify-between p-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-zinc-800/40 transition">
+                                <label class="flex items-start space-x-3 flex-1 cursor-pointer select-none">
+                                    <input type="checkbox" 
+                                           :checked="item.completed" 
+                                           @change="toggleCriteria(item)"
+                                           class="mt-0.5 rounded border-slate-300 dark:border-zinc-700 text-aether-blue focus:ring-aether-blue cursor-pointer">
+                                    <span class="text-xs transition leading-relaxed"
+                                          :class="item.completed ? 'text-slate-400 dark:text-zinc-500 line-through' : 'text-slate-800 dark:text-zinc-200 font-medium'"
+                                          x-text="item.text">
+                                    </span>
+                                </label>
+                                <button type="button" @click="removeCriteria(idx)" 
+                                        title="Remove item" 
+                                        class="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-rose-500 transition px-1.5 py-0.5 text-xs">
+                                    &times;
+                                </button>
+                            </div>
+                        </template>
                     </div>
                 </div>
 
@@ -290,34 +363,83 @@
                 </div>
             </div>
 
-            <!-- Tab: SUBTASKS -->
-            <div x-show="activeTab === 'subtasks'" style="display: none;" class="aether-card p-6 space-y-4">
+            <!-- Tab: SUBTASKS (Interactive with dynamic check & count) -->
+            <div x-show="activeTab === 'subtasks'" style="display: none;" class="aether-card p-6 space-y-4"
+                 x-data="{
+                    subtasks: JSON.parse(localStorage.getItem('task_subtasks_{{ task.task_code }}') || JSON.stringify([
+                        { id: 1, code: 'T-619348', title: 'Design login modal & registration flows', completed: true },
+                        { id: 2, code: 'T-619349', title: 'Configure session CSRF middleware', completed: true },
+                        { id: 3, code: 'T-619350', title: 'Integrate OAuth 2.0 social sign-in endpoints', completed: false }
+                    ])),
+                    newSubtaskTitle: '',
+                    showAddSubtask: false,
+                    toggleSubtask(st) {
+                        st.completed = !st.completed;
+                        localStorage.setItem('task_subtasks_{{ task.task_code }}', JSON.stringify(this.subtasks));
+                    },
+                    addSubtask() {
+                        const trimmed = this.newSubtaskTitle.trim();
+                        if (!trimmed) return;
+                        const randCode = 'T-' + Math.floor(100000 + Math.random() * 900000);
+                        this.subtasks.push({ id: Date.now(), code: randCode, title: trimmed, completed: false });
+                        this.newSubtaskTitle = '';
+                        this.showAddSubtask = false;
+                        localStorage.setItem('task_subtasks_{{ task.task_code }}', JSON.stringify(this.subtasks));
+                    },
+                    get completedCount() {
+                        return this.subtasks.filter(s => s.completed).length;
+                    },
+                    get totalCount() {
+                        return this.subtasks.length;
+                    },
+                    get remainingCount() {
+                        return this.totalCount - this.completedCount;
+                    }
+                 }">
                 <div class="flex items-center justify-between">
-                    <h3 class="text-sm font-bold text-slate-900 dark:text-zinc-100">Subtasks</h3>
-                    <button class="text-xs font-bold text-aether-blue hover:underline">+ Add Subtask</button>
+                    <div>
+                        <h3 class="text-sm font-bold text-slate-900 dark:text-zinc-100">Subtasks</h3>
+                        <p class="text-xs text-slate-500 dark:text-zinc-400" 
+                           x-text="`${completedCount} of ${totalCount} subtasks completed • ${remainingCount} remaining`"></p>
+                    </div>
+                    <button type="button" @click="showAddSubtask = !showAddSubtask" 
+                            class="text-xs font-bold text-aether-blue hover:underline">
+                        + Add Subtask
+                    </button>
                 </div>
+
+                <!-- Add Subtask Input -->
+                <div x-show="showAddSubtask" style="display: none;" class="flex items-center space-x-2 p-2 rounded-xl bg-slate-50 dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800">
+                    <input type="text" x-model="newSubtaskTitle" @keydown.enter.prevent="addSubtask()"
+                           placeholder="Enter subtask title..." 
+                           class="flex-1 px-3 py-1.5 text-xs rounded-lg bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 text-slate-800 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-aether-blue">
+                    <button type="button" @click="addSubtask()" 
+                            class="px-3 py-1.5 text-xs font-bold rounded-lg bg-aether-blue text-white hover:bg-blue-600 transition">
+                        Add
+                    </button>
+                    <button type="button" @click="showAddSubtask = false" 
+                            class="px-2 py-1.5 text-xs text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300">
+                        Cancel
+                    </button>
+                </div>
+
+                <!-- Subtasks list -->
                 <div class="space-y-2">
-                    <div class="flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-[#0c1322]">
-                        <div class="flex items-center space-x-3">
-                            <input type="checkbox" checked class="rounded border-slate-300 text-aether-blue">
-                            <span class="text-xs text-slate-600 dark:text-zinc-400 line-through">Design login modal & registration flows</span>
+                    <template x-for="st in subtasks" :key="st.id">
+                        <div class="flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-[#0c1322] hover:border-slate-300 dark:hover:border-zinc-700 transition">
+                            <label class="flex items-center space-x-3 flex-1 cursor-pointer select-none">
+                                <input type="checkbox" 
+                                       :checked="st.completed" 
+                                       @change="toggleSubtask(st)"
+                                       class="rounded border-slate-300 dark:border-zinc-700 text-aether-blue focus:ring-aether-blue cursor-pointer">
+                                <span class="text-xs transition" 
+                                      :class="st.completed ? 'text-slate-400 dark:text-zinc-500 line-through' : 'text-slate-800 dark:text-zinc-200 font-medium'"
+                                      x-text="st.title">
+                                </span>
+                            </label>
+                            <span class="text-[11px] font-mono text-slate-400" x-text="st.code"></span>
                         </div>
-                        <span class="text-[11px] font-mono text-slate-400">T-619348</span>
-                    </div>
-                    <div class="flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-[#0c1322]">
-                        <div class="flex items-center space-x-3">
-                            <input type="checkbox" checked class="rounded border-slate-300 text-aether-blue">
-                            <span class="text-xs text-slate-600 dark:text-zinc-400 line-through">Configure session CSRF middleware</span>
-                        </div>
-                        <span class="text-[11px] font-mono text-slate-400">T-619349</span>
-                    </div>
-                    <div class="flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#18181b]">
-                        <div class="flex items-center space-x-3">
-                            <input type="checkbox" class="rounded border-slate-300 text-aether-blue">
-                            <span class="text-xs text-slate-800 dark:text-zinc-200 font-semibold">Integrate OAuth 2.0 social sign-in endpoints</span>
-                        </div>
-                        <span class="text-[11px] font-mono text-slate-400">T-619350</span>
-                    </div>
+                    </template>
                 </div>
             </div>
 
@@ -419,14 +541,21 @@
                 </span>
                 <form method="post" action="{% url 'tasks:task_status_update' slug=workspace.slug task_code=task.task_code %}" class="space-y-2">
                     {% csrf_token %}
-                    <select name="status" onchange="this.form.submit()" 
-                            class="w-full px-3 py-2 text-xs font-bold rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-[#0c1322] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-aether-blue">
-                        <option value="TODO" {% if task.status == 'TODO' %}selected{% endif %}>To Do</option>
-                        <option value="IN_PROGRESS" {% if task.status == 'IN_PROGRESS' %}selected{% endif %}>In Progress</option>
-                        <option value="CODE_REVIEW" {% if task.status == 'CODE_REVIEW' %}selected{% endif %}>Code Review</option>
-                        <option value="TESTING" {% if task.status == 'TESTING' %}selected{% endif %}>Testing</option>
-                        <option value="DONE" {% if task.status == 'DONE' %}selected{% endif %}>Done</option>
-                    </select>
+                    <div class="relative">
+                        <select name="status" onchange="this.form.submit()" 
+                                class="w-full appearance-none pl-3.5 pr-8 py-2 text-xs font-bold rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-[#0c1322] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-aether-blue cursor-pointer">
+                            <option value="TODO" {% if task.status == 'TODO' %}selected{% endif %}>To Do</option>
+                            <option value="IN_PROGRESS" {% if task.status == 'IN_PROGRESS' %}selected{% endif %}>In Progress</option>
+                            <option value="CODE_REVIEW" {% if task.status == 'CODE_REVIEW' %}selected{% endif %}>Code Review</option>
+                            <option value="TESTING" {% if task.status == 'TESTING' %}selected{% endif %}>Testing</option>
+                            <option value="DONE" {% if task.status == 'DONE' %}selected{% endif %}>Done</option>
+                        </select>
+                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </div>
+                    </div>
                 </form>
             </div>
 

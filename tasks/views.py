@@ -66,6 +66,10 @@ def task_list_view(request, slug):
         else:
             tasks_qs = tasks_qs.filter(assignee_id=assignee_filter)
 
+    created_by_filter = request.GET.get('created_by', '').strip()
+    if created_by_filter == 'me':
+        tasks_qs = tasks_qs.filter(reporter=request.user)
+
     # Pagination: 12 tasks per page
     paginator = Paginator(tasks_qs, 12)
     page_number = request.GET.get('page', 1)
@@ -92,6 +96,7 @@ def task_list_view(request, slug):
         'current_status': status_filter,
         'current_priority': priority_filter,
         'current_assignee': assignee_filter,
+        'current_created_by': created_by_filter,
         'active_members': active_members,
         'TaskStatus': TaskStatus,
         'TaskPriority': TaskPriority,

@@ -83,19 +83,19 @@
         </div>
     </div>
 
-    <!-- Filter Tabs matching Mockup: All Tasks | My Tasks | Assigned to Me | Completed -->
+    <!-- Filter Tabs matching Mockup: All Tasks | Assigned to Me | Created by Me | Completed -->
     <div class="flex items-center space-x-6 border-b border-slate-200 dark:border-zinc-800 text-xs font-semibold overflow-x-auto pb-px">
         <a href="{% url 'tasks:task_list' slug=workspace.slug %}" 
-           class="pb-2.5 whitespace-nowrap transition border-b-2 {% if not current_status and not current_assignee %}border-aether-blue text-aether-blue font-bold{% else %}border-transparent text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-zinc-200{% endif %}">
+           class="pb-2.5 whitespace-nowrap transition border-b-2 {% if not current_status and not current_assignee and not current_created_by %}border-aether-blue text-aether-blue font-bold{% else %}border-transparent text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-zinc-200{% endif %}">
             All Tasks
         </a>
         <a href="{% url 'tasks:task_list' slug=workspace.slug %}?assignee=me" 
-           class="pb-2.5 whitespace-nowrap transition border-b-2 {% if current_assignee == 'me' and current_status != 'DONE' %}border-aether-blue text-aether-blue font-bold{% else %}border-transparent text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-zinc-200{% endif %}">
-            My Tasks
-        </a>
-        <a href="{% url 'tasks:task_list' slug=workspace.slug %}?assignee=me" 
-           class="pb-2.5 whitespace-nowrap transition border-b-2 {% if current_assignee == 'me' %}border-aether-blue text-aether-blue font-bold{% else %}border-transparent text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-zinc-200{% endif %}">
+           class="pb-2.5 whitespace-nowrap transition border-b-2 {% if current_assignee == 'me' and not current_status %}border-aether-blue text-aether-blue font-bold{% else %}border-transparent text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-zinc-200{% endif %}">
             Assigned to Me
+        </a>
+        <a href="{% url 'tasks:task_list' slug=workspace.slug %}?created_by=me" 
+           class="pb-2.5 whitespace-nowrap transition border-b-2 {% if current_created_by == 'me' %}border-aether-blue text-aether-blue font-bold{% else %}border-transparent text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-zinc-200{% endif %}">
+            Created by Me
         </a>
         <a href="{% url 'tasks:task_list' slug=workspace.slug %}?status=DONE" 
            class="pb-2.5 whitespace-nowrap transition border-b-2 {% if current_status == 'DONE' %}border-aether-blue text-aether-blue font-bold{% else %}border-transparent text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-zinc-200{% endif %}">
@@ -108,50 +108,78 @@
         {% if current_q %}<input type="hidden" name="q" value="{{ current_q }}">{% endif %}
 
         <!-- Status Filter -->
-        <select name="status" onchange="this.form.submit()" 
-                class="px-3 py-1.5 rounded-xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 font-medium focus:outline-none focus:ring-1 focus:ring-aether-blue">
-            <option value="">Status</option>
-            <option value="TODO" {% if current_status == 'TODO' %}selected{% endif %}>Todo</option>
-            <option value="IN_PROGRESS" {% if current_status == 'IN_PROGRESS' %}selected{% endif %}>In Progress</option>
-            <option value="CODE_REVIEW" {% if current_status == 'CODE_REVIEW' %}selected{% endif %}>Review</option>
-            <option value="TESTING" {% if current_status == 'TESTING' %}selected{% endif %}>Testing</option>
-            <option value="DONE" {% if current_status == 'DONE' %}selected{% endif %}>Done</option>
-        </select>
+        <div class="relative inline-block">
+            <select name="status" onchange="this.form.submit()" 
+                    class="appearance-none pl-3.5 pr-8 py-1.5 rounded-xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 font-medium focus:outline-none focus:ring-1 focus:ring-aether-blue text-xs cursor-pointer">
+                <option value="">Status</option>
+                <option value="TODO" {% if current_status == 'TODO' %}selected{% endif %}>Todo</option>
+                <option value="IN_PROGRESS" {% if current_status == 'IN_PROGRESS' %}selected{% endif %}>In Progress</option>
+                <option value="CODE_REVIEW" {% if current_status == 'CODE_REVIEW' %}selected{% endif %}>Review</option>
+                <option value="TESTING" {% if current_status == 'TESTING' %}selected{% endif %}>Testing</option>
+                <option value="DONE" {% if current_status == 'DONE' %}selected{% endif %}>Done</option>
+            </select>
+            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2.5 text-slate-400">
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                </svg>
+            </div>
+        </div>
 
-        <!-- Priority Filter -->
-        <select name="priority" onchange="this.form.submit()" 
-                class="px-3 py-1.5 rounded-xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 font-medium focus:outline-none focus:ring-1 focus:ring-aether-blue">
-            <option value="">Priority</option>
-            <option value="HIGH" {% if current_priority == 'HIGH' %}selected{% endif %}>High</option>
-            <option value="MEDIUM" {% if current_priority == 'MEDIUM' %}selected{% endif %}>Medium</option>
-            <option value="LOW" {% if current_priority == 'LOW' %}selected{% endif %}>Low</option>
-            <option value="URGENT" {% if current_priority == 'URGENT' %}selected{% endif %}>Urgent</option>
-        </select>
+        <!-- Priority Filter with generous right padding to prevent chevron overlap -->
+        <div class="relative inline-block">
+            <select name="priority" onchange="this.form.submit()" 
+                    class="appearance-none pl-3.5 pr-8 py-1.5 rounded-xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 font-medium focus:outline-none focus:ring-1 focus:ring-aether-blue text-xs cursor-pointer">
+                <option value="">Priority</option>
+                <option value="HIGH" {% if current_priority == 'HIGH' %}selected{% endif %}>High</option>
+                <option value="MEDIUM" {% if current_priority == 'MEDIUM' %}selected{% endif %}>Medium</option>
+                <option value="LOW" {% if current_priority == 'LOW' %}selected{% endif %}>Low</option>
+                <option value="URGENT" {% if current_priority == 'URGENT' %}selected{% endif %}>Urgent</option>
+            </select>
+            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2.5 text-slate-400">
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                </svg>
+            </div>
+        </div>
 
         <!-- Assignee Filter -->
-        <select name="assignee" onchange="this.form.submit()" 
-                class="px-3 py-1.5 rounded-xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 font-medium focus:outline-none focus:ring-1 focus:ring-aether-blue">
-            <option value="">Assignee</option>
-            <option value="me" {% if current_assignee == 'me' %}selected{% endif %}>Assigned to Me</option>
-            <option value="unassigned" {% if current_assignee == 'unassigned' %}selected{% endif %}>Unassigned</option>
-            {% for m in active_members %}
-                <option value="{{ m.user.id }}" {% if current_assignee == m.user.id|stringformat:"s" %}selected{% endif %}>
-                    {{ m.user.full_name|default:m.user.email }}
-                </option>
-            {% endfor %}
-        </select>
+        <div class="relative inline-block">
+            <select name="assignee" onchange="this.form.submit()" 
+                    class="appearance-none pl-3.5 pr-8 py-1.5 rounded-xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 font-medium focus:outline-none focus:ring-1 focus:ring-aether-blue text-xs cursor-pointer">
+                <option value="">Assignee</option>
+                <option value="me" {% if current_assignee == 'me' %}selected{% endif %}>Assigned to Me</option>
+                <option value="unassigned" {% if current_assignee == 'unassigned' %}selected{% endif %}>Unassigned</option>
+                {% for m in active_members %}
+                    <option value="{{ m.user.id }}" {% if current_assignee == m.user.id|stringformat:"s" %}selected{% endif %}>
+                        {{ m.user.full_name|default:m.user.email }}
+                    </option>
+                {% endfor %}
+            </select>
+            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2.5 text-slate-400">
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                </svg>
+            </div>
+        </div>
 
         <!-- Sprint Filter -->
-        <select name="sprint" onchange="this.form.submit()" 
-                class="px-3 py-1.5 rounded-xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 font-medium focus:outline-none focus:ring-1 focus:ring-aether-blue">
-            <option value="">Sprint</option>
-            <option value="Sprint 01" {% if request.GET.sprint == 'Sprint 01' %}selected{% endif %}>Sprint 01</option>
-            <option value="Sprint 02" {% if request.GET.sprint == 'Sprint 02' %}selected{% endif %}>Sprint 02</option>
-            <option value="Sprint 03" {% if request.GET.sprint == 'Sprint 03' %}selected{% endif %}>Sprint 03</option>
-        </select>
+        <div class="relative inline-block">
+            <select name="sprint" onchange="this.form.submit()" 
+                    class="appearance-none pl-3.5 pr-8 py-1.5 rounded-xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 font-medium focus:outline-none focus:ring-1 focus:ring-aether-blue text-xs cursor-pointer">
+                <option value="">Sprint</option>
+                <option value="Sprint 01" {% if request.GET.sprint == 'Sprint 01' %}selected{% endif %}>Sprint 01</option>
+                <option value="Sprint 02" {% if request.GET.sprint == 'Sprint 02' %}selected{% endif %}>Sprint 02</option>
+                <option value="Sprint 03" {% if request.GET.sprint == 'Sprint 03' %}selected{% endif %}>Sprint 03</option>
+            </select>
+            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2.5 text-slate-400">
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                </svg>
+            </div>
+        </div>
 
         <!-- Clear Link -->
-        {% if current_q or current_status or current_priority or current_assignee or request.GET.sprint %}
+        {% if current_q or current_status or current_priority or current_assignee or current_created_by or request.GET.sprint %}
             <a href="{% url 'tasks:task_list' slug=workspace.slug %}" class="text-xs font-bold text-aether-blue hover:underline ml-2">
                 Clear
             </a>
