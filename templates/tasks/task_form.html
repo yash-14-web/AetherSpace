@@ -34,12 +34,12 @@
                 </a>
                 <span>/</span>
                 <span class="text-slate-800 dark:text-zinc-200 font-medium">
-                    {% if is_create %}Create Task{% else %}Edit T-{{ task.task_code }}{% endif %}
+                    {% if is_create %}Create New Task{% else %}Edit T-{{ task.task_code }}{% endif %}
                 </span>
             </div>
             <div class="flex items-center space-x-3">
                 <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-zinc-50 tracking-tight">
-                    {% if is_create %}Create Task{% else %}Edit Task T-{{ task.task_code }}{% endif %}
+                    {% if is_create %}Create New Task{% else %}Edit Task T-{{ task.task_code }}{% endif %}
                 </h1>
                 {% if not is_create %}
                     <span class="px-2.5 py-1 text-xs font-mono font-black rounded-lg bg-slate-100 dark:bg-zinc-800 text-slate-800 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700">

@@ -25,9 +25,9 @@ test.describe('Task Management (Phase 5)', () => {
     // Navigate to tasks router
     await page.goto('/tasks/');
 
-    // Verify view mode switcher buttons
-    const listBtn = page.getByRole('link', { name: 'List' });
-    const boardBtn = page.getByRole('link', { name: 'Board' });
+    // Verify view mode switcher buttons (using exact match to avoid matching 'Task List' or 'Dashboard')
+    const listBtn = page.getByRole('link', { name: 'List', exact: true });
+    const boardBtn = page.getByRole('link', { name: 'Board', exact: true });
     await expect(listBtn).toBeVisible();
     await expect(boardBtn).toBeVisible();
 
@@ -76,7 +76,7 @@ test.describe('Task Management (Phase 5)', () => {
     await signIn(page);
 
     await page.goto('/tasks/');
-    const boardBtn = page.getByRole('link', { name: 'Board' });
+    const boardBtn = page.getByRole('link', { name: 'Board', exact: true });
     await boardBtn.click();
 
     // Verify URL

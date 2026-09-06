@@ -42,13 +42,13 @@
                 </svg>
             </button>
 
-            <!-- + Create Task Button -->
+            <!-- + New Task Button (Primary action matching Phase 5 test expectations) -->
             <a href="{% url 'tasks:task_create' slug=workspace.slug %}" 
                class="inline-flex items-center space-x-1.5 px-4 py-2 text-xs font-bold rounded-xl bg-aether-blue text-white hover:bg-blue-700 shadow-md shadow-blue-500/20 transition shrink-0">
                 <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                 </svg>
-                <span>Create Task</span>
+                <span>New Task</span>
             </a>
         </div>
     </div>
@@ -83,6 +83,45 @@
         </div>
     </div>
 
+    <!-- 5 Workflow Status Metric Chips (Phase 5 Required) -->
+    <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
+        <a href="?status=TODO" class="p-3 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] hover:border-blue-500/50 transition">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-slate-700 dark:text-zinc-300">To Do</span>
+                <span class="w-2 h-2 rounded-full bg-slate-400"></span>
+            </div>
+            <span class="text-lg font-black text-slate-900 dark:text-zinc-100 mt-1 block">{{ status_counts.todo }}</span>
+        </a>
+        <a href="?status=IN_PROGRESS" class="p-3 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] hover:border-blue-500/50 transition">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-slate-700 dark:text-zinc-300">In Progress</span>
+                <span class="w-2 h-2 rounded-full bg-blue-500"></span>
+            </div>
+            <span class="text-lg font-black text-slate-900 dark:text-zinc-100 mt-1 block">{{ status_counts.in_progress }}</span>
+        </a>
+        <a href="?status=CODE_REVIEW" class="p-3 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] hover:border-blue-500/50 transition">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-slate-700 dark:text-zinc-300">Code Review</span>
+                <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+            </div>
+            <span class="text-lg font-black text-slate-900 dark:text-zinc-100 mt-1 block">{{ status_counts.code_review }}</span>
+        </a>
+        <a href="?status=TESTING" class="p-3 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] hover:border-blue-500/50 transition">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-slate-700 dark:text-zinc-300">Testing</span>
+                <span class="w-2 h-2 rounded-full bg-purple-500"></span>
+            </div>
+            <span class="text-lg font-black text-slate-900 dark:text-zinc-100 mt-1 block">{{ status_counts.testing }}</span>
+        </a>
+        <a href="?status=DONE" class="p-3 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] hover:border-blue-500/50 transition">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-slate-700 dark:text-zinc-300">Done</span>
+                <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+            </div>
+            <span class="text-lg font-black text-slate-900 dark:text-zinc-100 mt-1 block">{{ status_counts.done }}</span>
+        </a>
+    </div>
+
     <!-- Filter Tabs matching Mockup: All Tasks | Assigned to Me | Created by Me | Completed -->
     <div class="flex items-center space-x-6 border-b border-slate-200 dark:border-zinc-800 text-xs font-semibold overflow-x-auto pb-px">
         <a href="{% url 'tasks:task_list' slug=workspace.slug %}" 
@@ -112,9 +151,9 @@
             <select name="status" onchange="this.form.submit()" 
                     class="appearance-none pl-3.5 pr-8 py-1.5 rounded-xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 font-medium focus:outline-none focus:ring-1 focus:ring-aether-blue text-xs cursor-pointer">
                 <option value="">Status</option>
-                <option value="TODO" {% if current_status == 'TODO' %}selected{% endif %}>Todo</option>
+                <option value="TODO" {% if current_status == 'TODO' %}selected{% endif %}>To Do</option>
                 <option value="IN_PROGRESS" {% if current_status == 'IN_PROGRESS' %}selected{% endif %}>In Progress</option>
-                <option value="CODE_REVIEW" {% if current_status == 'CODE_REVIEW' %}selected{% endif %}>Review</option>
+                <option value="CODE_REVIEW" {% if current_status == 'CODE_REVIEW' %}selected{% endif %}>Code Review</option>
                 <option value="TESTING" {% if current_status == 'TESTING' %}selected{% endif %}>Testing</option>
                 <option value="DONE" {% if current_status == 'DONE' %}selected{% endif %}>Done</option>
             </select>
