@@ -24,6 +24,7 @@ from .forms import (
     WorkspaceMemberRoleForm,
     WorkspaceAccessRequestForm
 )
+from tasks.models import Task, TaskStatus
 
 
 @login_required
@@ -126,6 +127,8 @@ def workspace_dashboard(request, slug):
     ).select_related('user', 'user__profile')[:6]
 
     total_members_count = workspace.memberships.filter(status=MembershipStatus.ACTIVE).count()
+    active_tasks_count = workspace.tasks.exclude(status=TaskStatus.DONE).count()
+    recent_tasks = workspace.tasks.select_related('assignee').order_by('-created_at')[:5]
 
     context = {
         'title': f"{workspace.name} — Workspace Dashboard",
@@ -133,8 +136,8 @@ def workspace_dashboard(request, slug):
         'membership': membership,
         'members': members,
         'total_members_count': total_members_count,
-        # Standardized sprint cards matching design mockup
-        'active_tasks_count': 34,
+        'active_tasks_count': active_tasks_count,
+        'recent_tasks': recent_tasks,
         'open_bugs_count': 6,
         'upcoming_meetings_count': 3,
     }

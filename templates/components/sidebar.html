@@ -168,6 +168,27 @@
                         <span>Dashboard</span>
                     </a>
 
+                    <!-- Tasks (List & Board) -->
+                    <div>
+                        <a href="{% url 'tasks:task_list' slug=current_workspace.slug %}" 
+                           class="flex items-center space-x-2.5 px-3 py-2 text-xs font-semibold rounded-lg text-slate-700 dark:text-zinc-300 hover:bg-slate-200/60 dark:hover:bg-zinc-800/60 transition-colors">
+                            <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+                            </svg>
+                            <span>Tasks</span>
+                        </a>
+                        <div class="pl-7 pr-2 space-y-0.5 pb-1">
+                            <a href="{% url 'tasks:task_list' slug=current_workspace.slug %}" 
+                               class="block py-1 text-[11px] font-medium text-slate-500 dark:text-zinc-400 hover:text-aether-blue dark:hover:text-zinc-200 transition-colors">
+                                • Task List
+                            </a>
+                            <a href="{% url 'tasks:task_board' slug=current_workspace.slug %}" 
+                               class="block py-1 text-[11px] font-medium text-slate-500 dark:text-zinc-400 hover:text-aether-blue dark:hover:text-zinc-200 transition-colors">
+                                • Kanban Board
+                            </a>
+                        </div>
+                    </div>
+
                     <!-- Team Members -->
                     <a href="{% url 'workspaces:team' slug=current_workspace.slug %}" 
                        class="flex items-center space-x-2.5 px-3 py-2 text-xs font-semibold rounded-lg text-slate-700 dark:text-zinc-300 hover:bg-slate-200/60 dark:hover:bg-zinc-800/60 transition-colors">

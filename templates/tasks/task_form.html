@@ -1,0 +1,143 @@
+{% extends 'base.html' %}
+
+{% block title %}
+    {% if is_create %}Create Task{% else %}Edit #{{ task.task_code }}{% endif %} • {{ workspace.name }} — AetherSpace
+{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto space-y-6">
+    
+    <!-- Header & Breadcrumbs -->
+    <div>
+        <div class="flex items-center space-x-2 text-xs text-slate-500 dark:text-zinc-400 mb-1">
+            <a href="{% url 'workspaces:workspace_dashboard' slug=workspace.slug %}" class="hover:text-aether-blue transition-colors">{{ workspace.name }}</a>
+            <span>/</span>
+            <a href="{% url 'tasks:task_list' slug=workspace.slug %}" class="hover:text-aether-blue transition-colors">Tasks</a>
+            <span>/</span>
+            <span class="text-slate-800 dark:text-zinc-200 font-medium">{% if is_create %}New Task{% else %}Edit #{{ task.task_code }}{% endif %}</span>
+        </div>
+        <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-zinc-50 tracking-tight">
+            {% if is_create %}Create New Task{% else %}Edit Task #{{ task.task_code }}{% endif %}
+        </h1>
+        <p class="text-xs text-slate-500 dark:text-zinc-400 mt-1">
+            {% if is_create %}
+                Define a sprint deliverable with collision-safe 6-digit identification and workflow tracking.
+            {% else %}
+                Update task specifications, change status progression, or reassign team members.
+            {% endif %}
+        </p>
+    </div>
+
+    <!-- Form Card -->
+    <div class="aether-card p-6 sm:p-8">
+        <form method="post" class="space-y-6">
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+                <div class="p-4 rounded-xl bg-red-50 dark:bg-red-950/60 border border-red-200 dark:border-red-900/60 text-xs text-red-600 dark:text-red-400 space-y-1">
+                    {% for err in form.non_field_errors %}
+                        <p class="font-semibold">{{ err }}</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            <!-- Title Field -->
+            <div class="space-y-1.5">
+                <label for="{{ form.title.id_for_label }}" class="block text-xs font-bold text-slate-700 dark:text-zinc-300">
+                    Task Title <span class="text-red-500">*</span>
+                </label>
+                {{ form.title }}
+                {% if form.title.errors %}
+                    <p class="text-xs text-red-500 font-semibold">{{ form.title.errors.0 }}</p>
+                {% endif %}
+            </div>
+
+            <!-- Description Field -->
+            <div class="space-y-1.5">
+                <label for="{{ form.description.id_for_label }}" class="block text-xs font-bold text-slate-700 dark:text-zinc-300">
+                    Description & Specifications
+                </label>
+                {{ form.description }}
+                {% if form.description.errors %}
+                    <p class="text-xs text-red-500 font-semibold">{{ form.description.errors.0 }}</p>
+                {% endif %}
+                <p class="text-[11px] text-slate-400 dark:text-zinc-500">Provide technical requirements, acceptance criteria, or relevant context.</p>
+            </div>
+
+            <!-- 2-Column Attributes Grid -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                
+                <!-- Status -->
+                <div class="space-y-1.5">
+                    <label for="{{ form.status.id_for_label }}" class="block text-xs font-bold text-slate-700 dark:text-zinc-300">
+                        Workflow Status
+                    </label>
+                    {{ form.status }}
+                    {% if form.status.errors %}
+                        <p class="text-xs text-red-500 font-semibold">{{ form.status.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <!-- Priority -->
+                <div class="space-y-1.5">
+                    <label for="{{ form.priority.id_for_label }}" class="block text-xs font-bold text-slate-700 dark:text-zinc-300">
+                        Priority Level
+                    </label>
+                    {{ form.priority }}
+                    {% if form.priority.errors %}
+                        <p class="text-xs text-red-500 font-semibold">{{ form.priority.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <!-- Assignee -->
+                <div class="space-y-1.5">
+                    <label for="{{ form.assignee.id_for_label }}" class="block text-xs font-bold text-slate-700 dark:text-zinc-300">
+                        Assignee
+                    </label>
+                    {{ form.assignee }}
+                    {% if form.assignee.errors %}
+                        <p class="text-xs text-red-500 font-semibold">{{ form.assignee.errors.0 }}</p>
+                    {% endif %}
+                    <p class="text-[11px] text-slate-400 dark:text-zinc-500">Restricted to active members of this workspace.</p>
+                </div>
+
+                <!-- Due Date -->
+                <div class="space-y-1.5">
+                    <label for="{{ form.due_date.id_for_label }}" class="block text-xs font-bold text-slate-700 dark:text-zinc-300">
+                        Due Date
+                    </label>
+                    {{ form.due_date }}
+                    {% if form.due_date.errors %}
+                        <p class="text-xs text-red-500 font-semibold">{{ form.due_date.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <!-- Estimated Hours -->
+                <div class="space-y-1.5">
+                    <label for="{{ form.estimated_hours.id_for_label }}" class="block text-xs font-bold text-slate-700 dark:text-zinc-300">
+                        Estimated Hours
+                    </label>
+                    {{ form.estimated_hours }}
+                    {% if form.estimated_hours.errors %}
+                        <p class="text-xs text-red-500 font-semibold">{{ form.estimated_hours.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="pt-4 border-t border-slate-200 dark:border-zinc-800 flex items-center justify-end space-x-3">
+                <a href="{% if is_create %}{% url 'tasks:task_list' slug=workspace.slug %}{% else %}{% url 'tasks:task_detail' slug=workspace.slug task_code=task.task_code %}{% endif %}" 
+                   class="px-4 py-2.5 text-xs font-semibold rounded-xl border border-slate-200 dark:border-zinc-800 text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 transition">
+                    Cancel
+                </a>
+                <button type="submit" 
+                        class="px-5 py-2.5 text-xs font-bold rounded-xl bg-aether-blue text-white hover:bg-blue-700 shadow-md shadow-blue-500/10 transition">
+                    {% if is_create %}Create Task{% else %}Save Changes{% endif %}
+                </button>
+            </div>
+        </form>
+    </div>
+
+</div>
+{% endblock %}
