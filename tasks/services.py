@@ -28,7 +28,7 @@ def generate_unique_task_code() -> str:
 @transaction.atomic
 def create_task(workspace, reporter, title, description='', status=TaskStatus.TODO,
                 priority=TaskPriority.MEDIUM, assignee=None, due_date=None,
-                estimated_hours=None) -> Task:
+                estimated_hours=None, sprint='Sprint 01', tags='') -> Task:
     """
     Creates a new task in the given workspace, assigning a collision-free 6-digit ID,
     and records an initial TaskActivity log.
@@ -45,7 +45,9 @@ def create_task(workspace, reporter, title, description='', status=TaskStatus.TO
         priority=priority,
         assignee=assignee,
         due_date=due_date,
-        estimated_hours=estimated_hours
+        estimated_hours=estimated_hours,
+        sprint=sprint or 'Sprint 01',
+        tags=tags or ''
     )
 
     # Log task creation activity
@@ -139,7 +141,7 @@ def update_task(task: Task, actor, **kwargs) -> Task:
         )
 
     # Direct attribute updates
-    for field in ['title', 'description', 'estimated_hours']:
+    for field in ['title', 'description', 'estimated_hours', 'sprint', 'tags']:
         if field in kwargs and kwargs[field] != getattr(task, field):
             setattr(task, field, kwargs[field])
             updated_fields.append(field)

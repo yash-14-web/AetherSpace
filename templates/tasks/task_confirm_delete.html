@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+
+{% block title %}Delete Task T-{{ task.task_code }} • {{ workspace.name }} — AetherSpace{% endblock %}
+
+{% block content %}
+<div class="max-w-xl mx-auto py-12 px-4 space-y-6">
+    
+    <div class="aether-card p-6 sm:p-8 space-y-5 border border-red-200 dark:border-red-900/60 shadow-xl">
+        <div class="w-12 h-12 rounded-2xl bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center border border-rose-200 dark:border-rose-900">
+            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+            </svg>
+        </div>
+
+        <div>
+            <span class="text-xs font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400">Admin & Manager Action</span>
+            <h2 class="text-xl font-extrabold text-slate-900 dark:text-zinc-50 mt-1">
+                Delete Task T-{{ task.task_code }}?
+            </h2>
+            <p class="text-xs text-slate-500 dark:text-zinc-400 mt-2 leading-relaxed">
+                Are you sure you want to permanently delete task <span class="font-bold text-slate-800 dark:text-zinc-200">"{{ task.title }}"</span>? This action cannot be undone and will remove all associated audit activity logs.
+            </p>
+        </div>
+
+        <!-- Task Preview Box -->
+        <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 space-y-2 text-xs">
+            <div class="flex items-center justify-between">
+                <span class="font-mono font-bold text-slate-600 dark:text-zinc-400">T-{{ task.task_code }}</span>
+                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-200 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300">
+                    {{ task.get_status_display }}
+                </span>
+            </div>
+            <p class="font-semibold text-slate-800 dark:text-zinc-200">{{ task.title }}</p>
+            {% if task.assignee %}
+                <div class="flex items-center space-x-2 text-[11px] text-slate-500 dark:text-zinc-400 pt-1">
+                    <span>Assignee:</span>
+                    <span class="font-medium text-slate-700 dark:text-zinc-300">{{ task.assignee.full_name|default:task.assignee.email }}</span>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Confirmation Form -->
+        <form method="post" class="pt-2 flex items-center justify-end space-x-3">
+            {% csrf_token %}
+            <a href="{% url 'tasks:task_detail' slug=workspace.slug task_code=task.task_code %}" 
+               class="px-4 py-2.5 text-xs font-semibold rounded-xl border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition">
+                Cancel
+            </a>
+            <button type="submit" 
+                    class="px-5 py-2.5 text-xs font-bold rounded-xl bg-rose-600 text-white hover:bg-rose-700 shadow-md shadow-rose-600/20 transition">
+                Yes, Delete Task
+            </button>
+        </form>
+    </div>
+
+</div>
+{% endblock %}

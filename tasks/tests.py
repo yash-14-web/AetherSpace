@@ -283,3 +283,72 @@ class TaskManagementTests(TestCase):
         )
         self.assertFalse(form.is_valid())
         self.assertIn('assignee', form.errors)
+
+    def test_task_delete_view_rbac_admin_and_manager_allowed(self):
+        """
+        Workspace Admins and Managers can delete tasks.
+        """
+        # Create a manager user in this workspace
+        manager_user = User.objects.create_user(
+            email="manager.tasks@aetherspace.dev",
+            password=self.password,
+            full_name="Workspace Manager"
+        )
+        WorkspaceMembership.objects.create(
+            workspace=self.workspace,
+            user=manager_user,
+            role=WorkspaceRole.MANAGER,
+            status=MembershipStatus.ACTIVE
+        )
+
+        task1 = create_task(self.workspace, self.alice, "Task to be deleted by Admin")
+        task2 = create_task(self.workspace, self.alice, "Task to be deleted by Manager")
+
+        # 1. Admin deletes task1
+        self.client.login(email="alice.tasks@aetherspace.dev", password=self.password)
+        del_url1 = reverse('tasks:task_delete', kwargs={'slug': self.workspace.slug, 'task_code': task1.task_code})
+        resp1 = self.client.post(del_url1)
+        self.assertEqual(resp1.status_code, 302)
+        self.assertFalse(Task.objects.filter(id=task1.id).exists())
+
+        # 2. Manager deletes task2
+        self.client.login(email="manager.tasks@aetherspace.dev", password=self.password)
+        del_url2 = reverse('tasks:task_delete', kwargs={'slug': self.workspace.slug, 'task_code': task2.task_code})
+        resp2 = self.client.post(del_url2)
+        self.assertEqual(resp2.status_code, 302)
+        self.assertFalse(Task.objects.filter(id=task2.id).exists())
+
+    def test_task_delete_view_rbac_contributor_forbidden(self):
+        """
+        Contributors MUST be blocked from deleting tasks with 403 Forbidden.
+        """
+        task = create_task(self.workspace, self.alice, "Protected Task From Contributor")
+        self.client.login(email="bob.tasks@aetherspace.dev", password=self.password)
+
+        del_url = reverse('tasks:task_delete', kwargs={'slug': self.workspace.slug, 'task_code': task.task_code})
+        # GET confirm page
+        resp_get = self.client.get(del_url)
+        self.assertEqual(resp_get.status_code, 403)
+
+        # POST delete attempt
+        resp_post = self.client.post(del_url)
+        self.assertEqual(resp_post.status_code, 403)
+
+        # Ensure task is NOT deleted
+        self.assertTrue(Task.objects.filter(id=task.id).exists())
+
+    def test_create_task_with_sprint_tags_and_display_code(self):
+        """
+        Verify task sprint, tags, and T-XXXXXX display code.
+        """
+        task = create_task(
+            self.workspace,
+            self.alice,
+            "Sprint Feature Task",
+            sprint="Sprint 04",
+            tags="Frontend, Auth"
+        )
+        self.assertEqual(task.sprint, "Sprint 04")
+        self.assertEqual(task.tags, "Frontend, Auth")
+        self.assertEqual(task.display_code, f"T-{task.task_code}")
+

@@ -199,7 +199,9 @@ def task_create_view(request, slug):
                 priority=form.cleaned_data.get('priority', TaskPriority.MEDIUM),
                 assignee=form.cleaned_data.get('assignee'),
                 due_date=form.cleaned_data.get('due_date'),
-                estimated_hours=form.cleaned_data.get('estimated_hours')
+                estimated_hours=form.cleaned_data.get('estimated_hours'),
+                sprint=form.cleaned_data.get('sprint', 'Sprint 01'),
+                tags=form.cleaned_data.get('tags', '')
             )
             messages.success(request, f"Task #{task.task_code} '{task.title}' was successfully created.")
             return redirect('tasks:task_detail', slug=workspace.slug, task_code=task.task_code)
@@ -275,7 +277,9 @@ def task_edit_view(request, slug, task_code):
                 priority=form.cleaned_data.get('priority'),
                 assignee=form.cleaned_data.get('assignee'),
                 due_date=form.cleaned_data.get('due_date'),
-                estimated_hours=form.cleaned_data.get('estimated_hours')
+                estimated_hours=form.cleaned_data.get('estimated_hours'),
+                sprint=form.cleaned_data.get('sprint', 'Sprint 01'),
+                tags=form.cleaned_data.get('tags', '')
             )
             messages.success(request, f"Task #{task.task_code} was successfully updated.")
             return redirect('tasks:task_detail', slug=workspace.slug, task_code=task.task_code)
@@ -426,3 +430,36 @@ def tasks_redirect_router(request):
     if first_membership:
         return redirect('tasks:task_list', slug=first_membership.workspace.slug)
     return redirect('tasks:my_tasks')
+
+
+@workspace_member_required
+def task_delete_view(request, slug, task_code):
+    """
+    Delete task endpoint: restricted strictly to Manager and Admin roles.
+    Raises PermissionDenied (403) for Contributors.
+    """
+    workspace = request.workspace
+    membership = request.membership
+
+    # Strict server-side RBAC: only Admin and Manager can delete
+    if not membership.can_manage_content:
+        from django.core.exceptions import PermissionDenied
+        raise PermissionDenied("Only workspace Managers and Administrators can delete tasks.")
+
+    clean_code = task_code.lstrip('#').replace('T-', '').replace('t-', '')
+    task = get_object_or_404(Task, workspace=workspace, task_code=clean_code)
+
+    if request.method == 'POST':
+        task_title = task.title
+        code = task.task_code
+        task.delete()
+        messages.success(request, f"Task T-{code} '{task_title}' was permanently deleted.")
+        return redirect('tasks:task_list', slug=workspace.slug)
+
+    context = {
+        'workspace': workspace,
+        'membership': membership,
+        'task': task,
+    }
+    return render(request, 'tasks/task_confirm_delete.html', context)
+

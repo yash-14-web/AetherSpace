@@ -67,6 +67,8 @@ class Task(models.Model):
         null=True,
         blank=True
     )
+    sprint = models.CharField(max_length=50, blank=True, default='Sprint 01')
+    tags = models.CharField(max_length=255, blank=True, default='')
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -81,11 +83,11 @@ class Task(models.Model):
         ]
 
     def __str__(self):
-        return f"#{self.task_code} {self.title}"
+        return f"T-{self.task_code} {self.title}"
 
     @property
     def display_code(self):
-        return f"#{self.task_code}"
+        return f"T-{self.task_code}"
 
     @property
     def is_overdue(self):

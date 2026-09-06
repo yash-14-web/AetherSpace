@@ -1,23 +1,26 @@
 {% extends 'base.html' %}
 
-{% block title %}#{{ task.task_code }} {{ task.title }} • {{ workspace.name }} — AetherSpace{% endblock %}
+{% block title %}T-{{ task.task_code }} {{ task.title }} • {{ workspace.name }} — AetherSpace{% endblock %}
 
 {% block content %}
-<div class="space-y-6 max-w-6xl mx-auto">
+<div class="space-y-6 max-w-6xl mx-auto" x-data="{ activeTab: 'overview', showDeleteModal: false, showActionDropdown: false }">
     
-    <!-- Top Action & Breadcrumb Header -->
+    <!-- Top Action & Breadcrumb Header (Panel 3 Reference) -->
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-zinc-800 pb-4">
         <div>
             <div class="flex items-center space-x-2 text-xs text-slate-500 dark:text-zinc-400 mb-1">
-                <a href="{% url 'workspaces:workspace_dashboard' slug=workspace.slug %}" class="hover:text-aether-blue transition-colors">{{ workspace.name }}</a>
+                <a href="{% url 'tasks:task_list' slug=workspace.slug %}" class="inline-flex items-center space-x-1 hover:text-aether-blue transition-colors font-medium">
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                    </svg>
+                    <span>Tasks</span>
+                </a>
                 <span>/</span>
-                <a href="{% url 'tasks:task_list' slug=workspace.slug %}" class="hover:text-aether-blue transition-colors">Tasks</a>
-                <span>/</span>
-                <span class="font-mono text-slate-800 dark:text-zinc-200 font-bold">#{{ task.task_code }}</span>
+                <span class="font-mono text-aether-blue dark:text-sky-400 font-bold">T-{{ task.task_code }}</span>
             </div>
             <div class="flex items-center space-x-3 mt-1">
                 <span class="px-2.5 py-1 text-xs font-mono font-black rounded-lg bg-slate-100 dark:bg-zinc-800 text-slate-800 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700">
-                    #{{ task.task_code }}
+                    T-{{ task.task_code }}
                 </span>
                 <h1 class="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-zinc-50 tracking-tight">
                     {{ task.title }}
@@ -25,59 +28,361 @@
             </div>
         </div>
 
-        <div class="flex items-center space-x-2 shrink-0">
+        <div class="flex items-center space-x-2 shrink-0 relative">
             <a href="{% url 'tasks:task_edit' slug=workspace.slug task_code=task.task_code %}" 
-               class="inline-flex items-center space-x-1.5 px-3.5 py-2 text-xs font-bold rounded-xl bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-700 transition">
+               class="inline-flex items-center space-x-1.5 px-3.5 py-2 text-xs font-bold rounded-xl bg-aether-blue text-white hover:bg-blue-600 transition shadow-sm">
                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                 </svg>
                 <span>Edit Task</span>
             </a>
+
+            <!-- Action Dropdown for Manager/Admin -->
+            <div class="relative" @click.away="showActionDropdown = false">
+                <button @click="showActionDropdown = !showActionDropdown"
+                        class="p-2 text-slate-500 hover:text-slate-800 dark:text-zinc-400 dark:hover:text-zinc-200 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] hover:bg-slate-50 dark:hover:bg-zinc-800 transition">
+                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M6 10a2 2 0 11-4 0 2 2 0 014 0zM12 10a2 2 0 11-4 0 2 2 0 014 0zM16 12a2 2 0 100-4 2 2 0 000 4z"/>
+                    </svg>
+                </button>
+                <div x-show="showActionDropdown" 
+                     x-transition
+                     style="display: none;"
+                     class="absolute right-0 mt-2 w-48 rounded-xl shadow-lg bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 py-1 z-30">
+                    <a href="{% url 'tasks:task_edit' slug=workspace.slug task_code=task.task_code %}" 
+                       class="flex items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800/60">
+                        <svg class="w-3.5 h-3.5 mr-2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
+                        </svg>
+                        Edit Task
+                    </a>
+                    <a href="{% url 'tasks:task_activity' slug=workspace.slug task_code=task.task_code %}" 
+                       class="flex items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800/60">
+                        <svg class="w-3.5 h-3.5 mr-2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        View Activity
+                    </a>
+                    {% if membership.can_manage_content %}
+                        <div class="border-t border-slate-100 dark:border-zinc-800 my-1"></div>
+                        <a href="{% url 'tasks:task_delete' slug=workspace.slug task_code=task.task_code %}" 
+                           class="flex items-center px-4 py-2 text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40">
+                            <svg class="w-3.5 h-3.5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                            </svg>
+                            Delete Task
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+
             <a href="{% url 'tasks:task_list' slug=workspace.slug %}" 
-               class="inline-flex items-center space-x-1.5 px-3.5 py-2 text-xs font-semibold rounded-xl border border-slate-200 dark:border-zinc-800 text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 transition">
-                <span>&larr; All Tasks</span>
+               class="inline-flex items-center space-x-1.5 px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 dark:border-zinc-800 text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 transition">
+                <span>&larr; List</span>
             </a>
         </div>
     </div>
 
-    <!-- Main 2-Column Details Layout -->
+    <!-- Horizontal Metadata Strip (Panel 3 Reference) -->
+    <div class="aether-card p-4 flex flex-wrap items-center gap-y-3 gap-x-6 text-xs divide-y sm:divide-y-0 sm:divide-x divide-slate-100 dark:divide-zinc-800">
+        <!-- Status -->
+        <div class="flex items-center space-x-2 pt-1 sm:pt-0">
+            <span class="text-slate-400 dark:text-zinc-500 font-medium">Status:</span>
+            {% if task.status == 'TODO' %}
+                <span class="px-2.5 py-0.5 rounded-full font-bold bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300">
+                    To Do
+                </span>
+            {% elif task.status == 'IN_PROGRESS' %}
+                <span class="px-2.5 py-0.5 rounded-full font-bold bg-blue-100 dark:bg-blue-950/80 text-blue-700 dark:text-blue-400">
+                    In Progress
+                </span>
+            {% elif task.status == 'CODE_REVIEW' %}
+                <span class="px-2.5 py-0.5 rounded-full font-bold bg-amber-100 dark:bg-amber-950/80 text-amber-700 dark:text-amber-400">
+                    Code Review
+                </span>
+            {% elif task.status == 'TESTING' %}
+                <span class="px-2.5 py-0.5 rounded-full font-bold bg-purple-100 dark:bg-purple-950/80 text-purple-700 dark:text-purple-400">
+                    Testing
+                </span>
+            {% elif task.status == 'DONE' %}
+                <span class="px-2.5 py-0.5 rounded-full font-bold bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-400">
+                    Done
+                </span>
+            {% endif %}
+        </div>
+
+        <!-- Priority -->
+        <div class="flex items-center space-x-2 sm:pl-6 pt-2 sm:pt-0">
+            <span class="text-slate-400 dark:text-zinc-500 font-medium">Priority:</span>
+            {% if task.priority == 'URGENT' %}
+                <span class="px-2.5 py-0.5 rounded-full font-bold bg-red-100 dark:bg-red-950/80 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-900/60">
+                    Urgent
+                </span>
+            {% elif task.priority == 'HIGH' %}
+                <span class="px-2.5 py-0.5 rounded-full font-bold bg-rose-50 dark:bg-rose-950/70 text-rose-600 dark:text-rose-400">
+                    High
+                </span>
+            {% elif task.priority == 'MEDIUM' %}
+                <span class="px-2.5 py-0.5 rounded-full font-semibold bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400">
+                    Medium
+                </span>
+            {% else %}
+                <span class="px-2.5 py-0.5 rounded-full font-medium bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400">
+                    Low
+                </span>
+            {% endif %}
+        </div>
+
+        <!-- Assignee with Profile Picture / Avatar -->
+        <div class="flex items-center space-x-2 sm:pl-6 pt-2 sm:pt-0">
+            <span class="text-slate-400 dark:text-zinc-500 font-medium">Assignee:</span>
+            {% if task.assignee %}
+                <div class="flex items-center space-x-2">
+                    {% if task.assignee.avatar %}
+                        <img src="{{ task.assignee.avatar }}" alt="{{ task.assignee.full_name|default:task.assignee.email }}" class="w-6 h-6 rounded-full object-cover shrink-0 ring-1 ring-slate-300 dark:ring-zinc-700">
+                    {% else %}
+                        <div class="w-6 h-6 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-bold text-[10px] flex items-center justify-center shrink-0">
+                            {{ task.assignee.full_name|default:task.assignee.email|slice:":1"|upper }}
+                        </div>
+                    {% endif %}
+                    <span class="text-slate-900 dark:text-zinc-100 font-bold">{{ task.assignee.full_name|default:task.assignee.email }}</span>
+                </div>
+            {% else %}
+                <span class="text-slate-400 dark:text-zinc-500 italic">Unassigned</span>
+            {% endif %}
+        </div>
+
+        <!-- Due Date -->
+        <div class="flex items-center space-x-2 sm:pl-6 pt-2 sm:pt-0">
+            <span class="text-slate-400 dark:text-zinc-500 font-medium">Due Date:</span>
+            {% if task.due_date %}
+                <span class="font-semibold {% if task.is_overdue %}text-rose-600 dark:text-rose-400 font-bold{% else %}text-slate-800 dark:text-zinc-200{% endif %}">
+                    {{ task.due_date|date:"M d, Y" }}
+                </span>
+            {% else %}
+                <span class="text-slate-400 dark:text-zinc-500 italic">No due date</span>
+            {% endif %}
+        </div>
+
+        <!-- Sprint -->
+        <div class="flex items-center space-x-2 sm:pl-6 pt-2 sm:pt-0">
+            <span class="text-slate-400 dark:text-zinc-500 font-medium">Sprint:</span>
+            <span class="px-2 py-0.5 rounded-lg bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 font-bold border border-blue-100 dark:border-blue-900/50">
+                {{ task.sprint|default:"Sprint 01" }}
+            </span>
+        </div>
+    </div>
+
+    <!-- Navigation Tabs (Panel 3: Overview, Subtasks, Attachments, Comments, Activity) -->
+    <div class="border-b border-slate-200 dark:border-zinc-800">
+        <nav class="flex space-x-8 text-sm font-semibold" aria-label="Tabs">
+            <button @click="activeTab = 'overview'" 
+                    :class="activeTab === 'overview' ? 'border-aether-blue text-aether-blue dark:text-sky-400' : 'border-transparent text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-300 hover:border-slate-300'"
+                    class="py-3 px-1 border-b-2 font-bold text-xs sm:text-sm transition-colors">
+                Overview
+            </button>
+            <button @click="activeTab = 'subtasks'" 
+                    :class="activeTab === 'subtasks' ? 'border-aether-blue text-aether-blue dark:text-sky-400' : 'border-transparent text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-300 hover:border-slate-300'"
+                    class="py-3 px-1 border-b-2 font-bold text-xs sm:text-sm transition-colors">
+                Subtasks <span class="ml-1 px-1.5 py-0.5 rounded-full text-[10px] bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400">3</span>
+            </button>
+            <button @click="activeTab = 'attachments'" 
+                    :class="activeTab === 'attachments' ? 'border-aether-blue text-aether-blue dark:text-sky-400' : 'border-transparent text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-300 hover:border-slate-300'"
+                    class="py-3 px-1 border-b-2 font-bold text-xs sm:text-sm transition-colors">
+                Attachments <span class="ml-1 px-1.5 py-0.5 rounded-full text-[10px] bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400">2</span>
+            </button>
+            <button @click="activeTab = 'comments'" 
+                    :class="activeTab === 'comments' ? 'border-aether-blue text-aether-blue dark:text-sky-400' : 'border-transparent text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-300 hover:border-slate-300'"
+                    class="py-3 px-1 border-b-2 font-bold text-xs sm:text-sm transition-colors">
+                Comments
+            </button>
+            <button @click="activeTab = 'activity'" 
+                    :class="activeTab === 'activity' ? 'border-aether-blue text-aether-blue dark:text-sky-400' : 'border-transparent text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-300 hover:border-slate-300'"
+                    class="py-3 px-1 border-b-2 font-bold text-xs sm:text-sm transition-colors">
+                Activity ({{ activities|length }})
+            </button>
+        </nav>
+    </div>
+
+    <!-- Main Content & Sidebar Grid -->
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         
-        <!-- Left Column: Description & Activity Feed (8 cols) -->
+        <!-- Left Tab Content Area (8 cols) -->
         <div class="lg:col-span-8 space-y-6">
             
-            <!-- Description Card -->
-            <div class="aether-card p-6 space-y-3">
-                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500">
-                    Description
-                </h3>
-                {% if task.description %}
-                    <div class="prose dark:prose-invert max-w-none text-sm leading-relaxed text-slate-800 dark:text-zinc-200 whitespace-pre-line font-sans">
-                        {{ task.description }}
+            <!-- Tab: OVERVIEW -->
+            <div x-show="activeTab === 'overview'" class="space-y-6">
+                <!-- Description Card -->
+                <div class="aether-card p-6 space-y-4">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500">
+                        Description
+                    </h3>
+                    {% if task.description %}
+                        <div class="prose dark:prose-invert max-w-none text-sm leading-relaxed text-slate-800 dark:text-zinc-200 whitespace-pre-line font-sans">
+                            {{ task.description }}
+                        </div>
+                    {% else %}
+                        <p class="text-xs text-slate-400 dark:text-zinc-500 italic">
+                            No description provided for this task. Click Edit Task to add technical specifications or acceptance criteria.
+                        </p>
+                    {% endif %}
+                </div>
+
+                <!-- Acceptance Criteria Checklist (Panel 3 Reference) -->
+                <div class="aether-card p-6 space-y-4">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500">
+                            Acceptance Criteria
+                        </h3>
+                        <span class="text-xs font-semibold text-emerald-600 dark:text-emerald-400">2 of 4 completed</span>
                     </div>
-                {% else %}
-                    <p class="text-xs text-slate-400 dark:text-zinc-500 italic">
-                        No description provided for this task. Click Edit Task to add technical specifications or acceptance criteria.
-                    </p>
-                {% endif %}
+
+                    <div class="space-y-2.5">
+                        <label class="flex items-start space-x-3 p-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-zinc-800/40 cursor-pointer transition">
+                            <input type="checkbox" checked class="mt-0.5 rounded border-slate-300 text-aether-blue focus:ring-aether-blue">
+                            <span class="text-xs text-slate-600 dark:text-zinc-300 line-through">User authentication flow implemented with session cookie handling</span>
+                        </label>
+                        <label class="flex items-start space-x-3 p-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-zinc-800/40 cursor-pointer transition">
+                            <input type="checkbox" checked class="mt-0.5 rounded border-slate-300 text-aether-blue focus:ring-aether-blue">
+                            <span class="text-xs text-slate-600 dark:text-zinc-300 line-through">RBAC permission checks enforced server-side for workspace roles</span>
+                        </label>
+                        <label class="flex items-start space-x-3 p-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-zinc-800/40 cursor-pointer transition">
+                            <input type="checkbox" class="mt-0.5 rounded border-slate-300 text-aether-blue focus:ring-aether-blue">
+                            <span class="text-xs text-slate-800 dark:text-zinc-200 font-medium">Assignee avatar preview integrated across list, board, and details views</span>
+                        </label>
+                        <label class="flex items-start space-x-3 p-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-zinc-800/40 cursor-pointer transition">
+                            <input type="checkbox" class="mt-0.5 rounded border-slate-300 text-aether-blue focus:ring-aether-blue">
+                            <span class="text-xs text-slate-800 dark:text-zinc-200 font-medium">Unit tests passing with 90%+ branch coverage</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Recent Activity Preview -->
+                <div class="aether-card p-6 space-y-4">
+                    <div class="flex items-center justify-between border-b border-slate-100 dark:border-zinc-800 pb-3">
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500">
+                            Recent Activity
+                        </h3>
+                        <button @click="activeTab = 'activity'" class="text-xs text-aether-blue font-semibold hover:underline">
+                            Full Timeline &rarr;
+                        </button>
+                    </div>
+                    {% if activities %}
+                        <div class="space-y-3">
+                            {% for act in activities|slice:":3" %}
+                                <div class="flex items-start space-x-3 text-xs">
+                                    <div class="w-6 h-6 rounded-full bg-slate-100 dark:bg-zinc-800 flex items-center justify-center font-bold text-slate-600 dark:text-zinc-400 shrink-0">
+                                        {{ act.actor.full_name|default:act.actor.email|slice:":1"|upper }}
+                                    </div>
+                                    <div class="flex-1 min-w-0">
+                                        <p class="text-slate-800 dark:text-zinc-200">
+                                            <span class="font-bold">{{ act.actor.full_name|default:act.actor.email }}</span>
+                                            {{ act.message }}
+                                        </p>
+                                        <span class="text-[11px] text-slate-400 dark:text-zinc-500">{{ act.created_at|timesince }} ago</span>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-xs text-slate-400 dark:text-zinc-500 italic">No activity recorded yet.</p>
+                    {% endif %}
+                </div>
             </div>
 
-            <!-- Activity & History Timeline (Audit Trail) -->
-            <div class="aether-card p-6 space-y-4">
+            <!-- Tab: SUBTASKS -->
+            <div x-show="activeTab === 'subtasks'" style="display: none;" class="aether-card p-6 space-y-4">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-sm font-bold text-slate-900 dark:text-zinc-100">Subtasks</h3>
+                    <button class="text-xs font-bold text-aether-blue hover:underline">+ Add Subtask</button>
+                </div>
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-[#0c1322]">
+                        <div class="flex items-center space-x-3">
+                            <input type="checkbox" checked class="rounded border-slate-300 text-aether-blue">
+                            <span class="text-xs text-slate-600 dark:text-zinc-400 line-through">Design login modal & registration flows</span>
+                        </div>
+                        <span class="text-[11px] font-mono text-slate-400">T-619348</span>
+                    </div>
+                    <div class="flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-[#0c1322]">
+                        <div class="flex items-center space-x-3">
+                            <input type="checkbox" checked class="rounded border-slate-300 text-aether-blue">
+                            <span class="text-xs text-slate-600 dark:text-zinc-400 line-through">Configure session CSRF middleware</span>
+                        </div>
+                        <span class="text-[11px] font-mono text-slate-400">T-619349</span>
+                    </div>
+                    <div class="flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#18181b]">
+                        <div class="flex items-center space-x-3">
+                            <input type="checkbox" class="rounded border-slate-300 text-aether-blue">
+                            <span class="text-xs text-slate-800 dark:text-zinc-200 font-semibold">Integrate OAuth 2.0 social sign-in endpoints</span>
+                        </div>
+                        <span class="text-[11px] font-mono text-slate-400">T-619350</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab: ATTACHMENTS -->
+            <div x-show="activeTab === 'attachments'" style="display: none;" class="aether-card p-6 space-y-4">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-sm font-bold text-slate-900 dark:text-zinc-100">Files & Specifications</h3>
+                    <button class="text-xs font-bold text-aether-blue hover:underline">+ Upload File</button>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div class="p-3 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-[#0c1322] flex items-center space-x-3">
+                        <div class="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-950/60 text-aether-blue flex items-center justify-center font-bold text-xs">
+                            PDF
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <p class="text-xs font-bold text-slate-800 dark:text-zinc-200 truncate">auth-flow-v2.pdf</p>
+                            <span class="text-[10px] text-slate-400 dark:text-zinc-500">1.4 MB • Oct 20</span>
+                        </div>
+                    </div>
+                    <div class="p-3 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-[#0c1322] flex items-center space-x-3">
+                        <div class="w-10 h-10 rounded-lg bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 flex items-center justify-center font-bold text-xs">
+                            PNG
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <p class="text-xs font-bold text-slate-800 dark:text-zinc-200 truncate">wireframe-tokens.png</p>
+                            <span class="text-[10px] text-slate-400 dark:text-zinc-500">820 KB • Oct 21</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab: COMMENTS -->
+            <div x-show="activeTab === 'comments'" style="display: none;" class="aether-card p-6 space-y-4">
+                <h3 class="text-sm font-bold text-slate-900 dark:text-zinc-100">Task Discussion</h3>
+                <div class="space-y-4">
+                    <div class="flex items-start space-x-3">
+                        <div class="w-8 h-8 rounded-full bg-indigo-600 text-white font-bold text-xs flex items-center justify-center shrink-0">
+                            {{ request.user.full_name|default:request.user.email|slice:":1"|upper }}
+                        </div>
+                        <div class="flex-1">
+                            <textarea rows="3" placeholder="Leave a comment or mention @team..." 
+                                      class="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-[#0c1322] text-slate-800 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-aether-blue"></textarea>
+                            <div class="mt-2 flex justify-end">
+                                <button class="px-3 py-1.5 text-xs font-bold rounded-lg bg-aether-blue text-white hover:bg-blue-600 transition">
+                                    Comment
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab: ACTIVITY -->
+            <div x-show="activeTab === 'activity'" style="display: none;" class="aether-card p-6 space-y-4">
                 <div class="flex items-center justify-between border-b border-slate-100 dark:border-zinc-800 pb-3">
                     <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500">
-                        Activity & History
+                        Full Activity & Audit History
                     </h3>
-                    <a href="{% url 'tasks:task_activity' slug=workspace.slug task_code=task.task_code %}" class="text-xs text-aether-blue font-semibold hover:underline">
-                        Full Audit Log &rarr;
-                    </a>
+                    <span class="text-xs text-slate-400 dark:text-zinc-500">{{ activities|length }} events</span>
                 </div>
 
                 {% if activities %}
                     <div class="relative pl-6 space-y-6 before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200 dark:before:bg-zinc-800">
                         {% for act in activities %}
                             <div class="relative group">
-                                <!-- Dot on line -->
                                 <span class="absolute -left-[27px] top-1 w-3 h-3 rounded-full border-2 border-white dark:border-obsidian-900 {% if act.action == 'CREATED' %}bg-emerald-500{% elif act.action == 'STATUS_CHANGED' %}bg-aether-blue{% elif act.action == 'ASSIGNED' %}bg-purple-500{% else %}bg-slate-400{% endif %}"></span>
 
                                 <div class="space-y-1">
@@ -104,7 +409,7 @@
 
         </div>
 
-        <!-- Right Column: Metadata Sidebar (4 cols) -->
+        <!-- Right Column: Details & Actions Sidebar (Panel 3 Reference) -->
         <div class="lg:col-span-4 space-y-5">
             
             <!-- Quick Status Updater Card -->
@@ -125,101 +430,90 @@
                 </form>
             </div>
 
-            <!-- Task Metadata Card -->
+            <!-- Details Card (Panel 3 Reference) -->
             <div class="aether-card p-5 space-y-4">
                 <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500 border-b border-slate-100 dark:border-zinc-800 pb-2">
-                    Task Details
+                    Details
                 </h3>
 
-                <!-- Priority -->
+                <!-- Created By (Reporter with Avatar) -->
                 <div class="flex items-center justify-between text-xs">
-                    <span class="text-slate-500 dark:text-zinc-400 font-medium">Priority</span>
-                    {% if task.priority == 'URGENT' %}
-                        <span class="px-2 py-0.5 rounded text-[11px] font-bold bg-red-100 dark:bg-red-950/80 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-900/60">
-                            Urgent
-                        </span>
-                    {% elif task.priority == 'HIGH' %}
-                        <span class="px-2 py-0.5 rounded text-[11px] font-bold bg-rose-50 dark:bg-rose-950/70 text-rose-600 dark:text-rose-400">
-                            High
-                        </span>
-                    {% elif task.priority == 'MEDIUM' %}
-                        <span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300">
-                            Medium
-                        </span>
-                    {% else %}
-                        <span class="px-2 py-0.5 rounded text-[11px] font-medium bg-slate-50 dark:bg-zinc-900 text-slate-500 dark:text-zinc-400">
-                            Low
-                        </span>
-                    {% endif %}
-                </div>
-
-                <!-- Assignee -->
-                <div class="flex items-center justify-between text-xs">
-                    <span class="text-slate-500 dark:text-zinc-400 font-medium">Assignee</span>
+                    <span class="text-slate-500 dark:text-zinc-400 font-medium">Created By</span>
                     <div class="flex items-center space-x-2">
-                        {% if task.assignee %}
-                            <div class="w-6 h-6 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-bold text-[10px] flex items-center justify-center shrink-0">
-                                {{ task.assignee.full_name|default:task.assignee.email|slice:":1"|upper }}
-                            </div>
-                            <span class="text-slate-800 dark:text-zinc-200 font-semibold truncate max-w-[130px]">
-                                {{ task.assignee.full_name|default:task.assignee.email }}
-                            </span>
+                        {% if task.reporter.avatar %}
+                            <img src="{{ task.reporter.avatar }}" alt="{{ task.reporter.full_name|default:task.reporter.email }}" class="w-5 h-5 rounded-full object-cover">
                         {% else %}
-                            <span class="text-slate-400 dark:text-zinc-500 italic">Unassigned</span>
+                            <div class="w-5 h-5 rounded-full bg-slate-200 dark:bg-zinc-700 text-slate-700 dark:text-zinc-300 font-bold text-[9px] flex items-center justify-center">
+                                {{ task.reporter.full_name|default:task.reporter.email|slice:":1"|upper }}
+                            </div>
                         {% endif %}
-                    </div>
-                </div>
-
-                <!-- Reporter -->
-                <div class="flex items-center justify-between text-xs">
-                    <span class="text-slate-500 dark:text-zinc-400 font-medium">Reporter</span>
-                    <span class="text-slate-800 dark:text-zinc-200 font-medium">
-                        {{ task.reporter.full_name|default:task.reporter.email|default:"System" }}
-                    </span>
-                </div>
-
-                <!-- Due Date -->
-                <div class="flex items-center justify-between text-xs">
-                    <span class="text-slate-500 dark:text-zinc-400 font-medium">Due Date</span>
-                    {% if task.due_date %}
-                        <div class="text-right">
-                            <span class="{% if task.is_overdue %}text-rose-600 dark:text-rose-400 font-bold{% else %}text-slate-800 dark:text-zinc-200 font-medium{% endif %}">
-                                {{ task.due_date|date:"M d, Y" }}
-                            </span>
-                            {% if task.is_overdue %}
-                                <span class="text-[10px] block uppercase font-bold text-rose-500">Overdue</span>
-                            {% endif %}
-                        </div>
-                    {% else %}
-                        <span class="text-slate-400 dark:text-zinc-500 italic">None set</span>
-                    {% endif %}
-                </div>
-
-                <!-- Estimated Hours -->
-                {% if task.estimated_hours %}
-                    <div class="flex items-center justify-between text-xs">
-                        <span class="text-slate-500 dark:text-zinc-400 font-medium">Estimated Hours</span>
-                        <span class="text-slate-800 dark:text-zinc-200 font-bold">
-                            {{ task.estimated_hours }} hrs
+                        <span class="text-slate-800 dark:text-zinc-200 font-semibold truncate max-w-[120px]">
+                            {{ task.reporter.full_name|default:task.reporter.email|default:"System" }}
                         </span>
                     </div>
-                {% endif %}
+                </div>
 
-                <!-- Created At -->
-                <div class="flex items-center justify-between text-xs pt-2 border-t border-slate-100 dark:border-zinc-800">
-                    <span class="text-slate-400 dark:text-zinc-500">Created</span>
-                    <span class="text-slate-600 dark:text-zinc-400">
+                <!-- Created On -->
+                <div class="flex items-center justify-between text-xs">
+                    <span class="text-slate-500 dark:text-zinc-400 font-medium">Created On</span>
+                    <span class="text-slate-800 dark:text-zinc-200 font-medium">
                         {{ task.created_at|date:"M d, Y" }}
                     </span>
                 </div>
 
-                <!-- Updated At -->
+                <!-- Last Updated -->
                 <div class="flex items-center justify-between text-xs">
-                    <span class="text-slate-400 dark:text-zinc-500">Last updated</span>
-                    <span class="text-slate-600 dark:text-zinc-400">
+                    <span class="text-slate-500 dark:text-zinc-400 font-medium">Last Updated</span>
+                    <span class="text-slate-800 dark:text-zinc-200 font-medium">
                         {{ task.updated_at|date:"M d, Y H:i" }}
                     </span>
                 </div>
+
+                <!-- Time Estimate -->
+                <div class="flex items-center justify-between text-xs">
+                    <span class="text-slate-500 dark:text-zinc-400 font-medium">Time Estimate</span>
+                    <span class="text-slate-800 dark:text-zinc-200 font-bold">
+                        {% if task.estimated_hours %}{{ task.estimated_hours }} hrs{% else %}Not set{% endif %}
+                    </span>
+                </div>
+
+                <!-- Time Spent -->
+                <div class="flex items-center justify-between text-xs">
+                    <span class="text-slate-500 dark:text-zinc-400 font-medium">Time Spent</span>
+                    <span class="text-slate-800 dark:text-zinc-200 font-medium">
+                        12 hrs logged
+                    </span>
+                </div>
+
+                <!-- Tags -->
+                {% if task.tags %}
+                    <div class="pt-2 border-t border-slate-100 dark:border-zinc-800">
+                        <span class="text-slate-500 dark:text-zinc-400 font-medium text-xs block mb-2">Tags</span>
+                        <div class="flex flex-wrap gap-1.5">
+                            {% for tag in task.tags.split %}
+                                <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 border border-slate-200 dark:border-zinc-700">
+                                    {{ tag }}
+                                </span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                {% endif %}
+
+                <!-- Manager & Admin Only: Delete Task Action -->
+                {% if membership.can_manage_content %}
+                    <div class="pt-4 border-t border-slate-100 dark:border-zinc-800">
+                        <a href="{% url 'tasks:task_delete' slug=workspace.slug task_code=task.task_code %}"
+                           class="w-full flex items-center justify-center space-x-1.5 px-3 py-2 text-xs font-bold rounded-xl text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/30 hover:bg-rose-100 dark:hover:bg-rose-900/50 border border-rose-200 dark:border-rose-900/50 transition">
+                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                            </svg>
+                            <span>Delete Task</span>
+                        </a>
+                        <p class="text-[10px] text-slate-400 dark:text-zinc-500 text-center mt-1.5">
+                            Allowed for Workspace Managers & Admins only
+                        </p>
+                    </div>
+                {% endif %}
             </div>
 
         </div>

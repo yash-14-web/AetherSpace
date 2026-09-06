@@ -1,143 +1,294 @@
 {% extends 'base.html' %}
 
 {% block title %}
-    {% if is_create %}Create Task{% else %}Edit #{{ task.task_code }}{% endif %} • {{ workspace.name }} — AetherSpace
+    {% if is_create %}Create Task{% else %}Edit T-{{ task.task_code }}{% endif %} • {{ workspace.name }} — AetherSpace
 {% endblock %}
 
 {% block content %}
-<div class="max-w-3xl mx-auto space-y-6">
+<div class="max-w-6xl mx-auto space-y-6" x-data="{
+    title: '{{ form.title.value|default:''|escapejs }}',
+    description: `{{ form.description.value|default:''|escapejs }}`,
+    insertMarkdown(prefix, suffix) {
+        const textarea = document.getElementById('{{ form.description.id_for_label }}');
+        if (!textarea) return;
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const text = textarea.value;
+        const sel = text.substring(start, end);
+        const replacement = prefix + sel + suffix;
+        textarea.value = text.substring(0, start) + replacement + text.substring(end);
+        textarea.focus();
+        textarea.setSelectionRange(start + prefix.length, end + prefix.length);
+    }
+}">
     
-    <!-- Header & Breadcrumbs -->
-    <div>
-        <div class="flex items-center space-x-2 text-xs text-slate-500 dark:text-zinc-400 mb-1">
-            <a href="{% url 'workspaces:workspace_dashboard' slug=workspace.slug %}" class="hover:text-aether-blue transition-colors">{{ workspace.name }}</a>
-            <span>/</span>
-            <a href="{% url 'tasks:task_list' slug=workspace.slug %}" class="hover:text-aether-blue transition-colors">Tasks</a>
-            <span>/</span>
-            <span class="text-slate-800 dark:text-zinc-200 font-medium">{% if is_create %}New Task{% else %}Edit #{{ task.task_code }}{% endif %}</span>
+    <!-- Header & Breadcrumbs (Panel 4 & 5 Reference) -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-zinc-800 pb-4">
+        <div>
+            <div class="flex items-center space-x-2 text-xs text-slate-500 dark:text-zinc-400 mb-1">
+                <a href="{% url 'tasks:task_list' slug=workspace.slug %}" class="inline-flex items-center space-x-1 hover:text-aether-blue transition-colors font-medium">
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                    </svg>
+                    <span>Tasks</span>
+                </a>
+                <span>/</span>
+                <span class="text-slate-800 dark:text-zinc-200 font-medium">
+                    {% if is_create %}Create Task{% else %}Edit T-{{ task.task_code }}{% endif %}
+                </span>
+            </div>
+            <div class="flex items-center space-x-3">
+                <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-zinc-50 tracking-tight">
+                    {% if is_create %}Create Task{% else %}Edit Task T-{{ task.task_code }}{% endif %}
+                </h1>
+                {% if not is_create %}
+                    <span class="px-2.5 py-1 text-xs font-mono font-black rounded-lg bg-slate-100 dark:bg-zinc-800 text-slate-800 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700">
+                        T-{{ task.task_code }}
+                    </span>
+                {% endif %}
+            </div>
         </div>
-        <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-zinc-50 tracking-tight">
-            {% if is_create %}Create New Task{% else %}Edit Task #{{ task.task_code }}{% endif %}
-        </h1>
-        <p class="text-xs text-slate-500 dark:text-zinc-400 mt-1">
-            {% if is_create %}
-                Define a sprint deliverable with collision-safe 6-digit identification and workflow tracking.
-            {% else %}
-                Update task specifications, change status progression, or reassign team members.
-            {% endif %}
-        </p>
+
+        <div class="flex items-center space-x-2">
+            <a href="{% if is_create %}{% url 'tasks:task_list' slug=workspace.slug %}{% else %}{% url 'tasks:task_detail' slug=workspace.slug task_code=task.task_code %}{% endif %}" 
+               class="px-4 py-2 text-xs font-semibold rounded-xl border border-slate-200 dark:border-zinc-800 text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 transition">
+                Cancel
+            </a>
+            <button type="submit" form="task-form"
+                    class="px-5 py-2 text-xs font-bold rounded-xl bg-aether-blue text-white hover:bg-blue-600 transition shadow-sm">
+                {% if is_create %}Create Task{% else %}Save Changes{% endif %}
+            </button>
+        </div>
     </div>
 
-    <!-- Form Card -->
-    <div class="aether-card p-6 sm:p-8">
-        <form method="post" class="space-y-6">
-            {% csrf_token %}
+    <!-- 2-Column Form Layout (Panels 4 & 5) -->
+    <form id="task-form" method="post" class="space-y-6">
+        {% csrf_token %}
 
-            {% if form.non_field_errors %}
-                <div class="p-4 rounded-xl bg-red-50 dark:bg-red-950/60 border border-red-200 dark:border-red-900/60 text-xs text-red-600 dark:text-red-400 space-y-1">
-                    {% for err in form.non_field_errors %}
-                        <p class="font-semibold">{{ err }}</p>
-                    {% endfor %}
-                </div>
-            {% endif %}
-
-            <!-- Title Field -->
-            <div class="space-y-1.5">
-                <label for="{{ form.title.id_for_label }}" class="block text-xs font-bold text-slate-700 dark:text-zinc-300">
-                    Task Title <span class="text-red-500">*</span>
-                </label>
-                {{ form.title }}
-                {% if form.title.errors %}
-                    <p class="text-xs text-red-500 font-semibold">{{ form.title.errors.0 }}</p>
-                {% endif %}
+        {% if form.non_field_errors %}
+            <div class="p-4 rounded-xl bg-red-50 dark:bg-red-950/60 border border-red-200 dark:border-red-900/60 text-xs text-red-600 dark:text-red-400 space-y-1">
+                {% for err in form.non_field_errors %}
+                    <p class="font-semibold">{{ err }}</p>
+                {% endfor %}
             </div>
+        {% endif %}
 
-            <!-- Description Field -->
-            <div class="space-y-1.5">
-                <label for="{{ form.description.id_for_label }}" class="block text-xs font-bold text-slate-700 dark:text-zinc-300">
-                    Description & Specifications
-                </label>
-                {{ form.description }}
-                {% if form.description.errors %}
-                    <p class="text-xs text-red-500 font-semibold">{{ form.description.errors.0 }}</p>
-                {% endif %}
-                <p class="text-[11px] text-slate-400 dark:text-zinc-500">Provide technical requirements, acceptance criteria, or relevant context.</p>
-            </div>
-
-            <!-- 2-Column Attributes Grid -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            
+            <!-- Left Column: Title, Toolbar & Markdown Description (8 cols) -->
+            <div class="lg:col-span-8 space-y-6">
                 
-                <!-- Status -->
-                <div class="space-y-1.5">
-                    <label for="{{ form.status.id_for_label }}" class="block text-xs font-bold text-slate-700 dark:text-zinc-300">
-                        Workflow Status
+                <!-- Title Card -->
+                <div class="aether-card p-6 space-y-2">
+                    <label for="{{ form.title.id_for_label }}" class="block text-xs font-bold text-slate-700 dark:text-zinc-300">
+                        Task Title <span class="text-red-500">*</span>
                     </label>
-                    {{ form.status }}
-                    {% if form.status.errors %}
-                        <p class="text-xs text-red-500 font-semibold">{{ form.status.errors.0 }}</p>
+                    {{ form.title }}
+                    {% if form.title.errors %}
+                        <p class="text-xs text-red-500 font-semibold">{{ form.title.errors.0 }}</p>
                     {% endif %}
                 </div>
 
-                <!-- Priority -->
-                <div class="space-y-1.5">
-                    <label for="{{ form.priority.id_for_label }}" class="block text-xs font-bold text-slate-700 dark:text-zinc-300">
-                        Priority Level
-                    </label>
-                    {{ form.priority }}
-                    {% if form.priority.errors %}
-                        <p class="text-xs text-red-500 font-semibold">{{ form.priority.errors.0 }}</p>
+                <!-- Description Card with Markdown Toolbar -->
+                <div class="aether-card p-6 space-y-3">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-100 dark:border-zinc-800">
+                        <label for="{{ form.description.id_for_label }}" class="block text-xs font-bold text-slate-700 dark:text-zinc-300">
+                            Description
+                        </label>
+                        
+                        <!-- Rich Markdown Quick Bar -->
+                        <div class="flex items-center space-x-1 text-slate-500 dark:text-zinc-400 bg-slate-50 dark:bg-zinc-900/80 p-1 rounded-lg border border-slate-200 dark:border-zinc-800">
+                            <button type="button" @click="insertMarkdown('**', '**')" title="Bold" class="px-2 py-1 text-xs font-bold hover:text-slate-900 dark:hover:text-zinc-100 hover:bg-slate-200 dark:hover:bg-zinc-800 rounded">
+                                B
+                            </button>
+                            <button type="button" @click="insertMarkdown('*', '*')" title="Italic" class="px-2 py-1 text-xs italic hover:text-slate-900 dark:hover:text-zinc-100 hover:bg-slate-200 dark:hover:bg-zinc-800 rounded">
+                                I
+                            </button>
+                            <button type="button" @click="insertMarkdown('`', '`')" title="Code" class="px-2 py-1 text-xs font-mono hover:text-slate-900 dark:hover:text-zinc-100 hover:bg-slate-200 dark:hover:bg-zinc-800 rounded">
+                                &lt;/&gt;
+                            </button>
+                            <button type="button" @click="insertMarkdown('- ', '')" title="Bullet List" class="px-2 py-1 text-xs hover:text-slate-900 dark:hover:text-zinc-100 hover:bg-slate-200 dark:hover:bg-zinc-800 rounded">
+                                • List
+                            </button>
+                            <button type="button" @click="insertMarkdown('[', '](url)')" title="Link" class="px-2 py-1 text-xs hover:text-slate-900 dark:hover:text-zinc-100 hover:bg-slate-200 dark:hover:bg-zinc-800 rounded">
+                                🔗
+                            </button>
+                            <button type="button" @click="insertMarkdown('> ', '')" title="Quote" class="px-2 py-1 text-xs hover:text-slate-900 dark:hover:text-zinc-100 hover:bg-slate-200 dark:hover:bg-zinc-800 rounded">
+                                ”
+                            </button>
+                        </div>
+                    </div>
+
+                    {{ form.description }}
+                    {% if form.description.errors %}
+                        <p class="text-xs text-red-500 font-semibold">{{ form.description.errors.0 }}</p>
                     {% endif %}
+                    <p class="text-[11px] text-slate-400 dark:text-zinc-500">
+                        Markdown formatting supported. Add acceptance criteria checklists with <code>- [ ] Checklist item</code>.
+                    </p>
                 </div>
 
-                <!-- Assignee -->
-                <div class="space-y-1.5">
+                <!-- Subtasks Section (Mockup alignment) -->
+                <div class="aether-card p-6 space-y-4">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500">
+                            Subtasks
+                        </h3>
+                        <span class="text-xs text-slate-400 dark:text-zinc-500">Optional breakdown</span>
+                    </div>
+
+                    <div class="space-y-2">
+                        <div class="flex items-center space-x-3 p-2.5 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-[#0c1322]">
+                            <span class="w-2 h-2 rounded-full bg-slate-400"></span>
+                            <span class="text-xs text-slate-600 dark:text-zinc-400 flex-1">Database schema definition & migrations</span>
+                            <span class="text-[10px] text-slate-400">Phase 1</span>
+                        </div>
+                        <div class="flex items-center space-x-3 p-2.5 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-[#0c1322]">
+                            <span class="w-2 h-2 rounded-full bg-slate-400"></span>
+                            <span class="text-xs text-slate-600 dark:text-zinc-400 flex-1">API endpoints & serializer integration</span>
+                            <span class="text-[10px] text-slate-400">Phase 2</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Right Column: Assignee, Metadata & Permissions Sidebar (4 cols) -->
+            <div class="lg:col-span-4 space-y-5">
+                
+                <!-- Assignee Card with Profile Picture / Avatar Preview -->
+                <div class="aether-card p-5 space-y-3">
                     <label for="{{ form.assignee.id_for_label }}" class="block text-xs font-bold text-slate-700 dark:text-zinc-300">
                         Assignee
                     </label>
+                    
                     {{ form.assignee }}
                     {% if form.assignee.errors %}
                         <p class="text-xs text-red-500 font-semibold">{{ form.assignee.errors.0 }}</p>
                     {% endif %}
-                    <p class="text-[11px] text-slate-400 dark:text-zinc-500">Restricted to active members of this workspace.</p>
+                    
+                    <div class="flex items-center space-x-2 pt-2 border-t border-slate-100 dark:border-zinc-800">
+                        <div class="w-6 h-6 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-bold text-[10px] flex items-center justify-center shrink-0">
+                            {% if task and task.assignee %}
+                                {{ task.assignee.full_name|default:task.assignee.email|slice:":1"|upper }}
+                            {% else %}
+                                ?
+                            {% endif %}
+                        </div>
+                        <span class="text-[11px] text-slate-500 dark:text-zinc-400">
+                            {% if task and task.assignee %}
+                                Currently assigned to <strong class="text-slate-800 dark:text-zinc-200">{{ task.assignee.full_name|default:task.assignee.email }}</strong>
+                            {% else %}
+                                Assignee avatar will appear on boards & lists.
+                            {% endif %}
+                        </span>
+                    </div>
                 </div>
 
-                <!-- Due Date -->
-                <div class="space-y-1.5">
-                    <label for="{{ form.due_date.id_for_label }}" class="block text-xs font-bold text-slate-700 dark:text-zinc-300">
-                        Due Date
-                    </label>
-                    {{ form.due_date }}
-                    {% if form.due_date.errors %}
-                        <p class="text-xs text-red-500 font-semibold">{{ form.due_date.errors.0 }}</p>
-                    {% endif %}
+                <!-- Attributes Card -->
+                <div class="aether-card p-5 space-y-4">
+                    
+                    <!-- Workflow Status -->
+                    <div class="space-y-1.5">
+                        <label for="{{ form.status.id_for_label }}" class="block text-xs font-bold text-slate-700 dark:text-zinc-300">
+                            Workflow Status
+                        </label>
+                        {{ form.status }}
+                        {% if form.status.errors %}
+                            <p class="text-xs text-red-500 font-semibold">{{ form.status.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Sprint -->
+                    <div class="space-y-1.5">
+                        <label for="{{ form.sprint.id_for_label }}" class="block text-xs font-bold text-slate-700 dark:text-zinc-300">
+                            Sprint Iteration
+                        </label>
+                        {{ form.sprint }}
+                        {% if form.sprint.errors %}
+                            <p class="text-xs text-red-500 font-semibold">{{ form.sprint.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Priority -->
+                    <div class="space-y-1.5">
+                        <label for="{{ form.priority.id_for_label }}" class="block text-xs font-bold text-slate-700 dark:text-zinc-300">
+                            Priority Level
+                        </label>
+                        {{ form.priority }}
+                        {% if form.priority.errors %}
+                            <p class="text-xs text-red-500 font-semibold">{{ form.priority.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Due Date -->
+                    <div class="space-y-1.5">
+                        <label for="{{ form.due_date.id_for_label }}" class="block text-xs font-bold text-slate-700 dark:text-zinc-300">
+                            Due Date
+                        </label>
+                        {{ form.due_date }}
+                        {% if form.due_date.errors %}
+                            <p class="text-xs text-red-500 font-semibold">{{ form.due_date.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Estimated Hours -->
+                    <div class="space-y-1.5">
+                        <label for="{{ form.estimated_hours.id_for_label }}" class="block text-xs font-bold text-slate-700 dark:text-zinc-300">
+                            Estimated Hours
+                        </label>
+                        {{ form.estimated_hours }}
+                        {% if form.estimated_hours.errors %}
+                            <p class="text-xs text-red-500 font-semibold">{{ form.estimated_hours.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Tags -->
+                    <div class="space-y-1.5">
+                        <label for="{{ form.tags.id_for_label }}" class="block text-xs font-bold text-slate-700 dark:text-zinc-300">
+                            Tags
+                        </label>
+                        {{ form.tags }}
+                        {% if form.tags.errors %}
+                            <p class="text-xs text-red-500 font-semibold">{{ form.tags.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
                 </div>
 
-                <!-- Estimated Hours -->
-                <div class="space-y-1.5">
-                    <label for="{{ form.estimated_hours.id_for_label }}" class="block text-xs font-bold text-slate-700 dark:text-zinc-300">
-                        Estimated Hours
-                    </label>
-                    {{ form.estimated_hours }}
-                    {% if form.estimated_hours.errors %}
-                        <p class="text-xs text-red-500 font-semibold">{{ form.estimated_hours.errors.0 }}</p>
-                    {% endif %}
+                <!-- Manager & Admin Delete Task Action in Edit mode -->
+                {% if not is_create and membership.can_manage_content %}
+                    <div class="aether-card p-5 space-y-3 border-rose-200 dark:border-rose-900/40 bg-rose-50/20 dark:bg-rose-950/10">
+                        <h4 class="text-xs font-bold text-rose-600 dark:text-rose-400">Danger Zone</h4>
+                        <p class="text-[11px] text-slate-500 dark:text-zinc-400 leading-relaxed">
+                            Deleting this task will permanently remove its history and audit events.
+                        </p>
+                        <a href="{% url 'tasks:task_delete' slug=workspace.slug task_code=task.task_code %}"
+                           class="w-full flex items-center justify-center space-x-2 px-3 py-2 text-xs font-bold rounded-xl text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/60 border border-rose-200 dark:border-rose-900/60 transition">
+                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                            </svg>
+                            <span>Delete Task</span>
+                        </a>
+                    </div>
+                {% endif %}
+
+                <!-- Form Action Buttons -->
+                <div class="flex items-center space-x-3 pt-2">
+                    <button type="submit"
+                            class="flex-1 py-2.5 px-4 text-xs font-bold rounded-xl bg-aether-blue text-white hover:bg-blue-600 transition shadow-sm text-center">
+                        {% if is_create %}Create Task{% else %}Save Changes{% endif %}
+                    </button>
+                    <a href="{% if is_create %}{% url 'tasks:task_list' slug=workspace.slug %}{% else %}{% url 'tasks:task_detail' slug=workspace.slug task_code=task.task_code %}{% endif %}"
+                       class="py-2.5 px-4 text-xs font-semibold rounded-xl border border-slate-200 dark:border-zinc-800 text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 transition text-center">
+                        Cancel
+                    </a>
                 </div>
 
             </div>
 
-            <!-- Action Buttons -->
-            <div class="pt-4 border-t border-slate-200 dark:border-zinc-800 flex items-center justify-end space-x-3">
-                <a href="{% if is_create %}{% url 'tasks:task_list' slug=workspace.slug %}{% else %}{% url 'tasks:task_detail' slug=workspace.slug task_code=task.task_code %}{% endif %}" 
-                   class="px-4 py-2.5 text-xs font-semibold rounded-xl border border-slate-200 dark:border-zinc-800 text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 transition">
-                    Cancel
-                </a>
-                <button type="submit" 
-                        class="px-5 py-2.5 text-xs font-bold rounded-xl bg-aether-blue text-white hover:bg-blue-700 shadow-md shadow-blue-500/10 transition">
-                    {% if is_create %}Create Task{% else %}Save Changes{% endif %}
-                </button>
-            </div>
-        </form>
-    </div>
+        </div>
+    </form>
 
 </div>
 {% endblock %}

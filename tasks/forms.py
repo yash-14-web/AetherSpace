@@ -14,7 +14,9 @@ class TaskForm(forms.ModelForm):
             'status',
             'priority',
             'assignee',
+            'sprint',
             'due_date',
+            'tags',
             'estimated_hours',
         ]
         widgets = {
@@ -40,6 +42,14 @@ class TaskForm(forms.ModelForm):
             'due_date': forms.DateInput(attrs={
                 'class': 'w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-zinc-700 bg-white dark:bg-[#0c1322] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-aether-blue focus:border-transparent text-sm transition',
                 'type': 'date'
+            }),
+            'sprint': forms.TextInput(attrs={
+                'class': 'w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-zinc-700 bg-white dark:bg-[#0c1322] text-slate-900 dark:text-zinc-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-aether-blue focus:border-transparent text-sm transition',
+                'placeholder': 'e.g. Sprint 01'
+            }),
+            'tags': forms.TextInput(attrs={
+                'class': 'w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-zinc-700 bg-white dark:bg-[#0c1322] text-slate-900 dark:text-zinc-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-aether-blue focus:border-transparent text-sm transition',
+                'placeholder': 'e.g. Design, UI/UX'
             }),
             'estimated_hours': forms.NumberInput(attrs={
                 'class': 'w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-zinc-700 bg-white dark:bg-[#0c1322] text-slate-900 dark:text-zinc-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-aether-blue focus:border-transparent text-sm transition',

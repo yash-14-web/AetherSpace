@@ -1,28 +1,30 @@
 {% extends 'base.html' %}
 
-{% block title %}Activity History • #{{ task.task_code }} — AetherSpace{% endblock %}
+{% block title %}Activity History • T-{{ task.task_code }} — AetherSpace{% endblock %}
 
 {% block content %}
-<div class="max-w-4xl mx-auto space-y-6">
+<div class="max-w-6xl mx-auto space-y-6">
     
-    <!-- Top Header -->
-    <div class="flex items-center justify-between border-b border-slate-200 dark:border-zinc-800 pb-4">
+    <!-- Top Header (Panel 8 Reference) -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-zinc-800 pb-4">
         <div>
             <div class="flex items-center space-x-2 text-xs text-slate-500 dark:text-zinc-400 mb-1">
                 <a href="{% url 'workspaces:workspace_dashboard' slug=workspace.slug %}" class="hover:text-aether-blue transition-colors">{{ workspace.name }}</a>
                 <span>/</span>
                 <a href="{% url 'tasks:task_list' slug=workspace.slug %}" class="hover:text-aether-blue transition-colors">Tasks</a>
                 <span>/</span>
-                <a href="{% url 'tasks:task_detail' slug=workspace.slug task_code=task.task_code %}" class="hover:text-aether-blue transition-colors font-mono">#{{ task.task_code }}</a>
+                <a href="{% url 'tasks:task_detail' slug=workspace.slug task_code=task.task_code %}" class="hover:text-aether-blue transition-colors font-mono">T-{{ task.task_code }}</a>
                 <span>/</span>
                 <span class="text-slate-800 dark:text-zinc-200 font-medium">Activity</span>
             </div>
-            <h1 class="text-2xl font-extrabold text-slate-900 dark:text-zinc-50 tracking-tight">
-                Activity Audit Log
-            </h1>
-            <p class="text-xs text-slate-500 dark:text-zinc-400 mt-1">
-                Chronological record of status transitions, reassignments, and modifications for #{{ task.task_code }} ({{ task.title }}).
-            </p>
+            <div class="flex items-center space-x-3">
+                <h1 class="text-2xl font-extrabold text-slate-900 dark:text-zinc-50 tracking-tight">
+                    Task Activity & Audit History
+                </h1>
+                <span class="px-2.5 py-1 text-xs font-mono font-black rounded-lg bg-slate-100 dark:bg-zinc-800 text-slate-800 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700">
+                    T-{{ task.task_code }}
+                </span>
+            </div>
         </div>
 
         <a href="{% url 'tasks:task_detail' slug=workspace.slug task_code=task.task_code %}" 
@@ -31,51 +33,140 @@
         </a>
     </div>
 
-    <!-- Chronological Text Audit Trail -->
-    <div class="aether-card p-6 sm:p-8">
-        {% if activities %}
-            <div class="relative pl-6 space-y-8 before:absolute before:left-2.5 before:top-2.5 before:bottom-2.5 before:w-0.5 before:bg-slate-200 dark:before:bg-zinc-800">
-                {% for act in activities %}
-                    <div class="relative group">
-                        <!-- Dot on timeline -->
-                        <span class="absolute -left-[27px] top-1.5 w-3.5 h-3.5 rounded-full border-2 border-white dark:border-obsidian-900 {% if act.action == 'CREATED' %}bg-emerald-500{% elif act.action == 'STATUS_CHANGED' %}bg-aether-blue{% elif act.action == 'ASSIGNED' %}bg-purple-500{% else %}bg-slate-400{% endif %}"></span>
+    <!-- 2-Column Panel 8 Layout: Left Summary Card + Right Timeline -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        
+        <!-- Left: Task Summary Card (4 cols) -->
+        <div class="lg:col-span-4 space-y-4">
+            <div class="aether-card p-5 space-y-4">
+                <div>
+                    <span class="text-[11px] font-mono text-aether-blue dark:text-sky-400 font-bold">T-{{ task.task_code }}</span>
+                    <h3 class="text-base font-extrabold text-slate-900 dark:text-zinc-100 mt-0.5">
+                        {{ task.title }}
+                    </h3>
+                </div>
 
-                        <div class="space-y-1.5">
-                            <div class="flex flex-wrap items-center gap-2 text-xs">
-                                <span class="font-bold text-slate-900 dark:text-zinc-100">
-                                    {{ act.actor.full_name|default:act.actor.email|default:"System" }}
-                                </span>
-                                <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400">
-                                    {{ act.get_action_display }}
-                                </span>
-                                <span class="text-slate-400 dark:text-zinc-500">•</span>
-                                <span class="text-[11px] text-slate-500 dark:text-zinc-400">
-                                    {{ act.created_at|date:"M d, Y" }} at {{ act.created_at|date:"H:i:s" }}
+                <div class="space-y-3 text-xs pt-2 border-t border-slate-100 dark:border-zinc-800">
+                    <!-- Status -->
+                    <div class="flex items-center justify-between">
+                        <span class="text-slate-400 dark:text-zinc-500">Status</span>
+                        <span class="px-2 py-0.5 rounded-full font-bold bg-blue-50 dark:bg-blue-950/80 text-aether-blue">
+                            {{ task.get_status_display }}
+                        </span>
+                    </div>
+
+                    <!-- Priority -->
+                    <div class="flex items-center justify-between">
+                        <span class="text-slate-400 dark:text-zinc-500">Priority</span>
+                        <span class="px-2 py-0.5 rounded-full font-bold bg-rose-50 dark:bg-rose-950/80 text-rose-600">
+                            {{ task.get_priority_display }}
+                        </span>
+                    </div>
+
+                    <!-- Assignee with Profile Picture -->
+                    <div class="flex items-center justify-between">
+                        <span class="text-slate-400 dark:text-zinc-500">Assignee</span>
+                        {% if task.assignee %}
+                            <div class="flex items-center space-x-2">
+                                {% if task.assignee.avatar %}
+                                    <img src="{{ task.assignee.avatar }}" alt="{{ task.assignee.full_name|default:task.assignee.email }}" class="w-5 h-5 rounded-full object-cover">
+                                {% else %}
+                                    <div class="w-5 h-5 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-bold text-[9px] flex items-center justify-center">
+                                        {{ task.assignee.full_name|default:task.assignee.email|slice:":1"|upper }}
+                                    </div>
+                                {% endif %}
+                                <span class="font-semibold text-slate-800 dark:text-zinc-200 truncate max-w-[110px]">
+                                    {{ task.assignee.full_name|default:task.assignee.email }}
                                 </span>
                             </div>
-
-                            <p class="text-xs text-slate-800 dark:text-zinc-200 font-medium">
-                                {{ act.message }}
-                            </p>
-
-                            {% if act.old_value or act.new_value %}
-                                <div class="inline-flex items-center space-x-2 text-[11px] font-mono px-2.5 py-1 rounded bg-slate-50 dark:bg-zinc-900/80 border border-slate-200/80 dark:border-zinc-800 text-slate-600 dark:text-zinc-400">
-                                    {% if act.old_value %}
-                                        <span class="line-through text-slate-400">{{ act.old_value }}</span>
-                                        <span>&rarr;</span>
-                                    {% endif %}
-                                    <span class="text-slate-900 dark:text-zinc-100 font-semibold">{{ act.new_value }}</span>
-                                </div>
-                            {% endif %}
-                        </div>
+                        {% else %}
+                            <span class="text-slate-400 dark:text-zinc-500 italic">Unassigned</span>
+                        {% endif %}
                     </div>
-                {% endfor %}
+
+                    <!-- Due Date -->
+                    <div class="flex items-center justify-between">
+                        <span class="text-slate-400 dark:text-zinc-500">Due Date</span>
+                        <span class="font-medium text-slate-800 dark:text-zinc-200">
+                            {{ task.due_date|date:"M d, Y"|default:"None" }}
+                        </span>
+                    </div>
+
+                    <!-- Sprint -->
+                    <div class="flex items-center justify-between">
+                        <span class="text-slate-400 dark:text-zinc-500">Sprint</span>
+                        <span class="px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 font-bold text-[10px]">
+                            {{ task.sprint|default:"Sprint 01" }}
+                        </span>
+                    </div>
+                </div>
+
+                <div class="pt-3 border-t border-slate-100 dark:border-zinc-800">
+                    <a href="{% url 'tasks:task_detail' slug=workspace.slug task_code=task.task_code %}"
+                       class="w-full flex items-center justify-center py-2 px-3 text-xs font-bold rounded-xl bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-700 transition">
+                        View Full Details
+                    </a>
+                </div>
             </div>
-        {% else %}
-            <p class="text-xs text-slate-400 dark:text-zinc-500 italic text-center py-8">
-                No activity records available.
-            </p>
-        {% endif %}
+        </div>
+
+        <!-- Right: Chronological Timeline (8 cols) -->
+        <div class="lg:col-span-8 aether-card p-6 sm:p-8">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500 mb-6">
+                Audit Timeline
+            </h3>
+
+            {% if activities %}
+                <div class="relative pl-6 space-y-8 before:absolute before:left-2.5 before:top-2.5 before:bottom-2.5 before:w-0.5 before:bg-slate-200 dark:before:bg-zinc-800">
+                    {% for act in activities %}
+                        <div class="relative group">
+                            <!-- Avatar / Icon on timeline -->
+                            <div class="absolute -left-[27px] top-0 w-6 h-6 rounded-full overflow-hidden border-2 border-white dark:border-obsidian-900 shadow-sm flex items-center justify-center {% if act.action == 'CREATED' %}bg-emerald-500 text-white{% elif act.action == 'STATUS_CHANGED' %}bg-aether-blue text-white{% elif act.action == 'ASSIGNED' %}bg-purple-500 text-white{% else %}bg-slate-600 text-white{% endif %} text-[9px] font-bold">
+                                {% if act.actor and act.actor.avatar %}
+                                    <img src="{{ act.actor.avatar }}" alt="" class="w-full h-full object-cover">
+                                {% else %}
+                                    {{ act.actor.full_name|default:act.actor.email|slice:":1"|upper|default:"S" }}
+                                {% endif %}
+                            </div>
+
+                            <div class="space-y-1.5 pl-2">
+                                <div class="flex flex-wrap items-center gap-2 text-xs">
+                                    <span class="font-bold text-slate-900 dark:text-zinc-100">
+                                        {{ act.actor.full_name|default:act.actor.email|default:"System" }}
+                                    </span>
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400">
+                                        {{ act.get_action_display }}
+                                    </span>
+                                    <span class="text-slate-400 dark:text-zinc-500">•</span>
+                                    <span class="text-[11px] text-slate-500 dark:text-zinc-400">
+                                        {{ act.created_at|date:"M d, Y" }} at {{ act.created_at|date:"H:i" }}
+                                    </span>
+                                </div>
+
+                                <p class="text-xs text-slate-800 dark:text-zinc-200 font-medium">
+                                    {{ act.message }}
+                                </p>
+
+                                {% if act.old_value or act.new_value %}
+                                    <div class="inline-flex items-center space-x-2 text-[11px] font-mono px-2.5 py-1 rounded-lg bg-slate-50 dark:bg-[#0c1322] border border-slate-200/80 dark:border-zinc-800 text-slate-600 dark:text-zinc-400">
+                                        {% if act.old_value %}
+                                            <span class="line-through text-slate-400">{{ act.old_value }}</span>
+                                            <span>&rarr;</span>
+                                        {% endif %}
+                                        <span class="text-slate-900 dark:text-zinc-100 font-bold">{{ act.new_value }}</span>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="text-xs text-slate-400 dark:text-zinc-500 italic text-center py-8">
+                    No activity records available for this task.
+                </p>
+            {% endif %}
+        </div>
+
     </div>
 
 </div>
