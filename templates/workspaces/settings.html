@@ -1,0 +1,93 @@
+{% extends 'base.html' %}
+
+{% block title %}Workspace Settings — {{ workspace.name }} — AetherSpace{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto py-6 px-4 sm:px-6 space-y-6">
+    
+    <!-- Breadcrumbs -->
+    <div class="flex items-center space-x-2 text-xs text-slate-500 dark:text-zinc-400">
+        <a href="{% url 'workspaces:workspace_dashboard' slug=workspace.slug %}" class="hover:text-aether-blue transition-colors">{{ workspace.name }}</a>
+        <span>/</span>
+        <span class="text-slate-900 dark:text-zinc-200 font-medium">Settings</span>
+    </div>
+
+    <!-- General Settings Card -->
+    <div class="aether-card p-6 sm:p-8 space-y-6 shadow-xl">
+        <div class="border-b border-slate-100 dark:border-zinc-800 pb-4">
+            <h1 class="text-xl font-bold tracking-tight text-slate-900 dark:text-zinc-50">
+                Workspace Settings
+            </h1>
+            <p class="text-xs text-slate-500 dark:text-zinc-400 mt-1">
+                Configure general information and preferences for {{ workspace.name }}.
+            </p>
+        </div>
+
+        <form method="post" action="{% url 'workspaces:settings' slug=workspace.slug %}" class="space-y-5">
+            {% csrf_token %}
+
+            <div class="space-y-1.5">
+                <label for="{{ form.name.id_for_label }}" class="block text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                    Workspace Name <span class="text-rose-500">*</span>
+                </label>
+                {{ form.name }}
+                {% if form.name.errors %}
+                    <p class="text-[11px] text-rose-500">{{ form.name.errors.0 }}</p>
+                {% endif %}
+            </div>
+
+            <div class="space-y-1.5">
+                <label class="block text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                    Workspace URL Identifier
+                </label>
+                <div class="flex items-center rounded-lg border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-obsidian-950 px-3 py-2 text-xs text-slate-400 dark:text-zinc-500 select-all">
+                    <span>aetherspace.dev/w/{{ workspace.slug }}/</span>
+                </div>
+            </div>
+
+            <div class="space-y-1.5">
+                <label for="{{ form.description.id_for_label }}" class="block text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                    Description
+                </label>
+                {{ form.description }}
+                {% if form.description.errors %}
+                    <p class="text-[11px] text-rose-500">{{ form.description.errors.0 }}</p>
+                {% endif %}
+            </div>
+
+            <div class="space-y-1.5">
+                <label for="{{ form.status.id_for_label }}" class="block text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                    Status
+                </label>
+                {{ form.status }}
+            </div>
+
+            <div class="pt-4 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between">
+                <a href="{% url 'workspaces:workspace_dashboard' slug=workspace.slug %}" class="aether-button-secondary text-xs px-4 py-2">
+                    Cancel
+                </a>
+                <button type="submit" class="aether-button-primary text-xs px-5 py-2 shadow-sm shadow-blue-500/20">
+                    Save Changes
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Danger Zone Card -->
+    <div class="aether-card p-6 border-rose-200 dark:border-rose-900/40 space-y-4">
+        <h3 class="text-sm font-bold text-rose-600 dark:text-rose-400">
+            Danger Zone
+        </h3>
+        <p class="text-xs text-slate-500 dark:text-zinc-400">
+            Archiving or modifying workspace ownership requires platform administrator confirmation.
+        </p>
+        <div class="pt-2 flex items-center justify-between">
+            <span class="text-xs font-medium text-slate-700 dark:text-zinc-300">Archive Workspace</span>
+            <button type="button" onclick="alert('To archive this workspace, change the Status to Archived above and save.');" class="px-3 py-1.5 rounded-lg border border-rose-200 dark:border-rose-900 text-rose-600 dark:text-rose-400 text-xs font-semibold hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors">
+                Archive
+            </button>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

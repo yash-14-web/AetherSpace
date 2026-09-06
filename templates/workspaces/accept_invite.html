@@ -1,0 +1,92 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Accept Workspace Invitation — AetherSpace{% endblock %}
+
+{% block content %}
+<div class="min-h-[70vh] flex items-center justify-center py-12 px-4">
+    <div class="max-w-md w-full aether-card p-8 text-center space-y-6 shadow-2xl">
+        
+        <!-- Icon / Emblem -->
+        <div class="w-14 h-14 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-bold text-xl flex items-center justify-center mx-auto shadow-lg shadow-blue-500/25">
+            {{ invite.workspace.name|slice:":2"|upper }}
+        </div>
+
+        {% if is_valid %}
+            <div class="space-y-2">
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 dark:bg-blue-950/60 text-aether-blue border border-blue-200 dark:border-blue-900/40">
+                    Workspace Invitation
+                </span>
+                <h1 class="text-xl font-bold tracking-tight text-slate-900 dark:text-zinc-50">
+                    Join {{ invite.workspace.name }}
+                </h1>
+                <p class="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed">
+                    <strong class="text-slate-700 dark:text-zinc-200">{{ invite.invited_by.full_name|default:invite.invited_by.email }}</strong> has invited you to collaborate in the <strong class="text-slate-700 dark:text-zinc-200">{{ invite.workspace.name }}</strong> workspace as a <strong class="text-aether-blue">{{ invite.get_role_display }}</strong>.
+                </p>
+            </div>
+
+            <div class="p-4 rounded-xl bg-slate-50 dark:bg-obsidian-900 border border-slate-200 dark:border-zinc-800 text-xs text-left space-y-2">
+                <div class="flex justify-between">
+                    <span class="text-slate-400">Invited Email:</span>
+                    <span class="font-medium text-slate-800 dark:text-zinc-200">{{ invite.email }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-slate-400">Assigned Role:</span>
+                    <span class="font-bold text-aether-blue">{{ invite.get_role_display }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-slate-400">Expires:</span>
+                    <span class="text-slate-600 dark:text-zinc-400">{{ invite.expires_at|date:"M d, Y" }}</span>
+                </div>
+            </div>
+
+            {% if user.is_authenticated %}
+                <form method="post" action="{% url 'workspaces:accept_invitation' token=invite.token %}">
+                    {% csrf_token %}
+                    <button type="submit" class="aether-button-primary w-full text-xs py-2.5 flex items-center justify-center space-x-2 shadow-md shadow-blue-500/20">
+                        <span>Accept & Join Workspace</span>
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+                        </svg>
+                    </button>
+                </form>
+            {% else %}
+                <div class="space-y-3 pt-2">
+                    <p class="text-xs text-slate-500 dark:text-zinc-400">
+                        Please sign in or create an account to accept this invitation.
+                    </p>
+                    <div class="grid grid-cols-2 gap-3">
+                        <a href="{% url 'accounts:login' %}?next={% url 'workspaces:accept_invitation' token=invite.token %}" class="aether-button-secondary text-xs py-2 text-center">
+                            Sign In
+                        </a>
+                        <a href="{% url 'accounts:register' %}?email={{ invite.email }}&next={% url 'workspaces:accept_invitation' token=invite.token %}" class="aether-button-primary text-xs py-2 text-center">
+                            Register
+                        </a>
+                    </div>
+                </div>
+            {% endif %}
+
+        {% else %}
+            <!-- Expired / Invalid State -->
+            <div class="space-y-2">
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-50 dark:bg-rose-950/60 text-rose-600 border border-rose-200 dark:border-rose-900/40">
+                    Expired
+                </span>
+                <h1 class="text-xl font-bold tracking-tight text-slate-900 dark:text-zinc-50">
+                    Invitation Invalid or Expired
+                </h1>
+                <p class="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed">
+                    {{ error_message|default:"This invitation link has expired or has already been accepted." }}
+                </p>
+            </div>
+
+            <div class="pt-4 border-t border-slate-100 dark:border-zinc-800">
+                <a href="{% url 'core:landing' %}" class="aether-button-secondary text-xs px-4 py-2">
+                    Return to Homepage
+                </a>
+            </div>
+        {% endif %}
+
+    </div>
+</div>
+{% endblock %}

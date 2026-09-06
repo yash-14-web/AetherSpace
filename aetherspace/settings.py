@@ -70,6 +70,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'core.context_processors.aetherspace_global_context',
+                'workspaces.context_processors.workspace_context',
             ],
         },
     },

@@ -17,10 +17,76 @@
             </a>
             
             {% if user.is_authenticated %}
-                <span class="text-slate-300 dark:text-zinc-700">/</span>
-                <span class="text-xs font-semibold px-2 py-0.5 rounded bg-slate-100 dark:bg-obsidian-800 text-slate-600 dark:text-zinc-400 border border-slate-200 dark:border-zinc-800">
-                    Smart Classroom
-                </span>
+                <span class="text-slate-300 dark:text-zinc-700 select-none">/</span>
+                <!-- Workspace Switcher Dropdown (Alpine.js) -->
+                <div class="relative" x-data="{ wsOpen: false }">
+                    <button type="button" @click="wsOpen = !wsOpen" @click.outside="wsOpen = false" 
+                            class="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-obsidian-800 text-slate-700 dark:text-zinc-300 border border-slate-200 dark:border-zinc-800 hover:border-slate-300 dark:hover:border-zinc-700 text-xs font-semibold focus:outline-none transition-colors">
+                        <span class="truncate max-w-[140px] sm:max-w-[180px]">
+                            {% if current_workspace %}
+                                {{ current_workspace.name }}
+                            {% else %}
+                                Workspaces
+                            {% endif %}
+                        </span>
+                        <svg class="w-3.5 h-3.5 text-slate-400 transition-transform" :class="{'rotate-180': wsOpen}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                        </svg>
+                    </button>
+
+                    <div x-show="wsOpen" 
+                         x-transition:enter="transition ease-out duration-100" 
+                         x-transition:enter-start="transform opacity-0 scale-95" 
+                         x-transition:enter-end="transform opacity-100 scale-100" 
+                         x-transition:leave="transition ease-in duration-75" 
+                         x-transition:leave-start="transform opacity-100 scale-100" 
+                         x-transition:leave-end="transform opacity-0 scale-95" 
+                         class="absolute left-0 mt-2 w-64 rounded-xl aether-card py-1.5 z-50 divide-y divide-slate-100 dark:divide-zinc-800 shadow-xl" 
+                         style="display: none;">
+                        
+                        <div class="px-3 py-1.5 text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">
+                            Switch Workspace
+                        </div>
+
+                        <div class="py-1 max-h-56 overflow-y-auto">
+                            {% for ws in user_workspaces %}
+                                <a href="{{ ws.get_absolute_url }}" 
+                                   class="flex items-center justify-between px-3 py-2 text-xs font-medium hover:bg-slate-50 dark:hover:bg-obsidian-800 transition-colors {% if current_workspace and current_workspace.id == ws.id %}text-aether-blue font-bold bg-blue-50/50 dark:bg-blue-950/20{% else %}text-slate-700 dark:text-zinc-300{% endif %}">
+                                    <div class="flex items-center space-x-2 truncate">
+                                        <div class="w-5 h-5 rounded-md bg-gradient-to-br from-blue-600 to-indigo-600 text-white font-bold text-[10px] flex items-center justify-center shrink-0">
+                                            {{ ws.name|slice:":1"|upper }}
+                                        </div>
+                                        <span class="truncate">{{ ws.name }}</span>
+                                    </div>
+                                    {% if current_workspace and current_workspace.id == ws.id %}
+                                        <svg class="w-3.5 h-3.5 text-aether-blue shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                        </svg>
+                                    {% endif %}
+                                </a>
+                            {% empty %}
+                                <div class="px-3 py-2 text-xs text-slate-400 dark:text-zinc-500">
+                                    No workspaces yet
+                                </div>
+                            {% endfor %}
+                        </div>
+
+                        <div class="py-1">
+                            <a href="{% url 'workspaces:master_dashboard' %}" class="flex items-center space-x-2 px-3 py-1.5 text-xs text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-obsidian-800">
+                                <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/>
+                                </svg>
+                                <span>Master Dashboard</span>
+                            </a>
+                            <a href="{% url 'workspaces:create' %}" class="flex items-center space-x-2 px-3 py-1.5 text-xs text-aether-blue font-semibold hover:bg-blue-50/50 dark:hover:bg-blue-950/20">
+                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                                </svg>
+                                <span>Create Workspace</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
             {% endif %}
         </div>
     </div>
@@ -100,6 +166,14 @@
                     <div class="px-4 py-2">
                         <p class="text-xs font-medium text-slate-900 dark:text-zinc-100 truncate">{{ user.full_name|default:user.email }}</p>
                         <p class="text-[11px] text-slate-500 dark:text-zinc-400 truncate">{{ user.email }}</p>
+                    </div>
+                    <div class="py-1">
+                        <a href="{% url 'workspaces:master_dashboard' %}" class="block px-4 py-1.5 text-xs text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-obsidian-800">
+                            My Workspaces
+                        </a>
+                        <a href="{% url 'workspaces:create' %}" class="block px-4 py-1.5 text-xs text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-obsidian-800">
+                            New Workspace
+                        </a>
                     </div>
                     <div class="py-1">
                         <a href="{% url 'accounts:logout' %}" class="block px-4 py-1.5 text-xs text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30">

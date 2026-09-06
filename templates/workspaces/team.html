@@ -1,0 +1,233 @@
+{% extends 'base.html' %}
+
+{% block title %}Team Members — {{ workspace.name }} — AetherSpace{% endblock %}
+
+{% block content %}
+<div class="space-y-6 max-w-7xl mx-auto py-4 sm:py-6 px-4 sm:px-6" x-data="{ inviteModalOpen: false, selectedMember: null, removeModalOpen: false }">
+    
+    <!-- Header & Breadcrumbs -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200 dark:border-zinc-800 pb-5">
+        <div>
+            <div class="flex items-center space-x-2 text-xs text-slate-500 dark:text-zinc-400 mb-1">
+                <a href="{% url 'workspaces:workspace_dashboard' slug=workspace.slug %}" class="hover:text-aether-blue transition-colors">{{ workspace.name }}</a>
+                <span>/</span>
+                <span class="text-slate-900 dark:text-zinc-200 font-medium">Team</span>
+            </div>
+            <h1 class="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-50">
+                Team Directory & Members
+            </h1>
+            <p class="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
+                Manage roles, workspace access, and invitations for {{ workspace.name }}.
+            </p>
+        </div>
+
+        {% if membership.can_manage_workspace %}
+            <div>
+                <button type="button" @click="inviteModalOpen = true" class="aether-button-primary text-xs px-4 py-2 flex items-center space-x-1.5 shadow-md shadow-blue-500/20">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/>
+                    </svg>
+                    <span>Invite Member</span>
+                </button>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Active Members Table Card -->
+    <div class="aether-card overflow-hidden">
+        <div class="px-5 py-4 border-b border-slate-100 dark:border-zinc-800 flex items-center justify-between">
+            <h2 class="text-sm font-bold text-slate-900 dark:text-zinc-100">
+                Active Members ({{ members|length }})
+            </h2>
+            <span class="text-xs text-slate-400 dark:text-zinc-500">
+                Workspace Role System: Admin • Manager • Contributor
+            </span>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+                <thead class="bg-slate-50 dark:bg-obsidian-950 text-slate-500 dark:text-zinc-400 uppercase text-[10px] tracking-wider border-b border-slate-100 dark:border-zinc-800">
+                    <tr>
+                        <th class="py-3 px-5">Member</th>
+                        <th class="py-3 px-5">Role</th>
+                        <th class="py-3 px-5">Status</th>
+                        <th class="py-3 px-5">Joined</th>
+                        {% if membership.can_manage_workspace %}
+                            <th class="py-3 px-5 text-right">Actions</th>
+                        {% endif %}
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 dark:divide-zinc-800">
+                    {% for m in members %}
+                        <tr class="hover:bg-slate-50/50 dark:hover:bg-obsidian-800/40 transition-colors">
+                            <!-- Member info -->
+                            <td class="py-3.5 px-5">
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-700 text-white font-bold text-xs flex items-center justify-center shrink-0">
+                                        {{ m.user.full_name|default:m.user.email|slice:":1"|upper }}
+                                    </div>
+                                    <div class="min-w-0">
+                                        <span class="font-bold text-slate-900 dark:text-zinc-100 block truncate">
+                                            {{ m.user.full_name|default:m.user.email }}
+                                            {% if m.user == user %}
+                                                <span class="text-[10px] text-aether-blue font-normal">(You)</span>
+                                            {% endif %}
+                                            {% if m.user == workspace.owner %}
+                                                <span class="text-[10px] text-amber-500 font-normal ml-1">★ Owner</span>
+                                            {% endif %}
+                                        </span>
+                                        <span class="text-[11px] text-slate-400 dark:text-zinc-500 block truncate">
+                                            {{ m.user.email }}
+                                        </span>
+                                    </div>
+                                </div>
+                            </td>
+
+                            <!-- Role -->
+                            <td class="py-3.5 px-5">
+                                {% if membership.can_manage_workspace and m.user != user %}
+                                    <!-- Role Change Form for Admin -->
+                                    <form method="post" action="{% url 'workspaces:update_member_role' slug=workspace.slug member_id=m.id %}" class="flex items-center space-x-2">
+                                        {% csrf_token %}
+                                        <select name="role" onchange="this.form.submit()" class="aether-input !py-1 !px-2 !text-xs !rounded-md w-32">
+                                            <option value="ADMIN" {% if m.role == 'ADMIN' %}selected{% endif %}>Admin</option>
+                                            <option value="MANAGER" {% if m.role == 'MANAGER' %}selected{% endif %}>Manager</option>
+                                            <option value="CONTRIBUTOR" {% if m.role == 'CONTRIBUTOR' %}selected{% endif %}>Contributor</option>
+                                        </select>
+                                    </form>
+                                {% else %}
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold {% if m.is_admin %}bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-300 border border-purple-200 dark:border-purple-900/50{% elif m.is_manager %}bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-300 border border-blue-200 dark:border-blue-900/50{% else %}bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 border border-slate-200 dark:border-zinc-700{% endif %}">
+                                        {{ m.get_role_display }}
+                                    </span>
+                                {% endif %}
+                            </td>
+
+                            <!-- Status -->
+                            <td class="py-3.5 px-5">
+                                <span class="inline-flex items-center space-x-1 text-emerald-600 dark:text-emerald-400 text-[11px] font-medium">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                    <span>Active</span>
+                                </span>
+                            </td>
+
+                            <!-- Joined -->
+                            <td class="py-3.5 px-5 text-slate-500 dark:text-zinc-400 text-[11px]">
+                                {{ m.joined_at|date:"M d, Y" }}
+                            </td>
+
+                            <!-- Actions -->
+                            {% if membership.can_manage_workspace %}
+                                <td class="py-3.5 px-5 text-right">
+                                    {% if m.user != user %}
+                                        <form method="post" action="{% url 'workspaces:remove_member' slug=workspace.slug member_id=m.id %}" onsubmit="return confirm('Are you sure you want to remove {{ m.user.full_name|default:m.user.email }} from this workspace?');" class="inline">
+                                            {% csrf_token %}
+                                            <button type="submit" class="text-rose-500 hover:text-rose-700 font-semibold text-xs px-2 py-1 rounded hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors">
+                                                Remove
+                                            </button>
+                                        </form>
+                                    {% else %}
+                                        <span class="text-slate-300 dark:text-zinc-600 text-xs">—</span>
+                                    {% endif %}
+                                </td>
+                            {% endif %}
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Pending Invitations (Admins only) -->
+    {% if membership.can_manage_workspace and invitations %}
+        <div class="aether-card overflow-hidden space-y-0">
+            <div class="px-5 py-3.5 border-b border-slate-100 dark:border-zinc-800 flex items-center justify-between">
+                <h3 class="text-xs font-bold text-slate-900 dark:text-zinc-100 uppercase tracking-wider">
+                    Pending Invitations ({{ invitations|length }})
+                </h3>
+            </div>
+            <div class="divide-y divide-slate-100 dark:divide-zinc-800 text-xs">
+                {% for inv in invitations %}
+                    <div class="p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <div>
+                            <span class="font-bold text-slate-800 dark:text-zinc-200">{{ inv.email }}</span>
+                            <div class="flex items-center space-x-2 text-[11px] text-slate-400 dark:text-zinc-500 mt-0.5">
+                                <span>Role: <strong class="text-slate-600 dark:text-zinc-300">{{ inv.get_role_display }}</strong></span>
+                                <span>•</span>
+                                <span>Expires: {{ inv.expires_at|date:"M d, Y" }}</span>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center space-x-2">
+                            <input type="text" readonly value="{{ request.scheme }}://{{ request.get_host }}{% url 'workspaces:accept_invitation' token=inv.token %}" 
+                                   class="aether-input !py-1 !px-2 !text-[11px] font-mono w-60 bg-slate-50 dark:bg-obsidian-950 select-all" 
+                                   onclick="this.select(); navigator.clipboard.writeText(this.value); alert('Invitation link copied to clipboard!');">
+                            <button type="button" onclick="navigator.clipboard.writeText('{{ request.scheme }}://{{ request.get_host }}{% url 'workspaces:accept_invitation' token=inv.token %}'); alert('Invitation link copied!');" class="aether-button-secondary text-xs !py-1 !px-2.5">
+                                Copy Link
+                            </button>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    {% endif %}
+
+    <!-- Invite Member Modal (Alpine.js) -->
+    {% if membership.can_manage_workspace %}
+        <div x-show="inviteModalOpen" 
+             x-transition:enter="transition ease-out duration-150" 
+             x-transition:enter-start="opacity-0" 
+             x-transition:enter-end="opacity-100" 
+             x-transition:leave="transition ease-in duration-100" 
+             x-transition:leave-start="opacity-100" 
+             x-transition:leave-end="opacity-0"
+             class="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-sm flex items-center justify-center p-4" 
+             style="display: none;">
+            
+            <div @click.outside="inviteModalOpen = false" class="aether-card max-w-md w-full p-6 space-y-5 shadow-2xl">
+                <div class="flex items-center justify-between border-b border-slate-100 dark:border-zinc-800 pb-3">
+                    <h3 class="text-base font-bold text-slate-900 dark:text-zinc-50">
+                        Invite Team Member
+                    </h3>
+                    <button type="button" @click="inviteModalOpen = false" class="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200">
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+
+                <form method="post" action="{% url 'workspaces:invite_member' slug=workspace.slug %}" class="space-y-4">
+                    {% csrf_token %}
+                    
+                    <div class="space-y-1.5">
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                            Email Address <span class="text-rose-500">*</span>
+                        </label>
+                        <input type="email" name="email" class="aether-input w-full" placeholder="teammate@company.com" required autocomplete="email">
+                    </div>
+
+                    <div class="space-y-1.5">
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                            Workspace Role <span class="text-rose-500">*</span>
+                        </label>
+                        <select name="role" class="aether-input w-full">
+                            <option value="CONTRIBUTOR" selected>Contributor — Work on tasks, raise bugs, join chat & meetings</option>
+                            <option value="MANAGER">Manager — Manage tasks/bugs, view team, cross-workspace dash</option>
+                            <option value="ADMIN">Admin — Full workspace settings, member management, invite rights</option>
+                        </select>
+                    </div>
+
+                    <div class="pt-3 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-end space-x-3">
+                        <button type="button" @click="inviteModalOpen = false" class="aether-button-secondary text-xs px-4 py-2">
+                            Cancel
+                        </button>
+                        <button type="submit" class="aether-button-primary text-xs px-4 py-2">
+                            Send Invitation
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    {% endif %}
+
+</div>
+{% endblock %}

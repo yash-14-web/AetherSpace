@@ -1,0 +1,307 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ workspace.name }} — Workspace Dashboard — AetherSpace{% endblock %}
+
+{% block content %}
+<div class="space-y-6 max-w-7xl mx-auto py-4 sm:py-6 px-4 sm:px-6">
+    
+    <!-- Workspace Header & Quick Actions -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200 dark:border-zinc-800 pb-5">
+        <div class="space-y-1">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white font-bold flex items-center justify-center text-sm shadow-md">
+                    {{ workspace.name|slice:":2"|upper }}
+                </div>
+                <div>
+                    <div class="flex items-center space-x-2">
+                        <h1 class="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-50">
+                            {{ workspace.name }}
+                        </h1>
+                        <!-- Role Badge -->
+                        {% if membership.is_admin %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-300 border border-purple-200 dark:border-purple-900/50">
+                                Admin
+                            </span>
+                        {% elif membership.is_manager %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-300 border border-blue-200 dark:border-blue-900/50">
+                                Manager
+                            </span>
+                        {% else %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 border border-slate-200 dark:border-zinc-700">
+                                Contributor
+                            </span>
+                        {% endif %}
+                    </div>
+                    <p class="text-xs text-slate-500 dark:text-zinc-400">
+                        {{ workspace.description|default:"Active team workspace on AetherSpace." }}
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex items-center space-x-2.5">
+            <a href="{% url 'workspaces:team' slug=workspace.slug %}" class="aether-button-secondary text-xs px-3.5 py-2 flex items-center space-x-1.5">
+                <svg class="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
+                </svg>
+                <span>Team ({{ total_members_count }})</span>
+            </a>
+
+            {% if membership.can_manage_workspace %}
+                <a href="{% url 'workspaces:settings' slug=workspace.slug %}" class="aether-button-secondary text-xs px-3 py-2" title="Workspace Settings">
+                    <svg class="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                    </svg>
+                </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- 4 High-Fidelity Stat Cards (from Mockup) -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- Active Tasks -->
+        <div class="aether-card p-4 space-y-2">
+            <div class="flex items-center justify-between text-xs text-slate-500 dark:text-zinc-400">
+                <span class="font-medium">Active Tasks</span>
+                <span class="text-[10px] px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-950/60 text-aether-blue font-semibold">Sprint 4</span>
+            </div>
+            <div class="flex items-baseline space-x-2">
+                <span class="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-zinc-50">{{ active_tasks_count }}</span>
+                <span class="text-[11px] font-medium text-emerald-600 dark:text-emerald-400">↑ 12% vs last cycle</span>
+            </div>
+            <div class="w-full bg-slate-100 dark:bg-zinc-800 rounded-full h-1.5 mt-2 overflow-hidden">
+                <div class="bg-aether-blue h-1.5 rounded-full" style="width: 68%"></div>
+            </div>
+        </div>
+
+        <!-- Open Bugs -->
+        <div class="aether-card p-4 space-y-2">
+            <div class="flex items-center justify-between text-xs text-slate-500 dark:text-zinc-400">
+                <span class="font-medium">Open Bugs</span>
+                <span class="text-[10px] px-1.5 py-0.5 rounded bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 font-semibold">Triage</span>
+            </div>
+            <div class="flex items-baseline space-x-2">
+                <span class="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-zinc-50">{{ open_bugs_count }}</span>
+                <span class="text-[11px] font-medium text-rose-500">2 high severity</span>
+            </div>
+            <div class="w-full bg-slate-100 dark:bg-zinc-800 rounded-full h-1.5 mt-2 overflow-hidden">
+                <div class="bg-rose-500 h-1.5 rounded-full" style="width: 25%"></div>
+            </div>
+        </div>
+
+        <!-- Team Members -->
+        <div class="aether-card p-4 space-y-2">
+            <div class="flex items-center justify-between text-xs text-slate-500 dark:text-zinc-400">
+                <span class="font-medium">Team Members</span>
+                <a href="{% url 'workspaces:team' slug=workspace.slug %}" class="text-[10px] text-aether-blue hover:underline">Manage</a>
+            </div>
+            <div class="flex items-baseline space-x-2">
+                <span class="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-zinc-50">{{ total_members_count }}</span>
+                <span class="text-[11px] font-medium text-slate-500 dark:text-zinc-400">Online now</span>
+            </div>
+            <!-- Avatar stack -->
+            <div class="flex -space-x-1.5 overflow-hidden pt-1">
+                {% for m in members %}
+                    <div class="inline-block h-6 w-6 rounded-full ring-2 ring-white dark:ring-obsidian-900 bg-gradient-to-tr from-blue-500 to-indigo-600 text-white text-[10px] font-bold flex items-center justify-center" title="{{ m.user.full_name|default:m.user.email }}">
+                        {{ m.user.full_name|default:m.user.email|slice:":1"|upper }}
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Scheduled Meetings -->
+        <div class="aether-card p-4 space-y-2">
+            <div class="flex items-center justify-between text-xs text-slate-500 dark:text-zinc-400">
+                <span class="font-medium">Meetings Today</span>
+                <span class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 font-semibold">WebRTC</span>
+            </div>
+            <div class="flex items-baseline space-x-2">
+                <span class="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-zinc-50">{{ upcoming_meetings_count }}</span>
+                <span class="text-[11px] font-medium text-slate-500 dark:text-zinc-400">Next: 2:00 PM</span>
+            </div>
+            <div class="text-[11px] text-slate-500 dark:text-zinc-400 pt-1 truncate">
+                Sprint Review • Standup Room
+            </div>
+        </div>
+    </div>
+
+    <!-- Main 2-Column Section -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <!-- Left Column: Active Tasks & Bug Highlights (8 cols) -->
+        <div class="lg:col-span-8 space-y-6">
+            
+            <!-- Tasks Widget -->
+            <div class="aether-card p-5 space-y-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-2">
+                        <h2 class="text-sm font-bold text-slate-900 dark:text-zinc-100 tracking-tight">
+                            Active Tasks
+                        </h2>
+                        <span class="text-[11px] text-slate-400 dark:text-zinc-500">(Sprint 4)</span>
+                    </div>
+                    <span class="text-xs text-aether-blue font-medium hover:underline cursor-pointer">
+                        View Kanban Board &rarr;
+                    </span>
+                </div>
+
+                <!-- Sample Task Rows matching the 6-digit schema -->
+                <div class="divide-y divide-slate-100 dark:divide-zinc-800/80 text-xs">
+                    <div class="py-2.5 flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            <span class="font-mono text-[11px] text-slate-400 dark:text-zinc-500">#619347</span>
+                            <span class="font-semibold text-slate-800 dark:text-zinc-200">Implement Workspace RBAC server-side validation</span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-50 dark:bg-blue-950/60 text-aether-blue">In Progress</span>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-rose-50 dark:bg-rose-950/60 text-rose-600">High</span>
+                        </div>
+                    </div>
+
+                    <div class="py-2.5 flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            <span class="font-mono text-[11px] text-slate-400 dark:text-zinc-500">#619348</span>
+                            <span class="font-semibold text-slate-800 dark:text-zinc-200">Connect WebRTC Jitsi video room container</span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-50 dark:bg-amber-950/60 text-amber-600">Review</span>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400">Medium</span>
+                        </div>
+                    </div>
+
+                    <div class="py-2.5 flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            <span class="font-mono text-[11px] text-slate-400 dark:text-zinc-500">#619349</span>
+                            <span class="font-semibold text-slate-800 dark:text-zinc-200">Setup Supabase storage bucket file accounting</span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400">Todo</span>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600">Low</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bug Triage Widget -->
+            <div class="aether-card p-5 space-y-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-2">
+                        <h2 class="text-sm font-bold text-slate-900 dark:text-zinc-100 tracking-tight">
+                            Bug Triage
+                        </h2>
+                        <span class="text-[11px] text-slate-400 dark:text-zinc-500">(Standardized B-###### keys)</span>
+                    </div>
+                    <span class="text-xs text-rose-500 font-medium hover:underline cursor-pointer">
+                        View Bug Tracker &rarr;
+                    </span>
+                </div>
+
+                <div class="divide-y divide-slate-100 dark:divide-zinc-800/80 text-xs">
+                    <div class="py-2.5 flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            <span class="font-mono text-[11px] font-bold text-rose-600 dark:text-rose-400">B-882316</span>
+                            <span class="font-semibold text-slate-800 dark:text-zinc-200">Session cookie expiry on mobile browser close</span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-50 dark:bg-rose-950/60 text-rose-600">Critical</span>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-50 dark:bg-amber-950/60 text-amber-600">Triaged</span>
+                        </div>
+                    </div>
+
+                    <div class="py-2.5 flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            <span class="font-mono text-[11px] font-bold text-slate-500 dark:text-zinc-400">B-882317</span>
+                            <span class="font-semibold text-slate-800 dark:text-zinc-200">Dark mode theme flicker on cold page reload</span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-50 dark:bg-amber-950/60 text-amber-600">Medium</span>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600">Resolved</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Right Column: Team Roster & Activity (4 cols) -->
+        <div class="lg:col-span-4 space-y-6">
+            
+            <!-- Team Members Card -->
+            <div class="aether-card p-5 space-y-4">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-sm font-bold text-slate-900 dark:text-zinc-100 tracking-tight">
+                        Team Roster
+                    </h2>
+                    <a href="{% url 'workspaces:team' slug=workspace.slug %}" class="text-xs text-aether-blue font-medium hover:underline">
+                        View All ({{ total_members_count }})
+                    </a>
+                </div>
+
+                <div class="space-y-3">
+                    {% for m in members %}
+                        <div class="flex items-center justify-between text-xs">
+                            <div class="flex items-center space-x-2.5 min-w-0">
+                                <div class="w-7 h-7 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-700 text-white font-bold text-[10px] flex items-center justify-center shrink-0">
+                                    {{ m.user.full_name|default:m.user.email|slice:":1"|upper }}
+                                </div>
+                                <div class="truncate">
+                                    <span class="font-semibold text-slate-800 dark:text-zinc-200 block truncate">
+                                        {{ m.user.full_name|default:m.user.email }}
+                                    </span>
+                                    <span class="text-[10px] text-slate-400 dark:text-zinc-500 block truncate">
+                                        {{ m.user.email }}
+                                    </span>
+                                </div>
+                            </div>
+                            <span class="text-[10px] font-semibold px-2 py-0.5 rounded shrink-0 {% if m.is_admin %}bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-300{% elif m.is_manager %}bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-300{% else %}bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400{% endif %}">
+                                {{ m.get_role_display }}
+                            </span>
+                        </div>
+                    {% endfor %}
+                </div>
+
+                {% if membership.can_manage_workspace %}
+                    <div class="pt-3 border-t border-slate-100 dark:border-zinc-800">
+                        <a href="{% url 'workspaces:team' slug=workspace.slug %}" class="aether-button-secondary w-full text-xs py-2 flex items-center justify-center space-x-1.5">
+                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                            </svg>
+                            <span>Invite Colleague</span>
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Workspace Details & Status Card -->
+            <div class="aether-card p-5 space-y-3 text-xs">
+                <h3 class="font-bold text-slate-900 dark:text-zinc-100 text-xs uppercase tracking-wider text-slate-400">
+                    Workspace Info
+                </h3>
+                <div class="space-y-2 text-slate-600 dark:text-zinc-400">
+                    <div class="flex justify-between py-1 border-b border-slate-100 dark:border-zinc-800/80">
+                        <span>Created:</span>
+                        <span class="font-medium text-slate-800 dark:text-zinc-200">{{ workspace.created_at|date:"M d, Y" }}</span>
+                    </div>
+                    <div class="flex justify-between py-1 border-b border-slate-100 dark:border-zinc-800/80">
+                        <span>Owner:</span>
+                        <span class="font-medium text-slate-800 dark:text-zinc-200">{{ workspace.owner.full_name|default:workspace.owner.email }}</span>
+                    </div>
+                    <div class="flex justify-between py-1 border-b border-slate-100 dark:border-zinc-800/80">
+                        <span>Storage Backend:</span>
+                        <span class="font-medium text-emerald-600 dark:text-emerald-400">Supabase</span>
+                    </div>
+                    <div class="flex justify-between py-1">
+                        <span>Isolation:</span>
+                        <span class="font-medium text-blue-600 dark:text-blue-400">RBAC Active</span>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+</div>
+{% endblock %}

@@ -12,7 +12,9 @@
             <!-- Global Module Icons -->
             <nav class="flex flex-col space-y-2 mt-4">
                 <!-- Dashboard -->
-                <a href="#" class="p-2.5 rounded-xl text-aether-blue bg-blue-50 dark:bg-blue-950/40 transition-colors" title="Dashboard">
+                <a href="{% if current_workspace %}{% url 'workspaces:workspace_dashboard' slug=current_workspace.slug %}{% else %}{% url 'workspaces:master_dashboard' %}{% endif %}" 
+                   class="p-2.5 rounded-xl text-aether-blue bg-blue-50 dark:bg-blue-950/40 transition-colors" 
+                   title="Dashboard">
                     <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
                     </svg>
@@ -65,7 +67,9 @@
         <!-- Bottom Controls on Rail -->
         <div class="flex flex-col items-center space-y-3">
             <!-- Settings -->
-            <a href="#" class="p-2.5 rounded-xl text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-obsidian-800 transition-colors" title="Settings">
+            <a href="{% if current_workspace and current_membership.can_manage_workspace %}{% url 'workspaces:settings' slug=current_workspace.slug %}{% else %}{% url 'workspaces:master_dashboard' %}{% endif %}" 
+               class="p-2.5 rounded-xl text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-obsidian-800 transition-colors" 
+               title="Settings">
                 <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
@@ -77,28 +81,48 @@
     <!-- 2. Workspace Navigation Tree (Collapsible on mobile) -->
     <div :class="{'block': mobileSidebarOpen, 'hidden lg:block': !mobileSidebarOpen}" 
          class="w-60 bg-slate-50 dark:bg-obsidian-900 border-r border-slate-border dark:border-obsidian-border flex flex-col py-4 px-3 overflow-y-auto shrink-0 z-20">
-        <div class="px-2 mb-3">
-            <span class="text-[11px] font-semibold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">Workspace</span>
-            <div class="flex items-center justify-between mt-1">
-                <span class="text-sm font-bold text-slate-800 dark:text-zinc-200">Smart Classroom</span>
-                <span class="text-[10px] px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 font-semibold">Pro</span>
+        
+        {% if current_workspace %}
+            <div class="px-2 mb-3">
+                <span class="text-[11px] font-semibold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">Active Workspace</span>
+                <div class="flex items-center justify-between mt-1">
+                    <span class="text-sm font-bold text-slate-800 dark:text-zinc-200 truncate">{{ current_workspace.name }}</span>
+                    <span class="text-[10px] px-1.5 py-0.5 rounded font-semibold {% if current_membership.is_admin %}bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300{% elif current_membership.is_manager %}bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300{% else %}bg-slate-200 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400{% endif %}">
+                        {{ current_membership.get_role_display }}
+                    </span>
+                </div>
             </div>
-        </div>
 
-        <!-- Scoped Workspace Menu -->
-        <div class="space-y-1 mt-2">
-            <a href="#" class="flex items-center px-2.5 py-2 text-xs font-medium rounded-lg bg-white dark:bg-obsidian-800 text-slate-900 dark:text-zinc-100 shadow-sm border border-slate-200 dark:border-zinc-800">
-                <span>Overview & Dashboard</span>
-            </a>
-            <a href="#" class="flex items-center px-2.5 py-2 text-xs font-medium rounded-lg text-slate-600 dark:text-zinc-400 hover:bg-slate-200/60 dark:hover:bg-obsidian-800 transition-colors">
-                <span>Team Members</span>
-            </a>
-            <a href="#" class="flex items-center px-2.5 py-2 text-xs font-medium rounded-lg text-slate-600 dark:text-zinc-400 hover:bg-slate-200/60 dark:hover:bg-obsidian-800 transition-colors">
-                <span>Project Details</span>
-            </a>
-            <a href="#" class="flex items-center px-2.5 py-2 text-xs font-medium rounded-lg text-slate-600 dark:text-zinc-400 hover:bg-slate-200/60 dark:hover:bg-obsidian-800 transition-colors">
-                <span>Workspace Chat</span>
-            </a>
-        </div>
+            <!-- Scoped Workspace Menu -->
+            <div class="space-y-1 mt-2">
+                <a href="{% url 'workspaces:workspace_dashboard' slug=current_workspace.slug %}" class="flex items-center px-2.5 py-2 text-xs font-medium rounded-lg hover:bg-slate-200/60 dark:hover:bg-obsidian-800 text-slate-900 dark:text-zinc-100 transition-colors">
+                    <span>Overview & Dashboard</span>
+                </a>
+                <a href="{% url 'workspaces:team' slug=current_workspace.slug %}" class="flex items-center px-2.5 py-2 text-xs font-medium rounded-lg text-slate-600 dark:text-zinc-400 hover:bg-slate-200/60 dark:hover:bg-obsidian-800 transition-colors">
+                    <span>Team Members</span>
+                </a>
+                {% if current_membership.can_manage_workspace %}
+                    <a href="{% url 'workspaces:settings' slug=current_workspace.slug %}" class="flex items-center px-2.5 py-2 text-xs font-medium rounded-lg text-slate-600 dark:text-zinc-400 hover:bg-slate-200/60 dark:hover:bg-obsidian-800 transition-colors">
+                        <span>Workspace Settings</span>
+                    </a>
+                {% endif %}
+            </div>
+        {% else %}
+            <div class="px-2 mb-3">
+                <span class="text-[11px] font-semibold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">Navigation</span>
+                <div class="flex items-center justify-between mt-1">
+                    <span class="text-sm font-bold text-slate-800 dark:text-zinc-200">Workspaces</span>
+                </div>
+            </div>
+
+            <div class="space-y-1 mt-2">
+                <a href="{% url 'workspaces:master_dashboard' %}" class="flex items-center px-2.5 py-2 text-xs font-medium rounded-lg bg-white dark:bg-obsidian-800 text-slate-900 dark:text-zinc-100 shadow-sm border border-slate-200 dark:border-zinc-800">
+                    <span>Master Dashboard</span>
+                </a>
+                <a href="{% url 'workspaces:create' %}" class="flex items-center px-2.5 py-2 text-xs font-medium rounded-lg text-slate-600 dark:text-zinc-400 hover:bg-slate-200/60 dark:hover:bg-obsidian-800 transition-colors">
+                    <span>+ New Workspace</span>
+                </a>
+            </div>
+        {% endif %}
     </div>
 </div>

@@ -10,6 +10,8 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('auth/', include('accounts.urls')),
     path('accounts/<path:subpath>', RedirectView.as_view(url='/auth/%(subpath)s', permanent=False)),
+    path('workspaces/', include('workspaces.urls')),
+    path('dashboard/', RedirectView.as_view(url='/workspaces/dashboard/', permanent=False)),
     path('', include('core.urls')),
 ]
 
