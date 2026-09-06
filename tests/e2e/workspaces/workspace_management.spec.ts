@@ -1,4 +1,13 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, Page } from '@playwright/test';
+
+async function signIn(page: Page, email = 'admin@aetherspace.dev', password = 'AdminPassword123!') {
+  await page.goto('/auth/login/');
+  await page.fill('#login-email', email);
+  await page.fill('#login-password', password);
+  await page.click('button[type="submit"]');
+  // Wait until navigation away from login completes so session cookie is preserved
+  await page.waitForURL((url: URL) => !url.pathname.includes('/auth/login/'), { timeout: 10000 }).catch(() => {});
+}
 
 test.describe('Workspace Management & RBAC (Phase 3)', () => {
 
@@ -14,10 +23,7 @@ test.describe('Workspace Management & RBAC (Phase 3)', () => {
 
   test('should display workspace creation form with real-time slug preview', async ({ page }) => {
     // Sign in first
-    await page.goto('/auth/login/');
-    await page.fill('input[name="email"]', 'admin@aetherspace.dev');
-    await page.fill('input[name="password"]', 'AdminPassword123!');
-    await page.click('button[type="submit"]');
+    await signIn(page);
 
     // Navigate to create workspace
     await page.goto('/workspaces/create/');
@@ -34,10 +40,7 @@ test.describe('Workspace Management & RBAC (Phase 3)', () => {
   });
 
   test('should display Master Dashboard with multi-workspace cards', async ({ page }) => {
-    await page.goto('/auth/login/');
-    await page.fill('input[name="email"]', 'admin@aetherspace.dev');
-    await page.fill('input[name="password"]', 'AdminPassword123!');
-    await page.click('button[type="submit"]');
+    await signIn(page);
 
     await page.goto('/workspaces/master/');
     await expect(page.getByRole('heading', { name: 'Master Dashboard' })).toBeVisible();
@@ -50,10 +53,7 @@ test.describe('Workspace Management & RBAC (Phase 3)', () => {
   });
 
   test('should display Workspace Switcher in global header', async ({ page }) => {
-    await page.goto('/auth/login/');
-    await page.fill('input[name="email"]', 'admin@aetherspace.dev');
-    await page.fill('input[name="password"]', 'AdminPassword123!');
-    await page.click('button[type="submit"]');
+    await signIn(page);
 
     await page.goto('/workspaces/master/');
 
@@ -69,10 +69,7 @@ test.describe('Workspace Management & RBAC (Phase 3)', () => {
   });
 
   test('should display Team Directory and Invite Member modal', async ({ page }) => {
-    await page.goto('/auth/login/');
-    await page.fill('input[name="email"]', 'admin@aetherspace.dev');
-    await page.fill('input[name="password"]', 'AdminPassword123!');
-    await page.click('button[type="submit"]');
+    await signIn(page);
 
     // Visit workspace team page
     await page.goto('/workspaces/w/smart-classroom/team/');
@@ -91,10 +88,7 @@ test.describe('Workspace Management & RBAC (Phase 3)', () => {
 
   test('should show 403 Forbidden with Request Access when non-member views protected workspace', async ({ page }) => {
     // Non-member or unassigned user trying to view unauthorized workspace
-    await page.goto('/auth/login/');
-    await page.fill('input[name="email"]', 'alex@aetherspace.dev');
-    await page.fill('input[name="password"]', 'SecurePassword123!');
-    await page.click('button[type="submit"]');
+    await signIn(page, 'alex@aetherspace.dev', 'SecurePassword123!');
 
     // Attempt to access unauthorized workspace
     const response = await page.goto('/workspaces/w/restricted-private-ws/');
