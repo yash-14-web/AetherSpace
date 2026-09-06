@@ -4,9 +4,19 @@
 
 @layer base {
   body {
-    @apply font-sans antialiased transition-colors duration-150;
+    @apply font-sans antialiased transition-colors duration-150 bg-slate-50 dark:bg-obsidian-950 text-slate-900 dark:text-zinc-100;
   }
   
+  /* Form elements default theme styling */
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="search"],
+  select,
+  textarea {
+    @apply bg-white dark:bg-[#0c1322] text-slate-900 dark:text-zinc-100 border-slate-200 dark:border-zinc-800 placeholder-slate-400 dark:placeholder-zinc-500;
+  }
+
   /* Custom scrollbar for dark/light theme */
   ::-webkit-scrollbar {
     width: 6px;
@@ -32,5 +42,8 @@
   }
   .aether-button-secondary {
     @apply inline-flex items-center justify-center px-4 py-2 font-medium text-sm rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 dark:bg-obsidian-700 dark:hover:bg-zinc-800 dark:text-zinc-200 border border-slate-border dark:border-obsidian-border transition-all focus:outline-none;
+  }
+  .aether-input {
+    @apply w-full px-3.5 py-2 text-xs rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-aether-blue focus:border-aether-blue transition-all;
   }
 }

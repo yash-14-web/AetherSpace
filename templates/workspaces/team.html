@@ -3,7 +3,7 @@
 {% block title %}Team Members — {{ workspace.name }} — AetherSpace{% endblock %}
 
 {% block content %}
-<div class="space-y-6 max-w-7xl mx-auto py-4 sm:py-6 px-4 sm:px-6" x-data="{ inviteModalOpen: false, selectedMember: null, removeModalOpen: false }">
+<div class="space-y-6 max-w-7xl mx-auto py-4 sm:py-6 px-4 sm:px-6" x-data="{ inviteModalOpen: false, searchTerm: '', roleFilter: 'ALL' }">
     
     <!-- Header & Breadcrumbs -->
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200 dark:border-zinc-800 pb-5">
@@ -33,15 +33,103 @@
         {% endif %}
     </div>
 
+    <!-- 4 Top Metric Cards (matching design reference) -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- Total Members -->
+        <div class="aether-card p-4 space-y-2">
+            <div class="flex items-center justify-between text-xs text-slate-500 dark:text-zinc-400">
+                <span class="font-medium">Total Members</span>
+                <span class="text-[10px] px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-950/60 text-aether-blue font-semibold">Workspace</span>
+            </div>
+            <div class="flex items-baseline space-x-2">
+                <span class="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-zinc-50">{{ members|length }}</span>
+                <span class="text-[11px] font-medium text-emerald-600 dark:text-emerald-400">Assigned seats</span>
+            </div>
+            <div class="w-full bg-slate-100 dark:bg-zinc-800 rounded-full h-1.5 mt-2 overflow-hidden">
+                <div class="bg-aether-blue h-1.5 rounded-full" style="width: 100%"></div>
+            </div>
+        </div>
+
+        <!-- Active Members -->
+        <div class="aether-card p-4 space-y-2">
+            <div class="flex items-center justify-between text-xs text-slate-500 dark:text-zinc-400">
+                <span class="font-medium">Active</span>
+                <span class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 font-semibold">Confirmed</span>
+            </div>
+            <div class="flex items-baseline space-x-2">
+                <span class="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-zinc-50">{{ members|length }}</span>
+                <span class="text-[11px] font-medium text-emerald-600 dark:text-emerald-400">100% active</span>
+            </div>
+            <div class="w-full bg-slate-100 dark:bg-zinc-800 rounded-full h-1.5 mt-2 overflow-hidden">
+                <div class="bg-emerald-500 h-1.5 rounded-full" style="width: 100%"></div>
+            </div>
+        </div>
+
+        <!-- Online Now -->
+        <div class="aether-card p-4 space-y-2">
+            <div class="flex items-center justify-between text-xs text-slate-500 dark:text-zinc-400">
+                <span class="font-medium">Online</span>
+                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1 animate-pulse"></span>
+                    Live
+                </span>
+            </div>
+            <div class="flex items-baseline space-x-2">
+                <span class="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-zinc-50">1</span>
+                <span class="text-[11px] font-medium text-slate-500 dark:text-zinc-400">In workspace</span>
+            </div>
+            <div class="w-full bg-slate-100 dark:bg-zinc-800 rounded-full h-1.5 mt-2 overflow-hidden">
+                <div class="bg-blue-500 h-1.5 rounded-full" style="width: 50%"></div>
+            </div>
+        </div>
+
+        <!-- Pending Invites -->
+        <div class="aether-card p-4 space-y-2">
+            <div class="flex items-center justify-between text-xs text-slate-500 dark:text-zinc-400">
+                <span class="font-medium">Pending Invites</span>
+                <span class="text-[10px] px-1.5 py-0.5 rounded bg-amber-50 dark:bg-amber-950/60 text-amber-600 font-semibold">Invitations</span>
+            </div>
+            <div class="flex items-baseline space-x-2">
+                <span class="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-zinc-50">{{ invitations|length }}</span>
+                <span class="text-[11px] font-medium text-amber-500">Awaiting join</span>
+            </div>
+            <div class="w-full bg-slate-100 dark:bg-zinc-800 rounded-full h-1.5 mt-2 overflow-hidden">
+                <div class="bg-amber-500 h-1.5 rounded-full" style="width: {% if invitations %}75%{% else %}0%{% endif %}"></div>
+            </div>
+        </div>
+    </div>
+
     <!-- Active Members Table Card -->
     <div class="aether-card overflow-hidden">
-        <div class="px-5 py-4 border-b border-slate-100 dark:border-zinc-800 flex items-center justify-between">
-            <h2 class="text-sm font-bold text-slate-900 dark:text-zinc-100">
-                Active Members ({{ members|length }})
-            </h2>
-            <span class="text-xs text-slate-400 dark:text-zinc-500">
-                Workspace Role System: Admin • Manager • Contributor
-            </span>
+        <!-- Search & Filter Controls -->
+        <div class="p-4 sm:px-5 border-b border-slate-100 dark:border-zinc-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div class="flex items-center space-x-2">
+                <h2 class="text-sm font-bold text-slate-900 dark:text-zinc-100">
+                    Active Members ({{ members|length }})
+                </h2>
+            </div>
+            
+            <div class="flex items-center space-x-2.5">
+                <!-- Search Input -->
+                <div class="relative w-48 sm:w-64">
+                    <input type="text"
+                           x-model="searchTerm"
+                           placeholder="Search members..."
+                           class="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-aether-blue">
+                    <svg class="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                    </svg>
+                </div>
+
+                <!-- Role Filter -->
+                <select x-model="roleFilter"
+                        class="px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-aether-blue">
+                    <option value="ALL">All Roles</option>
+                    <option value="ADMIN">Admin</option>
+                    <option value="MANAGER">Manager</option>
+                    <option value="CONTRIBUTOR">Contributor</option>
+                </select>
+            </div>
         </div>
 
         <div class="overflow-x-auto">
@@ -59,7 +147,8 @@
                 </thead>
                 <tbody class="divide-y divide-slate-100 dark:divide-zinc-800">
                     {% for m in members %}
-                        <tr class="hover:bg-slate-50/50 dark:hover:bg-obsidian-800/40 transition-colors">
+                        <tr x-show="(roleFilter === 'ALL' || roleFilter === '{{ m.role }}') && ('{{ m.user.full_name|lower }} {{ m.user.email|lower }}'.includes(searchTerm.toLowerCase()))"
+                            class="hover:bg-slate-50/50 dark:hover:bg-obsidian-800/40 transition-colors">
                             <!-- Member info -->
                             <td class="py-3.5 px-5">
                                 <div class="flex items-center space-x-3">
@@ -89,7 +178,8 @@
                                     <!-- Role Change Form for Admin -->
                                     <form method="post" action="{% url 'workspaces:update_member_role' slug=workspace.slug member_id=m.id %}" class="flex items-center space-x-2">
                                         {% csrf_token %}
-                                        <select name="role" onchange="this.form.submit()" class="aether-input !py-1 !px-2 !text-xs !rounded-md w-32">
+                                        <select name="role" onchange="this.form.submit()"
+                                                class="px-2.5 py-1 text-xs rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-aether-blue w-32">
                                             <option value="ADMIN" {% if m.role == 'ADMIN' %}selected{% endif %}>Admin</option>
                                             <option value="MANAGER" {% if m.role == 'MANAGER' %}selected{% endif %}>Manager</option>
                                             <option value="CONTRIBUTOR" {% if m.role == 'CONTRIBUTOR' %}selected{% endif %}>Contributor</option>
@@ -104,7 +194,7 @@
 
                             <!-- Status -->
                             <td class="py-3.5 px-5">
-                                <span class="inline-flex items-center space-x-1 text-emerald-600 dark:text-emerald-400 text-[11px] font-medium">
+                                <span class="inline-flex items-center space-x-1.5 text-emerald-600 dark:text-emerald-400 text-[11px] font-medium">
                                     <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                                     <span>Active</span>
                                 </span>
@@ -147,7 +237,7 @@
             </div>
             <div class="divide-y divide-slate-100 dark:divide-zinc-800 text-xs">
                 {% for inv in invitations %}
-                    <div class="p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div class="p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3" x-data="{ copied: false, link: '{{ request.scheme }}://{{ request.get_host }}{% url 'workspaces:accept_invitation' token=inv.token %}' }">
                         <div>
                             <span class="font-bold text-slate-800 dark:text-zinc-200">{{ inv.email }}</span>
                             <div class="flex items-center space-x-2 text-[11px] text-slate-400 dark:text-zinc-500 mt-0.5">
@@ -158,11 +248,13 @@
                         </div>
 
                         <div class="flex items-center space-x-2">
-                            <input type="text" readonly value="{{ request.scheme }}://{{ request.get_host }}{% url 'workspaces:accept_invitation' token=inv.token %}" 
-                                   class="aether-input !py-1 !px-2 !text-[11px] font-mono w-60 bg-slate-50 dark:bg-obsidian-950 select-all" 
-                                   onclick="this.select(); navigator.clipboard.writeText(this.value); alert('Invitation link copied to clipboard!');">
-                            <button type="button" onclick="navigator.clipboard.writeText('{{ request.scheme }}://{{ request.get_host }}{% url 'workspaces:accept_invitation' token=inv.token %}'); alert('Invitation link copied!');" class="aether-button-secondary text-xs !py-1 !px-2.5">
-                                Copy Link
+                            <input type="text" readonly :value="link"
+                                   class="w-60 px-2.5 py-1 text-[11px] font-mono rounded-lg border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-[#0c1322] text-slate-600 dark:text-zinc-400 select-all" 
+                                   @click="$event.target.select()">
+                            <button type="button"
+                                    @click="navigator.clipboard.writeText(link); copied = true; setTimeout(() => copied = false, 2000)"
+                                    class="aether-button-secondary text-xs !py-1 !px-2.5 flex items-center space-x-1">
+                                <span x-text="copied ? 'Copied!' : 'Copy Link'">Copy Link</span>
                             </button>
                         </div>
                     </div>
@@ -202,14 +294,17 @@
                         <label class="block text-xs font-semibold text-slate-700 dark:text-zinc-300">
                             Email Address <span class="text-rose-500">*</span>
                         </label>
-                        <input type="email" name="email" class="aether-input w-full" placeholder="teammate@company.com" required autocomplete="email">
+                        <input type="email" name="email" 
+                               class="w-full px-3.5 py-2 text-xs rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-aether-blue" 
+                               placeholder="teammate@company.com" required autocomplete="email">
                     </div>
 
                     <div class="space-y-1.5">
                         <label class="block text-xs font-semibold text-slate-700 dark:text-zinc-300">
                             Workspace Role <span class="text-rose-500">*</span>
                         </label>
-                        <select name="role" class="aether-input w-full">
+                        <select name="role" 
+                                class="w-full px-3.5 py-2 text-xs rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-aether-blue">
                             <option value="CONTRIBUTOR" selected>Contributor — Work on tasks, raise bugs, join chat & meetings</option>
                             <option value="MANAGER">Manager — Manage tasks/bugs, view team, cross-workspace dash</option>
                             <option value="ADMIN">Admin — Full workspace settings, member management, invite rights</option>
@@ -220,8 +315,11 @@
                         <button type="button" @click="inviteModalOpen = false" class="aether-button-secondary text-xs px-4 py-2">
                             Cancel
                         </button>
-                        <button type="submit" class="aether-button-primary text-xs px-4 py-2">
-                            Send Invitation
+                        <button type="submit" class="aether-button-primary text-xs px-4 py-2 shadow-md shadow-blue-500/20 flex items-center space-x-1.5">
+                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+                            </svg>
+                            <span>Send Invitation</span>
                         </button>
                     </div>
                 </form>

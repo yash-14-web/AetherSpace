@@ -4,13 +4,17 @@ from django.core.exceptions import ValidationError
 from .models import Workspace, WorkspaceRole, WorkspaceStatus, WorkspaceMembership, MembershipStatus
 
 
+INPUT_CLASSES = 'w-full px-3.5 py-2 text-xs rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-aether-blue focus:border-aether-blue transition-all'
+TEXTAREA_CLASSES = 'w-full px-3.5 py-2 text-xs rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-aether-blue focus:border-aether-blue transition-all h-24 resize-none'
+
+
 class WorkspaceCreateForm(forms.ModelForm):
     slug = forms.SlugField(
         required=False,
         help_text="Custom URL slug (e.g. smart-classroom). Auto-generated from name if left blank.",
         widget=forms.TextInput(attrs={
             'placeholder': 'smart-classroom',
-            'class': 'aether-input',
+            'class': INPUT_CLASSES,
             'autocomplete': 'off',
         })
     )
@@ -21,13 +25,13 @@ class WorkspaceCreateForm(forms.ModelForm):
         widgets = {
             'name': forms.TextInput(attrs={
                 'placeholder': 'e.g. Smart Classroom or Flora AI',
-                'class': 'aether-input',
+                'class': INPUT_CLASSES,
                 'autocomplete': 'off',
                 'required': 'required',
             }),
             'description': forms.Textarea(attrs={
                 'placeholder': 'Brief description of the workspace purpose and team focus...',
-                'class': 'aether-input h-24 resize-none',
+                'class': TEXTAREA_CLASSES,
                 'rows': 3,
             }),
         }
@@ -67,15 +71,15 @@ class WorkspaceUpdateForm(forms.ModelForm):
         fields = ['name', 'description', 'status']
         widgets = {
             'name': forms.TextInput(attrs={
-                'class': 'aether-input',
+                'class': INPUT_CLASSES,
                 'required': 'required',
             }),
             'description': forms.Textarea(attrs={
-                'class': 'aether-input h-24 resize-none',
+                'class': TEXTAREA_CLASSES,
                 'rows': 3,
             }),
             'status': forms.Select(attrs={
-                'class': 'aether-input',
+                'class': INPUT_CLASSES,
             }),
         }
 
@@ -85,7 +89,7 @@ class WorkspaceInviteForm(forms.Form):
         required=True,
         widget=forms.EmailInput(attrs={
             'placeholder': 'colleague@aetherspace.dev',
-            'class': 'aether-input',
+            'class': INPUT_CLASSES,
             'autocomplete': 'email',
         })
     )
@@ -93,7 +97,7 @@ class WorkspaceInviteForm(forms.Form):
         choices=WorkspaceRole.choices,
         initial=WorkspaceRole.CONTRIBUTOR,
         widget=forms.Select(attrs={
-            'class': 'aether-input',
+            'class': INPUT_CLASSES,
         })
     )
 
@@ -105,7 +109,7 @@ class WorkspaceMemberRoleForm(forms.Form):
     role = forms.ChoiceField(
         choices=WorkspaceRole.choices,
         widget=forms.Select(attrs={
-            'class': 'aether-input !py-1 !text-xs',
+            'class': 'w-full px-2.5 py-1 text-xs rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-aether-blue',
         })
     )
 
@@ -132,7 +136,7 @@ class WorkspaceAccessRequestForm(forms.Form):
         required=False,
         widget=forms.Textarea(attrs={
             'placeholder': 'Tell the workspace admin why you need access...',
-            'class': 'aether-input h-20 resize-none',
+            'class': TEXTAREA_CLASSES,
             'rows': 2,
         })
     )
