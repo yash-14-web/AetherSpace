@@ -61,15 +61,15 @@ test.describe('Task Management (Phase 5)', () => {
     await page.click('button[type="submit"]');
 
     // Should redirect to task detail view
-    await expect(page.getByText('E2E Automated Task Verification')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'E2E Automated Task Verification' })).toBeVisible();
 
     // Check 6-digit numeric ID format (e.g. #619347)
     const taskCodeBadge = page.locator('span:has-text("#")').filter({ hasText: /#[0-9]{6}/ }).first();
     await expect(taskCodeBadge).toBeVisible();
 
     // Verify Activity & History log contains creation entry
-    await expect(page.getByText('Activity & History')).toBeVisible();
-    await expect(page.getByText(/Created task #[0-9]{6}/)).toBeVisible();
+    await expect(page.getByText('Activity & History').first()).toBeVisible();
+    await expect(page.getByText(/Created task #[0-9]{6}/).first()).toBeVisible();
   });
 
   test('should display Kanban board with all 5 required workflow stages', async ({ page }) => {

@@ -208,7 +208,7 @@ def task_create_view(request, slug):
                 sprint=form.cleaned_data.get('sprint', 'Sprint 01'),
                 tags=form.cleaned_data.get('tags', '')
             )
-            messages.success(request, f"Task #{task.task_code} '{task.title}' was successfully created.")
+            messages.success(request, f"Task #{task.task_code} was successfully created.")
             return redirect('tasks:task_detail', slug=workspace.slug, task_code=task.task_code)
     else:
         initial_status = request.GET.get('status', TaskStatus.TODO)
