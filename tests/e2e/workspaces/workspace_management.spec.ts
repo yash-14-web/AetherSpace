@@ -45,11 +45,11 @@ test.describe('Workspace Management & RBAC (Phase 3)', () => {
     await page.goto('/workspaces/master/');
     await expect(page.getByRole('heading', { name: 'Master Dashboard' })).toBeVisible();
 
-    // Verify summary metric cards
-    await expect(page.getByText('Active Workspaces')).toBeVisible();
-    await expect(page.getByText('Total Team Members')).toBeVisible();
-    await expect(page.getByText('Active Tasks')).toBeVisible();
-    await expect(page.getByText('Open Bugs')).toBeVisible();
+    // Verify summary metric cards (using exact matching to avoid strict mode collisions with subtitle text)
+    await expect(page.getByText('Active Workspaces', { exact: true })).toBeVisible();
+    await expect(page.getByText('Total Team Members', { exact: true })).toBeVisible();
+    await expect(page.getByText('Active Tasks', { exact: true })).toBeVisible();
+    await expect(page.getByText('Open Bugs', { exact: true })).toBeVisible();
   });
 
   test('should display Workspace Switcher in global header', async ({ page }) => {
@@ -62,9 +62,10 @@ test.describe('Workspace Management & RBAC (Phase 3)', () => {
     const switcherBtn = header.locator('button', { hasText: /Workspaces|Smart Classroom/i });
     if (await switcherBtn.isVisible()) {
       await switcherBtn.click();
-      await expect(page.getByText('Switch Workspace')).toBeVisible();
-      await expect(page.getByRole('link', { name: 'Master Dashboard' })).toBeVisible();
-      await expect(page.getByRole('link', { name: 'Create Workspace' })).toBeVisible();
+      // Scope assertions to header banner to avoid colliding with sidebar links
+      await expect(header.getByText('Switch Workspace')).toBeVisible();
+      await expect(header.getByRole('link', { name: 'Master Dashboard' })).toBeVisible();
+      await expect(header.getByRole('link', { name: 'Create Workspace' })).toBeVisible();
     }
   });
 
