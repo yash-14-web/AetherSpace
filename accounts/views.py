@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 def login_view(request):
     if request.user.is_authenticated:
-        return redirect('core:landing')
+        return redirect('workspaces:dashboard')
 
     next_url = request.GET.get('next', '')
 
@@ -45,7 +45,7 @@ def login_view(request):
             # Validate redirect URL security
             if next_url and url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
                 return redirect(next_url)
-            return redirect('core:landing')
+            return redirect('workspaces:dashboard')
     else:
         form = LoginForm()
 
@@ -64,7 +64,7 @@ def logout_view(request):
 
 def register_view(request):
     if request.user.is_authenticated:
-        return redirect('core:landing')
+        return redirect('workspaces:dashboard')
 
     if request.method == 'POST':
         form = RegisterForm(request.POST)

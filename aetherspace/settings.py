@@ -145,7 +145,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Auth redirection URLs
 LOGIN_URL = 'accounts:login'
-LOGIN_REDIRECT_URL = 'core:landing'
+LOGIN_REDIRECT_URL = 'workspaces:dashboard'
 LOGOUT_REDIRECT_URL = 'accounts:login'
 
 # Supabase Configuration

@@ -61,7 +61,7 @@ class AccountsModelAndViewsTest(TestCase):
             'remember_me': 'on',
         })
         self.assertEqual(response.status_code, 302)
-        self.assertRedirects(response, reverse('core:landing'))
+        self.assertRedirects(response, reverse('workspaces:dashboard'))
         self.assertFalse(self.client.session.get_expire_at_browser_close())
         self.assertEqual(self.client.session.get_expiry_age(), 1209600)
 
@@ -72,7 +72,7 @@ class AccountsModelAndViewsTest(TestCase):
             'password': self.test_password,
         })
         self.assertEqual(response.status_code, 302)
-        self.assertRedirects(response, reverse('core:landing'))
+        self.assertRedirects(response, reverse('workspaces:dashboard'))
         self.assertTrue(self.client.session.get_expire_at_browser_close())
 
     def test_login_view_post_invalid_password(self):
