@@ -1,39 +1,46 @@
 {% load static %}
-<header class="h-16 bg-white dark:bg-obsidian-900 border-b border-slate-border dark:border-obsidian-border px-4 sm:px-6 flex items-center justify-between z-20 shrink-0">
+<header class="h-16 bg-white dark:bg-obsidian-900 border-b border-slate-200 dark:border-zinc-800 px-4 sm:px-6 flex items-center justify-between z-20 shrink-0 select-none"
+        x-data="{ searchModalOpen: false, notifOpen: false, wsOpen: false, userMenuOpen: false }"
+        @keydown.window.cmd.k.prevent="searchModalOpen = true"
+        @keydown.window.ctrl.k.prevent="searchModalOpen = true">
+    
     <div class="flex items-center space-x-3">
-        <!-- Mobile Sidebar Toggle -->
+        <!-- Mobile Sidebar Hamburger Toggle -->
         <button type="button" @click="mobileSidebarOpen = !mobileSidebarOpen" 
-                class="lg:hidden p-2 rounded-lg text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-obsidian-800 focus:outline-none">
+                class="lg:hidden p-2 rounded-lg text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 focus:outline-none transition-colors"
+                aria-label="Toggle mobile menu">
             <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
             </svg>
         </button>
 
-        <!-- Brand / Workspace Context -->
-        <div class="flex items-center space-x-2">
-            <a href="{% url 'core:landing' %}" class="flex items-center space-x-2.5 font-bold text-lg tracking-tight group">
-                <img src="{% static 'images/logo.png' %}" alt="AetherSpace Logo" class="w-9 h-9 object-contain drop-shadow-md group-hover:scale-105 transition-transform">
-                <span class="inline-block bg-gradient-to-r from-blue-600 to-indigo-500 bg-clip-text text-transparent font-extrabold text-xl tracking-tight">AetherSpace</span>
+        <!-- Brand Logo & Workspace Context Switcher -->
+        <div class="flex items-center space-x-2.5">
+            <a href="{% url 'core:landing' %}" class="flex items-center space-x-2 font-bold tracking-tight group">
+                <img src="{% static 'images/logo.png' %}" alt="AetherSpace Logo" class="w-8 h-8 object-contain drop-shadow-sm group-hover:scale-105 transition-transform">
+                <span class="inline-block bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 bg-clip-text text-transparent font-black text-lg tracking-tight">AetherSpace</span>
             </a>
             
             {% if user.is_authenticated %}
                 <span class="text-slate-300 dark:text-zinc-700 select-none">/</span>
+                
                 <!-- Workspace Switcher Dropdown (Alpine.js) -->
-                <div class="relative" x-data="{ wsOpen: false }">
+                <div class="relative">
                     <button type="button" @click="wsOpen = !wsOpen" @click.outside="wsOpen = false" 
-                            class="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-obsidian-800 text-slate-700 dark:text-zinc-300 border border-slate-200 dark:border-zinc-800 hover:border-slate-300 dark:hover:border-zinc-700 text-xs font-semibold focus:outline-none transition-colors">
-                        <span class="truncate max-w-[140px] sm:max-w-[180px]">
+                            class="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-[#0c1322] text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-800 hover:border-slate-300 dark:hover:border-zinc-700 text-xs font-semibold focus:outline-none transition-colors shadow-sm">
+                        <span class="truncate max-w-[130px] sm:max-w-[180px]">
                             {% if current_workspace %}
                                 {{ current_workspace.name }}
                             {% else %}
                                 Workspaces
                             {% endif %}
                         </span>
-                        <svg class="w-3.5 h-3.5 text-slate-400 transition-transform" :class="{'rotate-180': wsOpen}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg class="w-3.5 h-3.5 text-slate-400 transition-transform duration-150" :class="{'rotate-180': wsOpen}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
                         </svg>
                     </button>
 
+                    <!-- Switcher Dropdown Menu -->
                     <div x-show="wsOpen" 
                          x-transition:enter="transition ease-out duration-100" 
                          x-transition:enter-start="transform opacity-0 scale-95" 
@@ -41,19 +48,19 @@
                          x-transition:leave="transition ease-in duration-75" 
                          x-transition:leave-start="transform opacity-100 scale-100" 
                          x-transition:leave-end="transform opacity-0 scale-95" 
-                         class="absolute left-0 mt-2 w-64 rounded-xl aether-card py-1.5 z-50 divide-y divide-slate-100 dark:divide-zinc-800 shadow-xl" 
+                         class="absolute left-0 mt-2 w-64 rounded-xl aether-card py-1.5 z-50 divide-y divide-slate-100 dark:divide-zinc-800 shadow-2xl" 
                          style="display: none;">
                         
-                        <div class="px-3 py-1.5 text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">
+                        <div class="px-3.5 py-2 text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">
                             Switch Workspace
                         </div>
 
                         <div class="py-1 max-h-56 overflow-y-auto">
                             {% for ws in user_workspaces %}
                                 <a href="{{ ws.get_absolute_url }}" 
-                                   class="flex items-center justify-between px-3 py-2 text-xs font-medium hover:bg-slate-50 dark:hover:bg-obsidian-800 transition-colors {% if current_workspace and current_workspace.id == ws.id %}text-aether-blue font-bold bg-blue-50/50 dark:bg-blue-950/20{% else %}text-slate-700 dark:text-zinc-300{% endif %}">
-                                    <div class="flex items-center space-x-2 truncate">
-                                        <div class="w-5 h-5 rounded-md bg-gradient-to-br from-blue-600 to-indigo-600 text-white font-bold text-[10px] flex items-center justify-center shrink-0">
+                                   class="flex items-center justify-between px-3.5 py-2 text-xs font-medium hover:bg-slate-50 dark:hover:bg-zinc-800/60 transition-colors {% if current_workspace and current_workspace.id == ws.id %}text-aether-blue font-bold bg-blue-50/50 dark:bg-blue-950/30{% else %}text-slate-700 dark:text-zinc-300{% endif %}">
+                                    <div class="flex items-center space-x-2.5 truncate">
+                                        <div class="w-5 h-5 rounded bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-bold text-[10px] flex items-center justify-center shrink-0">
                                             {{ ws.name|slice:":1"|upper }}
                                         </div>
                                         <span class="truncate">{{ ws.name }}</span>
@@ -66,19 +73,19 @@
                                 </a>
                             {% empty %}
                                 <div class="px-3 py-2 text-xs text-slate-400 dark:text-zinc-500">
-                                    No workspaces yet
+                                    No workspaces found
                                 </div>
                             {% endfor %}
                         </div>
 
                         <div class="py-1">
-                            <a href="{% url 'workspaces:master_dashboard' %}" class="flex items-center space-x-2 px-3 py-1.5 text-xs text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-obsidian-800">
+                            <a href="{% url 'workspaces:master_dashboard' %}" class="flex items-center space-x-2 px-3.5 py-2 text-xs text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800/60 font-medium">
                                 <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/>
                                 </svg>
                                 <span>Master Dashboard</span>
                             </a>
-                            <a href="{% url 'workspaces:create' %}" class="flex items-center space-x-2 px-3 py-1.5 text-xs text-aether-blue font-semibold hover:bg-blue-50/50 dark:hover:bg-blue-950/20">
+                            <a href="{% url 'workspaces:create' %}" class="flex items-center space-x-2 px-3.5 py-2 text-xs text-aether-blue font-bold hover:bg-blue-50/50 dark:hover:bg-blue-950/20">
                                 <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                                 </svg>
@@ -91,47 +98,43 @@
         </div>
     </div>
 
-    <!-- Center Search Bar (for authenticated view) -->
+    <!-- Center Search Bar (Interactive Modal Launcher) -->
     {% if user.is_authenticated %}
-    <div class="hidden md:flex items-center max-w-md w-full mx-4">
-        <div class="relative w-full">
-            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 dark:text-zinc-500">
-                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                </svg>
-            </div>
-            <input type="text" placeholder="Search tasks (619347), bugs (B-...), files..." 
-                   class="w-full pl-9 pr-4 py-1.5 text-xs bg-slate-50 dark:bg-obsidian-800 border border-slate-200 dark:border-zinc-800 rounded-lg text-slate-800 dark:text-zinc-200 placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-aether-blue">
-            <div class="absolute inset-y-0 right-0 pr-2.5 flex items-center">
-                <kbd class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-200 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400">⌘K</kbd>
-            </div>
+        <div class="hidden md:flex items-center max-w-md w-full mx-4">
+            <button type="button" @click="searchModalOpen = true"
+                    class="w-full pl-3.5 pr-3 py-1.5 text-xs bg-slate-50 dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 rounded-lg text-slate-400 dark:text-zinc-500 hover:border-slate-300 dark:hover:border-zinc-700 focus:outline-none flex items-center justify-between transition-colors shadow-inner text-left">
+                <div class="flex items-center space-x-2 truncate">
+                    <svg class="h-4 w-4 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                    </svg>
+                    <span class="truncate">Search tasks (619347), bugs (B-...), files...</span>
+                </div>
+                <kbd class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-200 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400 border border-slate-300 dark:border-zinc-700 shadow-sm shrink-0">⌘K</kbd>
+            </button>
         </div>
-    </div>
     {% else %}
-    <!-- Center Links for Public / Landing view -->
-    <nav class="hidden md:flex items-center space-x-6 text-xs font-semibold text-slate-600 dark:text-zinc-300">
-        <a href="#features" class="hover:text-aether-blue dark:hover:text-white transition-colors">Features</a>
-        <a href="#solutions" class="hover:text-aether-blue dark:hover:text-white transition-colors">Solutions</a>
-        <a href="#resources" class="hover:text-aether-blue dark:hover:text-white transition-colors">Resources</a>
-        <a href="#pricing" class="hover:text-aether-blue dark:hover:text-white transition-colors">Pricing</a>
-        <a href="#about" class="hover:text-aether-blue dark:hover:text-white transition-colors">About</a>
-    </nav>
+        <!-- Public Navigation Links -->
+        <nav class="hidden md:flex items-center space-x-6 text-xs font-semibold text-slate-600 dark:text-zinc-300">
+            <a href="#features" class="hover:text-aether-blue dark:hover:text-white transition-colors">Features</a>
+            <a href="#solutions" class="hover:text-aether-blue dark:hover:text-white transition-colors">Solutions</a>
+            <a href="#resources" class="hover:text-aether-blue dark:hover:text-white transition-colors">Resources</a>
+            <a href="#pricing" class="hover:text-aether-blue dark:hover:text-white transition-colors">Pricing</a>
+            <a href="#about" class="hover:text-aether-blue dark:hover:text-white transition-colors">About</a>
+        </nav>
     {% endif %}
 
     <!-- Right Controls: Theme Toggle, Notifications, Profile / Auth Links -->
     <div class="flex items-center space-x-2 sm:space-x-3">
         <!-- Theme Toggle Button -->
         <button type="button" @click="toggleTheme()" 
-                class="p-2 rounded-lg text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-obsidian-800 transition-colors focus:outline-none"
+                class="p-2 rounded-lg text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors focus:outline-none"
                 aria-label="Toggle Theme">
             <template x-if="theme === 'dark'">
-                <!-- Sun Icon for switching to light -->
                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
                 </svg>
             </template>
             <template x-if="theme !== 'dark'">
-                <!-- Moon Icon for switching to dark -->
                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
                 </svg>
@@ -139,45 +142,101 @@
         </button>
 
         {% if user.is_authenticated %}
-            <!-- Notifications Indicator -->
-            <a href="#" class="p-2 relative rounded-lg text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-obsidian-800 transition-colors">
-                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
-                </svg>
-                <span class="absolute top-1.5 right-1.5 block h-2 w-2 rounded-full bg-aether-rose ring-2 ring-white dark:ring-obsidian-900"></span>
-            </a>
+            <!-- Notifications Dropdown (Alpine.js) -->
+            <div class="relative">
+                <button type="button" @click="notifOpen = !notifOpen" @click.outside="notifOpen = false"
+                        class="p-2 relative rounded-lg text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors focus:outline-none"
+                        aria-label="Notifications">
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                    </svg>
+                    <span class="absolute top-1.5 right-1.5 block h-2 w-2 rounded-full bg-rose-500 ring-2 ring-white dark:ring-obsidian-900"></span>
+                </button>
+
+                <!-- Notifications Panel -->
+                <div x-show="notifOpen" 
+                     x-transition:enter="transition ease-out duration-100" 
+                     x-transition:enter-start="transform opacity-0 scale-95" 
+                     x-transition:enter-end="transform opacity-100 scale-100" 
+                     x-transition:leave="transition ease-in duration-75" 
+                     x-transition:leave-start="transform opacity-100 scale-100" 
+                     x-transition:leave-end="transform opacity-0 scale-95" 
+                     class="absolute right-0 mt-2 w-80 rounded-xl aether-card py-2 z-50 divide-y divide-slate-100 dark:divide-zinc-800 shadow-2xl" 
+                     style="display: none;">
+                    
+                    <div class="px-4 py-2 flex items-center justify-between">
+                        <span class="text-xs font-bold text-slate-900 dark:text-zinc-100">Notifications</span>
+                        <span class="text-[10px] px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-950/60 text-aether-blue font-bold">3 new</span>
+                    </div>
+
+                    <div class="py-1 text-xs divide-y divide-slate-100 dark:divide-zinc-800/80 max-h-64 overflow-y-auto">
+                        <div class="p-3 hover:bg-slate-50 dark:hover:bg-zinc-800/50 transition-colors">
+                            <span class="font-semibold text-slate-800 dark:text-zinc-200 block">Sprint 4 Launched</span>
+                            <span class="text-[11px] text-slate-400 dark:text-zinc-500">Active tasks and bug triage milestones are live.</span>
+                        </div>
+                        <div class="p-3 hover:bg-slate-50 dark:hover:bg-zinc-800/50 transition-colors">
+                            <span class="font-semibold text-slate-800 dark:text-zinc-200 block">Bug B-882316 Assigned</span>
+                            <span class="text-[11px] text-slate-400 dark:text-zinc-500">Assigned for priority triage review.</span>
+                        </div>
+                        <div class="p-3 hover:bg-slate-50 dark:hover:bg-zinc-800/50 transition-colors">
+                            <span class="font-semibold text-slate-800 dark:text-zinc-200 block">Workspace Connected</span>
+                            <span class="text-[11px] text-slate-400 dark:text-zinc-500">Supabase Storage and RBAC permissions synced.</span>
+                        </div>
+                    </div>
+
+                    <div class="p-2 text-center">
+                        <a href="{% url 'core:notifications' %}" class="text-xs font-semibold text-aether-blue hover:underline">
+                            View All Notifications &rarr;
+                        </a>
+                    </div>
+                </div>
+            </div>
 
             <!-- User Profile Dropdown (Alpine.js) -->
-            <div class="relative" x-data="{ open: false }">
-                <button type="button" @click="open = !open" @click.outside="open = false" 
+            <div class="relative">
+                <button type="button" @click="userMenuOpen = !userMenuOpen" @click.outside="userMenuOpen = false" 
                         class="flex items-center space-x-2 focus:outline-none">
-                    <div class="w-8 h-8 rounded-full bg-aether-blue/20 border border-aether-blue/40 flex items-center justify-center text-aether-blue font-semibold text-xs">
+                    <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-700 text-white font-bold text-xs flex items-center justify-center shadow-sm">
                         {{ user.full_name|default:user.email|slice:":2"|upper }}
                     </div>
                 </button>
 
-                <div x-show="open" x-transition:enter="transition ease-out duration-100" 
+                <!-- Profile Menu -->
+                <div x-show="userMenuOpen" 
+                     x-transition:enter="transition ease-out duration-100" 
                      x-transition:enter-start="transform opacity-0 scale-95" 
                      x-transition:enter-end="transform opacity-100 scale-100"
                      x-transition:leave="transition ease-in duration-75"
                      x-transition:leave-start="transform opacity-100 scale-100" 
                      x-transition:leave-end="transform opacity-0 scale-95"
-                     class="absolute right-0 mt-2 w-56 rounded-xl aether-card py-1.5 z-50 divide-y divide-slate-100 dark:divide-zinc-800">
-                    <div class="px-4 py-2">
-                        <p class="text-xs font-medium text-slate-900 dark:text-zinc-100 truncate">{{ user.full_name|default:user.email }}</p>
+                     class="absolute right-0 mt-2 w-60 rounded-xl aether-card py-1.5 z-50 divide-y divide-slate-100 dark:divide-zinc-800 shadow-2xl"
+                     style="display: none;">
+                    
+                    <div class="px-4 py-2.5">
+                        <p class="text-xs font-bold text-slate-900 dark:text-zinc-100 truncate">{{ user.full_name|default:user.email }}</p>
                         <p class="text-[11px] text-slate-500 dark:text-zinc-400 truncate">{{ user.email }}</p>
                     </div>
-                    <div class="py-1">
-                        <a href="{% url 'workspaces:master_dashboard' %}" class="block px-4 py-1.5 text-xs text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-obsidian-800">
+
+                    <div class="py-1 text-xs">
+                        <a href="{% url 'core:profile' %}" class="block px-4 py-2 text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800/60 font-medium">
+                            My Profile
+                        </a>
+                        <a href="{% url 'workspaces:master_dashboard' %}" class="block px-4 py-2 text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800/60 font-medium">
                             My Workspaces
                         </a>
-                        <a href="{% url 'workspaces:create' %}" class="block px-4 py-1.5 text-xs text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-obsidian-800">
+                        <a href="{% url 'workspaces:create' %}" class="block px-4 py-2 text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800/60 font-medium">
                             New Workspace
                         </a>
+                        {% if current_workspace and current_membership.can_manage_workspace %}
+                            <a href="{% url 'workspaces:settings' slug=current_workspace.slug %}" class="block px-4 py-2 text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800/60 font-medium">
+                                Workspace Settings
+                            </a>
+                        {% endif %}
                     </div>
+
                     <div class="py-1">
-                        <a href="{% url 'accounts:logout' %}" class="block px-4 py-1.5 text-xs text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30">
-                            Sign out
+                        <a href="{% url 'accounts:logout' %}" class="block px-4 py-2 text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30">
+                            Sign Out
                         </a>
                     </div>
                 </div>
@@ -185,7 +244,7 @@
         {% else %}
             <!-- Public Auth Navigation -->
             <div class="flex items-center space-x-2 sm:space-x-3">
-                <a href="{% url 'accounts:login' %}" class="px-3 py-1.5 text-xs font-semibold rounded-lg text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-obsidian-800 transition-colors">
+                <a href="{% url 'accounts:login' %}" class="px-3 py-1.5 text-xs font-semibold rounded-lg text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors">
                     Sign In
                 </a>
                 <a href="{% url 'accounts:register' %}" class="aether-button-primary text-xs font-semibold !py-1.5 !px-3.5 shadow-sm shadow-blue-500/20">
@@ -193,5 +252,62 @@
                 </a>
             </div>
         {% endif %}
+    </div>
+
+    <!-- Universal Search Modal (Cmd+K / Ctrl+K) -->
+    <div x-show="searchModalOpen" 
+         x-transition:enter="transition ease-out duration-150" 
+         x-transition:enter-start="opacity-0" 
+         x-transition:enter-end="opacity-100" 
+         x-transition:leave="transition ease-in duration-100" 
+         x-transition:leave-start="opacity-100" 
+         x-transition:leave-end="opacity-0" 
+         class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-start justify-center p-4 sm:pt-20"
+         style="display: none;"
+         @keydown.escape.window="searchModalOpen = false">
+        
+        <div @click.outside="searchModalOpen = false" 
+             class="aether-card max-w-xl w-full p-4 space-y-4 shadow-2xl border border-slate-200 dark:border-zinc-800">
+            
+            <div class="relative flex items-center">
+                <svg class="h-4 w-4 text-slate-400 absolute left-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                </svg>
+                <input type="text" placeholder="Type a task (#619347), bug (B-...), or workspace..." 
+                       class="w-full pl-9 pr-8 py-2.5 text-sm bg-slate-50 dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 rounded-lg text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-aether-blue"
+                       autofocus>
+                <button type="button" @click="searchModalOpen = false" class="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 absolute right-3">
+                    <kbd class="text-[10px] font-mono px-1 py-0.5 rounded bg-slate-200 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400">ESC</kbd>
+                </button>
+            </div>
+
+            <div class="space-y-2 text-xs">
+                <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500 block px-1">Quick Navigation</span>
+                <div class="divide-y divide-slate-100 dark:divide-zinc-800/80">
+                    <a href="{% url 'workspaces:master_dashboard' %}" @click="searchModalOpen = false" class="flex items-center justify-between p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-zinc-800/60 transition-colors">
+                        <span class="font-semibold text-slate-800 dark:text-zinc-200">Master Dashboard</span>
+                        <span class="text-slate-400 text-[11px]">Command center</span>
+                    </a>
+                    {% if current_workspace %}
+                        <a href="{% url 'workspaces:workspace_dashboard' slug=current_workspace.slug %}" @click="searchModalOpen = false" class="flex items-center justify-between p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-zinc-800/60 transition-colors">
+                            <span class="font-semibold text-slate-800 dark:text-zinc-200">{{ current_workspace.name }} Overview</span>
+                            <span class="text-slate-400 text-[11px]">Active Workspace</span>
+                        </a>
+                        <a href="{% url 'workspaces:project_details' slug=current_workspace.slug %}" @click="searchModalOpen = false" class="flex items-center justify-between p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-zinc-800/60 transition-colors">
+                            <span class="font-semibold text-slate-800 dark:text-zinc-200">Project Details</span>
+                            <span class="text-slate-400 text-[11px]">Tech & Scope</span>
+                        </a>
+                    {% endif %}
+                    <a href="{% url 'core:calendar' %}" @click="searchModalOpen = false" class="flex items-center justify-between p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-zinc-800/60 transition-colors">
+                        <span class="font-semibold text-slate-800 dark:text-zinc-200">Calendar & Agenda</span>
+                        <span class="text-slate-400 text-[11px]">Schedules</span>
+                    </a>
+                    <a href="{% url 'core:files' %}" @click="searchModalOpen = false" class="flex items-center justify-between p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-zinc-800/60 transition-colors">
+                        <span class="font-semibold text-slate-800 dark:text-zinc-200">Files & Assets</span>
+                        <span class="text-slate-400 text-[11px]">Supabase Storage</span>
+                    </a>
+                </div>
+            </div>
+        </div>
     </div>
 </header>

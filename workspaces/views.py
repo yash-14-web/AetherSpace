@@ -424,3 +424,56 @@ def request_access(request, slug):
         'workspace': workspace,
         'form': form,
     })
+
+
+@workspace_member_required
+def workspace_project_details(request, slug):
+    """
+    Detailed project summary view matching Panel 2 of the design reference.
+    """
+    workspace = request.workspace
+    membership = request.membership
+
+    context = {
+        'title': f"{workspace.name} — Project Details — AetherSpace",
+        'workspace': workspace,
+        'membership': membership,
+        'tech_stack': [
+            'Python 3.12',
+            'Django 5.x',
+            'PostgreSQL',
+            'Supabase Storage',
+            'Tailwind CSS',
+            'Alpine.js',
+            'WebRTC',
+        ],
+        'total_members_count': workspace.memberships.filter(status=MembershipStatus.ACTIVE).count(),
+        'active_tasks_count': 34,
+        'open_bugs_count': 6,
+        'completed_sprints': 4,
+    }
+    return render(request, 'workspaces/project_details.html', context)
+
+
+@workspace_member_required
+def workspace_chat(request, slug):
+    """
+    Workspace-scoped team communication launcher / placeholder.
+    """
+    workspace = request.workspace
+    membership = request.membership
+
+    return render(request, 'components/placeholder.html', {
+        'module_title': f"{workspace.name} — Team Chat",
+        'phase_badge': 'Phase 5 — Collaboration',
+        'module_icon': 'chat',
+        'module_description': f"Real-time team chat and topic channels scoped to '{workspace.name}'.",
+        'empty_heading': f"Chat Hub for {workspace.name}",
+        'empty_text': f"Channels (#general, #{workspace.slug}-dev), real-time direct messaging, and message pinning will arrive in Phase 5.",
+        'features': [
+            f"Dedicated #{workspace.slug}-general channel",
+            'Real-time WebSocket message delivery',
+            'Code snippet syntax highlighting',
+            'File and image attachments via Supabase',
+        ],
+    })

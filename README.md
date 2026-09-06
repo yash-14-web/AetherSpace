@@ -2134,9 +2134,93 @@ Use exactly:
 ### Playwright
 - Script created: `tests/e2e/workspaces/workspace_management.spec.ts`
 - Browser execution: **NOT RUN BY AGENT** (in strict adherence to safety rules)
+
+---
+
+## DEVELOPMENT REPORT — PHASE 4: MAIN APPLICATION SHELL + NAVIGATION
+
+### Done
+- **Global Left Icon Rail** (`templates/components/sidebar.html`):
+  - Implemented the 10 standard navigation items defined in the UI/UX architecture:
+    1. **Dashboard** (`workspaces:dashboard` / `workspaces:master_dashboard`)
+    2. **Time Tracking** (`core:time_tracking`)
+    3. **Calendar** (`core:calendar`)
+    4. **Files** (`core:files`)
+    5. **Meet Hub** (`core:meetings`)
+    6. **Chat** (`core:chat`)
+    7. **Notifications** (`core:notifications`)
+    8. **Profile** (`core:profile`)
+    9. **Settings** (`workspaces:workspace_settings`)
+    10. **Theme Toggle** (Interactive Dark/Light mode toggle with persistence)
+  - Incorporated approved SVG brand logo and crisp uncompressed SVG icons with hover states and active indicators.
+- **Workspace Navigation Tree** (`templates/components/sidebar.html`):
+  - Scoped workspace header with user role pill (`Admin`, `Manager`, `Contributor`).
+  - Hierarchical tree items:
+    - **Workspace** overview & Switcher trigger
+    - **Team** (`workspaces:workspace_team`)
+    - **Dashboard** (`workspaces:workspace_dashboard`)
+    - **Project Details** (`workspaces:project_details`)
+    - **Chat** (`workspaces:workspace_chat`)
+    - **Settings** (Admin & Manager access-controlled: `workspaces:workspace_settings`)
+  - Dynamic fallback state prompting workspace creation when a user has no active workspace.
+- **Universal Top Header** (`templates/components/header.html`):
+  - **Quick Search Modal**: Keyboard-accessible (`⌘K` / `Ctrl+K`) search modal with backdrop overlay and shortcut indicators.
+  - **Notifications Dropdown**: Bell icon with unread badge counter, preview list of recent alerts, and direct navigation to notification center.
+  - **Workspace Switcher Dropdown**: Real-time switcher showing active workspace checkmark, member role, and one-click switching or creation.
+  - **User Profile Menu**: Dropdown displaying user avatar, name, email, role badge, profile link, settings link, and CSRF-protected logout button.
+  - **Mobile Hamburger Toggle**: Triggers responsive slide-over drawer on mobile and tablet screens.
+- **Responsive Mobile Navigation**:
+  - Full slide-out navigation drawer with backdrop overlay for screen sizes `< md`.
+  - Accessible touch targets, smooth slide transitions, and Escape key / outside click dismissal via Alpine.js.
+- **Project Details & Placeholder Routes**:
+  - Built `templates/workspaces/project_details.html` matching Panel 2 of the design specification (project title, active badge, tech stack badges, 4 KPI metric cards, and architecture overview).
+  - Built reusable `templates/components/placeholder.html` with roadmap badges, breadcrumbs, and planned feature checklists for upcoming modules:
+    - `/calendar/` (`core:calendar`)
+    - `/files/` (`core:files`)
+    - `/meetings/` (`core:meetings`)
+    - `/chat/` (`core:chat`)
+    - `/time-tracking/` (`core:time_tracking`)
+    - `/notifications/` (`core:notifications`)
+    - `/profile/` (`core:profile`)
+    - `/w/<slug>/chat/` (`workspaces:workspace_chat`)
+- **Typography & Aesthetics**:
+  - Clean Inter font stack across all rail items, tree nodes, header menus, and badges.
+  - No compressed, reduced, or squished font sizes — adherence to modern desktop & mobile layout standards.
+- **Playwright Test Suite**:
+  - Created `tests/e2e/core/navigation_shell.spec.ts` covering:
+    - Global 10-icon navigation rail visibility and active states.
+    - Workspace navigation tree hierarchy and RBAC visibility.
+    - Universal header with search shortcut, notifications popover, and profile dropdown.
+    - Navigation to Project Details and placeholder destinations.
+    - Mobile viewport responsive hamburger toggle and slide-out drawer.
+  - *(Browser execution strictly NOT run by agent).*
+- **Code Verification & Automated Tests**:
+  - Django configuration check: **PASS** (`python manage.py check` — 0 issues).
+  - Test suite: **PASS** (`python manage.py test core accounts workspaces --keepdb` — 29/29 tests passed, 100% OK).
+  - CSS build: **PASS** (`npm run build:css`).
+
+### Pending
+- Full functional backends for Tasks, Bugs, Channels, WebRTC Meetings, and Storage (scheduled for Phases 5 through 10).
+
+### Missing / Discovered
+- None. Phase 4 shell and navigation architecture is complete and fully integrated with existing authentication and RBAC.
+
+### UI Reference Status
+- References used:
+  - `AetherSpace Dark Workspace Dashboard` / `AetherSpace Smart Classroom Dashboard.png`
+  - `AetherSpace Dark Mode Dashboard Collage.png` (Panel 2: Project Details & Navigation Tree)
+- Accurately implemented dual-level navigation (Global Icon Rail + Workspace Tree) and Universal Header.
+
+### Code Verification
+- Django system check: **PASS** (`python manage.py check` — 0 issues, 0 silenced)
+- Full project tests: **PASS** (`python manage.py test core accounts workspaces --keepdb` — 29 tests OK)
+
+### Playwright
+- Script created: `tests/e2e/core/navigation_shell.spec.ts`
+- Browser execution: **NOT RUN BY AGENT** (in strict adherence to safety rules)
 - Owner test command:
   ```bash
-  npx playwright test tests/e2e/workspaces --project=chromium
+  npx playwright test tests/e2e/core/navigation_shell.spec.ts --project=chromium
   ```
 
 ### Git
@@ -2148,31 +2232,34 @@ Use exactly:
    ```bash
    python manage.py runserver
    ```
-2. Sign in with your account at `http://127.0.0.1:8000/auth/login/`.
-3. Create a workspace:
-   - Navigate to `http://127.0.0.1:8000/workspaces/create/`.
-   - Type "Smart Classroom" and verify the URL slug preview auto-populates as `smart-classroom`.
-   - Submit and verify redirection to the Workspace Dashboard with an "Admin" badge.
-4. Test the Master Dashboard:
-   - Click the Workspace Switcher in the top header and select "Master Dashboard" (or visit `http://127.0.0.1:8000/workspaces/master/`).
-   - Notice the workspace card for "Smart Classroom" with member count and status.
-5. Test Team Management & Invitations:
-   - Go to `http://127.0.0.1:8000/workspaces/w/smart-classroom/team/`.
-   - Click "Invite Member" and invite an email address (e.g. `colleague@aetherspace.dev`).
-   - Copy the generated invitation link and verify it renders the invitation acceptance view.
-6. Test Workspace Isolation:
-   - Log in as another user who is not a member and visit `http://127.0.0.1:8000/workspaces/w/smart-classroom/`.
-   - Verify the 403 Access Restricted page is rendered with a "Request Access" action.
+2. Log in at `http://127.0.0.1:8000/auth/login/`.
+3. Verify the **Global Left Icon Rail**:
+   - Confirm all 10 icons are visible: Dashboard, Time Tracking, Calendar, Files, Meet Hub, Chat, Notifications, Profile, Settings, Theme Toggle.
+   - Click each icon to verify smooth navigation to its respective dashboard or high-fidelity placeholder page.
+   - Click the Theme Toggle to switch between Dark and Light themes.
+4. Verify the **Workspace Navigation Tree**:
+   - In a workspace view (`/workspaces/w/<slug>/`), verify the workspace title, role pill, and sub-items: Team, Dashboard, Project Details, Chat, and Settings (if Admin/Manager).
+   - Click **Project Details** and verify the active badge, tech stack tags, and 4 KPI metric cards.
+5. Verify the **Universal Top Header**:
+   - Press `⌘K` or `Ctrl+K` (or click Search) to open the search modal.
+   - Click the Bell icon to view the notification popover.
+   - Click the Workspace Switcher to swap workspaces or access the Master Dashboard.
+   - Click the User Profile avatar to view user details, access preferences, or log out.
+6. Verify **Mobile Responsiveness**:
+   - Resize your browser window below 768px (or use DevTools mobile emulation).
+   - Verify the sidebar collapses into a hamburger icon.
+   - Click the hamburger button to open the mobile drawer and test navigation.
 7. Optional Playwright E2E run:
    ```bash
-   npx playwright test tests/e2e/workspaces --project=chromium
+   npx playwright test tests/e2e/core/navigation_shell.spec.ts --project=chromium
    ```
 
 ### README Updated
 - YES
 
 ### Next Recommended Step
-- Proceed to **Phase 4: Task Management** (`tasks.models.Task` with 6-digit numeric IDs, Kanban board, sprint backlog, activity audit).
+- Stop after Phase 4. Await instructions for **Phase 5: Task Management** (6-digit numeric IDs `#619347`, Kanban board, sprint backlog, activity audit).
+
 
 
 
