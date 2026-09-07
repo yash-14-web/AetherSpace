@@ -24,10 +24,8 @@ test.describe('Bug Tracking (Phase 6)', () => {
 
     await page.goto('/bugs/');
     // Switch to Dashboard view
-    const dashboardBtn = page.getByRole('link', { name: 'Dashboard', exact: true });
-    if (await dashboardBtn.isVisible()) {
-      await dashboardBtn.click();
-    }
+    const dashboardBtn = page.getByTestId('bug-dashboard-switcher');
+    await dashboardBtn.click();
 
     await expect(page.getByRole('heading', { name: 'Bug Dashboard' })).toBeVisible();
 
@@ -39,7 +37,7 @@ test.describe('Bug Tracking (Phase 6)', () => {
     await expect(page.getByText('Closed', { exact: true }).first()).toBeVisible();
 
     // Verify "+ Raise Bug" primary button
-    const raiseBugBtn = page.getByRole('link', { name: 'Raise Bug' }).first();
+    const raiseBugBtn = page.getByTestId('raise-bug-btn').first();
     await expect(raiseBugBtn).toBeVisible();
   });
 
@@ -66,7 +64,7 @@ test.describe('Bug Tracking (Phase 6)', () => {
     await signIn(page);
 
     await page.goto('/bugs/');
-    const raiseBugBtn = page.getByRole('link', { name: 'Raise Bug' }).first();
+    const raiseBugBtn = page.getByTestId('raise-bug-btn').first();
     await raiseBugBtn.click();
 
     await expect(page.getByRole('heading', { name: /Raise New Bug/i })).toBeVisible();
