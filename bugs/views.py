@@ -7,10 +7,10 @@ from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.core.exceptions import PermissionDenied
 
 from workspaces.permissions import workspace_member_required
-from workspaces.models import Workspace, WorkspaceMembership, MembershipStatus, WorkspaceRole
+from workspaces.models import Workspace, WorkspaceMembership, MembershipStatus, WorkspaceRole, WorkspaceModule
 from .models import (
     Bug, BugActivity, BugComment, BugStatus, BugPriority,
-    BugSeverity, BugEnvironment, BugModule
+    BugSeverity, BugEnvironment
 )
 from .forms import BugForm, BugFilterForm
 from .services import create_bug, update_bug, change_bug_status
@@ -44,7 +44,7 @@ def bug_dashboard_view(request, slug):
     workspace = request.workspace
     membership = request.membership
 
-    bugs_qs = Bug.objects.filter(workspace=workspace).select_related('assignee', 'reporter')
+    bugs_qs = Bug.objects.filter(workspace=workspace).select_related('assignee', 'reporter', 'module')
 
     total_bugs = bugs_qs.count()
     open_count = bugs_qs.filter(status=BugStatus.OPEN).count()
@@ -72,12 +72,13 @@ def bug_dashboard_view(request, slug):
     }
 
     # Top modules with bugs
-    module_counts = bugs_qs.values('module').annotate(count=Count('id')).order_by('-count')[:5]
+    module_counts = bugs_qs.exclude(module__isnull=True).values('module__id', 'module__name').annotate(count=Count('id')).order_by('-count')[:5]
     top_modules = []
     for item in module_counts:
         c = item['count']
         top_modules.append({
-            'module': item['module'],
+            'module': item['module__name'],
+            'module_id': item['module__id'],
             'count': c,
             'pct': pct(c)
         })
@@ -110,7 +111,7 @@ def bug_list_view(request, slug):
     workspace = request.workspace
     membership = request.membership
 
-    bugs_qs = Bug.objects.filter(workspace=workspace).select_related('assignee', 'reporter')
+    bugs_qs = Bug.objects.filter(workspace=workspace).select_related('assignee', 'reporter', 'module')
 
     # Status counts for tabs
     status_counts = {
@@ -153,7 +154,7 @@ def bug_list_view(request, slug):
         bugs_qs = bugs_qs.filter(severity=severity_filter)
 
     if module_filter:
-        bugs_qs = bugs_qs.filter(module=module_filter)
+        bugs_qs = bugs_qs.filter(Q(module__id__iexact=module_filter) | Q(module__name__iexact=module_filter))
 
     if environment_filter and environment_filter in dict(BugEnvironment.choices):
         bugs_qs = bugs_qs.filter(environment=environment_filter)
@@ -185,6 +186,8 @@ def bug_list_view(request, slug):
         status=MembershipStatus.ACTIVE
     ).select_related('user')
 
+    workspace_modules = WorkspaceModule.objects.filter(workspace=workspace).order_by('name')
+
     context = {
         'workspace': workspace,
         'membership': membership,
@@ -192,6 +195,7 @@ def bug_list_view(request, slug):
         'total_filtered': bugs_qs.count(),
         'status_counts': status_counts,
         'active_members': active_members,
+        'workspace_modules': workspace_modules,
         'current_q': q,
         'current_status': status_filter,
         'current_priority': priority_filter,
@@ -202,7 +206,6 @@ def bug_list_view(request, slug):
         'BugStatus': BugStatus,
         'BugPriority': BugPriority,
         'BugSeverity': BugSeverity,
-        'BugModule': BugModule,
         'BugEnvironment': BugEnvironment,
     }
     return render(request, 'bugs/bug_list.html', context)
@@ -224,7 +227,7 @@ def bug_detail_view(request, slug, bug_code):
         clean_code = f"B-{clean_code.lstrip('#')}"
 
     bug = get_object_or_404(
-        Bug.objects.select_related('workspace', 'assignee', 'reporter'),
+        Bug.objects.select_related('workspace', 'assignee', 'reporter', 'module'),
         workspace=workspace,
         bug_code=clean_code
     )
@@ -271,7 +274,7 @@ def bug_create_view(request, slug):
                 priority=form.cleaned_data.get('priority', BugPriority.MEDIUM),
                 severity=form.cleaned_data.get('severity', BugSeverity.SEV3),
                 environment=form.cleaned_data.get('environment', BugEnvironment.STAGING),
-                module=form.cleaned_data.get('module', BugModule.OTHER),
+                module=form.cleaned_data.get('module'),
                 browser_device=form.cleaned_data.get('browser_device', ''),
                 sprint=form.cleaned_data.get('sprint', 'Sprint 01'),
                 assignee=form.cleaned_data.get('assignee'),
@@ -286,7 +289,6 @@ def bug_create_view(request, slug):
             'priority': BugPriority.MEDIUM,
             'severity': BugSeverity.SEV3,
             'environment': BugEnvironment.STAGING,
-            'module': BugModule.OTHER,
             'reporter': request.user,
         }
         form = BugForm(workspace=workspace, initial=initial_data)

@@ -277,3 +277,46 @@ class WorkspaceAccessRequest(models.Model):
 
     def __str__(self):
         return f"Request by {self.user} for {self.workspace} ({self.status})"
+
+
+class WorkspaceModule(models.Model):
+    """
+    Workspace-scoped functional module/subsystem (e.g. Authentication, Billing, Chat).
+    Allows teams to categorize defects and features specific to their product domain.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    workspace = models.ForeignKey(
+        Workspace,
+        on_delete=models.CASCADE,
+        related_name='modules'
+    )
+    name = models.CharField(max_length=100)
+    description = models.TextField(blank=True, default='')
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['name']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['workspace', 'name'],
+                name='unique_workspace_module_name'
+            )
+        ]
+        verbose_name = 'Workspace Module'
+        verbose_name_plural = 'Workspace Modules'
+
+    def __str__(self):
+        return self.name
+
+    @property
+    def bug_count(self):
+        return getattr(self, 'bugs', None).count() if hasattr(self, 'bugs') else 0
+
+    @property
+    def active_bug_count(self):
+        return getattr(self, 'bugs', None).filter(status__in=['OPEN', 'IN_PROGRESS']).count() if hasattr(self, 'bugs') else 0
+
+
+Module = WorkspaceModule

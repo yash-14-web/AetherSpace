@@ -33,7 +33,7 @@ def create_bug(
     priority="MEDIUM",
     severity="SEV3",
     environment="STAGING",
-    module="Other",
+    module=None,
     browser_device="",
     sprint="Sprint 01",
     assignee=None,
@@ -156,10 +156,22 @@ def update_bug(bug, actor, **kwargs):
             'msg': f"Changed reporter from {old_reporter} to {new_reporter}."
         })
 
+    # Check module change
+    if 'module' in kwargs and kwargs['module'] != bug.module:
+        old_mod = bug.module.name if bug.module else "None"
+        new_mod = kwargs['module'].name if kwargs['module'] else "None"
+        bug.module = kwargs['module']
+        changes.append({
+            'action': BugActivity.Action.UPDATED,
+            'old': old_mod,
+            'new': new_mod,
+            'msg': f"Changed module from '{old_mod}' to '{new_mod}'."
+        })
+
     # Update other scalar fields
     for field in [
         'title', 'description', 'steps_to_reproduce', 'expected_result',
-        'actual_result', 'environment', 'module', 'browser_device', 'sprint',
+        'actual_result', 'environment', 'browser_device', 'sprint',
         'due_date', 'labels'
     ]:
         if field in kwargs:

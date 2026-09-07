@@ -2483,3 +2483,74 @@ Use exactly:
 
 ### Next Recommended Step
 - Phase 6 is complete. Await instructions before starting Phase 7.
+
+
+---
+
+## 14.6.1 Phase 6 Correction — Workspace-Specific Bug Modules (COMPLETED)
+
+### Status
+- **COMPLETE**
+
+### Architectural Correction
+In the initial Phase 6 implementation, `Bug.module` was defined using 11 hard-coded global choices (`BugModule.choices`). This was architecturally restrictive because different workspaces and software products have distinct component hierarchies, subsystems, and domain modules (e.g. Authentication, Billing, Search, Video Streaming vs. Inventory, Logistics, etc.).
+
+We re-architected the defect categorization system so:
+1. **Workspace-Scoped Entity**: Introduced `WorkspaceModule` (`workspaces/models.py`) with fields `id` (UUID), `workspace` (FK with CASCADE), `name`, `description`, `is_active`, `created_at`, and `updated_at`, with a unique constraint on `(workspace, name)`.
+2. **Defect Relation**: Refactored `Bug.module` (`bugs/models.py`) to a foreign key relation `ForeignKey('workspaces.WorkspaceModule', on_delete=models.SET_NULL, null=True, blank=True, related_name='bugs')`.
+3. **Workspace Boundary Enforcement**: Added server-side validation (`Bug.clean()`) ensuring a Bug can only be tagged with a `WorkspaceModule` belonging to that same workspace (`module.workspace_id == self.workspace_id`).
+4. **Data Preservation & Safe Migration**:
+   - `workspaces/migrations/0002_workspacemodule.py`: Created table and seeded default modules for existing workspaces.
+   - `bugs/migrations/0002_alter_bug_module_to_foreignkey.py`: Converted existing text module values to corresponding `WorkspaceModule` records with fallback to "General"/"Other", renamed field, and preserved defect history.
+5. **RBAC & Module Management**:
+   - Admins & Managers can configure workspace modules (CRUD, activate/deactivate) at `/workspaces/w/<slug>/modules/`.
+   - Contributors have read-only access (403 Forbidden for mutation requests).
+   - Safe deletion semantics: deleting a module sets `bug.module` to `None` (`SET_NULL`) and warns the user without deleting defect records.
+6. **Views & Filters Updated**:
+   - `BugForm`: Scopes module dropdown to active modules within the active workspace.
+   - `BugFilterForm` & `bug_list_view`: Dynamic module filtering by module name or ID.
+   - `bug_dashboard_view`: Dynamic aggregation of top modules with defect counts and distribution percentages.
+   - `bug_detail_view` & `my_bugs_view`: Displays module name safely with fallback badge.
+   - Workspace Settings: Added "Workspace Modules" configuration card.
+   - Top action bars in Bug List and Bug Dashboard: Added direct "Modules" management navigation.
+
+### Code Verification
+- Django system check: **PASS** (`python manage.py check` — 0 issues, 0 silenced)
+- Automated test suite: **PASS** (`python manage.py test bugs --keepdb` — 16 tests passed, OK)
+- Migrations: **PASS** (`workspaces.0002` and `bugs.0002` successfully applied on Supabase PostgreSQL)
+
+### Playwright
+- Script updated: `tests/e2e/bugs/bug_tracking.spec.ts` (added workspace module management and filtering checks)
+- Browser execution: **NOT RUN BY AGENT** (in strict adherence to safety rules)
+- Owner test command:
+  ```bash
+  npx playwright test tests/e2e/bugs/bug_tracking.spec.ts --project=chromium
+  ```
+
+### Git
+- Branch: `main`
+- Remote: `https://github.com/yash-14-web/AetherSpace.git`
+
+### Owner Manual Verification
+1. Start the server:
+   ```bash
+   python manage.py runserver
+   ```
+2. Sign in at `http://127.0.0.1:8000/auth/login/` as an Admin or Manager.
+3. Visit Workspace Modules:
+   - Navigate to `http://127.0.0.1:8000/workspaces/w/<slug>/modules/` (or click **Modules** from the Bug List toolbar or Workspace Settings).
+   - Verify the configured modules for your workspace, active bug counts, and total bug counts.
+   - Click **Add Module** to create a custom module (e.g. "Notifications Hub").
+   - Click the Edit icon to update its description or toggle active status.
+4. Raise a Bug with Custom Module:
+   - Navigate to `http://127.0.0.1:8000/bugs/w/<slug>/create/`.
+   - Verify the Module select dropdown lists the active modules belonging to this workspace.
+   - Submit a bug and verify on the detail page that the module name renders cleanly.
+5. Filter by Module:
+   - On Bug List (`http://127.0.0.1:8000/bugs/w/<slug>/`), select your module from the Module filter dropdown and verify table filtering.
+6. Verify RBAC Protection:
+   - Sign in as a Contributor.
+   - Verify attempting to create, edit, or delete a module returns 403 Forbidden.
+7. Verify Deletion Safety:
+   - As an Admin/Manager, delete a module that has bugs assigned to it.
+   - Verify that the module is deleted, and its associated bugs have their module set to None without deleting the bug.

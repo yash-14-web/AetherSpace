@@ -109,4 +109,23 @@ test.describe('Bug Tracking (Phase 6)', () => {
     await expect(page.getByRole('link', { name: /Reported by Me/i })).toBeVisible();
   });
 
+  test('should allow managing workspace-scoped modules and filtering bugs by module', async ({ page }) => {
+    await signIn(page);
+
+    // Navigate to bugs list
+    await page.goto('/bugs/');
+
+    // Click Modules button in toolbar
+    const modulesBtn = page.getByTestId('workspace-modules-btn');
+    await expect(modulesBtn).toBeVisible();
+    await modulesBtn.click();
+
+    // Verify workspace modules page
+    await expect(page.getByRole('heading', { name: 'Workspace Modules' })).toBeVisible();
+    await expect(page.getByText('Configured Modules')).toBeVisible();
+
+    // Verify "Add Module" button for Manager/Admin
+    await expect(page.getByRole('button', { name: /Add Module/i })).toBeVisible();
+  });
+
 });

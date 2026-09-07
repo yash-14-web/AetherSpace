@@ -33,19 +33,6 @@ class BugEnvironment(models.TextChoices):
     QA = 'QA', _('QA / Testing')
 
 
-class BugModule(models.TextChoices):
-    AUTHENTICATION = 'Authentication', _('Authentication')
-    DASHBOARD = 'Dashboard', _('Dashboard')
-    TASKS = 'Tasks', _('Tasks')
-    BUGS = 'Bug Tracking', _('Bug Tracking')
-    FILES = 'Files', _('Files & Storage')
-    MEETINGS = 'Meetings', _('Meet Hub')
-    CHAT = 'Chat', _('Chat & Messaging')
-    REPORTS = 'Reports', _('Reports')
-    UI_UX = 'UI/UX', _('UI / UX')
-    SETTINGS = 'Settings', _('Settings')
-    OTHER = 'Other', _('Other')
-
 
 class Bug(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -92,10 +79,12 @@ class Bug(models.Model):
         choices=BugEnvironment.choices,
         default=BugEnvironment.STAGING
     )
-    module = models.CharField(
-        max_length=50,
-        choices=BugModule.choices,
-        default=BugModule.OTHER
+    module = models.ForeignKey(
+        'workspaces.WorkspaceModule',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='bugs'
     )
     browser_device = models.CharField(
         max_length=255,
@@ -137,7 +126,16 @@ class Bug(models.Model):
             models.Index(fields=['assignee', 'status']),
             models.Index(fields=['workspace', 'created_at']),
             models.Index(fields=['bug_code']),
+            models.Index(fields=['workspace', 'module'], name='bugs_bug_workspa_mod_idx'),
         ]
+
+    def clean(self):
+        super().clean()
+        if self.module_id and self.workspace_id:
+            # Enforce that module belongs to the same workspace as the bug
+            if self.module.workspace_id != self.workspace_id:
+                from django.core.exceptions import ValidationError
+                raise ValidationError({'module': _("Selected module does not belong to this workspace.")})
 
     def __str__(self):
         return f"{self.bug_code} {self.title}"

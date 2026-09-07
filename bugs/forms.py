@@ -1,8 +1,8 @@
 from django import forms
 from django.contrib.auth import get_user_model
-from workspaces.models import WorkspaceMembership, MembershipStatus
+from workspaces.models import WorkspaceMembership, MembershipStatus, WorkspaceModule
 from .models import (
-    Bug, BugStatus, BugPriority, BugSeverity, BugEnvironment, BugModule
+    Bug, BugStatus, BugPriority, BugSeverity, BugEnvironment
 )
 
 User = get_user_model()
@@ -97,6 +97,7 @@ class BugForm(forms.ModelForm):
     def __init__(self, *args, workspace=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.workspace = workspace
+        self.fields['module'].required = False
         self.fields['assignee'].required = False
         self.fields['reporter'].required = False
         self.fields['due_date'].required = False
@@ -108,6 +109,13 @@ class BugForm(forms.ModelForm):
         self.fields['labels'].required = False
 
         if workspace:
+            # Filter modules strictly to this workspace
+            self.fields['module'].queryset = WorkspaceModule.objects.filter(
+                workspace=workspace,
+                is_active=True
+            ).order_by('name')
+            self.fields['module'].empty_label = "Select Module (Optional)"
+
             # Filter assignees and reporters strictly to active workspace members
             active_user_ids = WorkspaceMembership.objects.filter(
                 workspace=workspace,
@@ -119,8 +127,15 @@ class BugForm(forms.ModelForm):
             self.fields['reporter'].queryset = active_users
             self.fields['reporter'].empty_label = "Select Reporter"
         else:
+            self.fields['module'].queryset = WorkspaceModule.objects.none()
             self.fields['assignee'].queryset = User.objects.none()
             self.fields['reporter'].queryset = User.objects.none()
+
+    def clean_module(self):
+        module = self.cleaned_data.get('module')
+        if module and self.workspace and module.workspace_id != self.workspace.id:
+            raise forms.ValidationError("Selected module does not belong to this workspace.")
+        return module
 
 
 class BugFilterForm(forms.Form):
@@ -137,12 +152,20 @@ class BugFilterForm(forms.Form):
         choices=[('', 'All Severities')] + list(BugSeverity.choices),
         required=False
     )
-    module = forms.ChoiceField(
-        choices=[('', 'All Modules')] + list(BugModule.choices),
-        required=False
+    module = forms.ModelChoiceField(
+        queryset=WorkspaceModule.objects.none(),
+        required=False,
+        empty_label="All Modules"
     )
     environment = forms.ChoiceField(
         choices=[('', 'All Environments')] + list(BugEnvironment.choices),
         required=False
     )
     assignee = forms.CharField(required=False)
+
+    def __init__(self, *args, workspace=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if workspace:
+            self.fields['module'].queryset = WorkspaceModule.objects.filter(
+                workspace=workspace
+            ).order_by('name')

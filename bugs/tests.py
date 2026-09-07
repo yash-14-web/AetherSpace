@@ -1,14 +1,17 @@
 import re
 from datetime import date
+from unittest.mock import patch
 from django.test import TestCase, Client
 from django.urls import reverse
 from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied
 
-from workspaces.models import Workspace, WorkspaceMembership, WorkspaceRole, MembershipStatus
+from workspaces.models import (
+    Workspace, WorkspaceMembership, WorkspaceRole, MembershipStatus, WorkspaceModule
+)
 from .models import (
     Bug, BugActivity, BugComment, BugStatus, BugPriority,
-    BugSeverity, BugEnvironment, BugModule
+    BugSeverity, BugEnvironment
 )
 from .services import generate_unique_bug_code, create_bug, update_bug, change_bug_status
 
@@ -98,17 +101,57 @@ class BugTrackingTests(TestCase):
             status=MembershipStatus.ACTIVE
         )
 
+        # Workspace 1 Modules
+        self.module_auth = WorkspaceModule.objects.create(
+            workspace=self.workspace1,
+            name='Authentication',
+            description='User login, registration, sessions'
+        )
+        self.module_files = WorkspaceModule.objects.create(
+            workspace=self.workspace1,
+            name='Files',
+            description='Storage and media assets'
+        )
+        self.module_ui = WorkspaceModule.objects.create(
+            workspace=self.workspace1,
+            name='UI/UX',
+            description='Design and responsiveness'
+        )
+        self.module_settings = WorkspaceModule.objects.create(
+            workspace=self.workspace1,
+            name='Settings',
+            description='Project configurations'
+        )
+
+        # Workspace 2 Module
+        self.module_w2 = WorkspaceModule.objects.create(
+            workspace=self.workspace2,
+            name='Billing',
+            description='Invoicing and payment processing'
+        )
+
     # 1. Bug ID Format & Collision Safety
     def test_bug_id_format(self):
         code = generate_unique_bug_code()
         self.assertTrue(re.match(r'^B-[0-9]{6}$', code), f"Invalid format: {code}")
 
     def test_bug_id_collision_safety(self):
-        codes = set()
-        for _ in range(50):
-            code = generate_unique_bug_code()
-            self.assertNotIn(code, codes)
-            codes.add(code)
+        # Create an existing bug with known code 'B-123456'
+        Bug.objects.create(
+            workspace=self.workspace1,
+            reporter=self.admin_user,
+            title='Collision Seed Defect',
+            bug_code='B-123456'
+        )
+
+        # Mock secrets.randbelow so it first returns 23456 (generating 'B-123456' which exists)
+        # then returns 23457 (generating 'B-123457' which does NOT exist)
+        with patch('secrets.randbelow') as mock_rand:
+            mock_rand.side_effect = [23456, 23457]
+            generated_code = generate_unique_bug_code()
+            # Must detect collision with existing bug, skip it, and return the next unique candidate
+            self.assertEqual(generated_code, 'B-123457')
+            self.assertEqual(mock_rand.call_count, 2)
 
     # 2. Service Creation & Activity Log
     def test_create_bug_service(self):
@@ -123,7 +166,7 @@ class BugTrackingTests(TestCase):
             status=BugStatus.OPEN,
             priority=BugPriority.CRITICAL,
             severity=BugSeverity.SEV1,
-            module=BugModule.AUTHENTICATION,
+            module=self.module_auth,
             assignee=self.contributor_user
         )
 
@@ -131,6 +174,7 @@ class BugTrackingTests(TestCase):
         self.assertEqual(bug.status, BugStatus.OPEN)
         self.assertEqual(bug.priority, BugPriority.CRITICAL)
         self.assertEqual(bug.severity, BugSeverity.SEV1)
+        self.assertEqual(bug.module, self.module_auth)
         self.assertEqual(bug.assignee, self.contributor_user)
 
         # Verify initial activities
@@ -226,7 +270,7 @@ class BugTrackingTests(TestCase):
             'steps_to_reproduce': '1. Upload 10 files\n2. Observe RAM',
             'expected_result': 'RAM reclaimed',
             'actual_result': 'OOM crash',
-            'module': BugModule.FILES,
+            'module': str(self.module_files.id),
             'priority': BugPriority.HIGH,
             'severity': BugSeverity.SEV2,
             'environment': BugEnvironment.STAGING,
@@ -242,7 +286,7 @@ class BugTrackingTests(TestCase):
         self.assertIsNotNone(bug)
         self.assertTrue(re.match(r'^B-[0-9]{6}$', bug.bug_code))
         self.assertEqual(bug.priority, BugPriority.HIGH)
-        self.assertEqual(bug.module, BugModule.FILES)
+        self.assertEqual(bug.module, self.module_files)
 
     # 8. RBAC Deletion Permissions
     def test_rbac_delete_permissions(self):
@@ -274,7 +318,7 @@ class BugTrackingTests(TestCase):
             title='UI alignment issue on navbar',
             status=BugStatus.OPEN,
             priority=BugPriority.LOW,
-            module=BugModule.UI_UX
+            module=self.module_ui
         )
         b2 = create_bug(
             workspace=self.workspace1,
@@ -282,7 +326,7 @@ class BugTrackingTests(TestCase):
             title='Database connection pool timeout',
             status=BugStatus.RESOLVED,
             priority=BugPriority.CRITICAL,
-            module=BugModule.SETTINGS
+            module=self.module_settings
         )
 
         list_url = reverse('bugs:bug_list', kwargs={'slug': self.workspace1.slug})
@@ -298,6 +342,12 @@ class BugTrackingTests(TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, b2.bug_code)
         self.assertNotContains(resp, b1.bug_code)
+
+        # Filter by module name
+        resp = self.client.get(list_url + f'?module={self.module_ui.name}')
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, b1.bug_code)
+        self.assertNotContains(resp, b2.bug_code)
 
         # Search query by text
         resp = self.client.get(list_url + '?q=alignment')
@@ -376,3 +426,84 @@ class BugTrackingTests(TestCase):
         self.assertContains(resp, b.bug_code)
         self.assertEqual(resp.context['total_bugs'], 1)
         self.assertEqual(resp.context['open_count'], 1)
+
+    # 13. Cross-Workspace Module Isolation & Validation
+    def test_cross_workspace_module_validation(self):
+        from django.core.exceptions import ValidationError
+        # Attempt to attach workspace2's module to a bug in workspace1
+        bug = Bug(
+            workspace=self.workspace1,
+            reporter=self.admin_user,
+            title='Mismatched workspace bug',
+            module=self.module_w2
+        )
+        with self.assertRaises(ValidationError):
+            bug.full_clean()
+
+    # 14. Workspace Module Management RBAC (Admin/Manager vs Contributor)
+    def test_workspace_module_management_rbac(self):
+        # Contributor cannot create a module
+        self.client.force_login(self.contributor_user)
+        create_url = reverse('workspaces:module_create', kwargs={'slug': self.workspace1.slug})
+        resp = self.client.post(create_url, {'name': 'Analytics', 'description': 'Metrics subsystem'})
+        self.assertEqual(resp.status_code, 403)
+        self.assertFalse(WorkspaceModule.objects.filter(workspace=self.workspace1, name='Analytics').exists())
+
+        # Contributor cannot edit a module
+        edit_url = reverse('workspaces:module_edit', kwargs={'slug': self.workspace1.slug, 'module_id': self.module_auth.id})
+        resp = self.client.post(edit_url, {'name': 'Hacked Auth', 'description': 'Malicious update'})
+        self.assertEqual(resp.status_code, 403)
+
+        # Contributor cannot delete a module
+        delete_url = reverse('workspaces:module_delete', kwargs={'slug': self.workspace1.slug, 'module_id': self.module_auth.id})
+        resp = self.client.post(delete_url)
+        self.assertEqual(resp.status_code, 403)
+        self.assertTrue(WorkspaceModule.objects.filter(id=self.module_auth.id).exists())
+
+        # Manager can create a module
+        self.client.force_login(self.manager_user)
+        resp = self.client.post(create_url, {'name': 'Analytics', 'description': 'Metrics subsystem', 'is_active': True})
+        self.assertEqual(resp.status_code, 302)
+        new_mod = WorkspaceModule.objects.filter(workspace=self.workspace1, name='Analytics').first()
+        self.assertIsNotNone(new_mod)
+
+        # Manager can edit a module
+        edit_url = reverse('workspaces:module_edit', kwargs={'slug': self.workspace1.slug, 'module_id': new_mod.id})
+        resp = self.client.post(edit_url, {'name': 'Advanced Analytics', 'description': 'Updated scope', 'is_active': True})
+        self.assertEqual(resp.status_code, 302)
+        new_mod.refresh_from_db()
+        self.assertEqual(new_mod.name, 'Advanced Analytics')
+
+        # Manager can delete a module
+        delete_url = reverse('workspaces:module_delete', kwargs={'slug': self.workspace1.slug, 'module_id': new_mod.id})
+        resp = self.client.post(delete_url)
+        self.assertEqual(resp.status_code, 302)
+        self.assertFalse(WorkspaceModule.objects.filter(id=new_mod.id).exists())
+
+    # 15. Workspace Module Deletion Safety (SET_NULL on bugs)
+    def test_workspace_module_deletion_safety(self):
+        # Create a module to delete
+        temp_module = WorkspaceModule.objects.create(
+            workspace=self.workspace1,
+            name='Temporary Feature'
+        )
+        bug = create_bug(
+            workspace=self.workspace1,
+            reporter=self.admin_user,
+            title='Bug in temporary feature',
+            module=temp_module
+        )
+        self.assertEqual(bug.module, temp_module)
+
+        # Delete module via manager
+        self.client.force_login(self.manager_user)
+        delete_url = reverse('workspaces:module_delete', kwargs={'slug': self.workspace1.slug, 'module_id': temp_module.id})
+        resp = self.client.post(delete_url)
+        self.assertEqual(resp.status_code, 302)
+
+        # Module is deleted, but Bug still exists with module=None
+        self.assertFalse(WorkspaceModule.objects.filter(id=temp_module.id).exists())
+        bug.refresh_from_db()
+        self.assertIsNone(bug.module)
+        self.assertEqual(bug.title, 'Bug in temporary feature')
+

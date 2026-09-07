@@ -9,7 +9,7 @@ from django.core.exceptions import PermissionDenied
 from .models import (
     Workspace, WorkspaceMembership, WorkspaceRole,
     WorkspaceInvitation, InvitationStatus, WorkspaceAccessRequest,
-    AccessRequestStatus, MembershipStatus, WorkspaceStatus
+    AccessRequestStatus, MembershipStatus, WorkspaceStatus, WorkspaceModule
 )
 from .permissions import (
     workspace_member_required,
@@ -22,7 +22,8 @@ from .forms import (
     WorkspaceUpdateForm,
     WorkspaceInviteForm,
     WorkspaceMemberRoleForm,
-    WorkspaceAccessRequestForm
+    WorkspaceAccessRequestForm,
+    WorkspaceModuleForm
 )
 from tasks.models import Task, TaskStatus
 
@@ -480,3 +481,88 @@ def workspace_chat(request, slug):
             'File and image attachments via Supabase',
         ],
     })
+
+
+@workspace_member_required
+def workspace_modules_view(request, slug):
+    """
+    List of workspace-scoped modules with active defect counts.
+    Allows Admins and Managers to add, edit, and deactivate/delete modules.
+    """
+    workspace = request.workspace
+    membership = request.membership
+
+    modules = workspace.modules.all().order_by('-is_active', 'name')
+    form = WorkspaceModuleForm(workspace=workspace) if membership.can_manage_content else None
+
+    context = {
+        'title': f"{workspace.name} — Modules — AetherSpace",
+        'workspace': workspace,
+        'membership': membership,
+        'modules': modules,
+        'form': form,
+    }
+    return render(request, 'workspaces/modules.html', context)
+
+
+@workspace_manager_required
+def workspace_module_create(request, slug):
+    """
+    Create a new module for the workspace.
+    Admin / Manager only.
+    """
+    workspace = request.workspace
+    if request.method == 'POST':
+        form = WorkspaceModuleForm(request.POST, workspace=workspace)
+        if form.is_valid():
+            module = form.save(commit=False)
+            module.workspace = workspace
+            module.save()
+            messages.success(request, f"Module '{module.name}' created successfully.")
+        else:
+            for error in form.errors.values():
+                messages.error(request, error.as_text())
+    return redirect('workspaces:modules', slug=slug)
+
+
+@workspace_manager_required
+def workspace_module_edit(request, slug, module_id):
+    """
+    Edit an existing module in the workspace.
+    Admin / Manager only.
+    """
+    workspace = request.workspace
+    module = get_object_or_404(WorkspaceModule, id=module_id, workspace=workspace)
+
+    if request.method == 'POST':
+        form = WorkspaceModuleForm(request.POST, instance=module, workspace=workspace)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f"Module '{module.name}' updated successfully.")
+        else:
+            for error in form.errors.values():
+                messages.error(request, error.as_text())
+    return redirect('workspaces:modules', slug=slug)
+
+
+@workspace_manager_required
+def workspace_module_delete(request, slug, module_id):
+    """
+    Delete a workspace module.
+    Any associated bugs will safely have module set to NULL (on_delete=SET_NULL).
+    Admin / Manager only.
+    """
+    workspace = request.workspace
+    module = get_object_or_404(WorkspaceModule, id=module_id, workspace=workspace)
+
+    if request.method == 'POST':
+        mod_name = module.name
+        bug_count = getattr(module, 'bugs', None).count() if hasattr(module, 'bugs') else 0
+        module.delete()
+        msg = f"Module '{mod_name}' was deleted."
+        if bug_count > 0:
+            msg += f" {bug_count} bug(s) previously assigned to it are now unassigned."
+        messages.success(request, msg)
+
+    return redirect('workspaces:modules', slug=slug)
+

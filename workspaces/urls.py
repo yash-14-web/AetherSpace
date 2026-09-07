@@ -17,5 +17,9 @@ urlpatterns = [
     path('w/<slug:slug>/settings/', views.workspace_settings, name='settings'),
     path('w/<slug:slug>/project/', views.workspace_project_details, name='project_details'),
     path('w/<slug:slug>/chat/', views.workspace_chat, name='workspace_chat'),
+    path('w/<slug:slug>/modules/', views.workspace_modules_view, name='modules'),
+    path('w/<slug:slug>/modules/create/', views.workspace_module_create, name='module_create'),
+    path('w/<slug:slug>/modules/<uuid:module_id>/edit/', views.workspace_module_edit, name='module_edit'),
+    path('w/<slug:slug>/modules/<uuid:module_id>/delete/', views.workspace_module_delete, name='module_delete'),
     path('w/<slug:slug>/request-access/', views.request_access, name='request_access'),
 ]

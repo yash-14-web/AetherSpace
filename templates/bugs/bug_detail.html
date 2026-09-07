@@ -375,7 +375,11 @@
                     <!-- Module -->
                     <div class="flex items-center justify-between">
                         <span class="text-slate-500 dark:text-zinc-400">Module</span>
-                        <span class="font-bold text-slate-900 dark:text-zinc-100">{{ bug.module }}</span>
+                        {% if bug.module %}
+                            <span class="px-2 py-0.5 rounded text-[11px] font-bold bg-slate-100 dark:bg-zinc-800 text-slate-800 dark:text-zinc-200">{{ bug.module.name }}</span>
+                        {% else %}
+                            <span class="text-slate-400 dark:text-zinc-500 italic">—</span>
+                        {% endif %}
                     </div>
 
                     <!-- Sprint -->

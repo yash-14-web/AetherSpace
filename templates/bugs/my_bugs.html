@@ -94,7 +94,7 @@
                                     {% endif %}
                                 </td>
                                 <td class="py-3 px-3 whitespace-nowrap text-slate-600 dark:text-zinc-400">
-                                    {{ bug.module }}
+                                    {{ bug.module.name|default:"—" }}
                                 </td>
                                 <td class="py-3 px-3 whitespace-nowrap text-slate-500 dark:text-zinc-400">
                                     {{ bug.due_date|date:"M d, Y"|default:"—" }}

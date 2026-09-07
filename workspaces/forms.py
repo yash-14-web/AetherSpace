@@ -1,7 +1,7 @@
 from django import forms
 from django.utils.text import slugify
 from django.core.exceptions import ValidationError
-from .models import Workspace, WorkspaceRole, WorkspaceStatus, WorkspaceMembership, MembershipStatus
+from .models import Workspace, WorkspaceRole, WorkspaceStatus, WorkspaceMembership, MembershipStatus, WorkspaceModule
 
 
 INPUT_CLASSES = 'w-full px-3.5 py-2 text-xs rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-aether-blue focus:border-aether-blue transition-all'
@@ -140,3 +140,40 @@ class WorkspaceAccessRequestForm(forms.Form):
             'rows': 2,
         })
     )
+
+
+class WorkspaceModuleForm(forms.ModelForm):
+    class Meta:
+        model = WorkspaceModule
+        fields = ['name', 'description', 'is_active']
+        widgets = {
+            'name': forms.TextInput(attrs={
+                'placeholder': 'e.g. Authentication, Payment Gateway, Mobile API',
+                'class': INPUT_CLASSES,
+                'required': 'required',
+            }),
+            'description': forms.Textarea(attrs={
+                'placeholder': 'Explain what features or subsystems belong to this module...',
+                'class': TEXTAREA_CLASSES,
+                'rows': 3,
+            }),
+            'is_active': forms.CheckboxInput(attrs={
+                'class': 'w-4 h-4 rounded text-aether-blue border-slate-300 dark:border-zinc-700 bg-white dark:bg-[#0c1322] focus:ring-aether-blue',
+            }),
+        }
+
+    def __init__(self, *args, workspace=None, **kwargs):
+        self.workspace = workspace
+        super().__init__(*args, **kwargs)
+
+    def clean_name(self):
+        name = self.cleaned_data.get('name', '').strip()
+        if not name:
+            raise ValidationError("Module name cannot be blank.")
+        if self.workspace:
+            qs = WorkspaceModule.objects.filter(workspace=self.workspace, name__iexact=name)
+            if self.instance and self.instance.pk:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                raise ValidationError("A module with this name already exists in this workspace.")
+        return name
