@@ -136,3 +136,27 @@ class TaskActivity(models.Model):
     def __str__(self):
         actor_name = self.actor.full_name if self.actor else "System"
         return f"{actor_name} {self.get_action_display()} on #{self.task.task_code}"
+
+
+class TaskComment(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    task = models.ForeignKey(
+        Task,
+        on_delete=models.CASCADE,
+        related_name='comments'
+    )
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='task_comments'
+    )
+    content = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['created_at']
+
+    def __str__(self):
+        author_name = self.author.full_name if self.author else "Anonymous"
+        return f"Comment by {author_name} on #{self.task.task_code}"

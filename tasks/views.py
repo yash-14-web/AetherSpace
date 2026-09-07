@@ -9,7 +9,7 @@ from django.utils import timezone
 
 from workspaces.permissions import workspace_member_required
 from workspaces.models import Workspace, WorkspaceMembership, MembershipStatus, WorkspaceRole
-from .models import Task, TaskActivity, TaskStatus, TaskPriority
+from .models import Task, TaskActivity, TaskComment, TaskStatus, TaskPriority
 from .forms import TaskForm, TaskFilterForm
 from .services import create_task, update_task, change_task_status
 
@@ -243,14 +243,17 @@ def task_detail_view(request, slug, task_code):
     )
 
     activities = task.activities.select_related('actor').order_by('-created_at')
+    comments = task.comments.select_related('author').order_by('created_at')
 
     context = {
         'workspace': workspace,
         'membership': membership,
         'task': task,
         'activities': activities,
+        'comments': comments,
         'TaskStatus': TaskStatus,
         'TaskPriority': TaskPriority,
+        'initial_tab': request.GET.get('tab', 'overview'),
     }
     return render(request, 'tasks/task_detail.html', context)
 
@@ -467,4 +470,62 @@ def task_delete_view(request, slug, task_code):
         'task': task,
     }
     return render(request, 'tasks/task_confirm_delete.html', context)
+
+
+@workspace_member_required
+def task_comment_add_view(request, slug, task_code):
+    """
+    Post a new comment on a task.
+    Saves comment, creates a TaskActivity entry, and redirects back to Comments tab.
+    """
+    if request.method != 'POST':
+        return redirect('tasks:task_detail', slug=slug, task_code=task_code)
+
+    workspace = request.workspace
+    clean_code = task_code.lstrip('#').replace('T-', '').replace('t-', '')
+    task = get_object_or_404(Task, workspace=workspace, task_code=clean_code)
+
+    content = request.POST.get('content', '').strip()
+    if content:
+        TaskComment.objects.create(
+            task=task,
+            author=request.user,
+            content=content
+        )
+        snippet = content[:60] + ('...' if len(content) > 60 else '')
+        TaskActivity.objects.create(
+            task=task,
+            actor=request.user,
+            action=TaskActivity.Action.COMMENTED,
+            message=f'Added a comment: "{snippet}"'
+        )
+        messages.success(request, "Comment posted successfully.")
+    else:
+        messages.error(request, "Comment content cannot be empty.")
+
+    return redirect(f"{reverse('tasks:task_detail', kwargs={'slug': slug, 'task_code': task.task_code})}?tab=comments")
+
+
+@workspace_member_required
+def task_comment_delete_view(request, slug, task_code, comment_id):
+    """
+    Delete a comment.
+    Allowed only for the comment author or workspace Admin/Manager.
+    """
+    workspace = request.workspace
+    membership = request.membership
+
+    clean_code = task_code.lstrip('#').replace('T-', '').replace('t-', '')
+    task = get_object_or_404(Task, workspace=workspace, task_code=clean_code)
+    comment = get_object_or_404(TaskComment, id=comment_id, task=task)
+
+    if request.user != comment.author and not membership.can_manage_content:
+        from django.core.exceptions import PermissionDenied
+        raise PermissionDenied("You do not have permission to delete this comment.")
+
+    if request.method == 'POST':
+        comment.delete()
+        messages.success(request, "Comment removed.")
+
+    return redirect(f"{reverse('tasks:task_detail', kwargs={'slug': slug, 'task_code': task.task_code})}?tab=comments")
 

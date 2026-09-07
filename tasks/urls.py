@@ -17,4 +17,6 @@ urlpatterns = [
     path('w/<slug:slug>/<str:task_code>/status/', views.task_status_update_view, name='task_status_update'),
     path('w/<slug:slug>/<str:task_code>/activity/', views.task_activity_view, name='task_activity'),
     path('w/<slug:slug>/<str:task_code>/delete/', views.task_delete_view, name='task_delete'),
+    path('w/<slug:slug>/<str:task_code>/comment/', views.task_comment_add_view, name='task_comment_add'),
+    path('w/<slug:slug>/<str:task_code>/comment/<uuid:comment_id>/delete/', views.task_comment_delete_view, name='task_comment_delete'),
 ]
