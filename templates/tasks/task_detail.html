@@ -504,38 +504,39 @@
                 <!-- Comments Thread List -->
                 <div class="space-y-4 pt-2">
                     {% if comments %}
-                        <div class="space-y-4 divide-y divide-slate-100 dark:divide-zinc-800/80">
+                        <div class="space-y-5 divide-y divide-slate-100 dark:divide-zinc-800/80">
                             {% for comment in comments %}
-                                <div class="pt-4 first:pt-0 space-y-2">
-                                    <div class="flex items-center justify-between">
-                                        <div class="flex items-center space-x-2.5">
-                                            <div class="w-7 h-7 rounded-full bg-slate-200 dark:bg-zinc-700 text-slate-700 dark:text-zinc-200 font-bold text-xs flex items-center justify-center shrink-0">
-                                                {{ comment.author.full_name|default:comment.author.email|slice:":1"|upper }}
-                                            </div>
-                                            <div>
+                                <div class="pt-4 first:pt-0 flex items-start space-x-3">
+                                    <!-- Author Avatar -->
+                                    <div class="w-8 h-8 rounded-full bg-slate-200 dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 font-bold text-xs flex items-center justify-center shrink-0 mt-0.5">
+                                        {{ comment.author.full_name|default:comment.author.email|slice:":1"|upper }}
+                                    </div>
+
+                                    <!-- Comment Content & Meta -->
+                                    <div class="flex-1 space-y-1 min-w-0">
+                                        <div class="flex items-center justify-between">
+                                            <div class="flex items-center space-x-2">
                                                 <span class="text-xs font-bold text-slate-900 dark:text-zinc-100">
                                                     {{ comment.author.full_name|default:comment.author.email }}
                                                 </span>
-                                                <span class="text-slate-400 dark:text-zinc-500 text-[11px] ml-1.5">
+                                                <span class="text-slate-400 dark:text-zinc-500 text-[11px]">
                                                     {{ comment.created_at|timesince }} ago
                                                 </span>
                                             </div>
+
+                                            {% if request.user == comment.author or membership.can_manage_content %}
+                                                <form method="post" action="{% url 'tasks:task_comment_delete' slug=workspace.slug task_code=task.task_code comment_id=comment.id %}" onsubmit="return confirm('Delete this comment?');">
+                                                    {% csrf_token %}
+                                                    <button type="submit" title="Delete comment" class="text-slate-400 hover:text-rose-500 transition p-1 text-xs">
+                                                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                        </svg>
+                                                    </button>
+                                                </form>
+                                            {% endif %}
                                         </div>
 
-                                        {% if request.user == comment.author or membership.can_manage_content %}
-                                            <form method="post" action="{% url 'tasks:task_comment_delete' slug=workspace.slug task_code=task.task_code comment_id=comment.id %}" onsubmit="return confirm('Are you sure you want to delete this comment?');">
-                                                {% csrf_token %}
-                                                <button type="submit" title="Delete comment" class="text-slate-400 hover:text-rose-500 transition p-1 text-xs">
-                                                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                    </svg>
-                                                </button>
-                                            </form>
-                                        {% endif %}
-                                    </div>
-
-                                    <div class="pl-9 text-xs text-slate-800 dark:text-zinc-200 whitespace-pre-wrap leading-relaxed">
-                                        {{ comment.content }}
+                                        <p class="text-xs text-slate-700 dark:text-zinc-300 leading-relaxed break-words whitespace-pre-line">{{ comment.content }}</p>
                                     </div>
                                 </div>
                             {% endfor %}
