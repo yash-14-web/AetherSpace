@@ -20,6 +20,7 @@ class BugForm(forms.ModelForm):
             'browser_device',
             'status',
             'assignee',
+            'reporter',
             'sprint',
             'due_date',
             'description',
@@ -54,6 +55,9 @@ class BugForm(forms.ModelForm):
                 'class': 'w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-aether-blue transition cursor-pointer',
             }),
             'assignee': forms.Select(attrs={
+                'class': 'w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-aether-blue transition cursor-pointer',
+            }),
+            'reporter': forms.Select(attrs={
                 'class': 'w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-aether-blue transition cursor-pointer',
             }),
             'sprint': forms.TextInput(attrs={
@@ -94,6 +98,7 @@ class BugForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.workspace = workspace
         self.fields['assignee'].required = False
+        self.fields['reporter'].required = False
         self.fields['due_date'].required = False
         self.fields['description'].required = False
         self.fields['steps_to_reproduce'].required = False
@@ -103,15 +108,19 @@ class BugForm(forms.ModelForm):
         self.fields['labels'].required = False
 
         if workspace:
-            # Filter assignees strictly to active workspace members
+            # Filter assignees and reporters strictly to active workspace members
             active_user_ids = WorkspaceMembership.objects.filter(
                 workspace=workspace,
                 status=MembershipStatus.ACTIVE
             ).values_list('user_id', flat=True)
-            self.fields['assignee'].queryset = User.objects.filter(id__in=active_user_ids)
+            active_users = User.objects.filter(id__in=active_user_ids)
+            self.fields['assignee'].queryset = active_users
             self.fields['assignee'].empty_label = "Unassigned"
+            self.fields['reporter'].queryset = active_users
+            self.fields['reporter'].empty_label = "Select Reporter"
         else:
             self.fields['assignee'].queryset = User.objects.none()
+            self.fields['reporter'].queryset = User.objects.none()
 
 
 class BugFilterForm(forms.Form):

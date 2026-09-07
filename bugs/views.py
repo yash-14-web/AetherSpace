@@ -258,9 +258,10 @@ def bug_create_view(request, slug):
     if request.method == 'POST':
         form = BugForm(request.POST, workspace=workspace)
         if form.is_valid():
+            reporter_user = form.cleaned_data.get('reporter') or request.user
             bug = create_bug(
                 workspace=workspace,
-                reporter=request.user,
+                reporter=reporter_user,
                 title=form.cleaned_data['title'],
                 description=form.cleaned_data.get('description', ''),
                 steps_to_reproduce=form.cleaned_data.get('steps_to_reproduce', ''),
@@ -286,6 +287,7 @@ def bug_create_view(request, slug):
             'severity': BugSeverity.SEV3,
             'environment': BugEnvironment.STAGING,
             'module': BugModule.OTHER,
+            'reporter': request.user,
         }
         form = BugForm(workspace=workspace, initial=initial_data)
 
@@ -320,10 +322,12 @@ def bug_edit_view(request, slug, bug_code):
     if request.method == 'POST':
         form = BugForm(request.POST, instance=bug, workspace=workspace)
         if form.is_valid():
+            reporter_user = form.cleaned_data.get('reporter') or bug.reporter
             update_bug(
                 bug=bug,
                 actor=request.user,
                 title=form.cleaned_data['title'],
+                reporter=reporter_user,
                 description=form.cleaned_data.get('description', ''),
                 steps_to_reproduce=form.cleaned_data.get('steps_to_reproduce', ''),
                 expected_result=form.cleaned_data.get('expected_result', ''),

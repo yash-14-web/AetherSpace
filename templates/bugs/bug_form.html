@@ -94,7 +94,7 @@
                     </div>
                 </div>
 
-                <!-- Status & Assignee Row -->
+                <!-- Status & Due Date Row -->
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div class="space-y-1.5">
                         <label class="block text-xs font-bold text-slate-700 dark:text-zinc-300">
@@ -104,26 +104,34 @@
                     </div>
                     <div class="space-y-1.5">
                         <label class="block text-xs font-bold text-slate-700 dark:text-zinc-300">
-                            Assign To
-                        </label>
-                        {{ form.assignee }}
-                    </div>
-                </div>
-
-                <!-- Sprint & Due Date Row -->
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div class="space-y-1.5">
-                        <label class="block text-xs font-bold text-slate-700 dark:text-zinc-300">
-                            Sprint
-                        </label>
-                        {{ form.sprint }}
-                    </div>
-                    <div class="space-y-1.5">
-                        <label class="block text-xs font-bold text-slate-700 dark:text-zinc-300">
                             Due Date
                         </label>
                         {{ form.due_date }}
                     </div>
+                </div>
+
+                <!-- Assignee & Reporter Row -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div class="space-y-1.5">
+                        <label class="block text-xs font-bold text-slate-700 dark:text-zinc-300">
+                            Assign To
+                        </label>
+                        {{ form.assignee }}
+                    </div>
+                    <div class="space-y-1.5">
+                        <label class="block text-xs font-bold text-slate-700 dark:text-zinc-300">
+                            Reporter
+                        </label>
+                        {{ form.reporter }}
+                    </div>
+                </div>
+
+                <!-- Sprint -->
+                <div class="space-y-1.5">
+                    <label class="block text-xs font-bold text-slate-700 dark:text-zinc-300">
+                        Sprint
+                    </label>
+                    {{ form.sprint }}
                 </div>
 
                 <!-- Description -->

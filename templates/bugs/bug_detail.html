@@ -144,9 +144,7 @@
                     <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500">
                         Description
                     </h3>
-                    <div class="text-xs sm:text-sm text-slate-800 dark:text-zinc-200 whitespace-pre-wrap leading-relaxed">
-                        {{ bug.description|default:"No description provided for this defect." }}
-                    </div>
+                    <div class="text-xs sm:text-sm text-slate-800 dark:text-zinc-200 leading-relaxed break-words whitespace-pre-line">{{ bug.description|default:"No description provided for this defect." }}</div>
                 </div>
 
                 <!-- Steps to Reproduce Card (Panel 3 Reference) -->
@@ -158,9 +156,7 @@
                         <span>Steps to Reproduce</span>
                     </h3>
                     {% if bug.steps_to_reproduce %}
-                        <div class="text-xs sm:text-sm text-slate-800 dark:text-zinc-200 whitespace-pre-wrap leading-relaxed bg-slate-50 dark:bg-[#0c1322] p-4 rounded-xl border border-slate-100 dark:border-zinc-800/80 font-mono">
-                            {{ bug.steps_to_reproduce }}
-                        </div>
+                        <div class="text-xs sm:text-sm text-slate-800 dark:text-zinc-200 leading-relaxed break-words whitespace-pre-line bg-slate-50 dark:bg-[#0c1322] p-4 rounded-xl border border-slate-100 dark:border-zinc-800/80 font-mono">{{ bug.steps_to_reproduce }}</div>
                     {% else %}
                         <p class="text-xs text-slate-400 dark:text-zinc-500 italic">No structured steps provided.</p>
                     {% endif %}
@@ -176,9 +172,7 @@
                             </svg>
                             <span>Expected Result</span>
                         </h3>
-                        <p class="text-xs text-slate-800 dark:text-zinc-200 leading-relaxed whitespace-pre-wrap">
-                            {{ bug.expected_result|default:"No expected result specified." }}
-                        </p>
+                        <p class="text-xs text-slate-800 dark:text-zinc-200 leading-relaxed break-words whitespace-pre-line">{{ bug.expected_result|default:"No expected result specified." }}</p>
                     </div>
 
                     <!-- Actual Result -->
@@ -189,9 +183,7 @@
                             </svg>
                             <span>Actual Result</span>
                         </h3>
-                        <p class="text-xs text-slate-800 dark:text-zinc-200 leading-relaxed whitespace-pre-wrap">
-                            {{ bug.actual_result|default:"No actual result specified." }}
-                        </p>
+                        <p class="text-xs text-slate-800 dark:text-zinc-200 leading-relaxed break-words whitespace-pre-line">{{ bug.actual_result|default:"No actual result specified." }}</p>
                     </div>
                 </div>
             </div>

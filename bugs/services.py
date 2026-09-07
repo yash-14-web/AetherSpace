@@ -144,6 +144,18 @@ def update_bug(bug, actor, **kwargs):
             'msg': f"Reassigned bug from {old_assignee} to {new_assignee}."
         })
 
+    # Check reporter change
+    if 'reporter' in kwargs and kwargs['reporter'] and kwargs['reporter'] != bug.reporter:
+        old_reporter = bug.reporter.full_name or bug.reporter.email if bug.reporter else "None"
+        new_reporter = kwargs['reporter'].full_name or kwargs['reporter'].email if kwargs['reporter'] else "None"
+        bug.reporter = kwargs['reporter']
+        changes.append({
+            'action': BugActivity.Action.UPDATED,
+            'old': old_reporter,
+            'new': new_reporter,
+            'msg': f"Changed reporter from {old_reporter} to {new_reporter}."
+        })
+
     # Update other scalar fields
     for field in [
         'title', 'description', 'steps_to_reproduce', 'expected_result',
