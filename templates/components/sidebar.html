@@ -189,6 +189,27 @@
                         </div>
                     </div>
 
+                    <!-- Bugs (Dashboard & List) -->
+                    <div>
+                        <a href="{% url 'bugs:bug_list' slug=current_workspace.slug %}" 
+                           class="flex items-center space-x-2.5 px-3 py-2 text-xs font-semibold rounded-lg text-slate-700 dark:text-zinc-300 hover:bg-slate-200/60 dark:hover:bg-zinc-800/60 transition-colors">
+                            <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span>Bugs</span>
+                        </a>
+                        <div class="pl-7 pr-2 space-y-0.5 pb-1">
+                            <a href="{% url 'bugs:bug_dashboard' slug=current_workspace.slug %}" 
+                               class="block py-1 text-[11px] font-medium text-slate-500 dark:text-zinc-400 hover:text-rose-500 dark:hover:text-zinc-200 transition-colors">
+                                • Bug Dashboard
+                            </a>
+                            <a href="{% url 'bugs:bug_list' slug=current_workspace.slug %}" 
+                               class="block py-1 text-[11px] font-medium text-slate-500 dark:text-zinc-400 hover:text-rose-500 dark:hover:text-zinc-200 transition-colors">
+                                • Bug List
+                            </a>
+                        </div>
+                    </div>
+
                     <!-- Team Members -->
                     <a href="{% url 'workspaces:team' slug=current_workspace.slug %}" 
                        class="flex items-center space-x-2.5 px-3 py-2 text-xs font-semibold rounded-lg text-slate-700 dark:text-zinc-300 hover:bg-slate-200/60 dark:hover:bg-zinc-800/60 transition-colors">

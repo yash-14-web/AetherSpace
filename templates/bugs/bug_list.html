@@ -1,0 +1,363 @@
+{% extends 'base.html' %}
+
+{% block title %}Bug List • {{ workspace.name }} — AetherSpace{% endblock %}
+
+{% block content %}
+<div class="space-y-6 max-w-7xl mx-auto">
+    
+    <!-- Top Action & Navigation Header (Panel 2 Reference) -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 dark:border-zinc-800 pb-4">
+        <div>
+            <div class="flex items-center space-x-2 text-xs text-slate-500 dark:text-zinc-400 mb-1">
+                <span>{{ workspace.name }}</span>
+                <span>/</span>
+                <span class="text-rose-500 font-bold">Bug Tracking</span>
+            </div>
+            <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-zinc-50 tracking-tight">
+                Bug List
+            </h1>
+            <p class="text-xs sm:text-sm text-slate-500 dark:text-zinc-400 mt-0.5">
+                View and manage all bugs in your project.
+            </p>
+        </div>
+
+        <div class="flex items-center space-x-3 shrink-0">
+            <!-- Bug Dashboard Switcher Button -->
+            <a href="{% url 'bugs:bug_dashboard' slug=workspace.slug %}" 
+               class="inline-flex items-center space-x-1.5 px-3 py-2 text-xs font-bold rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] text-slate-700 dark:text-zinc-300 hover:text-rose-500 transition shadow-sm">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                </svg>
+                <span>Dashboard</span>
+            </a>
+
+            <!-- + Raise Bug Button -->
+            <a href="{% url 'bugs:bug_create' slug=workspace.slug %}" 
+               class="inline-flex items-center space-x-1.5 px-4 py-2 text-xs font-bold rounded-xl bg-rose-600 text-white hover:bg-rose-700 shadow-md shadow-rose-600/20 transition shrink-0">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                </svg>
+                <span>Raise Bug</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Status Filter Tabs matching Mockup: All Bugs | Open | In Progress | Resolved | Closed | My Bugs -->
+    <div class="flex items-center space-x-6 border-b border-slate-200 dark:border-zinc-800 text-xs font-semibold overflow-x-auto pb-px">
+        <a href="{% url 'bugs:bug_list' slug=workspace.slug %}" 
+           class="py-2.5 border-b-2 font-bold whitespace-nowrap transition-colors {% if not current_status %}border-rose-500 text-rose-600 dark:text-rose-400{% else %}border-transparent text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-300{% endif %}">
+            All Bugs <span class="ml-1 px-1.5 py-0.5 rounded-full text-[10px] bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400">{{ status_counts.all }}</span>
+        </a>
+        <a href="?status=OPEN" 
+           class="py-2.5 border-b-2 font-bold whitespace-nowrap transition-colors {% if current_status == 'OPEN' %}border-rose-500 text-rose-600 dark:text-rose-400{% else %}border-transparent text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-300{% endif %}">
+            Open <span class="ml-1 px-1.5 py-0.5 rounded-full text-[10px] bg-red-100 dark:bg-red-950/60 text-red-600 dark:text-red-400">{{ status_counts.open }}</span>
+        </a>
+        <a href="?status=IN_PROGRESS" 
+           class="py-2.5 border-b-2 font-bold whitespace-nowrap transition-colors {% if current_status == 'IN_PROGRESS' %}border-rose-500 text-rose-600 dark:text-rose-400{% else %}border-transparent text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-300{% endif %}">
+            In Progress <span class="ml-1 px-1.5 py-0.5 rounded-full text-[10px] bg-blue-100 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400">{{ status_counts.in_progress }}</span>
+        </a>
+        <a href="?status=RESOLVED" 
+           class="py-2.5 border-b-2 font-bold whitespace-nowrap transition-colors {% if current_status == 'RESOLVED' %}border-rose-500 text-rose-600 dark:text-rose-400{% else %}border-transparent text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-300{% endif %}">
+            Resolved <span class="ml-1 px-1.5 py-0.5 rounded-full text-[10px] bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400">{{ status_counts.resolved }}</span>
+        </a>
+        <a href="?status=CLOSED" 
+           class="py-2.5 border-b-2 font-bold whitespace-nowrap transition-colors {% if current_status == 'CLOSED' %}border-rose-500 text-rose-600 dark:text-rose-400{% else %}border-transparent text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-300{% endif %}">
+            Closed <span class="ml-1 px-1.5 py-0.5 rounded-full text-[10px] bg-purple-100 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400">{{ status_counts.closed }}</span>
+        </a>
+        <a href="?status=MY_BUGS" 
+           class="py-2.5 border-b-2 font-bold whitespace-nowrap transition-colors {% if current_status == 'MY_BUGS' %}border-rose-500 text-rose-600 dark:text-rose-400{% else %}border-transparent text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-300{% endif %}">
+            My Bugs <span class="ml-1 px-1.5 py-0.5 rounded-full text-[10px] bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400">{{ status_counts.my_bugs }}</span>
+        </a>
+    </div>
+
+    <!-- Filter Toolbar matching Panel 2: Status, Priority, Severity, Assignee, Module, Search -->
+    <form method="get" class="flex flex-wrap items-center gap-2.5">
+        {% if current_status and current_status != 'MY_BUGS' %}
+            <input type="hidden" name="status" value="{{ current_status }}">
+        {% endif %}
+
+        <!-- Search input -->
+        <div class="relative flex-1 min-w-[200px]">
+            <input type="text" name="q" value="{{ current_q }}" placeholder="Search by title, ID (B-...), label..." 
+                   class="w-full pl-9 pr-4 py-1.5 rounded-xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 text-slate-900 dark:text-zinc-100 text-xs placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500 transition">
+            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                </svg>
+            </div>
+        </div>
+
+        <!-- Status Filter Dropdown -->
+        <div class="relative inline-block">
+            <select name="status" onchange="this.form.submit()" 
+                    class="appearance-none pl-3.5 pr-8 py-1.5 rounded-xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 font-medium focus:outline-none focus:ring-1 focus:ring-rose-500 text-xs cursor-pointer">
+                <option value="">Status</option>
+                <option value="OPEN" {% if current_status == 'OPEN' %}selected{% endif %}>Open</option>
+                <option value="IN_PROGRESS" {% if current_status == 'IN_PROGRESS' %}selected{% endif %}>In Progress</option>
+                <option value="RESOLVED" {% if current_status == 'RESOLVED' %}selected{% endif %}>Resolved</option>
+                <option value="CLOSED" {% if current_status == 'CLOSED' %}selected{% endif %}>Closed</option>
+            </select>
+            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2.5 text-slate-400">
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                </svg>
+            </div>
+        </div>
+
+        <!-- Priority Filter Dropdown -->
+        <div class="relative inline-block">
+            <select name="priority" onchange="this.form.submit()" 
+                    class="appearance-none pl-3.5 pr-8 py-1.5 rounded-xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 font-medium focus:outline-none focus:ring-1 focus:ring-rose-500 text-xs cursor-pointer">
+                <option value="">Priority</option>
+                <option value="CRITICAL" {% if current_priority == 'CRITICAL' %}selected{% endif %}>Critical</option>
+                <option value="HIGH" {% if current_priority == 'HIGH' %}selected{% endif %}>High</option>
+                <option value="MEDIUM" {% if current_priority == 'MEDIUM' %}selected{% endif %}>Medium</option>
+                <option value="LOW" {% if current_priority == 'LOW' %}selected{% endif %}>Low</option>
+            </select>
+            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2.5 text-slate-400">
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                </svg>
+            </div>
+        </div>
+
+        <!-- Severity Filter Dropdown -->
+        <div class="relative inline-block">
+            <select name="severity" onchange="this.form.submit()" 
+                    class="appearance-none pl-3.5 pr-8 py-1.5 rounded-xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 font-medium focus:outline-none focus:ring-1 focus:ring-rose-500 text-xs cursor-pointer">
+                <option value="">Severity</option>
+                <option value="SEV1" {% if current_severity == 'SEV1' %}selected{% endif %}>Sev 1 - Blocker</option>
+                <option value="SEV2" {% if current_severity == 'SEV2' %}selected{% endif %}>Sev 2 - Major</option>
+                <option value="SEV3" {% if current_severity == 'SEV3' %}selected{% endif %}>Sev 3 - Moderate</option>
+                <option value="SEV4" {% if current_severity == 'SEV4' %}selected{% endif %}>Sev 4 - Minor</option>
+            </select>
+            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2.5 text-slate-400">
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                </svg>
+            </div>
+        </div>
+
+        <!-- Module Filter Dropdown -->
+        <div class="relative inline-block">
+            <select name="module" onchange="this.form.submit()" 
+                    class="appearance-none pl-3.5 pr-8 py-1.5 rounded-xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 font-medium focus:outline-none focus:ring-1 focus:ring-rose-500 text-xs cursor-pointer">
+                <option value="">Module</option>
+                {% for mod_val, mod_name in BugModule.choices %}
+                    <option value="{{ mod_val }}" {% if current_module == mod_val %}selected{% endif %}>{{ mod_name }}</option>
+                {% endfor %}
+            </select>
+            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2.5 text-slate-400">
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                </svg>
+            </div>
+        </div>
+
+        <!-- Assignee Filter Dropdown -->
+        <div class="relative inline-block">
+            <select name="assignee" onchange="this.form.submit()" 
+                    class="appearance-none pl-3.5 pr-8 py-1.5 rounded-xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 font-medium focus:outline-none focus:ring-1 focus:ring-rose-500 text-xs cursor-pointer">
+                <option value="">Assignee</option>
+                <option value="me" {% if current_assignee == 'me' %}selected{% endif %}>Assigned to Me</option>
+                <option value="unassigned" {% if current_assignee == 'unassigned' %}selected{% endif %}>Unassigned</option>
+                {% for member in active_members %}
+                    <option value="{{ member.user.id }}" {% if current_assignee == member.user.id|stringformat:"s" %}selected{% endif %}>
+                        {{ member.user.full_name|default:member.user.email }}
+                    </option>
+                {% endfor %}
+            </select>
+            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2.5 text-slate-400">
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                </svg>
+            </div>
+        </div>
+
+        {% if current_q or current_status or current_priority or current_severity or current_module or current_assignee %}
+            <a href="{% url 'bugs:bug_list' slug=workspace.slug %}" class="text-xs font-semibold text-rose-500 hover:underline px-2">
+                Clear
+            </a>
+        {% endif %}
+    </form>
+
+    <!-- Bug Table (Panel 2 Reference) -->
+    <div class="aether-card overflow-hidden">
+        {% if page_obj %}
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs border-collapse">
+                    <thead>
+                        <tr class="text-slate-400 dark:text-zinc-500 uppercase tracking-wider text-[10px] border-b border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-900/40">
+                            <th class="py-3 px-4 w-8">
+                                <input type="checkbox" class="rounded border-slate-300 dark:border-zinc-700 text-rose-600 focus:ring-rose-500">
+                            </th>
+                            <th class="py-3 px-3">ID</th>
+                            <th class="py-3 px-4">Title</th>
+                            <th class="py-3 px-3">Status</th>
+                            <th class="py-3 px-3">Priority</th>
+                            <th class="py-3 px-3">Severity</th>
+                            <th class="py-3 px-4">Assignee</th>
+                            <th class="py-3 px-3">Module</th>
+                            <th class="py-3 px-3">Due Date</th>
+                            <th class="py-3 px-3">Created On</th>
+                            <th class="py-3 px-4 text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 dark:divide-zinc-800/80">
+                        {% for bug in page_obj %}
+                            <tr class="hover:bg-slate-50/50 dark:hover:bg-zinc-800/30 transition group">
+                                <td class="py-3 px-4">
+                                    <input type="checkbox" class="rounded border-slate-300 dark:border-zinc-700 text-rose-600 focus:ring-rose-500">
+                                </td>
+                                <td class="py-3 px-3 font-mono font-bold text-rose-500 whitespace-nowrap">
+                                    <a href="{% url 'bugs:bug_detail' slug=workspace.slug bug_code=bug.bug_code %}" class="hover:underline">
+                                        {{ bug.bug_code }}
+                                    </a>
+                                </td>
+                                <td class="py-3 px-4 font-semibold text-slate-900 dark:text-zinc-100 max-w-xs">
+                                    <a href="{% url 'bugs:bug_detail' slug=workspace.slug bug_code=bug.bug_code %}" class="hover:text-rose-500 transition line-clamp-1">
+                                        {{ bug.title }}
+                                    </a>
+                                </td>
+                                <td class="py-3 px-3 whitespace-nowrap">
+                                    {% if bug.status == 'OPEN' %}
+                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-50 dark:bg-red-950/60 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900/60">Open</span>
+                                    {% elif bug.status == 'IN_PROGRESS' %}
+                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-900/60">In Progress</span>
+                                    {% elif bug.status == 'RESOLVED' %}
+                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/60">Resolved</span>
+                                    {% else %}
+                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 border border-purple-200 dark:border-purple-900/60">Closed</span>
+                                    {% endif %}
+                                </td>
+                                <td class="py-3 px-3 whitespace-nowrap">
+                                    {% if bug.priority == 'CRITICAL' %}
+                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900/60">Critical</span>
+                                    {% elif bug.priority == 'HIGH' %}
+                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-900/60">High</span>
+                                    {% elif bug.priority == 'MEDIUM' %}
+                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-900/60">Medium</span>
+                                    {% else %}
+                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400">Low</span>
+                                    {% endif %}
+                                </td>
+                                <td class="py-3 px-3 whitespace-nowrap">
+                                    <span class="text-[11px] font-mono font-semibold text-slate-600 dark:text-zinc-400">
+                                        {{ bug.severity }}
+                                    </span>
+                                </td>
+                                <td class="py-3 px-4 whitespace-nowrap">
+                                    {% if bug.assignee %}
+                                        <div class="flex items-center space-x-2">
+                                            <div class="w-6 h-6 rounded-full bg-slate-200 dark:bg-zinc-700 text-slate-700 dark:text-zinc-200 font-bold text-[10px] flex items-center justify-center shrink-0">
+                                                {{ bug.assignee.full_name|default:bug.assignee.email|slice:":1"|upper }}
+                                            </div>
+                                            <span class="text-slate-800 dark:text-zinc-200 truncate max-w-[110px]">
+                                                {{ bug.assignee.full_name|default:bug.assignee.email }}
+                                            </span>
+                                        </div>
+                                    {% else %}
+                                        <span class="text-slate-400 dark:text-zinc-500 italic">Unassigned</span>
+                                    {% endif %}
+                                </td>
+                                <td class="py-3 px-3 whitespace-nowrap text-slate-600 dark:text-zinc-400">
+                                    {{ bug.module }}
+                                </td>
+                                <td class="py-3 px-3 whitespace-nowrap text-slate-500 dark:text-zinc-400">
+                                    {{ bug.due_date|date:"M d, Y"|default:"—" }}
+                                </td>
+                                <td class="py-3 px-3 whitespace-nowrap text-slate-500 dark:text-zinc-400">
+                                    {{ bug.created_at|date:"M d, Y" }}
+                                </td>
+                                <td class="py-3 px-4 text-right whitespace-nowrap">
+                                    <div class="inline-flex items-center space-x-1">
+                                        <a href="{% url 'bugs:bug_detail' slug=workspace.slug bug_code=bug.bug_code %}" 
+                                           class="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200 transition" 
+                                           title="View Details">
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                            </svg>
+                                        </a>
+                                        <a href="{% url 'bugs:bug_edit' slug=workspace.slug bug_code=bug.bug_code %}" 
+                                           class="p-1 text-slate-400 hover:text-rose-500 transition" 
+                                           title="Edit Bug">
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                            </svg>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination Bar matching Mockup: Showing 1 to 10 of X bugs -->
+            <div class="flex flex-col sm:flex-row items-center justify-between gap-3 p-4 border-t border-slate-200 dark:border-zinc-800 text-xs">
+                <span class="text-slate-500 dark:text-zinc-400">
+                    Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ page_obj.paginator.count }} bugs
+                </span>
+                
+                {% if page_obj.has_other_pages %}
+                    <div class="flex items-center space-x-1">
+                        {% if page_obj.has_previous %}
+                            <a href="?page={{ page_obj.previous_page_number }}{% if current_q %}&q={{ current_q }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}" 
+                               class="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-700 dark:text-zinc-300 transition">
+                                &larr;
+                            </a>
+                        {% endif %}
+
+                        {% for p in page_obj.paginator.page_range %}
+                            {% if p == page_obj.number %}
+                                <span class="px-2.5 py-1 rounded-lg bg-rose-600 text-white font-bold">
+                                    {{ p }}
+                                </span>
+                            {% elif p >= page_obj.number|add:"-2" and p <= page_obj.number|add:"2" %}
+                                <a href="?page={{ p }}{% if current_q %}&q={{ current_q }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}" 
+                                   class="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-700 dark:text-zinc-300 transition">
+                                    {{ p }}
+                                </a>
+                            {% endif %}
+                        {% endfor %}
+
+                        {% if page_obj.has_next %}
+                            <a href="?page={{ page_obj.next_page_number }}{% if current_q %}&q={{ current_q }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}" 
+                               class="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-700 dark:text-zinc-300 transition">
+                                &rarr;
+                            </a>
+                        {% endif %}
+                    </div>
+                {% endif %}
+            </div>
+
+        {% else %}
+            <!-- Empty state -->
+            <div class="text-center py-16 px-4 space-y-3">
+                <svg class="w-12 h-12 mx-auto text-slate-300 dark:text-zinc-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <h3 class="text-sm font-bold text-slate-900 dark:text-zinc-100">No bugs found</h3>
+                <p class="text-xs text-slate-500 dark:text-zinc-400 max-w-sm mx-auto">
+                    {% if current_q or current_status or current_priority or current_severity or current_module %}
+                        No defects match your active filter criteria. Try clearing some filters.
+                    {% else %}
+                        Your project has zero logged defects! Click the button below if you need to report one.
+                    {% endif %}
+                </p>
+                <div class="pt-2">
+                    <a href="{% url 'bugs:bug_create' slug=workspace.slug %}" 
+                       class="inline-flex items-center space-x-1.5 px-4 py-2 text-xs font-bold rounded-xl bg-rose-600 text-white hover:bg-rose-700 shadow-md shadow-rose-600/20 transition">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                        </svg>
+                        <span>Raise Bug</span>
+                    </a>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+
+</div>
+{% endblock %}

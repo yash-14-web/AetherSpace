@@ -12,6 +12,7 @@ urlpatterns = [
     path('accounts/<path:subpath>', RedirectView.as_view(url='/auth/%(subpath)s', permanent=False)),
     path('workspaces/', include('workspaces.urls')),
     path('tasks/', include('tasks.urls')),
+    path('bugs/', include('bugs.urls')),
     path('dashboard/', RedirectView.as_view(url='/workspaces/dashboard/', permanent=False)),
     path('', include('core.urls')),
 ]
