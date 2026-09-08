@@ -1,0 +1,114 @@
+{% extends 'chat/base_chat.html' %}
+{% load static %}
+
+{% block chat_content %}
+<div class="flex-1 overflow-y-auto p-6 flex items-center justify-center bg-slate-50 dark:bg-obsidian-950">
+    <div class="w-full max-w-xl p-6 sm:p-8 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 shadow-xl">
+        
+        <!-- Header -->
+        <div class="flex items-center space-x-3 pb-5 border-b border-slate-100 dark:border-zinc-800 mb-6">
+            <div class="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-lg">
+                #
+            </div>
+            <div>
+                <h1 class="text-base sm:text-lg font-bold text-slate-900 dark:text-zinc-100">
+                    Create New Channel
+                </h1>
+                <p class="text-xs text-slate-500 dark:text-zinc-400">
+                    Channels are where your team collaborates on specific topics, projects, or departments.
+                </p>
+            </div>
+        </div>
+
+        <!-- Channel Create Form -->
+        <form method="POST" class="space-y-4">
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+                <div class="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 text-xs text-rose-700 dark:text-rose-300">
+                    {{ form.non_field_errors }}
+                </div>
+            {% endif %}
+
+            <!-- Channel Name -->
+            <div>
+                <label for="{{ form.name.id_for_label }}" class="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1.5">
+                    Channel Name <span class="text-rose-500">*</span>
+                </label>
+                <div class="relative flex rounded-xl shadow-sm">
+                    <span class="inline-flex items-center px-3 rounded-l-xl border border-r-0 border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900 text-slate-400 text-xs font-bold">
+                        #
+                    </span>
+                    {{ form.name }}
+                </div>
+                {% if form.name.errors %}
+                    <p class="text-xs text-rose-500 mt-1">{{ form.name.errors.0 }}</p>
+                {% endif %}
+                <p class="text-[11px] text-slate-400 dark:text-zinc-500 mt-1">Lowercase letters, numbers, and hyphens only.</p>
+            </div>
+
+            <!-- Topic -->
+            <div>
+                <label for="{{ form.topic.id_for_label }}" class="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1.5">
+                    Channel Topic
+                </label>
+                {{ form.topic }}
+                {% if form.topic.errors %}
+                    <p class="text-xs text-rose-500 mt-1">{{ form.topic.errors.0 }}</p>
+                {% endif %}
+            </div>
+
+            <!-- Description -->
+            <div>
+                <label for="{{ form.description.id_for_label }}" class="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1.5">
+                    Description
+                </label>
+                {{ form.description }}
+                {% if form.description.errors %}
+                    <p class="text-xs text-rose-500 mt-1">{{ form.description.errors.0 }}</p>
+                {% endif %}
+            </div>
+
+            <!-- Posting Permissions -->
+            <div>
+                <label for="{{ form.who_can_post.id_for_label }}" class="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1.5">
+                    Who can post messages?
+                </label>
+                {{ form.who_can_post }}
+                {% if form.who_can_post.errors %}
+                    <p class="text-xs text-rose-500 mt-1">{{ form.who_can_post.errors.0 }}</p>
+                {% endif %}
+            </div>
+
+            <!-- Private Channel Checkbox -->
+            <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-zinc-900/60 border border-slate-200 dark:border-zinc-800 flex items-start space-x-3">
+                <div class="flex items-center h-5">
+                    {{ form.is_private }}
+                </div>
+                <div>
+                    <label for="{{ form.is_private.id_for_label }}" class="text-xs font-bold text-slate-900 dark:text-zinc-100 cursor-pointer">
+                        Make channel private
+                    </label>
+                    <p class="text-[11px] text-slate-500 dark:text-zinc-400 mt-0.5">
+                        When a channel is private, it can only be viewed or joined by invitation or workspace managers.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="pt-4 flex items-center justify-end space-x-3">
+                <a href="{% url 'chat:chat_home' slug=workspace.slug %}" 
+                   class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors">
+                    Cancel
+                </a>
+                <button type="submit" 
+                        class="px-5 py-2 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition-colors">
+                    Create Channel
+                </button>
+            </div>
+
+        </form>
+
+    </div>
+</div>
+{% endblock %}

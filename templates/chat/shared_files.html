@@ -1,0 +1,102 @@
+{% extends 'chat/base_chat.html' %}
+{% load static %}
+
+{% block chat_content %}
+<div class="flex-1 overflow-y-auto p-6 space-y-6">
+
+    <!-- Header matching Panel 7 -->
+    <div class="p-6 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800/80 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div class="flex items-center space-x-3">
+            <div class="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold text-xl">
+                📁
+            </div>
+            <div>
+                <h1 class="text-base sm:text-xl font-bold text-slate-900 dark:text-zinc-100">
+                    Shared Files & Attachments
+                </h1>
+                <p class="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
+                    Browse all documents, mockups, archives, and media shared across {{ workspace.name }}'s chat channels.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter Tabs matching Panel 7 -->
+    <div class="border-b border-slate-200 dark:border-zinc-800 flex space-x-6 text-xs font-semibold">
+        <a href="?type=all" 
+           class="{% if filter_type == 'all' or not filter_type %}border-b-2 border-emerald-500 text-emerald-600 dark:text-emerald-400{% else %}text-slate-500 dark:text-zinc-400 hover:text-slate-900{% endif %} pb-3">
+            All Files
+        </a>
+        <a href="?type=images" 
+           class="{% if filter_type == 'images' %}border-b-2 border-emerald-500 text-emerald-600 dark:text-emerald-400{% else %}text-slate-500 dark:text-zinc-400 hover:text-slate-900{% endif %} pb-3">
+            Images & Media
+        </a>
+        <a href="?type=documents" 
+           class="{% if filter_type == 'documents' %}border-b-2 border-emerald-500 text-emerald-600 dark:text-emerald-400{% else %}text-slate-500 dark:text-zinc-400 hover:text-slate-900{% endif %} pb-3">
+            Documents (PDF/Docs)
+        </a>
+        <a href="?type=archive" 
+           class="{% if filter_type == 'archive' %}border-b-2 border-emerald-500 text-emerald-600 dark:text-emerald-400{% else %}text-slate-500 dark:text-zinc-400 hover:text-slate-900{% endif %} pb-3">
+            Archives & Zips
+        </a>
+    </div>
+
+    <!-- Files Grid matching Panel 7 -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        {% for att in attachments %}
+            <div class="p-4 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800/80 shadow-sm hover:border-emerald-500 dark:hover:border-emerald-500/80 transition-all flex flex-col justify-between group">
+                <div>
+                    <!-- Thumbnail preview if image -->
+                    {% if att.is_image %}
+                        <div class="h-32 rounded-xl bg-slate-100 dark:bg-zinc-800 overflow-hidden mb-3 border border-slate-100 dark:border-zinc-700/60">
+                            <img src="{{ att.file.url }}" alt="{{ att.file_name }}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200">
+                        </div>
+                    {% else %}
+                        <div class="h-20 rounded-xl bg-slate-50 dark:bg-zinc-900/60 flex items-center justify-center text-3xl mb-3 border border-slate-100 dark:border-zinc-800">
+                            {% if '.zip' in att.file_name or '.tar' in att.file_name %}📦{% else %}📄{% endif %}
+                        </div>
+                    {% endif %}
+
+                    <!-- File Details -->
+                    <h3 class="text-xs font-bold text-slate-900 dark:text-zinc-100 truncate" title="{{ att.file_name }}">
+                        {{ att.file_name }}
+                    </h3>
+                    <div class="flex items-center space-x-2 text-[11px] text-slate-400 mt-1">
+                        <span>{{ att.formatted_size }}</span>
+                        <span>•</span>
+                        <span>{{ att.uploaded_at|date:"M d, Y" }}</span>
+                    </div>
+
+                    <!-- Origin Context -->
+                    <div class="mt-2 text-[10px] text-slate-500 dark:text-zinc-400">
+                        Shared by <span class="font-semibold text-slate-700 dark:text-zinc-300">{{ att.message.sender.first_name|default:att.message.sender.email }}</span>
+                        {% if att.message.channel %}
+                            in <a href="{% url 'chat:channel_view' slug=workspace.slug channel_slug=att.message.channel.slug %}" class="text-blue-600 dark:text-blue-400 underline">#{{ att.message.channel.name }}</a>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Download Action Button -->
+                <div class="mt-4 pt-3 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between">
+                    <a href="{{ att.file.url }}" target="_blank" download
+                       class="inline-flex items-center space-x-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 transition-colors">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                        </svg>
+                        <span>Download</span>
+                    </a>
+                </div>
+            </div>
+        {% empty %}
+            <div class="col-span-full text-center py-16 text-xs text-slate-400 dark:text-zinc-500">
+                <div class="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 mx-auto flex items-center justify-center mb-3 text-xl">
+                    📁
+                </div>
+                <p class="font-semibold text-slate-700 dark:text-zinc-300">No shared files found.</p>
+                <p class="mt-1">Files uploaded in channel discussions or direct messages will automatically appear here.</p>
+            </div>
+        {% endfor %}
+    </div>
+
+</div>
+{% endblock %}

@@ -27,6 +27,7 @@ ALLOWED_HOSTS = [h.strip() for h in allowed_hosts_env.split(',') if h.strip()]
 
 # Application definition
 INSTALLED_APPS = [
+    'daphne',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -34,6 +35,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'whitenoise.runserver_nostatic',
     'django.contrib.staticfiles',
+    'channels',
 
     # AetherSpace Modular Apps
     'core.apps.CoreConfig',
@@ -77,6 +79,13 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'aetherspace.wsgi.application'
+ASGI_APPLICATION = 'aetherspace.asgi.application'
+
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels.layers.InMemoryChannelLayer',
+    },
+}
 
 # Authoritative User Model
 AUTH_USER_MODEL = 'accounts.User'

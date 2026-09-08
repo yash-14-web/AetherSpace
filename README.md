@@ -2540,6 +2540,63 @@ We re-architected the defect categorization system so:
 3. Visit Workspace Modules:
    - Navigate to `http://127.0.0.1:8000/workspaces/w/<slug>/modules/` (or click **Modules** from the Bug List toolbar or Workspace Settings).
    - Verify the configured modules for your workspace, active bug counts, and total bug counts.
+
+
+---
+
+## 14.6.1 Phase 6 Correction — Workspace-Specific Bug Modules (COMPLETED)
+
+### Status
+- **COMPLETE**
+
+### Architectural Correction
+In the initial Phase 6 implementation, `Bug.module` was defined using 11 hard-coded global choices (`BugModule.choices`). This was architecturally restrictive because different workspaces and software products have distinct component hierarchies, subsystems, and domain modules (e.g. Authentication, Billing, Search, Video Streaming vs. Inventory, Logistics, etc.).
+
+We re-architected the defect categorization system so:
+1. **Workspace-Scoped Entity**: Introduced `WorkspaceModule` (`workspaces/models.py`) with fields `id` (UUID), `workspace` (FK with CASCADE), `name`, `description`, `is_active`, `created_at`, and `updated_at`, with a unique constraint on `(workspace, name)`.
+2. **Defect Relation**: Refactored `Bug.module` (`bugs/models.py`) to a foreign key relation `ForeignKey('workspaces.WorkspaceModule', on_delete=models.SET_NULL, null=True, blank=True, related_name='bugs')`.
+3. **Workspace Boundary Enforcement**: Added server-side validation (`Bug.clean()`) ensuring a Bug can only be tagged with a `WorkspaceModule` belonging to that same workspace (`module.workspace_id == self.workspace_id`).
+4. **Data Preservation & Safe Migration**:
+   - `workspaces/migrations/0002_workspacemodule.py`: Created table and seeded default modules for existing workspaces.
+   - `bugs/migrations/0002_alter_bug_module_to_foreignkey.py`: Converted existing text module values to corresponding `WorkspaceModule` records with fallback to "General"/"Other", renamed field, and preserved defect history.
+5. **RBAC & Module Management**:
+   - Admins & Managers can configure workspace modules (CRUD, activate/deactivate) at `/workspaces/w/<slug>/modules/`.
+   - Contributors have read-only access (403 Forbidden for mutation requests).
+   - Safe deletion semantics: deleting a module sets `bug.module` to `None` (`SET_NULL`) and warns the user without deleting defect records.
+6. **Views & Filters Updated**:
+   - `BugForm`: Scopes module dropdown to active modules within the active workspace.
+   - `BugFilterForm` & `bug_list_view`: Dynamic module filtering by module name or ID.
+   - `bug_dashboard_view`: Dynamic aggregation of top modules with defect counts and distribution percentages.
+   - `bug_detail_view` & `my_bugs_view`: Displays module name safely with fallback badge.
+   - Workspace Settings: Added "Workspace Modules" configuration card.
+   - Top action bars in Bug List and Bug Dashboard: Added direct "Modules" management navigation.
+
+### Code Verification
+- Django system check: **PASS** (`python manage.py check` — 0 issues, 0 silenced)
+- Automated test suite: **PASS** (`python manage.py test bugs --keepdb` — 16 tests passed, OK)
+- Migrations: **PASS** (`workspaces.0002` and `bugs.0002` successfully applied on Supabase PostgreSQL)
+
+### Playwright
+- Script updated: `tests/e2e/bugs/bug_tracking.spec.ts` (added workspace module management and filtering checks)
+- Browser execution: **NOT RUN BY AGENT** (in strict adherence to safety rules)
+- Owner test command:
+  ```bash
+  npx playwright test tests/e2e/bugs/bug_tracking.spec.ts --project=chromium
+  ```
+
+### Git
+- Branch: `main`
+- Remote: `https://github.com/yash-14-web/AetherSpace.git`
+
+### Owner Manual Verification
+1. Start the server:
+   ```bash
+   python manage.py runserver
+   ```
+2. Sign in at `http://127.0.0.1:8000/auth/login/` as an Admin or Manager.
+3. Visit Workspace Modules:
+   - Navigate to `http://127.0.0.1:8000/workspaces/w/<slug>/modules/` (or click **Modules** from the Bug List toolbar or Workspace Settings).
+   - Verify the configured modules for your workspace, active bug counts, and total bug counts.
    - Click **Add Module** to create a custom module (e.g. "Notifications Hub").
    - Click the Edit icon to update its description or toggle active status.
 4. Raise a Bug with Custom Module:
@@ -2554,3 +2611,87 @@ We re-architected the defect categorization system so:
 7. Verify Deletion Safety:
    - As an Admin/Manager, delete a module that has bugs assigned to it.
    - Verify that the module is deleted, and its associated bugs have their module set to None without deleting the bug.
+
+---
+
+## 14.7 Phase 7 — Chat & Real-Time Collaboration (COMPLETED)
+
+### Status
+- **COMPLETE**
+
+### Implemented Capabilities
+1. **7 Unified Panels (matching Dark-Mode Collaboration Mockup)**:
+   - **Panel 1: Chat Home (`chat_home_view`)**: Hero welcome banner, 4 metric cards (Total Channels, Workspace Members, Unread Messages, Direct Mentions), Recent Channel Activity stream, Mentions spotlight, and Quick Actions (`+ Create Channel`, `Start Direct Message`, `Pinned Assets`, `Shared Files`).
+   - **Panel 2: Workspace Channels & Live Channel View (`channel_view`)**: Channel presence and topic header, live message feed with sender avatars, timestamps, file attachments, emoji reactions (👍, ❤️, 🚀), pin badges, auto-expanding message input box with file attachment modal, collapsible About Channel right drawer with metadata and quick link to full channel details.
+   - **Panel 3: Direct Messages (`direct_message_view`)**: 1-on-1 private messaging stream, participant online/active status pill, message attachments, emoji reactions, message input.
+   - **Panel 4: Channel Creation (`channel_create_view`)**: Form with `#` prefix name validation and uniqueness, channel topic, description, Public vs Private radio, and Posting Permission selector (`ALL` vs `ADMIN_ONLY`).
+   - **Panel 5: Channel Details (`channel_details_view`)**: Tabbed view with Overview, Members with role badges (`Owner`, `Admin`, `Member`) and join dates, Pinned Messages, and Shared Files.
+   - **Panel 6: Pinned Assets Hub (`pinned_assets_view`)**: Filter tabs (`All Assets`, `Messages`, `Files`, `Links`), author badge, pinned date, origin channel badge, and quick unpin action.
+   - **Panel 7: Shared Files Gallery (`shared_files_view`)**: Filter tabs (`All Files`, `Images & Media`, `Documents`, `Archives & Zips`), responsive file cards with thumbnail previews for images and badges for documents/archives, file size, uploader, channel source, and direct download links.
+
+2. **Real-time Messaging Architecture**:
+   - Integrated `daphne` (ASGI) and `django-channels` (WebSockets).
+   - In-memory channel layer `channels.layers.InMemoryChannelLayer` preserving 100% free-tier zero-cost architecture (no external paid Redis required).
+   - Real-time `ChatConsumer` (`AsyncJsonWebsocketConsumer`) broadcasting chat messages, typing events, and reactions.
+   - Resilient Alpine.js WebSocket controller with live connection pill (`Live` vs `Polling`) and transparent HTTP POST / polling fallback when WebSockets are disconnected.
+
+3. **Workspace Isolation & RBAC**:
+   - Multi-tenant workspace isolation: all channels, direct messages, and attachments are strictly bound to `request.workspace`.
+   - Outsiders without membership are blocked (403 Forbidden / redirect to request access).
+   - Private channels restricted to invited members and workspace admins/managers.
+   - Posting permissions enforced server-side (`can_post` check preventing contributors from posting in `ADMIN_ONLY` channels like `#project-updates`).
+   - Direct message conversations enforce canonical two-party isolation (third parties cannot read or write to other members' DMs).
+
+4. **Integration & Navigation**:
+   - Global Rail Chat icon routes to active workspace's chat home or router.
+   - Workspace navigation tree updated with `Team Chat` and child links (`• Chat Home`, `• Pinned Assets`, `• Shared Files`).
+   - `workspaces:workspace_chat` launcher updated to redirect seamlessly to chat home.
+
+### Code Verification
+- Django system check: **PASS** (`python manage.py check` — 0 issues, 0 silenced)
+- Automated test suite: **PASS** (`python manage.py test chat --keepdb` — 20 tests passed, OK)
+- Migrations: **PASS** (`chat.0001_initial` applied successfully to Supabase PostgreSQL)
+
+### Playwright
+- Script created: `tests/e2e/chat/chat_module.spec.ts`
+- Browser execution: **NOT RUN BY AGENT** (in strict adherence to safety rules)
+- Owner test command:
+  ```bash
+  npx playwright test tests/e2e/chat/chat_module.spec.ts --project=chromium
+  ```
+
+### Git
+- Branch: `main`
+- Remote: `https://github.com/yash-14-web/AetherSpace.git`
+
+### Owner Manual Verification Instructions
+1. Start the server:
+   ```bash
+   python manage.py runserver
+   ```
+2. Sign in at `http://127.0.0.1:8000/auth/login/`.
+3. Open Chat Home:
+   - Navigate to `http://127.0.0.1:8000/chat/` (or click Chat in the global left rail).
+   - Verify the 4 metric cards, Recent Activity stream, and Quick Actions.
+4. Test Channel Discussions (#general):
+   - Click `#general` in the sidebar.
+   - Send a message ("Hello team! Phase 7 is live.").
+   - Verify the message appears instantly in the stream with avatar and timestamp.
+   - Hover over the message and click 📌 to pin it, or react with 👍 or 🚀.
+   - Click the About Channel toggle icon in the top right to open the drawer.
+5. Test Direct Messaging:
+   - Click **+ New** next to Direct Messages in the sidebar.
+   - Select a team member from the modal.
+   - Send a direct message and verify the private stream.
+6. Test File Sharing:
+   - In a channel or DM, click the paperclip attachment icon and select a file or image.
+   - Click Send and verify the image preview or file card.
+   - Visit **Shared Files** (`/chat/w/<slug>/files/`) and verify the uploaded file is listed.
+7. Test Pinned Assets:
+   - Visit **Pinned Assets** (`/chat/w/<slug>/pinned/`) and verify pinned messages appear under the respective tabs.
+
+### README Updated
+- YES
+
+### Next Recommended Step
+- Phase 7 is complete. Await instructions before starting Phase 8 (Meet Hub).

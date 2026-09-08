@@ -1,0 +1,197 @@
+{% extends 'chat/base_chat.html' %}
+{% load static %}
+
+{% block chat_content %}
+<div class="flex-1 overflow-y-auto p-6 space-y-6" x-data="{ activeTab: 'overview' }">
+
+    <!-- Header matching Panel 5 -->
+    <div class="p-6 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800/80 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div class="flex items-center space-x-3">
+            <div class="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-xl">
+                {% if channel.is_private %}🔒{% else %}#{% endif %}
+            </div>
+            <div>
+                <div class="flex items-center space-x-2">
+                    <h1 class="text-lg sm:text-xl font-bold text-slate-900 dark:text-zinc-100">
+                        #{{ channel.name }}
+                    </h1>
+                    <span class="text-[10px] font-semibold px-2 py-0.5 rounded {% if channel.is_private %}bg-amber-50 dark:bg-amber-950/60 text-amber-600 border border-amber-200 dark:border-amber-900/60{% else %}bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 border border-emerald-200 dark:border-emerald-800{% endif %}">
+                        {% if channel.is_private %}Private Channel{% else %}Public Channel{% endif %}
+                    </span>
+                </div>
+                <p class="text-xs text-slate-500 dark:text-zinc-400 mt-1">
+                    {{ channel.topic|default:channel.description|default:"No description or topic set." }}
+                </p>
+            </div>
+        </div>
+
+        <div class="flex items-center space-x-2">
+            <a href="{% url 'chat:channel_view' slug=workspace.slug channel_slug=channel.slug %}" 
+               class="inline-flex items-center space-x-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition-colors">
+                <span>&larr; Back to Channel</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Tab Bar -->
+    <div class="border-b border-slate-200 dark:border-zinc-800 flex space-x-6 text-xs font-semibold">
+        <button type="button" @click="activeTab = 'overview'" 
+                :class="activeTab === 'overview' ? 'border-b-2 border-blue-600 text-blue-600 dark:text-blue-400 pb-3' : 'text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100 pb-3'">
+            Overview
+        </button>
+        <button type="button" @click="activeTab = 'members'" 
+                :class="activeTab === 'members' ? 'border-b-2 border-blue-600 text-blue-600 dark:text-blue-400 pb-3' : 'text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100 pb-3'">
+            Members ({{ memberships|length }})
+        </button>
+        <button type="button" @click="activeTab = 'pinned'" 
+                :class="activeTab === 'pinned' ? 'border-b-2 border-blue-600 text-blue-600 dark:text-blue-400 pb-3' : 'text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100 pb-3'">
+            Pinned Messages ({{ pinned_messages|length }})
+        </button>
+        <button type="button" @click="activeTab = 'files'" 
+                :class="activeTab === 'files' ? 'border-b-2 border-blue-600 text-blue-600 dark:text-blue-400 pb-3' : 'text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100 pb-3'">
+            Shared Files ({{ files|length }})
+        </button>
+    </div>
+
+    <!-- TAB 1: OVERVIEW -->
+    <div x-show="activeTab === 'overview'" class="space-y-6">
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="p-4 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 shadow-sm">
+                <span class="text-xs text-slate-400 font-semibold">Total Messages</span>
+                <p class="text-2xl font-bold text-slate-900 dark:text-zinc-100 mt-1">{{ channel.messages.count }}</p>
+            </div>
+            <div class="p-4 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 shadow-sm">
+                <span class="text-xs text-slate-400 font-semibold">Members</span>
+                <p class="text-2xl font-bold text-slate-900 dark:text-zinc-100 mt-1">{{ memberships|length }}</p>
+            </div>
+            <div class="p-4 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 shadow-sm">
+                <span class="text-xs text-slate-400 font-semibold">Pinned Items</span>
+                <p class="text-2xl font-bold text-slate-900 dark:text-zinc-100 mt-1">{{ pinned_messages|length }}</p>
+            </div>
+            <div class="p-4 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 shadow-sm">
+                <span class="text-xs text-slate-400 font-semibold">Files Shared</span>
+                <p class="text-2xl font-bold text-slate-900 dark:text-zinc-100 mt-1">{{ files|length }}</p>
+            </div>
+        </div>
+
+        <div class="p-5 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 shadow-sm space-y-4 text-xs">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500">Channel Metadata</h3>
+            
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <span class="text-slate-400 font-medium block">Created by:</span>
+                    <span class="font-semibold text-slate-900 dark:text-zinc-100">{{ channel.created_by.full_name|default:channel.created_by.email }}</span>
+                </div>
+                <div>
+                    <span class="text-slate-400 font-medium block">Creation Date:</span>
+                    <span class="font-semibold text-slate-900 dark:text-zinc-100">{{ channel.created_at|date:"F d, Y, h:i A" }}</span>
+                </div>
+                <div>
+                    <span class="text-slate-400 font-medium block">Posting Permissions:</span>
+                    <span class="font-semibold text-slate-900 dark:text-zinc-100">{{ channel.get_who_can_post_display }}</span>
+                </div>
+                <div>
+                    <span class="text-slate-400 font-medium block">Access Type:</span>
+                    <span class="font-semibold text-slate-900 dark:text-zinc-100">{% if channel.is_private %}Private (Restricted){% else %}Public (All Workspace Members){% endif %}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB 2: MEMBERS -->
+    <div x-show="activeTab === 'members'" class="space-y-4" style="display: none;">
+        <div class="p-5 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 shadow-sm">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500 mb-4">
+                Channel Members ({{ memberships|length }})
+            </h3>
+
+            <div class="divide-y divide-slate-100 dark:divide-zinc-800">
+                {% for m in memberships %}
+                    <div class="py-3 flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-bold text-xs flex items-center justify-center">
+                                {{ m.user.first_name|slice:":1"|default:m.user.email|slice:":1"|upper }}
+                            </div>
+                            <div>
+                                <p class="text-xs font-bold text-slate-900 dark:text-zinc-100">
+                                    {{ m.user.full_name|default:m.user.email }}
+                                </p>
+                                <p class="text-[11px] text-slate-400">{{ m.user.email }}</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <span class="text-[10px] font-semibold px-2 py-0.5 rounded {% if m.role == 'OWNER' %}bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-300 border border-purple-200 dark:border-purple-800{% elif m.role == 'ADMIN' %}bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-300 border border-blue-200 dark:border-blue-800{% else %}bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400{% endif %}">
+                                {{ m.get_role_display }}
+                            </span>
+                            <span class="text-[11px] text-slate-400">Joined {{ m.joined_at|date:"M d, Y" }}</span>
+                        </div>
+                    </div>
+                {% empty %}
+                    <p class="text-xs text-slate-400 py-4">No channel members recorded.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB 3: PINNED MESSAGES -->
+    <div x-show="activeTab === 'pinned'" class="space-y-4" style="display: none;">
+        <div class="p-5 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 shadow-sm">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500 mb-4">
+                Pinned in #{{ channel.name }}
+            </h3>
+
+            <div class="space-y-3">
+                {% for p in pinned_messages %}
+                    <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-zinc-900/60 border border-slate-200 dark:border-zinc-800 text-xs">
+                        <div class="flex items-center justify-between mb-1.5">
+                            <div class="flex items-center space-x-2">
+                                <span class="font-bold text-slate-900 dark:text-zinc-100">{{ p.sender.full_name|default:p.sender.email }}</span>
+                                <span class="text-[10px] text-slate-400">{{ p.created_at|date:"M d, Y h:i A" }}</span>
+                            </div>
+                            <span class="text-[10px] text-amber-600 dark:text-amber-400 font-semibold flex items-center space-x-1">
+                                <span>📌 Pinned by {{ p.pinned_by.full_name|default:p.pinned_by.email }}</span>
+                            </span>
+                        </div>
+                        <p class="text-slate-700 dark:text-zinc-300 whitespace-pre-line">{{ p.content }}</p>
+                    </div>
+                {% empty %}
+                    <div class="text-center py-8 text-xs text-slate-400 dark:text-zinc-500">
+                        No pinned messages in this channel yet.
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB 4: FILES -->
+    <div x-show="activeTab === 'files'" class="space-y-4" style="display: none;">
+        <div class="p-5 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 shadow-sm">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500 mb-4">
+                Files Shared in #{{ channel.name }}
+            </h3>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {% for f in files %}
+                    <div class="p-3 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900/40 text-xs flex items-center justify-between">
+                        <div class="flex items-center space-x-2.5 truncate">
+                            <span class="text-lg">{% if f.is_image %}🖼️{% else %}📄{% endif %}</span>
+                            <div class="truncate">
+                                <p class="font-bold text-slate-900 dark:text-zinc-100 truncate">{{ f.file_name }}</p>
+                                <p class="text-[10px] text-slate-400">{{ f.formatted_size }} • {{ f.uploaded_at|date:"M d" }}</p>
+                            </div>
+                        </div>
+                        <a href="{{ f.file.url }}" target="_blank" download class="p-1.5 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/50 rounded-lg shrink-0">
+                            ⬇
+                        </a>
+                    </div>
+                {% empty %}
+                    <div class="col-span-full text-center py-8 text-xs text-slate-400 dark:text-zinc-500">
+                        No files uploaded in this channel yet.
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

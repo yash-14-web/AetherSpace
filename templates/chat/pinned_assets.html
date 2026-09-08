@@ -1,0 +1,174 @@
+{% extends 'chat/base_chat.html' %}
+{% load static %}
+
+{% block chat_content %}
+<div class="flex-1 overflow-y-auto p-6 space-y-6" x-data="{ currentFilter: '{{ tab|default:"all" }}' }">
+
+    <!-- Header matching Panel 6 -->
+    <div class="p-6 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800/80 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div class="flex items-center space-x-3">
+            <div class="w-12 h-12 rounded-2xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold text-xl">
+                📌
+            </div>
+            <div>
+                <h1 class="text-base sm:text-xl font-bold text-slate-900 dark:text-zinc-100">
+                    Pinned Assets
+                </h1>
+                <p class="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
+                    Central repository of important decisions, announcements, files, and links across {{ workspace.name }}.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter Tabs -->
+    <div class="border-b border-slate-200 dark:border-zinc-800 flex space-x-6 text-xs font-semibold">
+        <button type="button" @click="currentFilter = 'all'" 
+                :class="currentFilter === 'all' ? 'border-b-2 border-amber-500 text-amber-600 dark:text-amber-400 pb-3' : 'text-slate-500 dark:text-zinc-400 hover:text-slate-900 pb-3'">
+            All Assets ({{ visible_pinned|length }})
+        </button>
+        <button type="button" @click="currentFilter = 'messages'" 
+                :class="currentFilter === 'messages' ? 'border-b-2 border-amber-500 text-amber-600 dark:text-amber-400 pb-3' : 'text-slate-500 dark:text-zinc-400 hover:text-slate-900 pb-3'">
+            Messages ({{ pure_messages|length }})
+        </button>
+        <button type="button" @click="currentFilter = 'files'" 
+                :class="currentFilter === 'files' ? 'border-b-2 border-amber-500 text-amber-600 dark:text-amber-400 pb-3' : 'text-slate-500 dark:text-zinc-400 hover:text-slate-900 pb-3'">
+            Files ({{ pinned_files|length }})
+        </button>
+        <button type="button" @click="currentFilter = 'links'" 
+                :class="currentFilter === 'links' ? 'border-b-2 border-amber-500 text-amber-600 dark:text-amber-400 pb-3' : 'text-slate-500 dark:text-zinc-400 hover:text-slate-900 pb-3'">
+            Links ({{ pinned_links|length }})
+        </button>
+    </div>
+
+    <!-- Pinned Stream Items -->
+    <div class="space-y-4">
+        
+        <!-- ALL TAB -->
+        <div x-show="currentFilter === 'all'" class="space-y-3">
+            {% for item in visible_pinned %}
+                <div class="p-4 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800/80 shadow-sm text-xs">
+                    <div class="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-zinc-800 mb-2.5">
+                        <div class="flex items-center space-x-2">
+                            <span class="font-bold text-slate-900 dark:text-zinc-100">{{ item.sender.full_name|default:item.sender.email }}</span>
+                            <span class="text-[10px] text-slate-400">{{ item.created_at|date:"M d, Y h:i A" }}</span>
+                            {% if item.channel %}
+                                <a href="{% url 'chat:channel_view' slug=workspace.slug channel_slug=item.channel.slug %}" 
+                                   class="text-[10px] font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-2 py-0.5 rounded">
+                                    #{{ item.channel.name }}
+                                </a>
+                            {% endif %}
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <span class="text-[10px] text-amber-600 dark:text-amber-400">
+                                📌 by {{ item.pinned_by.first_name|default:item.pinned_by.email }}
+                            </span>
+                            <button type="button" @click="unpinMessage('{{ item.id }}')" class="text-rose-500 hover:underline text-[11px] font-semibold">
+                                Unpin
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <p class="text-slate-800 dark:text-zinc-200 whitespace-pre-line leading-relaxed">{{ item.content }}</p>
+
+                    {% if item.attachments.all %}
+                        <div class="mt-2.5 flex flex-wrap gap-2 pt-2 border-t border-slate-100 dark:border-zinc-800">
+                            {% for att in item.attachments.all %}
+                                <a href="{{ att.file.url }}" target="_blank" download class="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-zinc-800 text-[11px] font-semibold text-blue-600 dark:text-blue-400">
+                                    <span>📎</span>
+                                    <span>{{ att.file_name }}</span>
+                                    <span class="text-slate-400">({{ att.formatted_size }})</span>
+                                </a>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            {% empty %}
+                <div class="text-center py-12 text-xs text-slate-400 dark:text-zinc-500">
+                    No pinned assets found in this workspace. Hover over any message and click 📌 to pin it here!
+                </div>
+            {% endfor %}
+        </div>
+
+        <!-- MESSAGES TAB -->
+        <div x-show="currentFilter === 'messages'" class="space-y-3" style="display: none;">
+            {% for item in pure_messages %}
+                <div class="p-4 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 shadow-sm text-xs">
+                    <div class="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-zinc-800 mb-2.5">
+                        <div class="flex items-center space-x-2">
+                            <span class="font-bold text-slate-900 dark:text-zinc-100">{{ item.sender.full_name|default:item.sender.email }}</span>
+                            <span class="text-[10px] text-slate-400">{{ item.created_at|date:"M d, Y" }}</span>
+                        </div>
+                        <button type="button" @click="unpinMessage('{{ item.id }}')" class="text-rose-500 hover:underline text-[11px] font-semibold">Unpin</button>
+                    </div>
+                    <p class="text-slate-800 dark:text-zinc-200 whitespace-pre-line">{{ item.content }}</p>
+                </div>
+            {% empty %}
+                <div class="text-center py-12 text-xs text-slate-400 dark:text-zinc-500">No pinned message quotes.</div>
+            {% endfor %}
+        </div>
+
+        <!-- FILES TAB -->
+        <div x-show="currentFilter === 'files'" class="space-y-3" style="display: none;">
+            {% for item in pinned_files %}
+                <div class="p-4 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 shadow-sm text-xs">
+                    <div class="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-zinc-800 mb-2.5">
+                        <span class="font-bold text-slate-900 dark:text-zinc-100">{{ item.sender.full_name|default:item.sender.email }}</span>
+                        <button type="button" @click="unpinMessage('{{ item.id }}')" class="text-rose-500 hover:underline text-[11px] font-semibold">Unpin</button>
+                    </div>
+                    <p class="text-slate-700 dark:text-zinc-300 mb-2">{{ item.content }}</p>
+                    <div class="flex flex-wrap gap-2">
+                        {% for att in item.attachments.all %}
+                            <a href="{{ att.file.url }}" target="_blank" download class="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-zinc-800 text-xs font-semibold text-blue-600">
+                                <span>📄</span>
+                                <span>{{ att.file_name }}</span>
+                                <span class="text-[10px] text-slate-400">({{ att.formatted_size }})</span>
+                            </a>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% empty %}
+                <div class="text-center py-12 text-xs text-slate-400 dark:text-zinc-500">No pinned files.</div>
+            {% endfor %}
+        </div>
+
+        <!-- LINKS TAB -->
+        <div x-show="currentFilter === 'links'" class="space-y-3" style="display: none;">
+            {% for link_data in pinned_links %}
+                <div class="p-4 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 shadow-sm text-xs">
+                    <div class="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-zinc-800 mb-2.5">
+                        <span class="font-bold text-slate-900 dark:text-zinc-100">{{ link_data.message.sender.full_name|default:link_data.message.sender.email }}</span>
+                        <button type="button" @click="unpinMessage('{{ link_data.message.id }}')" class="text-rose-500 hover:underline text-[11px] font-semibold">Unpin</button>
+                    </div>
+                    <p class="text-slate-700 dark:text-zinc-300 mb-2">{{ link_data.message.content }}</p>
+                    <div class="space-y-1">
+                        {% for url in link_data.links %}
+                            <a href="{{ url }}" target="_blank" rel="noopener noreferrer" class="block text-blue-600 dark:text-blue-400 hover:underline truncate">
+                                🔗 {{ url }}
+                            </a>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% empty %}
+                <div class="text-center py-12 text-xs text-slate-400 dark:text-zinc-500">No pinned link assets.</div>
+            {% endfor %}
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+function unpinMessage(messageId) {
+    const csrf = document.querySelector('[name=csrfmiddlewaretoken]') ? document.querySelector('[name=csrfmiddlewaretoken]').value : '{{ csrf_token }}';
+    fetch(`/chat/w/{{ workspace.slug }}/api/pin/${messageId}/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': csrf }
+    }).then(r => r.json()).then(data => {
+        if (data.status === 'ok') {
+            window.location.reload();
+        }
+    });
+}
+</script>
+{% endblock %}

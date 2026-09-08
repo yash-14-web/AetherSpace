@@ -462,25 +462,9 @@ def workspace_project_details(request, slug):
 @workspace_member_required
 def workspace_chat(request, slug):
     """
-    Workspace-scoped team communication launcher / placeholder.
+    Workspace-scoped team communication launcher: redirects to chat module.
     """
-    workspace = request.workspace
-    membership = request.membership
-
-    return render(request, 'components/placeholder.html', {
-        'module_title': f"{workspace.name} — Team Chat",
-        'phase_badge': 'Phase 5 — Collaboration',
-        'module_icon': 'chat',
-        'module_description': f"Real-time team chat and topic channels scoped to '{workspace.name}'.",
-        'empty_heading': f"Chat Hub for {workspace.name}",
-        'empty_text': f"Channels (#general, #{workspace.slug}-dev), real-time direct messaging, and message pinning will arrive in Phase 5.",
-        'features': [
-            f"Dedicated #{workspace.slug}-general channel",
-            'Real-time WebSocket message delivery',
-            'Code snippet syntax highlighting',
-            'File and image attachments via Supabase',
-        ],
-    })
+    return redirect('chat:chat_home', slug=slug)
 
 
 @workspace_member_required

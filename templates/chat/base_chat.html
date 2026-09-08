@@ -1,0 +1,239 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ title|default:"Chat — AetherSpace" }}{% endblock %}
+
+{% block content %}
+<div class="h-[calc(100vh-6.5rem)] flex -m-4 sm:-m-6 lg:-m-8 bg-slate-50 dark:bg-obsidian-950 overflow-hidden" 
+     x-data="{ 
+         newDmModalOpen: false,
+         chatSidebarOpen: false,
+         searchDmFilter: ''
+     }">
+
+    <!-- Mobile Backdrop for Chat Channels Sidebar -->
+    <div x-show="chatSidebarOpen" 
+         x-transition:enter="transition-opacity ease-linear duration-200"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition-opacity ease-linear duration-200"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         @click="chatSidebarOpen = false"
+         class="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"
+         style="display: none;">
+    </div>
+
+    <!-- CHAT NAVIGATION SIDEBAR (280px) -->
+    <aside :class="{'translate-x-0': chatSidebarOpen, '-translate-x-full': !chatSidebarOpen}"
+           class="fixed inset-y-0 left-16 z-40 lg:static lg:translate-x-0 w-72 bg-white dark:bg-[#0c1322] border-r border-slate-200 dark:border-zinc-800/80 flex flex-col shrink-0 transition-transform duration-200 ease-in-out">
+        
+        <!-- Sidebar Header -->
+        <div class="h-14 px-4 border-b border-slate-200 dark:border-zinc-800/80 flex items-center justify-between">
+            <a href="{% url 'chat:chat_home' slug=workspace.slug %}" class="flex items-center space-x-2 text-slate-900 dark:text-zinc-100 font-bold text-sm hover:text-aether-blue transition-colors">
+                <div class="w-7 h-7 rounded-lg bg-blue-600/10 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-xs">
+                    #
+                </div>
+                <span class="truncate">{{ workspace.name }} Chat</span>
+            </a>
+            <div class="flex items-center space-x-1">
+                <a href="{% url 'chat:channel_create' slug=workspace.slug %}" 
+                   class="p-1.5 rounded-lg text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
+                   title="Create Channel">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    </svg>
+                </a>
+            </div>
+        </div>
+
+        <!-- Channels & DM Nav Tree -->
+        <div class="flex-1 overflow-y-auto p-3 space-y-5">
+
+            <!-- Primary Nav Links -->
+            <div class="space-y-0.5">
+                <a href="{% url 'chat:chat_home' slug=workspace.slug %}" 
+                   class="flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold {% if request.resolver_match.url_name == 'chat_home' %}bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-900/60{% else %}text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800/60{% endif %} transition-colors">
+                    <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+                    </svg>
+                    <span>Chat Home</span>
+                </a>
+                <a href="{% url 'chat:pinned_assets' slug=workspace.slug %}" 
+                   class="flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold {% if request.resolver_match.url_name == 'pinned_assets' %}bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-900/60{% else %}text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800/60{% endif %} transition-colors">
+                    <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/>
+                    </svg>
+                    <span>Pinned Assets</span>
+                </a>
+                <a href="{% url 'chat:shared_files' slug=workspace.slug %}" 
+                   class="flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold {% if request.resolver_match.url_name == 'shared_files' %}bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-900/60{% else %}text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800/60{% endif %} transition-colors">
+                    <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                    </svg>
+                    <span>Shared Files</span>
+                </a>
+            </div>
+
+            <!-- CHANNELS SECTION -->
+            <div>
+                <div class="flex items-center justify-between px-2.5 mb-1.5">
+                    <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500">Channels</span>
+                    <a href="{% url 'chat:channel_create' slug=workspace.slug %}" 
+                       class="text-[11px] font-semibold text-blue-600 dark:text-blue-400 hover:underline flex items-center space-x-0.5">
+                        <span>+ Add</span>
+                    </a>
+                </div>
+                <div class="space-y-0.5">
+                    {% for ch in channels %}
+                        <a href="{% url 'chat:channel_view' slug=workspace.slug channel_slug=ch.slug %}" 
+                           class="flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-semibold {% if channel and channel.slug == ch.slug %}bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-900/60{% else %}text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800/60{% endif %} transition-colors group">
+                            <div class="flex items-center space-x-2 truncate">
+                                <span class="text-slate-400 dark:text-zinc-500 group-hover:text-blue-500">
+                                    {% if ch.is_private %}
+                                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                                        </svg>
+                                    {% else %}
+                                        #
+                                    {% endif %}
+                                </span>
+                                <span class="truncate">{{ ch.name }}</span>
+                            </div>
+                            {% if ch.unread_count %}
+                                <span class="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-blue-600 text-white">
+                                    {{ ch.unread_count }}
+                                </span>
+                            {% endif %}
+                        </a>
+                    {% empty %}
+                        <p class="text-xs text-slate-400 dark:text-zinc-500 px-2.5 py-1">No channels yet.</p>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- DIRECT MESSAGES SECTION -->
+            <div>
+                <div class="flex items-center justify-between px-2.5 mb-1.5">
+                    <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500">Direct Messages</span>
+                    <button type="button" 
+                            @click="newDmModalOpen = true"
+                            class="text-[11px] font-semibold text-blue-600 dark:text-blue-400 hover:underline flex items-center space-x-0.5">
+                        <span>+ New</span>
+                    </button>
+                </div>
+                <div class="space-y-0.5">
+                    {% for dm_item in formatted_dms %}
+                        <a href="{% url 'chat:direct_message' slug=workspace.slug user_id=dm_item.other_user.id %}" 
+                           class="flex items-center space-x-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold {% if other_user and other_user.id == dm_item.other_user.id %}bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-900/60{% else %}text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800/60{% endif %} transition-colors">
+                            <div class="relative shrink-0">
+                                <div class="w-6 h-6 rounded-full bg-slate-200 dark:bg-zinc-700 text-slate-700 dark:text-zinc-200 flex items-center justify-center font-bold text-[10px]">
+                                    {{ dm_item.other_user.first_name|slice:":1"|default:dm_item.other_user.email|slice:":1"|upper }}
+                                </div>
+                                <span class="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-obsidian-950"></span>
+                            </div>
+                            <div class="flex-1 min-w-0 truncate">
+                                <span class="block truncate">{{ dm_item.other_user.full_name|default:dm_item.other_user.email }}</span>
+                                {% if dm_item.last_message %}
+                                    <span class="block text-[10px] text-slate-400 dark:text-zinc-500 truncate font-normal">
+                                        {{ dm_item.last_message.content|truncatechars:24 }}
+                                    </span>
+                                {% endif %}
+                            </div>
+                        </a>
+                    {% empty %}
+                        <p class="text-xs text-slate-400 dark:text-zinc-500 px-2.5 py-1">No direct messages yet.</p>
+                    {% endfor %}
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Sidebar Footer: Active Workspace Status -->
+        <div class="p-3 border-t border-slate-200 dark:border-zinc-800/80 bg-slate-50/50 dark:bg-zinc-900/40 flex items-center justify-between text-xs">
+            <div class="flex items-center space-x-2 truncate">
+                <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                <span class="text-slate-600 dark:text-zinc-400 truncate">{{ user.email }}</span>
+            </div>
+        </div>
+
+    </aside>
+
+    <!-- CHAT MAIN CONTENT PANE -->
+    <div class="flex-1 flex flex-col min-w-0 bg-white dark:bg-obsidian-900 overflow-hidden relative">
+        
+        <!-- Mobile Chat Bar Toggle -->
+        <div class="lg:hidden px-4 py-2 border-b border-slate-200 dark:border-zinc-800 flex items-center justify-between bg-slate-50 dark:bg-obsidian-950">
+            <button type="button" @click="chatSidebarOpen = true" class="flex items-center space-x-2 text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+                </svg>
+                <span>Channels & DMs</span>
+            </button>
+        </div>
+
+        {% block chat_content %}{% endblock %}
+    </div>
+
+    <!-- NEW DIRECT MESSAGE MODAL -->
+    <div x-show="newDmModalOpen" 
+         class="fixed inset-0 z-50 overflow-y-auto"
+         style="display: none;"
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-150"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0">
+        
+        <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 transition-opacity bg-black/60 backdrop-blur-sm" @click="newDmModalOpen = false"></div>
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
+
+            <div class="inline-block w-full max-w-md p-6 my-8 overflow-hidden text-left align-middle transition-all transform bg-white dark:bg-obsidian-900 border border-slate-200 dark:border-zinc-800 rounded-2xl shadow-2xl">
+                <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-zinc-800">
+                    <h3 class="text-base font-bold text-slate-900 dark:text-zinc-100">New Direct Message</h3>
+                    <button type="button" @click="newDmModalOpen = false" class="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300">
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="mt-4">
+                    <p class="text-xs text-slate-500 dark:text-zinc-400 mb-3">
+                        Choose a team member from <span class="font-semibold text-slate-700 dark:text-zinc-300">{{ workspace.name }}</span> to start chatting:
+                    </p>
+
+                    <div class="space-y-1 max-h-60 overflow-y-auto pr-1">
+                        {% for mem in active_members %}
+                            <a href="{% url 'chat:direct_message' slug=workspace.slug user_id=mem.user.id %}" 
+                               class="flex items-center space-x-3 p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-zinc-800/70 transition-colors">
+                                <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-bold text-xs flex items-center justify-center shrink-0">
+                                    {{ mem.user.first_name|slice:":1"|default:mem.user.email|slice:":1"|upper }}
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex items-center justify-between">
+                                        <p class="text-xs font-bold text-slate-900 dark:text-zinc-100 truncate">
+                                            {{ mem.user.full_name|default:mem.user.email }}
+                                        </p>
+                                        <span class="text-[10px] font-semibold px-2 py-0.5 rounded bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400">
+                                            {{ mem.get_role_display }}
+                                        </span>
+                                    </div>
+                                    <p class="text-[11px] text-slate-400 dark:text-zinc-500 truncate">{{ mem.user.email }}</p>
+                                </div>
+                            </a>
+                        {% empty %}
+                            <div class="text-center py-6 text-xs text-slate-400 dark:text-zinc-500">
+                                No other active members in this workspace yet.
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

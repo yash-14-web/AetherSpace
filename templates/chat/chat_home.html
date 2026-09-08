@@ -1,0 +1,249 @@
+{% extends 'chat/base_chat.html' %}
+{% load static %}
+
+{% block chat_content %}
+<div class="flex-1 overflow-y-auto p-6 space-y-6">
+
+    <!-- 1. Welcome Banner matching Mockup Panel 1 -->
+    <div class="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-700 text-white p-6 sm:p-8 shadow-lg">
+        <div class="relative z-10 max-w-2xl">
+            <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-white/10 text-blue-100 backdrop-blur-md mb-3">
+                Workspace Communication Hub
+            </span>
+            <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-white mb-2">
+                Team Chat & Collaboration
+            </h1>
+            <p class="text-sm text-blue-100/90 leading-relaxed">
+                Connect, collaborate, and coordinate with {{ workspace.name }} across channels, instant direct messages, shared files, and pinned assets.
+            </p>
+            <div class="mt-4 flex flex-wrap items-center gap-3">
+                <a href="{% url 'chat:channel_create' slug=workspace.slug %}" 
+                   class="inline-flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-bold bg-white text-blue-700 hover:bg-blue-50 shadow-sm transition-colors">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    </svg>
+                    <span>Create Channel</span>
+                </a>
+                <button type="button" @click="newDmModalOpen = true"
+                        class="inline-flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-bold bg-white/20 text-white hover:bg-white/30 backdrop-blur-sm transition-colors">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+                    </svg>
+                    <span>Start Direct Message</span>
+                </button>
+            </div>
+        </div>
+        <!-- Decorative Glow -->
+        <div class="absolute -right-10 -bottom-10 w-64 h-64 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
+    </div>
+
+    <!-- 2. Four Stat Cards matching Panel 1 -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- Card 1: Total Channels -->
+        <div class="p-4 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800/80 shadow-sm">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-semibold text-slate-500 dark:text-zinc-400">Total Channels</span>
+                <div class="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+                    #
+                </div>
+            </div>
+            <div class="mt-2 flex items-baseline space-x-2">
+                <span class="text-2xl font-bold text-slate-900 dark:text-zinc-100">{{ total_channels }}</span>
+                <span class="text-xs text-slate-400 dark:text-zinc-500">active</span>
+            </div>
+        </div>
+
+        <!-- Card 2: Total Members -->
+        <div class="p-4 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800/80 shadow-sm">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-semibold text-slate-500 dark:text-zinc-400">Workspace Members</span>
+                <div class="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
+                    </svg>
+                </div>
+            </div>
+            <div class="mt-2 flex items-baseline space-x-2">
+                <span class="text-2xl font-bold text-slate-900 dark:text-zinc-100">{{ total_members }}</span>
+                <span class="text-xs text-slate-400 dark:text-zinc-500">collaborators</span>
+            </div>
+        </div>
+
+        <!-- Card 3: Unread Messages -->
+        <div class="p-4 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800/80 shadow-sm">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-semibold text-slate-500 dark:text-zinc-400">Unread</span>
+                <div class="w-8 h-8 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                    </svg>
+                </div>
+            </div>
+            <div class="mt-2 flex items-baseline space-x-2">
+                <span class="text-2xl font-bold text-slate-900 dark:text-zinc-100">{{ unread_messages_count }}</span>
+                <span class="text-xs text-slate-400 dark:text-zinc-500">inbox caught up</span>
+            </div>
+        </div>
+
+        <!-- Card 4: Mentions -->
+        <div class="p-4 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800/80 shadow-sm">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-semibold text-slate-500 dark:text-zinc-400">Mentions</span>
+                <div class="w-8 h-8 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center">
+                    @
+                </div>
+            </div>
+            <div class="mt-2 flex items-baseline space-x-2">
+                <span class="text-2xl font-bold text-slate-900 dark:text-zinc-100">{{ mentions_count }}</span>
+                <span class="text-xs text-slate-400 dark:text-zinc-500">direct tags</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. Two-Column Split: Recent Conversations & Quick Actions / Mentions -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        <!-- Left 2 Cols: Recent Channel & Discussion Stream -->
+        <div class="lg:col-span-2 space-y-4">
+            <div class="p-5 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800/80 shadow-sm">
+                <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-zinc-800">
+                    <h2 class="text-sm font-bold text-slate-900 dark:text-zinc-100 flex items-center space-x-2">
+                        <span>Recent Channel Activity</span>
+                        <span class="text-xs font-normal text-slate-400">({{ recent_channel_messages|length }})</span>
+                    </h2>
+                    <span class="text-xs text-slate-400 dark:text-zinc-500">Live Workspace Pulse</span>
+                </div>
+
+                <div class="divide-y divide-slate-100 dark:divide-zinc-800/60 mt-2">
+                    {% for msg in recent_channel_messages %}
+                        <div class="py-3 flex items-start space-x-3 group">
+                            <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-bold text-xs flex items-center justify-center shrink-0">
+                                {{ msg.sender.first_name|slice:":1"|default:msg.sender.email|slice:":1"|upper }}
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center space-x-2 truncate">
+                                        <span class="text-xs font-bold text-slate-900 dark:text-zinc-100 truncate">
+                                            {{ msg.sender.full_name|default:msg.sender.email }}
+                                        </span>
+                                        <span class="text-[10px] font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded">
+                                            #{{ msg.channel.name }}
+                                        </span>
+                                    </div>
+                                    <span class="text-[11px] text-slate-400 dark:text-zinc-500 shrink-0">
+                                        {{ msg.created_at|timesince }} ago
+                                    </span>
+                                </div>
+                                <p class="text-xs text-slate-600 dark:text-zinc-300 mt-1 line-clamp-2">
+                                    {{ msg.content }}
+                                </p>
+                            </div>
+                            <a href="{% url 'chat:channel_view' slug=workspace.slug channel_slug=msg.channel.slug %}" 
+                               class="opacity-0 group-hover:opacity-100 px-2 py-1 text-xs font-semibold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/50 rounded-lg transition-all">
+                                Jump &rarr;
+                            </a>
+                        </div>
+                    {% empty %}
+                        <div class="text-center py-10">
+                            <div class="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 mx-auto flex items-center justify-center mb-3">
+                                #
+                            </div>
+                            <p class="text-xs font-semibold text-slate-700 dark:text-zinc-300">No recent messages yet.</p>
+                            <p class="text-xs text-slate-400 dark:text-zinc-500 mt-1">Start the conversation in <a href="{% url 'chat:channel_view' slug=workspace.slug channel_slug='general' %}" class="text-blue-600 dark:text-blue-400 underline font-semibold">#general</a>!</p>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Right 1 Col: Quick Links & Mentions -->
+        <div class="space-y-6">
+
+            <!-- Quick Actions -->
+            <div class="p-5 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800/80 shadow-sm">
+                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500 mb-3">
+                    Quick Actions
+                </h3>
+                <div class="space-y-2">
+                    <a href="{% url 'chat:channel_create' slug=workspace.slug %}" 
+                       class="flex items-center justify-between p-2.5 rounded-xl border border-slate-200 dark:border-zinc-800 hover:border-blue-500 dark:hover:border-blue-500 hover:bg-blue-50/50 dark:hover:bg-blue-950/30 transition-all text-xs font-semibold text-slate-800 dark:text-zinc-200">
+                        <div class="flex items-center space-x-2.5">
+                            <div class="w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+                                +
+                            </div>
+                            <span>Create Channel</span>
+                        </div>
+                        <span class="text-slate-400">&rarr;</span>
+                    </a>
+
+                    <button type="button" @click="newDmModalOpen = true"
+                            class="w-full flex items-center justify-between p-2.5 rounded-xl border border-slate-200 dark:border-zinc-800 hover:border-indigo-500 dark:hover:border-indigo-500 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/30 transition-all text-xs font-semibold text-slate-800 dark:text-zinc-200">
+                        <div class="flex items-center space-x-2.5">
+                            <div class="w-7 h-7 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+                                @
+                            </div>
+                            <span>Direct Message</span>
+                        </div>
+                        <span class="text-slate-400">&rarr;</span>
+                    </button>
+
+                    <a href="{% url 'chat:pinned_assets' slug=workspace.slug %}" 
+                       class="flex items-center justify-between p-2.5 rounded-xl border border-slate-200 dark:border-zinc-800 hover:border-amber-500 dark:hover:border-amber-500 hover:bg-amber-50/50 dark:hover:bg-amber-950/30 transition-all text-xs font-semibold text-slate-800 dark:text-zinc-200">
+                        <div class="flex items-center space-x-2.5">
+                            <div class="w-7 h-7 rounded-lg bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+                                📌
+                            </div>
+                            <span>Pinned Assets</span>
+                        </div>
+                        <span class="text-slate-400">&rarr;</span>
+                    </a>
+
+                    <a href="{% url 'chat:shared_files' slug=workspace.slug %}" 
+                       class="flex items-center justify-between p-2.5 rounded-xl border border-slate-200 dark:border-zinc-800 hover:border-emerald-500 dark:hover:border-emerald-500 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/30 transition-all text-xs font-semibold text-slate-800 dark:text-zinc-200">
+                        <div class="flex items-center space-x-2.5">
+                            <div class="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                                📁
+                            </div>
+                            <span>Shared Files</span>
+                        </div>
+                        <span class="text-slate-400">&rarr;</span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Mentions & Highlights -->
+            <div class="p-5 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800/80 shadow-sm">
+                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500 mb-3">
+                    Recent Mentions
+                </h3>
+                <div class="space-y-3">
+                    {% for mention in recent_mentions %}
+                        <div class="p-3 rounded-xl bg-slate-50 dark:bg-zinc-900/60 border border-slate-200/80 dark:border-zinc-800 text-xs">
+                            <div class="flex items-center justify-between mb-1">
+                                <span class="font-bold text-slate-900 dark:text-zinc-100 truncate">
+                                    {{ mention.sender.full_name|default:mention.sender.email }}
+                                </span>
+                                <span class="text-[10px] text-slate-400">{{ mention.created_at|timesince }} ago</span>
+                            </div>
+                            <p class="text-slate-600 dark:text-zinc-400 line-clamp-2 mb-2 font-mono text-[11px]">
+                                {{ mention.content }}
+                            </p>
+                            {% if mention.channel %}
+                                <a href="{% url 'chat:channel_view' slug=workspace.slug channel_slug=mention.channel.slug %}" 
+                                   class="text-[11px] font-semibold text-blue-600 dark:text-blue-400 hover:underline">
+                                    View in #{{ mention.channel.name }} &rarr;
+                                </a>
+                            {% endif %}
+                        </div>
+                    {% empty %}
+                        <p class="text-xs text-slate-400 dark:text-zinc-500 py-3 text-center">No recent mentions found.</p>
+                    {% endfor %}
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+{% endblock %}
