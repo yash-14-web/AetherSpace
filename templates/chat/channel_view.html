@@ -143,10 +143,11 @@
                         {% endif %}
 
                         <!-- Emoji Reactions Badges -->
-                        <div class="flex items-center flex-wrap gap-1.5 mt-2">
+                        <div class="flex items-center flex-wrap gap-1.5 mt-2" id="reactions-{{ msg.id }}">
                             {% for r in msg.reactions.all %}
                                 <button type="button" @click="toggleReaction('{{ msg.id }}', '{{ r.emoji }}')"
-                                        class="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-xs bg-slate-100 dark:bg-zinc-800 hover:bg-blue-50 dark:hover:bg-blue-950/60 border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-300">
+                                        id="reaction-btn-{{ msg.id }}-{{ r.emoji }}"
+                                        class="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-xs bg-slate-100 dark:bg-zinc-800 hover:bg-blue-50 dark:hover:bg-blue-950/60 border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 transition-transform active:scale-95">
                                     <span>{{ r.emoji }}</span>
                                 </button>
                             {% endfor %}
@@ -155,9 +156,9 @@
 
                     <!-- Message Floating Action Menu -->
                     <div class="absolute right-2 top-2 hidden group-hover:flex items-center space-x-1 bg-white dark:bg-obsidian-950 border border-slate-200 dark:border-zinc-700 rounded-lg p-0.5 shadow-sm">
-                        <button type="button" @click="toggleReaction('{{ msg.id }}', '👍')" class="p-1 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-xs" title="React 👍">👍</button>
-                        <button type="button" @click="toggleReaction('{{ msg.id }}', '❤️')" class="p-1 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-xs" title="React ❤️">❤️</button>
-                        <button type="button" @click="toggleReaction('{{ msg.id }}', '🚀')" class="p-1 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-xs" title="React 🚀">🚀</button>
+                        <button type="button" @click="toggleReaction('{{ msg.id }}', '👍')" class="p-1 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-xs transition-transform active:scale-125" title="React 👍">👍</button>
+                        <button type="button" @click="toggleReaction('{{ msg.id }}', '❤️')" class="p-1 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-xs transition-transform active:scale-125" title="React ❤️">❤️</button>
+                        <button type="button" @click="toggleReaction('{{ msg.id }}', '🚀')" class="p-1 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-xs transition-transform active:scale-125" title="React 🚀">🚀</button>
                         <button type="button" @click="togglePin('{{ msg.id }}')" class="p-1 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-xs text-slate-500" title="Pin / Unpin">📌</button>
                     </div>
                 </div>
@@ -165,7 +166,7 @@
 
             <!-- Dynamic Live WebSocket Message Container -->
             <template x-for="item in liveMessages" :key="item.id">
-                <div class="flex items-start space-x-3 group relative p-2 -mx-2 rounded-xl hover:bg-slate-50 dark:hover:bg-zinc-800/40 transition-colors">
+                <div class="flex items-start space-x-3 group relative p-2 -mx-2 rounded-xl hover:bg-slate-50 dark:hover:bg-zinc-800/40 transition-colors" :id="'msg-' + item.id">
                     <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-bold text-xs flex items-center justify-center shrink-0"
                          x-text="item.sender_initial">
                     </div>
@@ -173,8 +174,20 @@
                         <div class="flex items-baseline space-x-2">
                             <span class="text-xs font-bold text-slate-900 dark:text-zinc-100" x-text="item.sender_name"></span>
                             <span class="text-[10px] text-slate-400 dark:text-zinc-500" x-text="item.created_at"></span>
+                            <span x-show="item.is_optimistic" class="text-[10px] text-blue-500 italic">Sending...</span>
+                            <span x-show="item.is_pinned" class="text-[10px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 px-1.5 py-0.2 rounded border border-amber-200 dark:border-amber-900/60 flex items-center space-x-1">
+                                <span>📌 Pinned</span>
+                            </span>
                         </div>
                         <div class="text-xs text-slate-800 dark:text-zinc-200 mt-1 whitespace-pre-line break-words leading-relaxed font-normal" x-text="item.content"></div>
+                        <!-- Live Reactions Container -->
+                        <div class="flex items-center flex-wrap gap-1.5 mt-2" :id="'reactions-' + item.id"></div>
+                    </div>
+                    <!-- Action Menu -->
+                    <div class="absolute right-2 top-2 hidden group-hover:flex items-center space-x-1 bg-white dark:bg-obsidian-950 border border-slate-200 dark:border-zinc-700 rounded-lg p-0.5 shadow-sm">
+                        <button type="button" @click="toggleReaction(item.id, '👍')" class="p-1 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-xs transition-transform active:scale-125" title="React 👍">👍</button>
+                        <button type="button" @click="toggleReaction(item.id, '❤️')" class="p-1 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-xs transition-transform active:scale-125" title="React ❤️">❤️</button>
+                        <button type="button" @click="toggleReaction(item.id, '🚀')" class="p-1 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-xs transition-transform active:scale-125" title="React 🚀">🚀</button>
                     </div>
                 </div>
             </template>
@@ -326,21 +339,58 @@ function chatChannelStream(config) {
                         const data = JSON.parse(event.data);
                         if (data.event === 'new_message' && data.message) {
                             const m = data.message;
-                            this.liveMessages.push({
-                                id: m.id || Date.now(),
-                                content: m.content,
-                                sender_name: m.sender_name,
-                                sender_initial: m.sender_initial,
-                                created_at: m.created_at || 'Just now'
-                            });
+                            // Check if this confirms an optimistic message
+                            const existingIdx = this.liveMessages.findIndex(
+                                lm => lm.is_optimistic && lm.content === m.content && lm.sender_name === m.sender_name
+                            );
+                            if (existingIdx !== -1) {
+                                this.liveMessages[existingIdx] = {
+                                    id: m.id,
+                                    content: m.content,
+                                    sender_name: m.sender_name,
+                                    sender_initial: m.sender_initial,
+                                    created_at: m.created_at || 'Just now',
+                                    is_optimistic: false
+                                };
+                            } else {
+                                this.liveMessages.push({
+                                    id: m.id || Date.now(),
+                                    content: m.content,
+                                    sender_name: m.sender_name,
+                                    sender_initial: m.sender_initial,
+                                    created_at: m.created_at || 'Just now',
+                                    is_optimistic: false
+                                });
+                            }
                             this.scrollToBottom();
+                        } else if (data.event === 'reaction_updated' && data.data) {
+                            const rData = data.data;
+                            const container = document.getElementById('reactions-' + rData.message_id);
+                            const btnId = `reaction-btn-${rData.message_id}-${rData.emoji}`;
+                            let btn = document.getElementById(btnId);
+                            if (container) {
+                                if (rData.total_count === 0 && btn) {
+                                    btn.remove();
+                                } else if (rData.total_count > 0) {
+                                    if (!btn) {
+                                        btn = document.createElement('button');
+                                        btn.type = 'button';
+                                        btn.id = btnId;
+                                        btn.className = 'inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-xs bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 transition-transform active:scale-95';
+                                        btn.onclick = () => this.toggleReaction(rData.message_id, rData.emoji);
+                                        container.appendChild(btn);
+                                    }
+                                    btn.innerHTML = `<span>${rData.emoji}</span>${rData.total_count > 1 ? `<span class="text-[10px] font-bold ml-1">${rData.total_count}</span>` : ''}`;
+                                }
+                            }
                         } else if (data.type === 'chat_message') {
                             this.liveMessages.push({
                                 id: data.id || data.message_id || Date.now(),
                                 content: data.content,
                                 sender_name: data.sender_name,
                                 sender_initial: data.sender_initial,
-                                created_at: data.created_at || 'Just now'
+                                created_at: data.created_at || 'Just now',
+                                is_optimistic: false
                             });
                             this.scrollToBottom();
                         }
@@ -351,7 +401,6 @@ function chatChannelStream(config) {
 
                 this.socket.onclose = () => {
                     this.wsConnected = false;
-                    // Attempt clean reconnection after 4s
                     setTimeout(() => { this.connectWebSocket(); }, 4000);
                 };
 
@@ -389,38 +438,95 @@ function chatChannelStream(config) {
                 return;
             }
 
+            // --- INSTANT OPTIMISTIC UI (0ms) ---
+            const tempId = 'opt-' + Date.now();
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+            this.liveMessages.push({
+                id: tempId,
+                content: text,
+                sender_name: config.currentUserName,
+                sender_initial: config.currentUserInitial,
+                created_at: timeStr,
+                is_optimistic: true
+            });
+
+            this.messageContent = '';
+            this.scrollToBottom();
+
             try {
                 this.socket.send(JSON.stringify({
                     type: 'chat_message',
                     content: text
                 }));
-                this.messageContent = '';
             } catch (err) {
                 console.error('WebSocket send failed, submitting via HTTP form:', err);
                 if (form) form.submit();
             }
         },
 
-
         toggleReaction(messageId, emoji) {
-            const csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
-            const url = `/chat/w/${config.workspaceSlug}/api/react/${messageId}/`;
-            const formData = new FormData();
-            formData.append('emoji', emoji);
+            // 1. Optimistic instant DOM update in 0ms (no page reload)
+            const container = document.getElementById('reactions-' + messageId);
+            const btnId = `reaction-btn-${messageId}-${emoji}`;
+            let existingBtn = document.getElementById(btnId);
 
-            fetch(url, {
-                method: 'POST',
-                headers: { 'X-CSRFToken': csrf },
-                body: formData
-            }).then(r => r.json()).then(data => {
-                if (data.status === 'ok') {
-                    window.location.reload();
-                }
-            });
+            if (existingBtn) {
+                existingBtn.remove();
+            } else if (container) {
+                const newBtn = document.createElement('button');
+                newBtn.type = 'button';
+                newBtn.id = btnId;
+                newBtn.className = 'inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-xs bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 transition-transform active:scale-95';
+                newBtn.innerHTML = `<span>${emoji}</span>`;
+                newBtn.onclick = () => this.toggleReaction(messageId, emoji);
+                container.appendChild(newBtn);
+            }
+
+            // 2. Deliver via WebSocket if connected
+            if (this.wsConnected && this.socket && this.socket.readyState === WebSocket.OPEN) {
+                this.socket.send(JSON.stringify({
+                    type: 'reaction',
+                    message_id: messageId,
+                    emoji: emoji
+                }));
+            } else {
+                // 3. Background fetch fallback (NO window.location.reload!)
+                const csrfEl = document.querySelector('[name=csrfmiddlewaretoken]');
+                const csrf = csrfEl ? csrfEl.value : '';
+                const url = `/chat/w/${config.workspaceSlug}/api/react/${messageId}/`;
+                const formData = new FormData();
+                formData.append('emoji', emoji);
+
+                fetch(url, {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': csrf },
+                    body: formData
+                }).then(r => r.json()).then(data => {
+                    if (data.status === 'ok' && container) {
+                        let btn = document.getElementById(btnId);
+                        if (!data.added && btn) {
+                            btn.remove();
+                        } else if (data.added && !btn) {
+                            const newBtn = document.createElement('button');
+                            newBtn.type = 'button';
+                            newBtn.id = btnId;
+                            newBtn.className = 'inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-xs bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 transition-transform active:scale-95';
+                            newBtn.innerHTML = `<span>${emoji}</span>`;
+                            newBtn.onclick = () => this.toggleReaction(messageId, emoji);
+                            container.appendChild(newBtn);
+                        }
+                    }
+                }).catch(err => {
+                    console.error('Reaction background fetch failed:', err);
+                });
+            }
         },
 
         togglePin(messageId) {
-            const csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
+            const csrfEl = document.querySelector('[name=csrfmiddlewaretoken]');
+            const csrf = csrfEl ? csrfEl.value : '';
             const url = `/chat/w/${config.workspaceSlug}/api/pin/${messageId}/`;
 
             fetch(url, {
@@ -428,10 +534,26 @@ function chatChannelStream(config) {
                 headers: { 'X-CSRFToken': csrf }
             }).then(r => r.json()).then(data => {
                 if (data.status === 'ok') {
-                    window.location.reload();
+                    // Update pin badge without reloading page
+                    const pinBadge = document.getElementById('pin-badge-' + messageId);
+                    if (data.is_pinned) {
+                        if (!pinBadge) {
+                            const header = document.querySelector(`#msg-${messageId} .items-baseline`);
+                            if (header) {
+                                const badge = document.createElement('span');
+                                badge.id = 'pin-badge-' + messageId;
+                                badge.className = 'text-[10px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 px-1.5 py-0.2 rounded border border-amber-200 dark:border-amber-900/60 flex items-center space-x-1';
+                                badge.innerHTML = '<span>📌 Pinned</span>';
+                                header.appendChild(badge);
+                            }
+                        }
+                    } else if (pinBadge) {
+                        pinBadge.remove();
+                    }
                 }
             });
         },
+
 
         scrollToBottom() {
             this.$nextTick(() => {
