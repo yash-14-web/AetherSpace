@@ -322,16 +322,30 @@ function chatChannelStream(config) {
                 };
 
                 this.socket.onmessage = (event) => {
-                    const data = JSON.parse(event.data);
-                    if (data.type === 'chat_message') {
-                        this.liveMessages.push({
-                            id: data.message_id || Date.now(),
-                            content: data.content,
-                            sender_name: data.sender_name,
-                            sender_initial: data.sender_initial,
-                            created_at: data.created_at || 'Just now'
-                        });
-                        this.scrollToBottom();
+                    try {
+                        const data = JSON.parse(event.data);
+                        if (data.event === 'new_message' && data.message) {
+                            const m = data.message;
+                            this.liveMessages.push({
+                                id: m.id || Date.now(),
+                                content: m.content,
+                                sender_name: m.sender_name,
+                                sender_initial: m.sender_initial,
+                                created_at: m.created_at || 'Just now'
+                            });
+                            this.scrollToBottom();
+                        } else if (data.type === 'chat_message') {
+                            this.liveMessages.push({
+                                id: data.id || data.message_id || Date.now(),
+                                content: data.content,
+                                sender_name: data.sender_name,
+                                sender_initial: data.sender_initial,
+                                created_at: data.created_at || 'Just now'
+                            });
+                            this.scrollToBottom();
+                        }
+                    } catch (err) {
+                        console.error('Error handling incoming chat message:', err);
                     }
                 };
 
@@ -366,20 +380,27 @@ function chatChannelStream(config) {
 
             if (!text && !hasFiles) return;
 
-            // If files attached or socket not connected, use standard multipart form submission
-            if (hasFiles || !this.wsConnected || !this.socket) {
-                e.target.closest('form').submit();
+            const form = (e && e.target) ? (e.target.closest('form') || document.querySelector('form')) : document.querySelector('form');
+            const socketReady = this.socket && this.socket.readyState === WebSocket.OPEN;
+
+            // If files attached or socket not connected/ready, fallback to standard multipart form submit
+            if (hasFiles || !this.wsConnected || !socketReady) {
+                if (form) form.submit();
                 return;
             }
 
-            // Otherwise, deliver immediately via WebSocket!
-            this.socket.send(JSON.stringify({
-                type: 'send_message',
-                content: text
-            }));
-
-            this.messageContent = '';
+            try {
+                this.socket.send(JSON.stringify({
+                    type: 'chat_message',
+                    content: text
+                }));
+                this.messageContent = '';
+            } catch (err) {
+                console.error('WebSocket send failed, submitting via HTTP form:', err);
+                if (form) form.submit();
+            }
         },
+
 
         toggleReaction(messageId, emoji) {
             const csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;

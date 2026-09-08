@@ -65,7 +65,7 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
     async def receive_json(self, content):
         msg_type = content.get("type", "chat_message")
 
-        if msg_type == "chat_message":
+        if msg_type in ("chat_message", "send_message"):
             text = content.get("content", "").strip()
             if not text:
                 return
@@ -81,11 +81,12 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
                         "message": msg_data,
                     }
                 )
-            except (PermissionDenied, ValidationError) as e:
+            except Exception as e:
                 await self.send_json({
                     "type": "error",
                     "message": str(e),
                 })
+
 
         elif msg_type == "typing":
             # Broadcast typing indicator
