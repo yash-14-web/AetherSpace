@@ -77,7 +77,7 @@ def get_chat_sidebar_context(workspace, user):
             'email': u.email,
             'initial': (u.first_name[:1] if u.first_name else u.email[:1]).upper(),
             'is_member': u.id in workspace_member_ids,
-            'role_display': 'Workspace Member' if u.id in workspace_member_ids else 'Available in DB',
+            'role_display': 'Workspace Member' if u.id in workspace_member_ids else 'Direct Chat',
             'dm_url': f"/chat/w/{workspace.slug}/dm/{u.id}/"
         })
 
@@ -205,32 +205,37 @@ def channel_view(request, slug, channel_slug):
     return render(request, 'chat/channel_view.html', context)
 
 
-@workspace_member_required
+@login_required
 def direct_message_view(request, slug, user_id):
     """
     Direct Message View matching Panel 3 of mockup:
     - 1-on-1 private messaging stream
     - Other participant status & header actions
     - Live WebSocket + HTTP message posting
+    - Does NOT auto-enroll external participants into the workspace membership
     """
-    workspace = request.workspace
+    workspace = get_object_or_404(Workspace, slug=slug)
     current_user = request.user
-    sidebar_ctx = get_chat_sidebar_context(workspace, current_user)
-
     other_user = get_object_or_404(User, id=user_id)
+
     if other_user.id == current_user.id:
         messages.info(request, "You cannot start a direct message conversation with yourself.")
         return redirect('chat:chat_home', slug=slug)
 
-    if not workspace.has_user(other_user):
-        WorkspaceMembership.objects.create(
-            workspace=workspace,
-            user=other_user,
-            role=WorkspaceRole.CONTRIBUTOR,
-            status=MembershipStatus.ACTIVE
-        )
-        messages.success(request, f"{other_user.full_name or other_user.email} was added to {workspace.name}.")
+    # Permission check: current_user must either be a workspace member
+    # OR an existing participant of a DM with other_user in this workspace
+    membership = workspace.get_user_membership(current_user)
+    if not membership:
+        has_dm = DirectMessageConversation.objects.filter(
+            workspace=workspace
+        ).filter(
+            (Q(participant1=current_user) & Q(participant2=other_user)) |
+            (Q(participant1=other_user) & Q(participant2=current_user))
+        ).exists()
+        if not has_dm:
+            raise PermissionDenied(f"You do not have access to the '{workspace.name}' workspace.")
 
+    sidebar_ctx = get_chat_sidebar_context(workspace, current_user)
     conversation = get_or_create_dm_conversation(workspace, current_user, other_user)
 
     # Handle standard POST (WebSocket fallback & file uploads)
@@ -252,7 +257,7 @@ def direct_message_view(request, slug, user_id):
     context = {
         'title': f"{other_user.full_name or other_user.email} — Direct Message — AetherSpace",
         'workspace': workspace,
-        'membership': request.membership,
+        'membership': membership,
         'conversation': conversation,
         'other_user': other_user,
         'chat_messages': messages_qs,
@@ -521,21 +526,27 @@ def api_channel_messages(request, slug, channel_slug):
     return JsonResponse({'status': 'ok', 'messages': msgs_data})
 
 
-@workspace_member_required
+@login_required
 def api_direct_messages(request, slug, user_id):
     """
     JSON endpoint for direct message polling fallback if WebSocket is not supported.
     """
+    workspace = get_object_or_404(Workspace, slug=slug)
+    current_user = request.user
     other_user = get_object_or_404(User, id=user_id)
+
+    membership = workspace.get_user_membership(current_user)
     conversation = DirectMessageConversation.objects.filter(
-        workspace=request.workspace
+        workspace=workspace
     ).filter(
-        (Q(participant1=request.user) & Q(participant2=other_user)) |
-        (Q(participant1=other_user) & Q(participant2=request.user))
+        (Q(participant1=current_user) & Q(participant2=other_user)) |
+        (Q(participant1=other_user) & Q(participant2=current_user))
     ).first()
 
     if not conversation:
-        return JsonResponse({'status': 'ok', 'messages': []})
+        if membership:
+            return JsonResponse({'status': 'ok', 'messages': []})
+        raise PermissionDenied("You do not have access to this conversation.")
 
     since_id = request.GET.get('since')
     qs = conversation.messages.filter(is_deleted=False).select_related('sender').prefetch_related('attachments', 'reactions')
@@ -610,7 +621,7 @@ def api_search_users(request, slug):
             'email': u.email,
             'initial': (u.first_name[:1] if u.first_name else u.email[:1]).upper(),
             'is_member': mem is not None,
-            'role_display': mem.get_role_display() if mem else 'Available in DB',
+            'role_display': 'Workspace Member' if mem else 'Direct Chat',
             'dm_url': f"/chat/w/{workspace.slug}/dm/{u.id}/"
         })
 

@@ -443,8 +443,8 @@ class ChatModuleTests(TestCase):
         self.assertEqual(data['status'], 'ok')
         self.assertTrue(any(u['email'] == self.outsider.email for u in data['users']))
 
-    def test_direct_message_auto_enrolls_db_user(self):
-        """Starting a DM with a user in the DB who is not yet in this workspace auto-enrolls them."""
+    def test_direct_message_allows_chatting_without_workspace_enrollment(self):
+        """Starting a DM with a user in the DB who is not in this workspace allows chatting without enrolling them as workspace members."""
         self.assertFalse(self.workspace.has_user(self.outsider))
         self.client.force_login(self.admin)
         url = reverse('chat:direct_message', kwargs={
@@ -453,5 +453,12 @@ class ChatModuleTests(TestCase):
         })
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
-        self.assertTrue(self.workspace.has_user(self.outsider))
+        # Verified: external participant is NOT added to workspace membership roster
+        self.assertFalse(self.workspace.has_user(self.outsider))
+
+        # Verified: DM can receive messages
+        post_resp = self.client.post(url, {'content': 'Hello external user!'}, follow=True)
+        self.assertEqual(post_resp.status_code, 200)
+        self.assertContains(post_resp, 'Hello external user!')
+        self.assertFalse(self.workspace.has_user(self.outsider))
 

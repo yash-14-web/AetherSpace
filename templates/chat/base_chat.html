@@ -271,16 +271,16 @@
                     <div class="space-y-1 max-h-72 overflow-y-auto pr-1">
                         <template x-for="usr in searchResults" :key="usr.id">
                             <a :href="usr.dm_url" 
-                               class="flex items-center space-x-3 p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-zinc-800/70 transition-colors group">
+                               class="flex items-center space-x-3 p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors group cursor-pointer">
                                 <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-bold text-xs flex items-center justify-center shrink-0"
                                      x-text="usr.initial">
                                 </div>
                                 <div class="flex-1 min-w-0">
                                     <div class="flex items-center justify-between">
-                                        <p class="text-xs font-bold text-slate-900 dark:text-zinc-100 truncate" x-text="usr.name"></p>
-                                        <span class="text-[10px] font-semibold px-2 py-0.5 rounded"
-                                              :class="usr.is_member ? 'bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-300 border border-blue-200 dark:border-blue-800/60' : 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60'"
-                                              x-text="usr.is_member ? 'Workspace Member' : '+ Add & Chat'">
+                                        <p class="text-xs font-bold text-slate-900 dark:text-zinc-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors truncate" x-text="usr.name"></p>
+                                        <span class="text-[10px] font-semibold px-2 py-0.5 rounded border"
+                                              :class="usr.is_member ? 'bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-300 border-blue-200 dark:border-blue-800/60' : 'bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 border-slate-200 dark:border-zinc-700'"
+                                              x-text="usr.is_member ? 'Workspace Member' : 'Direct Chat'">
                                         </span>
                                     </div>
                                     <p class="text-[11px] text-slate-400 dark:text-zinc-500 truncate" x-text="usr.email"></p>

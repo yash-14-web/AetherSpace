@@ -55,25 +55,11 @@ def ensure_default_channels(workspace, creator=None):
 def get_or_create_dm_conversation(workspace, user_a, user_b):
     """
     Deterministically retrieve or create a 1-on-1 direct message conversation
-    between two workspace members. If a registered user is not yet a member
-    of this workspace, auto-enroll them as a Contributor.
+    between two registered users within a workspace chat context.
+    Does NOT auto-enroll external participants into the workspace membership roster.
     """
     if user_a.id == user_b.id:
         raise ValidationError("Cannot create a direct message conversation with oneself.")
-
-    from workspaces.models import WorkspaceMembership, WorkspaceRole, MembershipStatus
-    if not workspace.has_user(user_a):
-        WorkspaceMembership.objects.get_or_create(
-            workspace=workspace,
-            user=user_a,
-            defaults={'role': WorkspaceRole.CONTRIBUTOR, 'status': MembershipStatus.ACTIVE}
-        )
-    if not workspace.has_user(user_b):
-        WorkspaceMembership.objects.get_or_create(
-            workspace=workspace,
-            user=user_b,
-            defaults={'role': WorkspaceRole.CONTRIBUTOR, 'status': MembershipStatus.ACTIVE}
-        )
 
     p1, p2 = (user_a, user_b) if str(user_a.id) < str(user_b.id) else (user_b, user_a)
 
@@ -83,6 +69,7 @@ def get_or_create_dm_conversation(workspace, user_a, user_b):
         participant2=p2,
     )
     return conversation
+
 
 
 @transaction.atomic
