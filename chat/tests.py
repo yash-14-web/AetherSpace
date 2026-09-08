@@ -432,3 +432,26 @@ class ChatModuleTests(TestCase):
         self.assertEqual(data['status'], 'ok')
         self.assertGreaterEqual(len(data['messages']), 1)
         self.assertIn("Live message polling test", [m['content'] for m in data['messages']])
+
+    def test_api_search_users(self):
+        """API user search finds registered users across the database."""
+        self.client.force_login(self.admin)
+        url = reverse('chat:api_search_users', kwargs={'slug': self.workspace.slug})
+        response = self.client.get(url, {'q': 'outsider'})
+        self.assertEqual(response.status_code, 200)
+        data = json.loads(response.content)
+        self.assertEqual(data['status'], 'ok')
+        self.assertTrue(any(u['email'] == self.outsider.email for u in data['users']))
+
+    def test_direct_message_auto_enrolls_db_user(self):
+        """Starting a DM with a user in the DB who is not yet in this workspace auto-enrolls them."""
+        self.assertFalse(self.workspace.has_user(self.outsider))
+        self.client.force_login(self.admin)
+        url = reverse('chat:direct_message', kwargs={
+            'slug': self.workspace.slug,
+            'user_id': self.outsider.id
+        })
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(self.workspace.has_user(self.outsider))
+

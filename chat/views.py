@@ -66,10 +66,26 @@ def get_chat_sidebar_context(workspace, user):
         status=MembershipStatus.ACTIVE
     ).exclude(user=user).select_related('user')
 
+    # All registered database users (excluding current user) for direct message discovery
+    workspace_member_ids = set(active_members.values_list('user_id', flat=True))
+    all_db_users = User.objects.exclude(id=user.id).order_by('full_name', 'email')[:30]
+    formatted_db_users = []
+    for u in all_db_users:
+        formatted_db_users.append({
+            'id': str(u.id),
+            'name': u.full_name or u.email.split('@')[0],
+            'email': u.email,
+            'initial': (u.first_name[:1] if u.first_name else u.email[:1]).upper(),
+            'is_member': u.id in workspace_member_ids,
+            'role_display': 'Workspace Member' if u.id in workspace_member_ids else 'Available in DB',
+            'dm_url': f"/chat/w/{workspace.slug}/dm/{u.id}/"
+        })
+
     return {
         'channels': channels,
         'formatted_dms': formatted_dms,
         'active_members': active_members,
+        'formatted_db_users': formatted_db_users,
     }
 
 
@@ -202,12 +218,18 @@ def direct_message_view(request, slug, user_id):
     sidebar_ctx = get_chat_sidebar_context(workspace, current_user)
 
     other_user = get_object_or_404(User, id=user_id)
-    if not workspace.has_user(other_user):
-        return HttpResponseForbidden("User is not a member of this workspace.")
-
     if other_user.id == current_user.id:
         messages.info(request, "You cannot start a direct message conversation with yourself.")
         return redirect('chat:chat_home', slug=slug)
+
+    if not workspace.has_user(other_user):
+        WorkspaceMembership.objects.create(
+            workspace=workspace,
+            user=other_user,
+            role=WorkspaceRole.CONTRIBUTOR,
+            status=MembershipStatus.ACTIVE
+        )
+        messages.success(request, f"{other_user.full_name or other_user.email} was added to {workspace.name}.")
 
     conversation = get_or_create_dm_conversation(workspace, current_user, other_user)
 
@@ -550,3 +572,46 @@ def api_direct_messages(request, slug, user_id):
         })
 
     return JsonResponse({'status': 'ok', 'messages': msgs_data})
+
+
+@workspace_member_required
+def api_search_users(request, slug):
+    """
+    Real-time database user search for direct messaging.
+    Searches all registered users in the database by name, email, or username.
+    """
+    q = request.GET.get('q', '').strip()
+    workspace = request.workspace
+    current_user = request.user
+
+    users_qs = User.objects.exclude(id=current_user.id)
+    if q:
+        users_qs = users_qs.filter(
+            Q(full_name__icontains=q) |
+            Q(email__icontains=q) |
+            Q(username__icontains=q)
+        )
+
+    users_list = users_qs.order_by('full_name', 'email')[:25]
+    workspace_memberships = {
+        m.user_id: m for m in WorkspaceMembership.objects.filter(
+            workspace=workspace,
+            user__in=users_list,
+            status=MembershipStatus.ACTIVE
+        )
+    }
+
+    results = []
+    for u in users_list:
+        mem = workspace_memberships.get(u.id)
+        results.append({
+            'id': str(u.id),
+            'name': u.full_name or u.email.split('@')[0],
+            'email': u.email,
+            'initial': (u.first_name[:1] if u.first_name else u.email[:1]).upper(),
+            'is_member': mem is not None,
+            'role_display': mem.get_role_display() if mem else 'Available in DB',
+            'dm_url': f"/chat/w/{workspace.slug}/dm/{u.id}/"
+        })
+
+    return JsonResponse({'status': 'ok', 'users': results})

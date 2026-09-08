@@ -21,4 +21,5 @@ urlpatterns = [
     path('w/<slug:slug>/api/react/<uuid:message_id>/', views.api_toggle_reaction, name='api_toggle_reaction'),
     path('w/<slug:slug>/api/messages/c/<slug:channel_slug>/', views.api_channel_messages, name='api_channel_messages'),
     path('w/<slug:slug>/api/messages/dm/<uuid:user_id>/', views.api_direct_messages, name='api_direct_messages'),
+    path('w/<slug:slug>/api/users/search/', views.api_search_users, name='api_search_users'),
 ]
