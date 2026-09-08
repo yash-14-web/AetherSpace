@@ -57,8 +57,34 @@ class Workspace(models.Model):
         default=WorkspaceStatus.ACTIVE,
         db_index=True
     )
+    max_seats = models.PositiveIntegerField(
+        default=15,
+        help_text="Maximum member seats allocated to this workspace (teams of 5-15, expandable)."
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    @property
+    def seats_assigned(self):
+        """Current number of active members in this workspace."""
+        return self.memberships.filter(status=MembershipStatus.ACTIVE).count()
+
+    @property
+    def seats_remaining(self):
+        """Available unfilled seats in this workspace."""
+        return max(0, self.max_seats - self.seats_assigned)
+
+    @property
+    def seats_percentage(self):
+        """Percentage of allocated seats currently in use."""
+        if self.max_seats <= 0:
+            return 100
+        return min(100, int((self.seats_assigned / self.max_seats) * 100))
+
+    @property
+    def is_seats_full(self):
+        """Returns True if all allocated seats are currently assigned."""
+        return self.seats_assigned >= self.max_seats
 
     class Meta:
         ordering = ['name']

@@ -236,6 +236,15 @@ def invite_member(request, slug):
             email = form.cleaned_data['email']
             role = form.cleaned_data['role']
 
+            # Check seat capacity
+            if workspace.is_seats_full:
+                messages.error(
+                    request,
+                    f"Workspace seat capacity reached ({workspace.seats_assigned}/{workspace.max_seats} seats used). "
+                    "Please increase allocated seats in Workspace Settings to invite more members."
+                )
+                return redirect('workspaces:team', slug=slug)
+
             # Check if user already in workspace
             existing_member = WorkspaceMembership.objects.filter(
                 workspace=workspace,

@@ -68,7 +68,7 @@ class WorkspaceCreateForm(forms.ModelForm):
 class WorkspaceUpdateForm(forms.ModelForm):
     class Meta:
         model = Workspace
-        fields = ['name', 'description', 'status']
+        fields = ['name', 'description', 'status', 'max_seats']
         widgets = {
             'name': forms.TextInput(attrs={
                 'class': INPUT_CLASSES,
@@ -81,7 +81,26 @@ class WorkspaceUpdateForm(forms.ModelForm):
             'status': forms.Select(attrs={
                 'class': INPUT_CLASSES,
             }),
+            'max_seats': forms.NumberInput(attrs={
+                'class': INPUT_CLASSES,
+                'min': 1,
+                'max': 500,
+            }),
         }
+
+    def clean_max_seats(self):
+        seats = self.cleaned_data.get('max_seats')
+        if seats is not None:
+            if seats < 1:
+                raise ValidationError("Workspace must have at least 1 seat.")
+            if self.instance and self.instance.pk:
+                assigned = self.instance.seats_assigned
+                if seats < assigned:
+                    raise ValidationError(
+                        f"Cannot set max seats to {seats}. The workspace currently has {assigned} active member(s). "
+                        "Deactivate or remove members before reducing seats below this number."
+                    )
+        return seats
 
 
 class WorkspaceInviteForm(forms.Form):

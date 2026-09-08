@@ -35,18 +35,25 @@
 
     <!-- 4 Top Metric Cards (matching design reference) -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <!-- Total Members -->
+        <!-- Total Members / Assigned Seats -->
         <div class="aether-card p-4 space-y-2">
             <div class="flex items-center justify-between text-xs text-slate-500 dark:text-zinc-400">
-                <span class="font-medium">Total Members</span>
-                <span class="text-[10px] px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-950/60 text-aether-blue font-semibold">Workspace</span>
+                <span class="font-medium">Assigned Seats</span>
+                {% if current_membership.can_manage_workspace %}
+                    <a href="{% url 'workspaces:settings' slug=workspace.slug %}" class="text-[10px] text-aether-blue hover:underline font-semibold" title="Configure seat capacity in settings">
+                        Increase &rarr;
+                    </a>
+                {% else %}
+                    <span class="text-[10px] px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-950/60 text-aether-blue font-semibold">Workspace</span>
+                {% endif %}
             </div>
-            <div class="flex items-baseline space-x-2">
-                <span class="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-zinc-50">{{ members|length }}</span>
-                <span class="text-[11px] font-medium text-emerald-600 dark:text-emerald-400">Assigned seats</span>
+            <div class="flex items-baseline space-x-1.5">
+                <span class="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-zinc-50">{{ workspace.seats_assigned }}</span>
+                <span class="text-sm font-semibold text-slate-400">/ {{ workspace.max_seats }}</span>
+                <span class="text-[11px] font-medium text-slate-500 dark:text-zinc-400 ml-1">seats</span>
             </div>
             <div class="w-full bg-slate-100 dark:bg-zinc-800 rounded-full h-1.5 mt-2 overflow-hidden">
-                <div class="bg-aether-blue h-1.5 rounded-full" style="width: 100%"></div>
+                <div class="{% if workspace.is_seats_full %}bg-rose-500{% else %}bg-aether-blue{% endif %} h-1.5 rounded-full transition-all" style="width: {{ workspace.seats_percentage }}%"></div>
             </div>
         </div>
 

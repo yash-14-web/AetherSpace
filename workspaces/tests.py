@@ -222,3 +222,60 @@ class WorkspaceRBACAndIsolationTest(TestCase):
         req = WorkspaceAccessRequest.objects.get(workspace=self.workspace1, user=self.external_user)
         self.assertEqual(req.status, AccessRequestStatus.PENDING)
         self.assertEqual(req.message, 'Need to view biology lecture materials.')
+
+    def test_workspace_max_seats_default_and_properties(self):
+        """Workspace defaults to 15 seats and calculates seat properties properly."""
+        self.assertEqual(self.workspace1.max_seats, 15)
+        # 3 active members (admin, manager, contributor)
+        self.assertEqual(self.workspace1.seats_assigned, 3)
+        self.assertEqual(self.workspace1.seats_remaining, 12)
+        self.assertFalse(self.workspace1.is_seats_full)
+
+    def test_admin_can_update_max_seats_in_settings(self):
+        """Workspace admin can increase max seats via workspace settings."""
+        self.client.login(email=self.admin_user.email, password=self.password)
+        settings_url = reverse('workspaces:settings', kwargs={'slug': self.workspace1.slug})
+        
+        response = self.client.post(settings_url, {
+            'name': self.workspace1.name,
+            'description': self.workspace1.description,
+            'status': self.workspace1.status,
+            'max_seats': 30,
+        })
+        self.assertEqual(response.status_code, 302)
+        self.workspace1.refresh_from_db()
+        self.assertEqual(self.workspace1.max_seats, 30)
+        self.assertEqual(self.workspace1.seats_remaining, 27)
+
+    def test_cannot_lower_seats_below_current_member_count(self):
+        """Admin cannot reduce seats below the count of active members."""
+        self.client.login(email=self.admin_user.email, password=self.password)
+        settings_url = reverse('workspaces:settings', kwargs={'slug': self.workspace1.slug})
+        
+        # 3 active members, attempt to set max_seats to 2
+        response = self.client.post(settings_url, {
+            'name': self.workspace1.name,
+            'description': self.workspace1.description,
+            'status': self.workspace1.status,
+            'max_seats': 2,
+        })
+        self.assertEqual(response.status_code, 200)  # form re-rendered with error
+        self.workspace1.refresh_from_db()
+        self.assertEqual(self.workspace1.max_seats, 15)  # unchanged
+
+    def test_invite_blocked_when_seats_full(self):
+        """Inviting members is blocked when all seats are allocated."""
+        self.workspace1.max_seats = 3
+        self.workspace1.save()
+        self.assertTrue(self.workspace1.is_seats_full)
+
+        self.client.login(email=self.admin_user.email, password=self.password)
+        invite_url = reverse('workspaces:invite_member', kwargs={'slug': self.workspace1.slug})
+        response = self.client.post(invite_url, {
+            'email': 'overflow@aetherspace.dev',
+            'role': WorkspaceRole.CONTRIBUTOR,
+        })
+        self.assertEqual(response.status_code, 302)
+        # Should not create invite
+        self.assertFalse(WorkspaceInvitation.objects.filter(email='overflow@aetherspace.dev').exists())
+
