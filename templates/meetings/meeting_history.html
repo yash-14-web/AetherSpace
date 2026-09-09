@@ -40,18 +40,49 @@
         </div>
     </div>
 
+    <!-- Quick Status Tabs -->
+    <div class="flex items-center space-x-1.5 overflow-x-auto pb-1 border-b border-slate-200 dark:border-zinc-800">
+        <a href="?{% if current_q %}q={{ current_q }}&{% endif %}{% if current_type %}type={{ current_type }}&{% endif %}status=all" 
+           class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 {% if not current_status or current_status == 'all' %}bg-blue-600 text-white shadow-sm{% else %}bg-white dark:bg-[#0c1322] text-slate-600 dark:text-zinc-400 border border-slate-200 dark:border-zinc-800 hover:text-slate-900 dark:hover:text-zinc-200{% endif %}">
+            <span>All</span>
+            <span class="px-1.5 py-0.2 rounded-full text-[10px] {% if not current_status or current_status == 'all' %}bg-white/20 text-white{% else %}bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400{% endif %}">{{ status_counts.all }}</span>
+        </a>
+        <a href="?{% if current_q %}q={{ current_q }}&{% endif %}{% if current_type %}type={{ current_type }}&{% endif %}status=LIVE" 
+           class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 {% if current_status == 'LIVE' %}bg-emerald-600 text-white shadow-sm{% else %}bg-white dark:bg-[#0c1322] text-slate-600 dark:text-zinc-400 border border-slate-200 dark:border-zinc-800 hover:text-emerald-600{% endif %}">
+            <span class="w-2 h-2 rounded-full bg-emerald-500 {% if current_status != 'LIVE' %}animate-pulse{% endif %}"></span>
+            <span>Live Now</span>
+            <span class="px-1.5 py-0.2 rounded-full text-[10px] {% if current_status == 'LIVE' %}bg-white/20 text-white{% else %}bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400{% endif %}">{{ status_counts.live }}</span>
+        </a>
+        <a href="?{% if current_q %}q={{ current_q }}&{% endif %}{% if current_type %}type={{ current_type }}&{% endif %}status=SCHEDULED" 
+           class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 {% if current_status == 'SCHEDULED' %}bg-blue-600 text-white shadow-sm{% else %}bg-white dark:bg-[#0c1322] text-slate-600 dark:text-zinc-400 border border-slate-200 dark:border-zinc-800 hover:text-blue-600{% endif %}">
+            <span>Scheduled</span>
+            <span class="px-1.5 py-0.2 rounded-full text-[10px] {% if current_status == 'SCHEDULED' %}bg-white/20 text-white{% else %}bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400{% endif %}">{{ status_counts.scheduled }}</span>
+        </a>
+        <a href="?{% if current_q %}q={{ current_q }}&{% endif %}{% if current_type %}type={{ current_type }}&{% endif %}status=ENDED" 
+           class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 {% if current_status == 'ENDED' %}bg-slate-700 text-white shadow-sm{% else %}bg-white dark:bg-[#0c1322] text-slate-600 dark:text-zinc-400 border border-slate-200 dark:border-zinc-800 hover:text-slate-900 dark:hover:text-zinc-200{% endif %}">
+            <span>Completed</span>
+            <span class="px-1.5 py-0.2 rounded-full text-[10px] {% if current_status == 'ENDED' %}bg-white/20 text-white{% else %}bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400{% endif %}">{{ status_counts.completed }}</span>
+        </a>
+        <a href="?{% if current_q %}q={{ current_q }}&{% endif %}{% if current_type %}type={{ current_type }}&{% endif %}status=CANCELLED" 
+           class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 {% if current_status == 'CANCELLED' %}bg-rose-600 text-white shadow-sm{% else %}bg-white dark:bg-[#0c1322] text-slate-600 dark:text-zinc-400 border border-slate-200 dark:border-zinc-800 hover:text-rose-600{% endif %}">
+            <span>Cancelled</span>
+            <span class="px-1.5 py-0.2 rounded-full text-[10px] {% if current_status == 'CANCELLED' %}bg-white/20 text-white{% else %}bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400{% endif %}">{{ status_counts.cancelled }}</span>
+        </a>
+    </div>
+
     <!-- Filters & Search Toolbar -->
     <div class="p-4 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] shadow-sm">
         <form method="get" class="flex flex-col md:flex-row items-stretch md:items-center gap-3">
-            <!-- Search Bar -->
+            <!-- Search Bar with properly spaced magnifying glass -->
             <div class="relative flex-1">
-                <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                <div class="absolute inset-y-0 left-0 flex items-center pointer-events-none text-slate-400" style="left: 0.85rem;">
                     <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                     </svg>
                 </div>
                 <input type="text" name="q" value="{{ current_q }}" placeholder="Search by title or meet-xxxx-xxxx..." 
-                       class="w-full pl-10 pr-4 py-2 text-xs rounded-xl bg-white dark:bg-[#0c1322] border border-slate-300 dark:border-zinc-700 text-slate-900 dark:text-zinc-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+                       style="padding-left: 2.75rem !important;"
+                       class="w-full pr-4 py-2 text-xs rounded-xl bg-white dark:bg-[#0c1322] border border-slate-300 dark:border-zinc-700 text-slate-900 dark:text-zinc-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
             </div>
 
             <!-- Type Filter Dropdown with Custom Chevron -->
@@ -165,6 +196,16 @@
                             {% endif %}
                         </td>
                         <td class="py-3.5 px-4 text-right space-x-2 whitespace-nowrap">
+                            {% if m.status == 'LIVE' and m.host == request.user or m.status == 'LIVE' and membership.can_manage_content %}
+                            <form method="post" action="{% url 'meetings:meeting_end_api' slug=workspace.slug meeting_code=m.meeting_code %}" class="inline">
+                                {% csrf_token %}
+                                <button type="submit" 
+                                        onclick="return confirm('Are you sure you want to end this live meeting?');"
+                                        class="inline-flex items-center px-2 py-1 rounded-lg text-xs font-bold text-rose-700 bg-rose-50 border border-rose-200 hover:bg-rose-100 dark:bg-rose-950/60 dark:text-rose-400 dark:border-rose-800 transition">
+                                    End
+                                </button>
+                            </form>
+                            {% endif %}
                             {% if m.status in 'SCHEDULED,LIVE' %}
                             <a href="{% url 'meetings:meeting_room' slug=workspace.slug meeting_code=m.meeting_code %}" 
                                class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:text-emerald-400 dark:border-emerald-800/80 transition">

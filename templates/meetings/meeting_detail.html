@@ -64,6 +64,20 @@
 
         <!-- Action buttons -->
         <div class="flex items-center space-x-2.5 shrink-0">
+            {% if meeting.status == 'LIVE' and is_host or meeting.status == 'LIVE' and membership.can_manage_content %}
+            <form method="post" action="{% url 'meetings:meeting_end_api' slug=workspace.slug meeting_code=meeting.meeting_code %}" class="inline">
+                {% csrf_token %}
+                <button type="submit" 
+                        onclick="return confirm('Are you sure you want to end this live meeting for everyone?');"
+                        class="inline-flex items-center space-x-1.5 px-4 py-2 text-xs font-bold rounded-xl bg-rose-600 hover:bg-rose-700 text-white shadow-md shadow-rose-500/20 transition">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                    <span>End Meeting</span>
+                </button>
+            </form>
+            {% endif %}
+
             {% if meeting.status in 'SCHEDULED,LIVE' %}
             <a href="{% url 'meetings:meeting_room' slug=workspace.slug meeting_code=meeting.meeting_code %}" 
                class="inline-flex items-center space-x-1.5 px-4 py-2 text-xs font-bold rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-500/20 transition">

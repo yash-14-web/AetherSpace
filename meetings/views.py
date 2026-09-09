@@ -62,6 +62,39 @@ def meet_hub_view(request, slug):
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     today_end = today_start + timedelta(days=1)
 
+def cleanup_stale_meetings(workspace):
+    """
+    Auto-close live meetings that have no active participants or haven't received
+    a heartbeat ping in over 90 seconds.
+    """
+    now = timezone.now()
+    live_meetings = Meeting.objects.filter(workspace=workspace, status=MeetingStatus.LIVE)
+    for m in live_meetings:
+        no_active_participants = not m.participants.filter(left_at__isnull=True).exists()
+        stale_heartbeat = (now - m.updated_at).total_seconds() > 90
+        if no_active_participants or stale_heartbeat:
+            m.status = MeetingStatus.ENDED
+            m.actual_end = m.updated_at or now
+            m.save(update_fields=['status', 'actual_end', 'updated_at'])
+            m.participants.filter(left_at__isnull=True).update(left_at=m.actual_end)
+
+
+@workspace_member_required
+def meet_hub_view(request, slug):
+    """
+    Primary Meet Hub dashboard: live active calls, scheduled conferences,
+    metric cards, and quick start/join controls.
+    """
+    workspace = request.workspace
+    membership = request.membership
+
+    now = timezone.now()
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    today_end = today_start + timedelta(days=1)
+
+    # Auto-close stale or abandoned live meetings
+    cleanup_stale_meetings(workspace)
+
     # 1. Live Meetings in this workspace
     live_meetings = Meeting.objects.filter(
         workspace=workspace,
@@ -382,6 +415,8 @@ def meeting_detail_view(request, slug, meeting_code):
     duration, and meeting actions.
     """
     workspace = request.workspace
+    cleanup_stale_meetings(workspace)
+
     clean_code = meeting_code.strip().lower()
     meeting = get_object_or_404(
         Meeting.objects.select_related('workspace', 'host').prefetch_related('participants__user', 'invites__user'),
@@ -401,6 +436,7 @@ def meeting_detail_view(request, slug, meeting_code):
         'total_participant_count': participants.count(),
         'invites': invites,
         'is_host': is_host,
+        'can_manage': is_host,
     }
     return render(request, 'meetings/meeting_detail.html', context)
 
@@ -463,7 +499,7 @@ def meeting_cancel_view(request, slug, meeting_code):
         'membership': request.membership,
         'meeting': meeting,
     }
-    return render(request, 'meetings/meeting_confirm_cancel.html', context)
+    return render(request, 'meetings/meeting_cancel.html', context)
 
 
 @workspace_member_required
@@ -473,6 +509,9 @@ def meeting_history_view(request, slug):
     """
     workspace = request.workspace
     membership = request.membership
+
+    # Auto-close stale or abandoned live meetings first
+    cleanup_stale_meetings(workspace)
 
     meetings_qs = Meeting.objects.filter(workspace=workspace).select_related('host').prefetch_related('participants__user')
 
@@ -502,6 +541,14 @@ def meeting_history_view(request, slug):
     except (PageNotAnInteger, EmptyPage):
         page_obj = paginator.page(1)
 
+    status_counts = {
+        'all': Meeting.objects.filter(workspace=workspace).count(),
+        'live': Meeting.objects.filter(workspace=workspace, status=MeetingStatus.LIVE).count(),
+        'scheduled': Meeting.objects.filter(workspace=workspace, status=MeetingStatus.SCHEDULED).count(),
+        'completed': Meeting.objects.filter(workspace=workspace, status=MeetingStatus.ENDED).count(),
+        'cancelled': Meeting.objects.filter(workspace=workspace, status=MeetingStatus.CANCELLED).count(),
+    }
+
     total_meetings_count = meetings_qs.count()
 
     context = {
@@ -510,6 +557,7 @@ def meeting_history_view(request, slug):
         'meetings': page_obj,
         'page_obj': page_obj,
         'total_meetings_count': total_meetings_count,
+        'status_counts': status_counts,
         'current_q': q,
         'current_type': m_type,
         'current_status': status_filter,
@@ -534,11 +582,26 @@ def meeting_ping_api(request, slug, meeting_code):
     clean_code = meeting_code.strip().lower()
     meeting = get_object_or_404(Meeting, workspace=workspace, meeting_code__iexact=clean_code)
 
-    action = request.POST.get('action', 'ping')
+    import json
+    action = 'ping'
+    if request.content_type == 'application/json' and request.body:
+        try:
+            payload = json.loads(request.body)
+            action = payload.get('action', 'ping')
+        except Exception:
+            action = 'ping'
+    else:
+        action = request.POST.get('action') or 'ping'
+
     if action == 'leave':
         record_participant_leave(meeting, request.user)
+        # If host left or no participants remain, mark ended
+        if meeting.host == request.user or not meeting.participants.filter(left_at__isnull=True).exists():
+            end_meeting(meeting, request.user)
     else:
         record_participant_join(meeting, request.user)
+        # Touch meeting updated_at so heartbeat freshness is preserved
+        meeting.save(update_fields=['updated_at'])
 
     return JsonResponse({
         'success': True,
@@ -551,7 +614,7 @@ def meeting_ping_api(request, slug, meeting_code):
 @workspace_member_required
 def meeting_end_api(request, slug, meeting_code):
     """
-    Host action to end meeting for all participants.
+    Host or Manager action to end meeting for all participants.
     """
     if request.method != 'POST':
         return HttpResponseBadRequest("POST required")
@@ -564,7 +627,15 @@ def meeting_end_api(request, slug, meeting_code):
         return HttpResponseForbidden("Only the host or manager can end the meeting.")
 
     end_meeting(meeting, request.user)
-    return JsonResponse({
-        'success': True,
-        'message': 'Meeting ended for all participants.'
-    })
+    messages.success(request, f"Meeting '{meeting.title}' has been ended.")
+
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.content_type == 'application/json':
+        return JsonResponse({
+            'success': True,
+            'message': 'Meeting ended for all participants.'
+        })
+
+    referer = request.META.get('HTTP_REFERER')
+    if referer and 'meeting_room' not in referer:
+        return redirect(referer)
+    return redirect('meetings:meet_hub', slug=workspace.slug)

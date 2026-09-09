@@ -135,7 +135,7 @@
             </div>
             <div class="mt-4 pt-3 border-t border-slate-100 dark:border-zinc-800">
                 <a href="{% url 'meetings:meeting_schedule' slug=workspace.slug %}" 
-                   class="inline-flex items-center justify-center w-full px-3 py-2 text-xs font-bold rounded-xl border border-purple-200 dark:border-purple-800 bg-purple-50 text-purple-700 hover:bg-purple-100 dark:bg-purple-950/20 dark:text-purple-300 dark:hover:bg-purple-900/30 transition">
+                   class="inline-flex items-center justify-center w-full px-3 py-2 text-xs font-bold rounded-xl bg-purple-600 hover:bg-purple-700 text-white shadow-sm transition">
                     Schedule for Later →
                 </a>
             </div>
@@ -211,6 +211,16 @@
                         {{ m.active_participants_count }} participant{{ m.active_participants_count|pluralize }}
                     </div>
                     <div class="flex items-center space-x-2">
+                        {% if m.host == request.user or membership.can_manage_content %}
+                        <form method="post" action="{% url 'meetings:meeting_end_api' slug=workspace.slug meeting_code=m.meeting_code %}" class="inline">
+                            {% csrf_token %}
+                            <button type="submit" 
+                                    onclick="return confirm('Are you sure you want to end this live meeting for everyone?');"
+                                    class="px-2.5 py-1.5 text-xs font-bold rounded-lg bg-rose-600 hover:bg-rose-700 text-white shadow-sm transition">
+                                End Call
+                            </button>
+                        </form>
+                        {% endif %}
                         <a href="{% url 'meetings:meeting_detail' slug=workspace.slug meeting_code=m.meeting_code %}" 
                            class="px-3 py-1.5 text-xs font-semibold rounded-lg text-slate-700 dark:text-zinc-300 hover:bg-emerald-100/60 dark:hover:bg-zinc-800 transition">
                             Details
@@ -275,7 +285,7 @@
                 {% endfor %}
             </div>
             {% else %}
-            <div class="p-8 rounded-2xl border border-dashed border-slate-300 dark:border-zinc-800 text-center bg-white dark:bg-zinc-900/30 shadow-2xs">
+            <div class="p-8 rounded-2xl border border-dashed border-slate-200 dark:border-zinc-800 text-center bg-slate-50/50 dark:bg-[#0c1322] shadow-2xs">
                 <svg class="w-8 h-8 text-slate-400 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
                 </svg>

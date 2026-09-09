@@ -285,7 +285,7 @@ function meetingRoomState() {
                 });
 
                 api.addEventListener('videoConferenceLeft', () => {
-                    window.location.href = "{% url 'meetings:meet_hub' slug=workspace.slug %}";
+                    this.handleLeave();
                 });
 
                 // Safety timeout to hide loader if event fails to fire
@@ -293,6 +293,14 @@ function meetingRoomState() {
                     const loading = document.getElementById('jitsi-loading');
                     if (loading) loading.style.display = 'none';
                 }, 4000);
+
+                // Listen for window close or tab navigation to record departure
+                window.addEventListener('beforeunload', () => {
+                    this.sendPing('leave');
+                });
+                window.addEventListener('pagehide', () => {
+                    this.sendPing('leave');
+                });
 
             } catch (err) {
                 console.warn("Jitsi iframe mount notice:", err);
@@ -303,18 +311,27 @@ function meetingRoomState() {
             }
         },
 
-        sendPing() {
-            fetch("{% url 'meetings:meeting_ping_api' slug=workspace.slug meeting_code=meeting.meeting_code %}", {
+        sendPing(action = 'ping') {
+            const url = "{% url 'meetings:meeting_ping_api' slug=workspace.slug meeting_code=meeting.meeting_code %}";
+            const payload = JSON.stringify({ action: action });
+            if (action === 'leave' && navigator.sendBeacon) {
+                navigator.sendBeacon(url, new Blob([payload], { type: 'application/json' }));
+                return;
+            }
+            fetch(url, {
                 method: "POST",
                 headers: {
                     "X-CSRFToken": "{{ csrf_token }}",
                     "Content-Type": "application/json"
-                }
+                },
+                body: payload,
+                keepalive: (action === 'leave')
             }).catch(() => {});
         },
 
         handleLeave() {
-            this.sendPing();
+            this.sendPing('leave');
+            window.location.href = "{% url 'meetings:meet_hub' slug=workspace.slug %}";
         },
 
         endMeetingForAll() {
