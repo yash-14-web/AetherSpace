@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+
+{% block title %}Cancel Meeting • {{ meeting.title }} — AetherSpace{% endblock %}
+
+{% block content %}
+<div class="max-w-md mx-auto py-10 space-y-6">
+    
+    <div class="p-6 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] shadow-sm space-y-4">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-xl bg-rose-100 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400 flex items-center justify-center">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                </svg>
+            </div>
+            <div>
+                <h1 class="text-base font-bold text-slate-900 dark:text-zinc-100">Cancel Meeting?</h1>
+                <p class="text-xs text-slate-500 dark:text-zinc-400">Meeting code: <span class="font-mono font-bold">{{ meeting.meeting_code }}</span></p>
+            </div>
+        </div>
+
+        <p class="text-xs text-slate-600 dark:text-zinc-400">
+            Are you sure you want to cancel <strong class="text-slate-900 dark:text-zinc-100">"{{ meeting.title }}"</strong>? 
+            Participants will no longer be able to enter the room.
+        </p>
+
+        <form method="post" class="flex items-center justify-end space-x-3 pt-3 border-t border-slate-100 dark:border-zinc-800">
+            {% csrf_token %}
+            <a href="{% url 'meetings:meeting_detail' slug=workspace.slug meeting_code=meeting.meeting_code %}" 
+               class="px-4 py-2 text-xs font-semibold rounded-xl text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 transition">
+                Keep Meeting
+            </a>
+            <button type="submit" 
+                    class="px-4 py-2 text-xs font-bold rounded-xl bg-rose-600 hover:bg-rose-700 text-white shadow-md shadow-rose-500/20 transition">
+                Confirm Cancellation
+            </button>
+        </form>
+    </div>
+
+</div>
+{% endblock %}

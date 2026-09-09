@@ -1,0 +1,132 @@
+{% extends 'base.html' %}
+
+{% block title %}Schedule Meeting • {{ workspace.name }} — AetherSpace{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto py-6 space-y-6">
+    
+    <!-- Breadcrumb -->
+    <div class="flex items-center space-x-2 text-xs text-slate-500 dark:text-zinc-400">
+        <a href="{% url 'meetings:meet_hub' slug=workspace.slug %}" class="hover:text-blue-600 transition">Meet Hub</a>
+        <span>/</span>
+        <span class="text-slate-900 dark:text-zinc-100 font-semibold">Schedule Meeting</span>
+    </div>
+
+    <!-- Main Card -->
+    <div class="p-6 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] shadow-sm">
+        <div class="flex items-center space-x-3 mb-6">
+            <div class="w-10 h-10 rounded-xl bg-purple-600 text-white flex items-center justify-center shadow-md shadow-purple-500/20">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                </svg>
+            </div>
+            <div>
+                <h1 class="text-lg font-bold text-slate-900 dark:text-zinc-100">Schedule a Standup / Meeting</h1>
+                <p class="text-xs text-slate-500 dark:text-zinc-400">Coordinate time, agenda, and invitees in {{ workspace.name }}.</p>
+            </div>
+        </div>
+
+        <form method="post" class="space-y-5">
+            {% csrf_token %}
+
+            <div>
+                <label for="id_title" class="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1.5">
+                    Meeting Title *
+                </label>
+                {{ form.title }}
+                {% if form.title.errors %}
+                <p class="text-xs text-rose-500 mt-1">{{ form.title.errors.0 }}</p>
+                {% endif %}
+            </div>
+
+            <div>
+                <label for="id_description" class="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1.5">
+                    Agenda / Notes (Optional)
+                </label>
+                {{ form.description }}
+                {% if form.description.errors %}
+                <p class="text-xs text-rose-500 mt-1">{{ form.description.errors.0 }}</p>
+                {% endif %}
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label for="id_meeting_type" class="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1.5">
+                        Meeting Type
+                    </label>
+                    {{ form.meeting_type }}
+                    {% if form.meeting_type.errors %}
+                    <p class="text-xs text-rose-500 mt-1">{{ form.meeting_type.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <div>
+                    <label for="id_duration_minutes" class="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1.5">
+                        Duration
+                    </label>
+                    {{ form.duration_minutes }}
+                    {% if form.duration_minutes.errors %}
+                    <p class="text-xs text-rose-500 mt-1">{{ form.duration_minutes.errors.0 }}</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label for="id_scheduled_date" class="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1.5">
+                        Date *
+                    </label>
+                    {{ form.scheduled_date }}
+                    {% if form.scheduled_date.errors %}
+                    <p class="text-xs text-rose-500 mt-1">{{ form.scheduled_date.errors.0 }}</p>
+                    {% endif %}
+                </div>
+                <div>
+                    <label for="id_scheduled_time" class="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1.5">
+                        Time *
+                    </label>
+                    {{ form.scheduled_time }}
+                    {% if form.scheduled_time.errors %}
+                    <p class="text-xs text-rose-500 mt-1">{{ form.scheduled_time.errors.0 }}</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-2">
+                    Invite Workspace Members
+                </label>
+                <div class="max-h-48 overflow-y-auto p-3 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900/40 space-y-2">
+                    {% for checkbox in form.invitees %}
+                    <label class="flex items-center space-x-2 text-xs text-slate-700 dark:text-zinc-300 cursor-pointer hover:text-blue-600 transition">
+                        {{ checkbox.tag }}
+                        <span>{{ checkbox.choice_label }}</span>
+                    </label>
+                    {% empty %}
+                    <p class="text-xs text-slate-400">No other members in this workspace yet.</p>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="flex items-center space-x-2">
+                {{ form.is_audio_only }}
+                <label for="id_is_audio_only" class="text-xs font-semibold text-slate-700 dark:text-zinc-300 cursor-pointer">
+                    Audio only standup (cameras muted by default)
+                </label>
+            </div>
+
+            <div class="flex items-center justify-end space-x-3 pt-4 border-t border-slate-100 dark:border-zinc-800">
+                <a href="{% url 'meetings:meet_hub' slug=workspace.slug %}" 
+                   class="px-4 py-2 text-xs font-semibold rounded-xl text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 transition">
+                    Cancel
+                </a>
+                <button type="submit" 
+                        class="px-5 py-2 text-xs font-bold rounded-xl bg-purple-600 hover:bg-purple-700 text-white shadow-md shadow-purple-500/20 transition">
+                    Schedule Standup
+                </button>
+            </div>
+        </form>
+    </div>
+
+</div>
+{% endblock %}

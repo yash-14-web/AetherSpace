@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+
+{% block title %}Meeting Status • {{ meeting.title }} — AetherSpace{% endblock %}
+
+{% block content %}
+<div class="max-w-md mx-auto py-12 space-y-6 text-center">
+    
+    <div class="p-8 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] shadow-sm space-y-4">
+        
+        {% if status_reason == 'cancelled' %}
+        <div class="w-14 h-14 rounded-2xl bg-rose-100 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400 flex items-center justify-center mx-auto">
+            <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+        </div>
+        <h1 class="text-lg font-bold text-slate-900 dark:text-zinc-100">Meeting Cancelled</h1>
+        <p class="text-xs text-slate-500 dark:text-zinc-400">
+            This meeting ({{ meeting.meeting_code }}) was cancelled by the host or workspace manager.
+        </p>
+        {% else %}
+        <div class="w-14 h-14 rounded-2xl bg-blue-100 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400 flex items-center justify-center mx-auto">
+            <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+            </svg>
+        </div>
+        <h1 class="text-lg font-bold text-slate-900 dark:text-zinc-100">Meeting Has Ended</h1>
+        <p class="text-xs text-slate-500 dark:text-zinc-400">
+            The session for <strong class="text-slate-800 dark:text-zinc-200">{{ meeting.title }}</strong> has concluded.
+        </p>
+        {% endif %}
+
+        <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800 text-xs text-left space-y-1.5">
+            <div class="flex items-center justify-between">
+                <span class="text-slate-500">Meeting Code:</span>
+                <span class="font-mono font-bold text-slate-800 dark:text-zinc-200">{{ meeting.meeting_code }}</span>
+            </div>
+            <div class="flex items-center justify-between">
+                <span class="text-slate-500">Host:</span>
+                <span class="font-semibold text-slate-800 dark:text-zinc-200">{{ meeting.host.get_full_name|default:meeting.host.username }}</span>
+            </div>
+            {% if meeting.ended_at %}
+            <div class="flex items-center justify-between">
+                <span class="text-slate-500">Ended At:</span>
+                <span class="text-slate-700 dark:text-zinc-300">{{ meeting.ended_at|date:"M d, g:i A" }}</span>
+            </div>
+            {% endif %}
+            {% if meeting.duration_seconds %}
+            <div class="flex items-center justify-between">
+                <span class="text-slate-500">Duration:</span>
+                <span class="text-slate-700 dark:text-zinc-300">{{ meeting.duration_seconds }}s</span>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="flex flex-col sm:flex-row items-center justify-center gap-2 pt-2">
+            <a href="{% url 'meetings:meeting_detail' slug=workspace.slug meeting_code=meeting.meeting_code %}" 
+               class="w-full sm:w-auto px-4 py-2 text-xs font-semibold rounded-xl border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition">
+                View Meeting Log
+            </a>
+            <a href="{% url 'meetings:meet_hub' slug=workspace.slug %}" 
+               class="w-full sm:w-auto px-5 py-2 text-xs font-bold rounded-xl bg-blue-600 hover:bg-blue-700 text-white transition">
+                Back to Meet Hub
+            </a>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

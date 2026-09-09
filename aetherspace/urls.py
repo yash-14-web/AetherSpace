@@ -14,6 +14,7 @@ urlpatterns = [
     path('tasks/', include('tasks.urls')),
     path('bugs/', include('bugs.urls')),
     path('chat/', include('chat.urls')),
+    path('meetings/', include('meetings.urls')),
     path('dashboard/', RedirectView.as_view(url='/workspaces/dashboard/', permanent=False)),
     path('', include('core.urls')),
 ]

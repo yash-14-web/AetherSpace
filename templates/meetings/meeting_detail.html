@@ -1,0 +1,228 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ meeting.title }} ({{ meeting.meeting_code }}) • Details — AetherSpace{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto space-y-6">
+    
+    <!-- Breadcrumbs -->
+    <div class="flex items-center space-x-2 text-xs text-slate-500 dark:text-zinc-400">
+        <a href="{% url 'meetings:meet_hub' slug=workspace.slug %}" class="hover:text-blue-600 transition">Meet Hub</a>
+        <span>/</span>
+        <a href="{% url 'meetings:meeting_history' slug=workspace.slug %}" class="hover:text-blue-600 transition">History</a>
+        <span>/</span>
+        <span class="text-slate-900 dark:text-zinc-100 font-mono font-bold">{{ meeting.meeting_code }}</span>
+    </div>
+
+    <!-- Header Card -->
+    <div class="p-6 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div class="space-y-2">
+            <div class="flex items-center space-x-2.5">
+                {% if meeting.status == 'IN_PROGRESS' %}
+                <span class="inline-flex items-center space-x-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 animate-pulse">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                    <span>LIVE NOW</span>
+                </span>
+                {% elif meeting.status == 'SCHEDULED' %}
+                <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300">
+                    SCHEDULED
+                </span>
+                {% elif meeting.status == 'COMPLETED' %}
+                <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-800 dark:bg-zinc-800 dark:text-zinc-300">
+                    COMPLETED
+                </span>
+                {% elif meeting.status == 'CANCELLED' %}
+                <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300">
+                    CANCELLED
+                </span>
+                {% endif %}
+
+                <span class="font-mono text-xs font-bold text-slate-500 dark:text-zinc-400 bg-slate-100 dark:bg-zinc-800/80 px-2 py-0.5 rounded">
+                    {{ meeting.meeting_code }}
+                </span>
+            </div>
+
+            <h1 class="text-xl sm:text-2xl font-black text-slate-900 dark:text-zinc-50 tracking-tight">
+                {{ meeting.title }}
+            </h1>
+
+            <div class="flex flex-wrap items-center gap-3 text-xs text-slate-500 dark:text-zinc-400">
+                <span>Hosted by <strong class="text-slate-800 dark:text-zinc-200">{{ meeting.host.get_full_name|default:meeting.host.username }}</strong></span>
+                <span>•</span>
+                <span>Type: <strong class="text-slate-800 dark:text-zinc-200">{{ meeting.get_meeting_type_display }}</strong></span>
+                <span>•</span>
+                <span>Created: {{ meeting.created_at|date:"M d, Y g:i A" }}</span>
+            </div>
+        </div>
+
+        <!-- Action buttons -->
+        <div class="flex items-center space-x-2.5 shrink-0">
+            {% if meeting.status in 'SCHEDULED,IN_PROGRESS' %}
+            <a href="{% url 'meetings:meeting_room' slug=workspace.slug meeting_code=meeting.meeting_code %}" 
+               class="inline-flex items-center space-x-1.5 px-4 py-2 text-xs font-bold rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-500/20 transition">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                </svg>
+                <span>Enter Room</span>
+            </a>
+            {% endif %}
+
+            {% if can_manage and meeting.status != 'COMPLETED' and meeting.status != 'CANCELLED' %}
+            <a href="{% url 'meetings:meeting_edit' slug=workspace.slug meeting_code=meeting.meeting_code %}" 
+               class="px-3.5 py-2 text-xs font-bold rounded-xl border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition">
+                Edit
+            </a>
+            <a href="{% url 'meetings:meeting_cancel' slug=workspace.slug meeting_code=meeting.meeting_code %}" 
+               class="px-3.5 py-2 text-xs font-bold rounded-xl bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400 hover:bg-rose-100 transition">
+                Cancel
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Overview Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        
+        <!-- Left 2 Cols: Details & Agenda -->
+        <div class="md:col-span-2 space-y-6">
+            
+            <!-- Agenda / Description Card -->
+            <div class="p-6 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] space-y-3">
+                <h2 class="text-sm font-bold text-slate-900 dark:text-zinc-100">Meeting Agenda & Notes</h2>
+                {% if meeting.description %}
+                <div class="text-xs text-slate-700 dark:text-zinc-300 whitespace-pre-line leading-relaxed">
+                    {{ meeting.description }}
+                </div>
+                {% else %}
+                <p class="text-xs text-slate-400 italic">No agenda or notes provided for this meeting.</p>
+                {% endif %}
+            </div>
+
+            <!-- Participants Roster -->
+            <div class="p-6 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] space-y-4">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-sm font-bold text-slate-900 dark:text-zinc-100">
+                        Participants ({{ total_participant_count }})
+                    </h2>
+                    <span class="text-xs text-slate-400 font-mono">Sessions recorded</span>
+                </div>
+
+                {% if participants %}
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs">
+                        <thead>
+                            <tr class="border-b border-slate-100 dark:border-zinc-800 text-slate-400 uppercase text-[10px]">
+                                <th class="pb-2 font-bold">User</th>
+                                <th class="pb-2 font-bold">Role</th>
+                                <th class="pb-2 font-bold">Joined At</th>
+                                <th class="pb-2 font-bold">Left At</th>
+                                <th class="pb-2 font-bold text-right">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 dark:divide-zinc-800">
+                            {% for p in participants %}
+                            <tr>
+                                <td class="py-2.5 font-semibold text-slate-800 dark:text-zinc-200 flex items-center space-x-2">
+                                    <div class="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-950 text-blue-600 dark:text-blue-400 font-bold text-[10px] flex items-center justify-center shrink-0">
+                                        {{ p.user.first_name|default:p.user.username|slice:":1"|upper }}
+                                    </div>
+                                    <span>{{ p.user.get_full_name|default:p.user.username }}</span>
+                                </td>
+                                <td class="py-2.5 text-slate-500 dark:text-zinc-400">
+                                    {{ p.get_role_display }}
+                                </td>
+                                <td class="py-2.5 font-mono text-slate-500 dark:text-zinc-400">
+                                    {{ p.joined_at|date:"g:i:s A" }}
+                                </td>
+                                <td class="py-2.5 font-mono text-slate-500 dark:text-zinc-400">
+                                    {% if p.left_at %}{{ p.left_at|date:"g:i:s A" }}{% else %}<span class="text-emerald-500 font-bold">Online</span>{% endif %}
+                                </td>
+                                <td class="py-2.5 text-right">
+                                    {% if p.is_online %}
+                                    <span class="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-400">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                        <span>Active</span>
+                                    </span>
+                                    {% else %}
+                                    <span class="text-slate-400 text-[11px]">Departed</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-xs text-slate-400 italic">No participants have joined this session yet.</p>
+                {% endif %}
+            </div>
+
+        </div>
+
+        <!-- Right Col: Metadata, Timestamps & Invites -->
+        <div class="space-y-6">
+            
+            <!-- Metadata Card -->
+            <div class="p-5 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] space-y-3">
+                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Session Specs</h3>
+                
+                <div class="divide-y divide-slate-100 dark:divide-zinc-800 text-xs">
+                    <div class="py-2 flex justify-between">
+                        <span class="text-slate-500">Scheduled:</span>
+                        <span class="font-semibold text-slate-800 dark:text-zinc-200">
+                            {{ meeting.scheduled_start_time|date:"M d, g:i A"|default:"Instant Session" }}
+                        </span>
+                    </div>
+                    <div class="py-2 flex justify-between">
+                        <span class="text-slate-500">Started:</span>
+                        <span class="font-semibold text-slate-800 dark:text-zinc-200">
+                            {{ meeting.started_at|date:"g:i:s A"|default:"Not started" }}
+                        </span>
+                    </div>
+                    <div class="py-2 flex justify-between">
+                        <span class="text-slate-500">Ended:</span>
+                        <span class="font-semibold text-slate-800 dark:text-zinc-200">
+                            {{ meeting.ended_at|date:"g:i:s A"|default:"—" }}
+                        </span>
+                    </div>
+                    <div class="py-2 flex justify-between">
+                        <span class="text-slate-500">Duration:</span>
+                        <span class="font-semibold text-slate-800 dark:text-zinc-200">
+                            {% if meeting.duration_seconds %}{{ meeting.duration_seconds }}s{% else %}—{% endif %}
+                        </span>
+                    </div>
+                    <div class="py-2 flex justify-between">
+                        <span class="text-slate-500">Media Mode:</span>
+                        <span class="font-semibold text-slate-800 dark:text-zinc-200">
+                            {% if meeting.is_audio_only %}Audio Only 📞{% else %}Audio & Video 📹{% endif %}
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Invites Card -->
+            {% if invites %}
+            <div class="p-5 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] space-y-3">
+                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Invited Members ({{ invites|length }})</h3>
+                <div class="space-y-2">
+                    {% for inv in invites %}
+                    <div class="flex items-center justify-between text-xs">
+                        <span class="font-semibold text-slate-800 dark:text-zinc-200">{{ inv.user.get_full_name|default:inv.user.username }}</span>
+                        <span class="text-[10px] px-2 py-0.5 rounded font-bold 
+                            {% if inv.status == 'ACCEPTED' %}bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300
+                            {% elif inv.status == 'DECLINED' %}bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300
+                            {% else %}bg-slate-100 text-slate-600 dark:bg-zinc-800 dark:text-zinc-400{% endif %}">
+                            {{ inv.get_status_display }}
+                        </span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+        </div>
+
+    </div>
+
+</div>
+{% endblock %}

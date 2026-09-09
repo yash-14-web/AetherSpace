@@ -66,7 +66,7 @@
                     </a>
 
                     <!-- 5. Meet Hub -->
-                    <a href="{% url 'core:meetings' %}" 
+                    <a href="{% if current_workspace %}{% url 'meetings:meet_hub' slug=current_workspace.slug %}{% else %}{% url 'meetings:meet_router' %}{% endif %}" 
                        class="p-2.5 rounded-xl text-slate-500 dark:text-zinc-400 hover:text-aether-blue dark:hover:text-zinc-100 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-all" 
                        title="Meet Hub">
                         <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -249,6 +249,35 @@
                             <a href="{% url 'chat:shared_files' slug=current_workspace.slug %}" 
                                class="block py-1 text-[11px] font-medium text-slate-500 dark:text-zinc-400 hover:text-aether-blue dark:hover:text-zinc-200 transition-colors">
                                 • Shared Files
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Meet Hub -->
+                    <div>
+                        <a href="{% url 'meetings:meet_hub' slug=current_workspace.slug %}" 
+                           class="flex items-center space-x-2.5 px-3 py-2 text-xs font-semibold rounded-lg text-slate-700 dark:text-zinc-300 hover:bg-slate-200/60 dark:hover:bg-zinc-800/60 transition-colors">
+                            <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                            </svg>
+                            <span>Meet Hub</span>
+                        </a>
+                        <div class="pl-7 pr-2 space-y-0.5 pb-1">
+                            <a href="{% url 'meetings:meet_hub' slug=current_workspace.slug %}" 
+                               class="block py-1 text-[11px] font-medium text-slate-500 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-zinc-200 transition-colors">
+                                • Meet Overview
+                            </a>
+                            <a href="{% url 'meetings:meeting_start' slug=current_workspace.slug %}" 
+                               class="block py-1 text-[11px] font-medium text-slate-500 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-zinc-200 transition-colors">
+                                • Start Instant Call
+                            </a>
+                            <a href="{% url 'meetings:meeting_schedule' slug=current_workspace.slug %}" 
+                               class="block py-1 text-[11px] font-medium text-slate-500 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-zinc-200 transition-colors">
+                                • Schedule Meeting
+                            </a>
+                            <a href="{% url 'meetings:meeting_history' slug=current_workspace.slug %}" 
+                               class="block py-1 text-[11px] font-medium text-slate-500 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-zinc-200 transition-colors">
+                                • History & Logs
                             </a>
                         </div>
                     </div>

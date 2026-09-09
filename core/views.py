@@ -50,21 +50,8 @@ def files_view(request):
 
 @login_required
 def meetings_view(request):
-    """Meet Hub navigation destination."""
-    return render(request, 'components/placeholder.html', {
-        'module_title': 'Meet Hub',
-        'phase_badge': 'Phase 6 — Meetings',
-        'module_icon': 'meetings',
-        'module_description': 'High-performance WebRTC and Jitsi-compatible video conferencing for agile standups.',
-        'empty_heading': 'Standup & Video Conference Launcher',
-        'empty_text': 'Instant video rooms, screen sharing, audio calls, and meeting logs will be activated in Phase 6.',
-        'features': [
-            '1-Click instant meeting launcher (meet-xxxx-xxxx)',
-            'WebRTC & Jitsi-compatible video container',
-            'In-call screen sharing & agile whiteboard',
-            'Workspace standup scheduling & logs',
-        ],
-    })
+    """Meet Hub navigation destination - redirects to workspace meet hub."""
+    return redirect('meetings:meet_router')
 
 
 @login_required
