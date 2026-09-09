@@ -1,6 +1,7 @@
 from django import forms
 from django.contrib.auth import get_user_model
 from workspaces.models import WorkspaceMembership, MembershipStatus, WorkspaceModule
+from tasks.models import Task
 from .models import (
     Bug, BugStatus, BugPriority, BugSeverity, BugEnvironment
 )
@@ -14,6 +15,7 @@ class BugForm(forms.ModelForm):
         fields = [
             'title',
             'module',
+            'linked_task',
             'priority',
             'severity',
             'environment',
@@ -36,6 +38,9 @@ class BugForm(forms.ModelForm):
                 'required': True,
             }),
             'module': forms.Select(attrs={
+                'class': 'w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-aether-blue transition cursor-pointer',
+            }),
+            'linked_task': forms.Select(attrs={
                 'class': 'w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-aether-blue transition cursor-pointer',
             }),
             'priority': forms.Select(attrs={
@@ -98,6 +103,7 @@ class BugForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.workspace = workspace
         self.fields['module'].required = False
+        self.fields['linked_task'].required = False
         self.fields['assignee'].required = False
         self.fields['reporter'].required = False
         self.fields['due_date'].required = False
@@ -116,6 +122,12 @@ class BugForm(forms.ModelForm):
             ).order_by('name')
             self.fields['module'].empty_label = "Select Module (Optional)"
 
+            # Filter tasks strictly to this workspace
+            tasks_qs = Task.objects.filter(workspace=workspace).order_by('-created_at')
+            self.fields['linked_task'].queryset = tasks_qs
+            self.fields['linked_task'].label_from_instance = lambda obj: f"#{obj.task_code} - {obj.title}"
+            self.fields['linked_task'].empty_label = "No Linked Task (Optional)"
+
             # Filter assignees and reporters strictly to active workspace members
             active_user_ids = WorkspaceMembership.objects.filter(
                 workspace=workspace,
@@ -128,6 +140,7 @@ class BugForm(forms.ModelForm):
             self.fields['reporter'].empty_label = "Select Reporter"
         else:
             self.fields['module'].queryset = WorkspaceModule.objects.none()
+            self.fields['linked_task'].queryset = Task.objects.none()
             self.fields['assignee'].queryset = User.objects.none()
             self.fields['reporter'].queryset = User.objects.none()
 
@@ -136,6 +149,12 @@ class BugForm(forms.ModelForm):
         if module and self.workspace and module.workspace_id != self.workspace.id:
             raise forms.ValidationError("Selected module does not belong to this workspace.")
         return module
+
+    def clean_linked_task(self):
+        task = self.cleaned_data.get('linked_task')
+        if task and self.workspace and task.workspace_id != self.workspace.id:
+            raise forms.ValidationError("Selected task does not belong to this workspace.")
+        return task
 
 
 class BugFilterForm(forms.Form):

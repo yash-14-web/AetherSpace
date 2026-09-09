@@ -227,7 +227,7 @@ def bug_detail_view(request, slug, bug_code):
         clean_code = f"B-{clean_code.lstrip('#')}"
 
     bug = get_object_or_404(
-        Bug.objects.select_related('workspace', 'assignee', 'reporter', 'module'),
+        Bug.objects.select_related('workspace', 'assignee', 'reporter', 'module', 'linked_task'),
         workspace=workspace,
         bug_code=clean_code
     )
@@ -275,6 +275,7 @@ def bug_create_view(request, slug):
                 severity=form.cleaned_data.get('severity', BugSeverity.SEV3),
                 environment=form.cleaned_data.get('environment', BugEnvironment.STAGING),
                 module=form.cleaned_data.get('module'),
+                linked_task=form.cleaned_data.get('linked_task'),
                 browser_device=form.cleaned_data.get('browser_device', ''),
                 sprint=form.cleaned_data.get('sprint', 'Sprint 01'),
                 assignee=form.cleaned_data.get('assignee'),
@@ -291,6 +292,14 @@ def bug_create_view(request, slug):
             'environment': BugEnvironment.STAGING,
             'reporter': request.user,
         }
+        # Pre-select linked_task if passed via query string (e.g. from task detail)
+        linked_task_id = request.GET.get('linked_task')
+        if linked_task_id:
+            from tasks.models import Task
+            task_obj = Task.objects.filter(workspace=workspace, id=linked_task_id).first()
+            if task_obj:
+                initial_data['linked_task'] = task_obj
+
         form = BugForm(workspace=workspace, initial=initial_data)
 
     context = {
@@ -316,7 +325,7 @@ def bug_edit_view(request, slug, bug_code):
         clean_code = f"B-{clean_code.lstrip('#')}"
 
     bug = get_object_or_404(
-        Bug.objects.select_related('workspace', 'assignee', 'reporter'),
+        Bug.objects.select_related('workspace', 'assignee', 'reporter', 'module', 'linked_task'),
         workspace=workspace,
         bug_code=clean_code
     )
@@ -339,6 +348,7 @@ def bug_edit_view(request, slug, bug_code):
                 severity=form.cleaned_data.get('severity'),
                 environment=form.cleaned_data.get('environment'),
                 module=form.cleaned_data.get('module'),
+                linked_task=form.cleaned_data.get('linked_task'),
                 browser_device=form.cleaned_data.get('browser_device', ''),
                 sprint=form.cleaned_data.get('sprint', 'Sprint 01'),
                 assignee=form.cleaned_data.get('assignee'),

@@ -244,6 +244,7 @@ def task_detail_view(request, slug, task_code):
 
     activities = task.activities.select_related('actor').order_by('-created_at')
     comments = task.comments.select_related('author').order_by('created_at')
+    related_bugs = task.bugs.select_related('assignee', 'module').order_by('-created_at')
 
     context = {
         'workspace': workspace,
@@ -251,6 +252,7 @@ def task_detail_view(request, slug, task_code):
         'task': task,
         'activities': activities,
         'comments': comments,
+        'related_bugs': related_bugs,
         'TaskStatus': TaskStatus,
         'TaskPriority': TaskPriority,
         'initial_tab': request.GET.get('tab', 'overview'),

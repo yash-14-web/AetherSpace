@@ -9,6 +9,7 @@ from django.core.exceptions import PermissionDenied
 from workspaces.models import (
     Workspace, WorkspaceMembership, WorkspaceRole, MembershipStatus, WorkspaceModule
 )
+from tasks.models import Task, TaskStatus
 from .models import (
     Bug, BugActivity, BugComment, BugStatus, BugPriority,
     BugSeverity, BugEnvironment
@@ -506,4 +507,94 @@ class BugTrackingTests(TestCase):
         bug.refresh_from_db()
         self.assertIsNone(bug.module)
         self.assertEqual(bug.title, 'Bug in temporary feature')
+
+    # 16. Bug and Task Interlinking
+    def test_bug_linked_task_creation_and_activity(self):
+        task = Task.objects.create(
+            workspace=self.workspace1,
+            task_code='619347',
+            title='Implement User Authentication Page',
+            status=TaskStatus.IN_PROGRESS
+        )
+
+        bug = create_bug(
+            workspace=self.workspace1,
+            reporter=self.admin_user,
+            title='Authentication token expiration fails',
+            linked_task=task
+        )
+
+        self.assertEqual(bug.linked_task, task)
+        # Check reverse relation on task
+        self.assertIn(bug, task.bugs.all())
+
+        # Check linked task activity was logged
+        activity = bug.activities.filter(action=BugActivity.Action.UPDATED).first()
+        self.assertIsNotNone(activity)
+        self.assertIn('619347', activity.message)
+
+    def test_bug_linked_task_cross_workspace_validation(self):
+        from django.core.exceptions import ValidationError
+        # Task in Workspace 2
+        w2_task = Task.objects.create(
+            workspace=self.workspace2,
+            task_code='888999',
+            title='Billing integration in W2'
+        )
+
+        # Attempt to link W2 task to a bug in W1
+        bug = Bug(
+            workspace=self.workspace1,
+            reporter=self.admin_user,
+            title='Mismatched workspace defect',
+            linked_task=w2_task
+        )
+        with self.assertRaises(ValidationError):
+            bug.full_clean()
+
+    def test_bug_linked_task_views_integration(self):
+        self.client.force_login(self.admin_user)
+        task = Task.objects.create(
+            workspace=self.workspace1,
+            task_code='102938',
+            title='Design Settings Modal'
+        )
+
+        # 1. Pre-population in bug create form
+        create_url = reverse('bugs:bug_create', kwargs={'slug': self.workspace1.slug})
+        resp = self.client.get(f"{create_url}?linked_task={task.id}")
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, '102938')
+
+        # 2. Submit bug with linked task
+        post_data = {
+            'title': 'Modal backdrop does not close',
+            'description': 'Clicking outside does nothing',
+            'priority': BugPriority.MEDIUM,
+            'severity': BugSeverity.SEV3,
+            'environment': BugEnvironment.DEVELOPMENT,
+            'status': BugStatus.OPEN,
+            'linked_task': str(task.id)
+        }
+        resp = self.client.post(create_url, data=post_data)
+        self.assertEqual(resp.status_code, 302)
+
+        created_bug = Bug.objects.filter(workspace=self.workspace1, title='Modal backdrop does not close').first()
+        self.assertIsNotNone(created_bug)
+        self.assertEqual(created_bug.linked_task, task)
+
+        # 3. Bug detail view renders linked task
+        detail_url = reverse('bugs:bug_detail', kwargs={'slug': self.workspace1.slug, 'bug_code': created_bug.bug_code})
+        resp = self.client.get(detail_url)
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, task.task_code)
+        self.assertContains(resp, task.title)
+
+        # 4. Task detail view renders linked defect
+        task_url = reverse('tasks:task_detail', kwargs={'slug': self.workspace1.slug, 'task_code': task.task_code})
+        resp = self.client.get(task_url)
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, created_bug.bug_code)
+        self.assertContains(resp, created_bug.title)
+
 

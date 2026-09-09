@@ -382,6 +382,22 @@
                         {% endif %}
                     </div>
 
+                    <!-- Linked Task -->
+                    <div class="flex items-center justify-between">
+                        <span class="text-slate-500 dark:text-zinc-400">Linked Task</span>
+                        {% if bug.linked_task %}
+                            <a href="{% url 'tasks:task_detail' slug=workspace.slug task_code=bug.linked_task.task_code %}" 
+                               class="inline-flex items-center space-x-1 font-mono text-[11px] font-bold text-aether-blue hover:underline bg-blue-50 dark:bg-blue-950/50 px-2 py-0.5 rounded border border-blue-200 dark:border-blue-900/40">
+                                <span>#{{ bug.linked_task.task_code }}</span>
+                                <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                </svg>
+                            </a>
+                        {% else %}
+                            <span class="text-slate-400 dark:text-zinc-500 italic">None</span>
+                        {% endif %}
+                    </div>
+
                     <!-- Sprint -->
                     <div class="flex items-center justify-between">
                         <span class="text-slate-500 dark:text-zinc-400">Sprint</span>

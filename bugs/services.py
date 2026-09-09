@@ -34,6 +34,7 @@ def create_bug(
     severity="SEV3",
     environment="STAGING",
     module=None,
+    linked_task=None,
     browser_device="",
     sprint="Sprint 01",
     assignee=None,
@@ -60,6 +61,7 @@ def create_bug(
         severity=severity,
         environment=environment,
         module=module,
+        linked_task=linked_task,
         browser_device=browser_device,
         sprint=sprint,
         assignee=assignee,
@@ -75,6 +77,15 @@ def create_bug(
         new_value=bug_code,
         message=f"Raised bug {bug_code} with status '{bug.get_status_display()}' and priority '{bug.get_priority_display()}'.",
     )
+
+    if linked_task:
+        BugActivity.objects.create(
+            bug=bug,
+            actor=reporter,
+            action=BugActivity.Action.UPDATED,
+            new_value=linked_task.task_code,
+            message=f"Linked bug to task #{linked_task.task_code} ({linked_task.title}).",
+        )
 
     if assignee:
         assignee_name = assignee.full_name or assignee.email
@@ -166,6 +177,18 @@ def update_bug(bug, actor, **kwargs):
             'old': old_mod,
             'new': new_mod,
             'msg': f"Changed module from '{old_mod}' to '{new_mod}'."
+        })
+
+    # Check linked_task change
+    if 'linked_task' in kwargs and kwargs['linked_task'] != bug.linked_task:
+        old_task = f"#{bug.linked_task.task_code}" if bug.linked_task else "None"
+        new_task = f"#{kwargs['linked_task'].task_code}" if kwargs['linked_task'] else "None"
+        bug.linked_task = kwargs['linked_task']
+        changes.append({
+            'action': BugActivity.Action.UPDATED,
+            'old': old_task,
+            'new': new_task,
+            'msg': f"Changed linked task from {old_task} to {new_task}."
         })
 
     # Update other scalar fields

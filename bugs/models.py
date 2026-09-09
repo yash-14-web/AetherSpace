@@ -86,6 +86,14 @@ class Bug(models.Model):
         blank=True,
         related_name='bugs'
     )
+    linked_task = models.ForeignKey(
+        'tasks.Task',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='bugs',
+        help_text=_("Optional task or user story this defect originated from or blocks.")
+    )
     browser_device = models.CharField(
         max_length=255,
         blank=True,
@@ -127,15 +135,21 @@ class Bug(models.Model):
             models.Index(fields=['workspace', 'created_at']),
             models.Index(fields=['bug_code']),
             models.Index(fields=['workspace', 'module'], name='bugs_bug_workspa_mod_idx'),
+            models.Index(fields=['linked_task']),
         ]
 
     def clean(self):
         super().clean()
+        from django.core.exceptions import ValidationError
         if self.module_id and self.workspace_id:
             # Enforce that module belongs to the same workspace as the bug
             if self.module.workspace_id != self.workspace_id:
-                from django.core.exceptions import ValidationError
                 raise ValidationError({'module': _("Selected module does not belong to this workspace.")})
+
+        if self.linked_task_id and self.workspace_id:
+            # Enforce that linked task belongs to the same workspace as the bug
+            if self.linked_task.workspace_id != self.workspace_id:
+                raise ValidationError({'linked_task': _("Selected task does not belong to this workspace.")})
 
     def __str__(self):
         return f"{self.bug_code} {self.title}"
