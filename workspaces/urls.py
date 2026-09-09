@@ -15,6 +15,7 @@ urlpatterns = [
     path('w/<slug:slug>/team/members/<uuid:member_id>/role/', views.update_member_role, name='update_member_role'),
     path('w/<slug:slug>/team/members/<uuid:member_id>/remove/', views.remove_member, name='remove_member'),
     path('w/<slug:slug>/settings/', views.workspace_settings, name='settings'),
+    path('w/<slug:slug>/delete/', views.delete_workspace, name='delete'),
     path('w/<slug:slug>/project/', views.workspace_project_details, name='project_details'),
     path('w/<slug:slug>/chat/', views.workspace_chat, name='workspace_chat'),
     path('w/<slug:slug>/modules/', views.workspace_modules_view, name='modules'),

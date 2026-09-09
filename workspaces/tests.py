@@ -279,3 +279,46 @@ class WorkspaceRBACAndIsolationTest(TestCase):
         # Should not create invite
         self.assertFalse(WorkspaceInvitation.objects.filter(email='overflow@aetherspace.dev').exists())
 
+    def test_workspace_dashboard_shows_real_bugs(self):
+        """Workspace dashboard displays real database bugs and handles empty state."""
+        from bugs.models import Bug, BugSeverity, BugStatus
+        self.client.login(email=self.admin_user.email, password=self.password)
+        dashboard_url = reverse('workspaces:workspace_dashboard', kwargs={'slug': self.workspace1.slug})
+
+        # Initially 0 bugs
+        response = self.client.get(dashboard_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['open_bugs_count'], 0)
+        self.assertContains(response, "No bugs reported yet in this workspace")
+
+        # Create a real bug
+        Bug.objects.create(
+            bug_code='B-123456',
+            workspace=self.workspace1,
+            title='Production latency issue',
+            severity=BugSeverity.SEV1,
+            status=BugStatus.OPEN,
+            reporter=self.admin_user
+        )
+        response2 = self.client.get(dashboard_url)
+        self.assertEqual(response2.context['open_bugs_count'], 1)
+        self.assertEqual(response2.context['high_severity_bugs_count'], 1)
+        self.assertContains(response2, "B-123456")
+        self.assertContains(response2, "Production latency issue")
+
+    def test_delete_workspace_owner_only_with_name_confirmation(self):
+        """Workspace can be permanently deleted by the owner after typing exact name."""
+        self.client.login(email=self.admin_user.email, password=self.password)
+        delete_url = reverse('workspaces:delete', kwargs={'slug': self.workspace1.slug})
+
+        # Wrong name fails
+        response = self.client.post(delete_url, {'confirm_workspace_name': 'Wrong Name'})
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(Workspace.objects.filter(id=self.workspace1.id).exists())
+
+        # Exact name deletes workspace
+        response_correct = self.client.post(delete_url, {'confirm_workspace_name': self.workspace1.name})
+        self.assertEqual(response_correct.status_code, 302)
+        self.assertFalse(Workspace.objects.filter(id=self.workspace1.id).exists())
+
+

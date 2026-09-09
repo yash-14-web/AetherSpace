@@ -100,15 +100,19 @@ def master_dashboard(request):
     total_workspaces = workspaces.count()
     total_members = sum(ws.active_member_count for ws in workspaces)
 
+    # Real database metrics across active accessible workspaces
+    from bugs.models import Bug
+    total_tasks = Task.objects.filter(workspace__in=workspaces).exclude(status=TaskStatus.DONE).count()
+    total_bugs = Bug.objects.filter(workspace__in=workspaces).filter(status__in=['OPEN', 'IN_PROGRESS']).count()
+
     context = {
         'title': 'Master Dashboard — Cross-Workspace Overview',
         'workspaces': workspaces,
         'total_workspaces': total_workspaces,
         'total_members': total_members,
-        # Placeholder agile metrics for Phase 3 (connected to Tasks/Bugs in Phase 4/5)
-        'total_tasks': 128,
-        'total_bugs': 23,
-        'total_meetings': 8,
+        'total_tasks': total_tasks,
+        'total_bugs': total_bugs,
+        'total_meetings': 0,
     }
     return render(request, 'workspaces/master_dashboard.html', context)
 
@@ -131,6 +135,12 @@ def workspace_dashboard(request, slug):
     active_tasks_count = workspace.tasks.exclude(status=TaskStatus.DONE).count()
     recent_tasks = workspace.tasks.select_related('assignee').order_by('-created_at')[:5]
 
+    # Real database-backed bug queries
+    open_bugs_qs = workspace.bugs.filter(status__in=['OPEN', 'IN_PROGRESS'])
+    open_bugs_count = open_bugs_qs.count()
+    high_severity_bugs_count = open_bugs_qs.filter(severity__in=['SEV1', 'SEV2']).count()
+    recent_bugs = workspace.bugs.select_related('assignee').order_by('-created_at')[:5]
+
     context = {
         'title': f"{workspace.name} — Workspace Dashboard",
         'workspace': workspace,
@@ -139,8 +149,10 @@ def workspace_dashboard(request, slug):
         'total_members_count': total_members_count,
         'active_tasks_count': active_tasks_count,
         'recent_tasks': recent_tasks,
-        'open_bugs_count': 6,
-        'upcoming_meetings_count': 3,
+        'open_bugs_count': open_bugs_count,
+        'high_severity_bugs_count': high_severity_bugs_count,
+        'recent_bugs': recent_bugs,
+        'upcoming_meetings_count': 0,
     }
     return render(request, 'workspaces/workspace_dashboard.html', context)
 
@@ -391,6 +403,36 @@ def workspace_settings(request, slug):
         'workspace': workspace,
         'form': form,
     })
+
+
+@workspace_admin_required
+def delete_workspace(request, slug):
+    """
+    Permanently delete a workspace.
+    Restricted to the workspace owner or platform superuser.
+    Requires confirming the workspace name to prevent accidental deletion.
+    """
+    workspace = request.workspace
+
+    if workspace.owner != request.user and not request.user.is_superuser:
+        messages.error(request, "Only the workspace owner can permanently delete this workspace.")
+        return redirect('workspaces:settings', slug=workspace.slug)
+
+    if request.method == 'POST':
+        confirm_name = request.POST.get('confirm_workspace_name', '').strip()
+        if confirm_name != workspace.name:
+            messages.error(
+                request,
+                f"Workspace name confirmation failed. Please type '{workspace.name}' exactly to delete."
+            )
+            return redirect('workspaces:settings', slug=workspace.slug)
+
+        ws_name = workspace.name
+        workspace.delete()
+        messages.success(request, f"Workspace '{ws_name}' and all associated assets have been permanently deleted.")
+        return redirect('workspaces:dashboard_router')
+
+    return redirect('workspaces:settings', slug=workspace.slug)
 
 
 @login_required
