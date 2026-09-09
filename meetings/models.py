@@ -116,6 +116,26 @@ class Meeting(models.Model):
         return f"AetherSpace_{self.workspace.slug}_{clean_code}"
 
     @property
+    def started_at(self):
+        return self.actual_start
+
+    @property
+    def ended_at(self):
+        return self.actual_end
+
+    @property
+    def scheduled_start_time(self):
+        return self.scheduled_start
+
+    @property
+    def duration_seconds(self):
+        if self.actual_start and self.actual_end:
+            return int((self.actual_end - self.actual_start).total_seconds())
+        elif self.actual_start and self.is_live:
+            return int((timezone.now() - self.actual_start).total_seconds())
+        return None
+
+    @property
     def duration_minutes(self):
         if self.actual_start and self.actual_end:
             diff = self.actual_end - self.actual_start
@@ -126,11 +146,20 @@ class Meeting(models.Model):
         elif self.scheduled_start and self.scheduled_end:
             diff = self.scheduled_end - self.scheduled_start
             return max(1, int(diff.total_seconds() / 60))
-        return 30
+        return 0
 
     @property
     def duration_display(self):
+        if not self.actual_start:
+            if self.scheduled_start and self.scheduled_end:
+                diff = self.scheduled_end - self.scheduled_start
+                mins = max(1, int(diff.total_seconds() / 60))
+                return f"{mins}m (est)"
+            return "—"
         mins = self.duration_minutes
+        if mins < 1:
+            secs = self.duration_seconds or 0
+            return f"{secs}s"
         if mins < 60:
             return f"{mins}m"
         hours = mins // 60

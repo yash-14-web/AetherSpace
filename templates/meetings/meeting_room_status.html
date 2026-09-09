@@ -44,10 +44,10 @@
                 <span class="text-slate-700 dark:text-zinc-300">{{ meeting.ended_at|date:"M d, g:i A" }}</span>
             </div>
             {% endif %}
-            {% if meeting.duration_seconds %}
+            {% if meeting.duration_display != '—' %}
             <div class="flex items-center justify-between">
                 <span class="text-slate-500">Duration:</span>
-                <span class="text-slate-700 dark:text-zinc-300">{{ meeting.duration_seconds }}s</span>
+                <span class="text-slate-700 dark:text-zinc-300">{{ meeting.duration_display }}</span>
             </div>
             {% endif %}
         </div>

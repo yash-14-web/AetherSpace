@@ -341,7 +341,7 @@
                                 <span class="text-[11px] font-mono text-slate-400">{{ rm.ended_at|timesince }} ago</span>
                             </div>
                             <div class="flex items-center justify-between text-[11px] text-slate-500 dark:text-zinc-400 mt-1">
-                                <span>Duration: {{ rm.duration_seconds|default:0|divisibleby:60|yesno:"m,m" }} {{ rm.duration_seconds }}s</span>
+                                <span>Duration: {{ rm.duration_display }}</span>
                                 <a href="{% url 'meetings:meeting_detail' slug=workspace.slug meeting_code=rm.meeting_code %}" class="text-blue-500 hover:underline">
                                     Log
                                 </a>

@@ -3,7 +3,7 @@
 {% block title %}{{ meeting.title }} ({{ meeting.meeting_code }}) • Details — AetherSpace{% endblock %}
 
 {% block content %}
-<div class="max-w-5xl mx-auto space-y-6">
+<div class="max-w-5xl mx-auto space-y-6" x-data="{ copied: false }">
     
     <!-- Breadcrumbs -->
     <div class="flex items-center space-x-2 text-xs text-slate-500 dark:text-zinc-400">
@@ -11,14 +11,14 @@
         <span>/</span>
         <a href="{% url 'meetings:meeting_history' slug=workspace.slug %}" class="hover:text-blue-600 transition">History</a>
         <span>/</span>
-        <span class="text-slate-900 dark:text-zinc-100 font-mono font-bold">{{ meeting.meeting_code }}</span>
+        <span class="text-slate-900 dark:text-zinc-100 font-mono font-bold bg-slate-100 dark:bg-zinc-800 px-2 py-0.5 rounded">{{ meeting.meeting_code }}</span>
     </div>
 
     <!-- Header Card -->
     <div class="p-6 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div class="space-y-2">
             <div class="flex items-center space-x-2.5">
-                {% if meeting.status == 'IN_PROGRESS' %}
+                {% if meeting.status == 'LIVE' %}
                 <span class="inline-flex items-center space-x-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 animate-pulse">
                     <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
                     <span>LIVE NOW</span>
@@ -27,7 +27,7 @@
                 <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300">
                     SCHEDULED
                 </span>
-                {% elif meeting.status == 'COMPLETED' %}
+                {% elif meeting.status == 'ENDED' %}
                 <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-800 dark:bg-zinc-800 dark:text-zinc-300">
                     COMPLETED
                 </span>
@@ -37,9 +37,16 @@
                 </span>
                 {% endif %}
 
-                <span class="font-mono text-xs font-bold text-slate-500 dark:text-zinc-400 bg-slate-100 dark:bg-zinc-800/80 px-2 py-0.5 rounded">
-                    {{ meeting.meeting_code }}
-                </span>
+                <!-- Code pill with copy action -->
+                <button @click="navigator.clipboard.writeText('{{ meeting.meeting_code }}'); copied = true; setTimeout(() => copied = false, 2000)"
+                        class="inline-flex items-center space-x-1 font-mono text-xs font-bold text-slate-600 dark:text-zinc-300 bg-slate-100 dark:bg-zinc-800/80 px-2.5 py-0.5 rounded hover:bg-slate-200 dark:hover:bg-zinc-700 transition"
+                        title="Copy meeting code">
+                    <span>{{ meeting.meeting_code }}</span>
+                    <svg class="w-3 h-3 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                    </svg>
+                    <span x-show="copied" x-cloak class="text-[10px] text-emerald-500 font-bold ml-1">Copied!</span>
+                </button>
             </div>
 
             <h1 class="text-xl sm:text-2xl font-black text-slate-900 dark:text-zinc-50 tracking-tight">
@@ -57,7 +64,7 @@
 
         <!-- Action buttons -->
         <div class="flex items-center space-x-2.5 shrink-0">
-            {% if meeting.status in 'SCHEDULED,IN_PROGRESS' %}
+            {% if meeting.status in 'SCHEDULED,LIVE' %}
             <a href="{% url 'meetings:meeting_room' slug=workspace.slug meeting_code=meeting.meeting_code %}" 
                class="inline-flex items-center space-x-1.5 px-4 py-2 text-xs font-bold rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-500/20 transition">
                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -67,7 +74,7 @@
             </a>
             {% endif %}
 
-            {% if can_manage and meeting.status != 'COMPLETED' and meeting.status != 'CANCELLED' %}
+            {% if can_manage and meeting.status != 'ENDED' and meeting.status != 'CANCELLED' %}
             <a href="{% url 'meetings:meeting_edit' slug=workspace.slug meeting_code=meeting.meeting_code %}" 
                class="px-3.5 py-2 text-xs font-bold rounded-xl border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition">
                 Edit
@@ -102,7 +109,7 @@
             <div class="p-6 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] space-y-4">
                 <div class="flex items-center justify-between">
                     <h2 class="text-sm font-bold text-slate-900 dark:text-zinc-100">
-                        Participants ({{ total_participant_count }})
+                        Participants ({{ total_participant_count|default:participants|length }})
                     </h2>
                     <span class="text-xs text-slate-400 font-mono">Sessions recorded</span>
                 </div>
@@ -112,35 +119,41 @@
                     <table class="w-full text-left text-xs">
                         <thead>
                             <tr class="border-b border-slate-100 dark:border-zinc-800 text-slate-400 uppercase text-[10px]">
-                                <th class="pb-2 font-bold">User</th>
-                                <th class="pb-2 font-bold">Role</th>
-                                <th class="pb-2 font-bold">Joined At</th>
-                                <th class="pb-2 font-bold">Left At</th>
-                                <th class="pb-2 font-bold text-right">Status</th>
+                                <th class="pb-3 font-bold whitespace-nowrap">User</th>
+                                <th class="pb-3 px-3 font-bold whitespace-nowrap">Role</th>
+                                <th class="pb-3 px-3 font-bold whitespace-nowrap">Joined At</th>
+                                <th class="pb-3 px-3 font-bold whitespace-nowrap">Left At</th>
+                                <th class="pb-3 font-bold text-right whitespace-nowrap">Status</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100 dark:divide-zinc-800">
                             {% for p in participants %}
                             <tr>
-                                <td class="py-2.5 font-semibold text-slate-800 dark:text-zinc-200 flex items-center space-x-2">
-                                    <div class="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-950 text-blue-600 dark:text-blue-400 font-bold text-[10px] flex items-center justify-center shrink-0">
+                                <td class="py-3 font-semibold text-slate-800 dark:text-zinc-200 flex items-center space-x-2.5 whitespace-nowrap">
+                                    <div class="w-7 h-7 rounded-full bg-blue-100 dark:bg-blue-950 text-blue-600 dark:text-blue-400 font-bold text-xs flex items-center justify-center shrink-0">
                                         {{ p.user.first_name|default:p.user.username|slice:":1"|upper }}
                                     </div>
                                     <span>{{ p.user.get_full_name|default:p.user.username }}</span>
                                 </td>
-                                <td class="py-2.5 text-slate-500 dark:text-zinc-400">
-                                    {{ p.get_role_display }}
+                                <td class="py-3 px-3 text-slate-500 dark:text-zinc-400 whitespace-nowrap">
+                                    <span class="px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300">
+                                        {{ p.get_role_display }}
+                                    </span>
                                 </td>
-                                <td class="py-2.5 font-mono text-slate-500 dark:text-zinc-400">
+                                <td class="py-3 px-3 font-mono text-slate-500 dark:text-zinc-400 whitespace-nowrap">
                                     {{ p.joined_at|date:"g:i:s A" }}
                                 </td>
-                                <td class="py-2.5 font-mono text-slate-500 dark:text-zinc-400">
-                                    {% if p.left_at %}{{ p.left_at|date:"g:i:s A" }}{% else %}<span class="text-emerald-500 font-bold">Online</span>{% endif %}
+                                <td class="py-3 px-3 font-mono text-slate-500 dark:text-zinc-400 whitespace-nowrap">
+                                    {% if p.left_at %}
+                                        {{ p.left_at|date:"g:i:s A" }}
+                                    {% else %}
+                                        <span class="text-emerald-500 font-bold">Online</span>
+                                    {% endif %}
                                 </td>
-                                <td class="py-2.5 text-right">
-                                    {% if p.is_online %}
+                                <td class="py-3 text-right whitespace-nowrap">
+                                    {% if not p.left_at %}
                                     <span class="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-400">
-                                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
                                         <span>Active</span>
                                     </span>
                                     {% else %}
@@ -167,31 +180,31 @@
                 <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Session Specs</h3>
                 
                 <div class="divide-y divide-slate-100 dark:divide-zinc-800 text-xs">
-                    <div class="py-2 flex justify-between">
+                    <div class="py-2.5 flex justify-between items-center">
                         <span class="text-slate-500">Scheduled:</span>
                         <span class="font-semibold text-slate-800 dark:text-zinc-200">
-                            {{ meeting.scheduled_start_time|date:"M d, g:i A"|default:"Instant Session" }}
+                            {{ meeting.scheduled_start|date:"M d, g:i A"|default:"Instant Session" }}
                         </span>
                     </div>
-                    <div class="py-2 flex justify-between">
+                    <div class="py-2.5 flex justify-between items-center">
                         <span class="text-slate-500">Started:</span>
                         <span class="font-semibold text-slate-800 dark:text-zinc-200">
-                            {{ meeting.started_at|date:"g:i:s A"|default:"Not started" }}
+                            {{ meeting.actual_start|date:"g:i:s A"|default:"Not started" }}
                         </span>
                     </div>
-                    <div class="py-2 flex justify-between">
+                    <div class="py-2.5 flex justify-between items-center">
                         <span class="text-slate-500">Ended:</span>
                         <span class="font-semibold text-slate-800 dark:text-zinc-200">
-                            {{ meeting.ended_at|date:"g:i:s A"|default:"—" }}
+                            {{ meeting.actual_end|date:"g:i:s A"|default:"—" }}
                         </span>
                     </div>
-                    <div class="py-2 flex justify-between">
+                    <div class="py-2.5 flex justify-between items-center">
                         <span class="text-slate-500">Duration:</span>
                         <span class="font-semibold text-slate-800 dark:text-zinc-200">
-                            {% if meeting.duration_seconds %}{{ meeting.duration_seconds }}s{% else %}—{% endif %}
+                            {{ meeting.duration_display }}
                         </span>
                     </div>
-                    <div class="py-2 flex justify-between">
+                    <div class="py-2.5 flex justify-between items-center">
                         <span class="text-slate-500">Media Mode:</span>
                         <span class="font-semibold text-slate-800 dark:text-zinc-200">
                             {% if meeting.is_audio_only %}Audio Only 📞{% else %}Audio & Video 📹{% endif %}

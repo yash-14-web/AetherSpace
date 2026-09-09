@@ -362,10 +362,15 @@ def meeting_schedule_view(request, slug):
             }
         )
 
+    workspace_members = workspace.memberships.select_related('user').filter(
+        status='ACTIVE'
+    ).order_by('user__first_name', 'user__username')
+
     context = {
         'workspace': workspace,
         'membership': membership,
         'form': form,
+        'workspace_members': workspace_members,
     }
     return render(request, 'meetings/meeting_schedule.html', context)
 
@@ -393,6 +398,7 @@ def meeting_detail_view(request, slug, meeting_code):
         'membership': request.membership,
         'meeting': meeting,
         'participants': participants,
+        'total_participant_count': participants.count(),
         'invites': invites,
         'is_host': is_host,
     }
@@ -496,13 +502,19 @@ def meeting_history_view(request, slug):
     except (PageNotAnInteger, EmptyPage):
         page_obj = paginator.page(1)
 
+    total_meetings_count = meetings_qs.count()
+
     context = {
         'workspace': workspace,
         'membership': membership,
+        'meetings': page_obj,
         'page_obj': page_obj,
+        'total_meetings_count': total_meetings_count,
         'current_q': q,
         'current_type': m_type,
         'current_status': status_filter,
+        'meeting_types': MeetingType.choices,
+        'meeting_statuses': MeetingStatus.choices,
         'MeetingType': MeetingType,
         'MeetingStatus': MeetingStatus,
     }
