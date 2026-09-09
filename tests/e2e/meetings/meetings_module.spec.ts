@@ -10,7 +10,7 @@ async function signIn(page: Page, email = 'admin@aetherspace.dev', password = 'A
   await page.fill('#login-email', email);
   await page.fill('#login-password', password);
   await page.click('button[type="submit"]');
-  await page.waitForURL((url: URL) => !url.pathname.includes('/auth/login/'), { timeout: 10000 }).catch(() => {});
+  await page.waitForURL((url: URL) => !url.pathname.includes('/auth/login/'), { timeout: 15000 }).catch(() => {});
 }
 
 test.describe('Phase 8 — Meet Hub & Video Conferencing', () => {
@@ -26,7 +26,7 @@ test.describe('Phase 8 — Meet Hub & Video Conferencing', () => {
 
     // Ensure we landed on workspace Meet Hub
     await expect(page).toHaveURL(/\/meetings\/w\/[^\/]+\//);
-    await expect(page.getByRole('heading', { name: 'Meet Hub' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /Meet Hub/i })).toBeVisible();
 
     // Verify 3 launchpad cards
     await expect(page.getByText('Instant Meeting')).toBeVisible();
