@@ -3,7 +3,13 @@
 {% block title %}T-{{ task.task_code }} {{ task.title }} • {{ workspace.name }} — AetherSpace{% endblock %}
 
 {% block content %}
-<div class="space-y-6 max-w-6xl mx-auto" x-data="{ activeTab: (new URLSearchParams(window.location.search).get('tab') || '{{ initial_tab|default:'overview' }}'), showDeleteModal: false, showActionDropdown: false }">
+<div class="space-y-6 max-w-6xl mx-auto" x-data="{ 
+    activeTab: (new URLSearchParams(window.location.search).get('tab') || '{{ initial_tab|default:'overview' }}'), 
+    showDeleteModal: false, 
+    showActionDropdown: false,
+    subtaskCount: {{ subtasks|length }},
+    completedCount: {{ task.completed_subtask_count }}
+}">
     
     <!-- Top Action & Breadcrumb Header (Panel 3 Reference) -->
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-zinc-800 pb-4">
@@ -184,7 +190,7 @@
             <button @click="activeTab = 'subtasks'" 
                     :class="activeTab === 'subtasks' ? 'border-aether-blue text-aether-blue dark:text-sky-400' : 'border-transparent text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-300 hover:border-slate-300'"
                     class="py-3 px-1 border-b-2 font-bold text-xs sm:text-sm transition-colors">
-                Subtasks <span class="ml-1 px-1.5 py-0.5 rounded-full text-[10px] bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400">3</span>
+                Subtasks <span class="ml-1 px-1.5 py-0.5 rounded-full text-[10px] bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400" x-text="subtaskCount">{{ subtasks|length }}</span>
             </button>
             <button @click="activeTab = 'attachments'" 
                     :class="activeTab === 'attachments' ? 'border-aether-blue text-aether-blue dark:text-sky-400' : 'border-transparent text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-300 hover:border-slate-300'"
@@ -368,49 +374,128 @@
                 </div>
             </div>
 
-            <!-- Tab: SUBTASKS (Interactive with dynamic check & count) -->
+            <!-- Tab: SUBTASKS (Real Database Backed with AJAX Toggle, Creation & Delete) -->
             <div x-show="activeTab === 'subtasks'" style="display: none;" class="aether-card p-6 space-y-4"
                  x-data="{
-                    subtasks: JSON.parse(localStorage.getItem('task_subtasks_{{ task.task_code }}') || JSON.stringify([
-                        { id: 1, code: 'T-619348', title: 'Design login modal & registration flows', completed: true },
-                        { id: 2, code: 'T-619349', title: 'Configure session CSRF middleware', completed: true },
-                        { id: 3, code: 'T-619350', title: 'Integrate OAuth 2.0 social sign-in endpoints', completed: false }
-                    ])),
+                    subtasks: [
+                        {% for st in subtasks %}
+                        {
+                            id: '{{ st.id }}',
+                            title: '{{ st.title|escapejs }}',
+                            is_completed: {% if st.is_completed %}true{% else %}false{% endif %},
+                            order: {{ st.order }}
+                        }{% if not forloop.last %},{% endif %}
+                        {% endfor %}
+                    ],
                     newSubtaskTitle: '',
                     showAddSubtask: false,
-                    toggleSubtask(st) {
-                        st.completed = !st.completed;
-                        localStorage.setItem('task_subtasks_{{ task.task_code }}', JSON.stringify(this.subtasks));
+                    isSubmitting: false,
+                    get localCompletedCount() {
+                        return this.subtasks.filter(s => s.is_completed).length;
                     },
-                    addSubtask() {
-                        const trimmed = this.newSubtaskTitle.trim();
-                        if (!trimmed) return;
-                        const randCode = 'T-' + Math.floor(100000 + Math.random() * 900000);
-                        this.subtasks.push({ id: Date.now(), code: randCode, title: trimmed, completed: false });
-                        this.newSubtaskTitle = '';
-                        this.showAddSubtask = false;
-                        localStorage.setItem('task_subtasks_{{ task.task_code }}', JSON.stringify(this.subtasks));
-                    },
-                    get completedCount() {
-                        return this.subtasks.filter(s => s.completed).length;
-                    },
-                    get totalCount() {
+                    get localTotalCount() {
                         return this.subtasks.length;
                     },
                     get remainingCount() {
-                        return this.totalCount - this.completedCount;
+                        return this.localTotalCount - this.localCompletedCount;
+                    },
+                    get progressPercentage() {
+                        return this.localTotalCount === 0 ? 0 : Math.round((this.localCompletedCount / this.localTotalCount) * 100);
+                    },
+                    async toggleSubtask(st) {
+                        const originalState = st.is_completed;
+                        st.is_completed = !st.is_completed;
+                        completedCount = this.localCompletedCount;
+                        try {
+                            const url = '{% url 'tasks:subtask_toggle' slug=workspace.slug task_code=task.task_code subtask_id='00000000-0000-0000-0000-000000000000' %}'.replace('00000000-0000-0000-0000-000000000000', st.id);
+                            const resp = await fetch(url, {
+                                method: 'POST',
+                                headers: {
+                                    'X-CSRFToken': '{{ csrf_token }}',
+                                    'X-Requested-With': 'XMLHttpRequest'
+                                }
+                            });
+                            if (!resp.ok) {
+                                st.is_completed = originalState;
+                                completedCount = this.localCompletedCount;
+                            }
+                        } catch (err) {
+                            st.is_completed = originalState;
+                            completedCount = this.localCompletedCount;
+                        }
+                    },
+                    async addSubtask() {
+                        const trimmed = this.newSubtaskTitle.trim();
+                        if (!trimmed || this.isSubmitting) return;
+                        this.isSubmitting = true;
+                        try {
+                            const resp = await fetch('{% url 'tasks:subtask_create' slug=workspace.slug task_code=task.task_code %}', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-CSRFToken': '{{ csrf_token }}',
+                                    'X-Requested-With': 'XMLHttpRequest'
+                                },
+                                body: JSON.stringify({ title: trimmed })
+                            });
+                            const data = await resp.json();
+                            if (data.success && data.subtask) {
+                                this.subtasks.push(data.subtask);
+                                this.newSubtaskTitle = '';
+                                this.showAddSubtask = false;
+                                subtaskCount = this.subtasks.length;
+                                completedCount = this.localCompletedCount;
+                            }
+                        } catch (err) {
+                            console.error('Failed to create subtask', err);
+                        } finally {
+                            this.isSubmitting = false;
+                        }
+                    },
+                    async deleteSubtask(st, index) {
+                        if (!confirm(`Delete subtask '${st.title}'?`)) return;
+                        try {
+                            const url = '{% url 'tasks:subtask_delete' slug=workspace.slug task_code=task.task_code subtask_id='00000000-0000-0000-0000-000000000000' %}'.replace('00000000-0000-0000-0000-000000000000', st.id);
+                            const resp = await fetch(url, {
+                                method: 'POST',
+                                headers: {
+                                    'X-CSRFToken': '{{ csrf_token }}',
+                                    'X-Requested-With': 'XMLHttpRequest'
+                                }
+                            });
+                            if (resp.ok) {
+                                this.subtasks.splice(index, 1);
+                                subtaskCount = this.subtasks.length;
+                                completedCount = this.localCompletedCount;
+                            }
+                        } catch (err) {
+                            console.error('Failed to delete subtask', err);
+                        }
                     }
                  }">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <h3 class="text-sm font-bold text-slate-900 dark:text-zinc-100">Subtasks</h3>
-                        <p class="text-xs text-slate-500 dark:text-zinc-400" 
-                           x-text="`${completedCount} of ${totalCount} subtasks completed • ${remainingCount} remaining`"></p>
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h3 class="text-sm font-bold text-slate-900 dark:text-zinc-100">Subtasks</h3>
+                            <p class="text-xs text-slate-500 dark:text-zinc-400" 
+                               x-text="`${localCompletedCount} of ${localTotalCount} subtasks completed • ${remainingCount} remaining`">
+                               {{ task.completed_subtask_count }} of {{ task.subtask_count }} subtasks completed
+                            </p>
+                        </div>
+                        <button type="button" @click="showAddSubtask = !showAddSubtask" 
+                                class="inline-flex items-center space-x-1 text-xs font-bold text-aether-blue hover:underline">
+                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                            </svg>
+                            <span>Add Subtask</span>
+                        </button>
                     </div>
-                    <button type="button" @click="showAddSubtask = !showAddSubtask" 
-                            class="text-xs font-bold text-aether-blue hover:underline">
-                        + Add Subtask
-                    </button>
+
+                    <!-- Progress Bar -->
+                    <div class="w-full bg-slate-100 dark:bg-zinc-800 rounded-full h-1.5 overflow-hidden" x-show="localTotalCount > 0">
+                        <div class="bg-gradient-to-r from-blue-500 to-indigo-600 h-1.5 rounded-full transition-all duration-300"
+                             :style="`width: ${progressPercentage}%`"></div>
+                    </div>
                 </div>
 
                 <!-- Add Subtask Input -->
@@ -418,8 +503,8 @@
                     <input type="text" x-model="newSubtaskTitle" @keydown.enter.prevent="addSubtask()"
                            placeholder="Enter subtask title..." 
                            class="flex-1 px-3 py-1.5 text-xs rounded-lg bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 text-slate-800 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-aether-blue">
-                    <button type="button" @click="addSubtask()" 
-                            class="px-3 py-1.5 text-xs font-bold rounded-lg bg-aether-blue text-white hover:bg-blue-600 transition">
+                    <button type="button" @click="addSubtask()" :disabled="isSubmitting"
+                            class="px-3 py-1.5 text-xs font-bold rounded-lg bg-aether-blue text-white hover:bg-blue-600 transition disabled:opacity-50">
                         Add
                     </button>
                     <button type="button" @click="showAddSubtask = false" 
@@ -429,22 +514,36 @@
                 </div>
 
                 <!-- Subtasks list -->
-                <div class="space-y-2">
-                    <template x-for="st in subtasks" :key="st.id">
-                        <div class="flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-[#0c1322] hover:border-slate-300 dark:hover:border-zinc-700 transition">
+                <div class="space-y-2" x-show="localTotalCount > 0">
+                    <template x-for="(st, index) in subtasks" :key="st.id">
+                        <div class="flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-[#0c1322] hover:border-slate-300 dark:hover:border-zinc-700 transition group">
                             <label class="flex items-center space-x-3 flex-1 cursor-pointer select-none">
                                 <input type="checkbox" 
-                                       :checked="st.completed" 
+                                       :checked="st.is_completed" 
                                        @change="toggleSubtask(st)"
                                        class="rounded border-slate-300 dark:border-zinc-700 text-aether-blue focus:ring-aether-blue cursor-pointer">
                                 <span class="text-xs transition" 
-                                      :class="st.completed ? 'text-slate-400 dark:text-zinc-500 line-through' : 'text-slate-800 dark:text-zinc-200 font-medium'"
+                                      :class="st.is_completed ? 'text-slate-400 dark:text-zinc-500 line-through' : 'text-slate-800 dark:text-zinc-200 font-medium'"
                                       x-text="st.title">
                                 </span>
                             </label>
-                            <span class="text-[11px] font-mono text-slate-400" x-text="st.code"></span>
+                            <button type="button" @click="deleteSubtask(st, index)"
+                                    title="Delete subtask"
+                                    class="text-slate-400 hover:text-rose-500 p-1 opacity-0 group-hover:opacity-100 transition">
+                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                </svg>
+                            </button>
                         </div>
                     </template>
+                </div>
+
+                <!-- Empty State -->
+                <div x-show="localTotalCount === 0" class="text-center py-8 border border-dashed border-slate-200 dark:border-zinc-800 rounded-xl space-y-2">
+                    <p class="text-xs text-slate-500 dark:text-zinc-400">No subtasks defined for this task yet.</p>
+                    <button type="button" @click="showAddSubtask = true" class="text-xs font-bold text-aether-blue hover:underline">
+                        + Add First Subtask
+                    </button>
                 </div>
             </div>
 
@@ -748,6 +847,19 @@
                     <span class="text-slate-800 dark:text-zinc-200 font-medium">
                         12 hrs logged
                     </span>
+                </div>
+
+                <!-- Subtasks -->
+                <div class="flex items-center justify-between text-xs">
+                    <span class="text-slate-500 dark:text-zinc-400 font-medium">Subtasks</span>
+                    <button type="button" @click="activeTab = 'subtasks'" class="inline-flex items-center space-x-1 font-bold text-aether-blue hover:underline">
+                        <span x-text="`${completedCount}/${subtaskCount} completed`">
+                            {{ task.completed_subtask_count }}/{{ task.subtask_count }} completed
+                        </span>
+                        <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                        </svg>
+                    </button>
                 </div>
 
                 <!-- Linked Defects -->

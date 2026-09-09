@@ -158,3 +158,126 @@ def change_task_status(task: Task, actor, new_status: str) -> Task:
     if new_status not in dict(TaskStatus.choices):
         raise ValueError(f"Invalid status '{new_status}'")
     return update_task(task, actor, status=new_status)
+
+
+@transaction.atomic
+def sync_subtasks(task: Task, subtasks_data: list, actor=None) -> list:
+    """
+    Synchronize subtasks for a task from an ordered list of dicts:
+    [{ 'id': '...', 'title': '...', 'is_completed': False }, ...]
+    Creates new subtasks, updates existing ones, and removes unreferenced ones.
+    """
+    from .models import Subtask
+    existing_subtasks = {str(st.id): st for st in task.subtasks.all()}
+    kept_ids = set()
+    result = []
+
+    for index, item in enumerate(subtasks_data):
+        title = item.get('title', '').strip()
+        if not title:
+            continue
+
+        raw_id = str(item.get('id', '')).strip()
+        is_completed = bool(item.get('is_completed', False))
+
+        if raw_id in existing_subtasks:
+            # Update existing
+            st = existing_subtasks[raw_id]
+            st.title = title
+            st.is_completed = is_completed
+            st.order = index
+            st.save(update_fields=['title', 'is_completed', 'order', 'updated_at'])
+            kept_ids.add(raw_id)
+            result.append(st)
+        else:
+            # Create new
+            st = Subtask.objects.create(
+                task=task,
+                title=title,
+                is_completed=is_completed,
+                order=index
+            )
+            kept_ids.add(str(st.id))
+            result.append(st)
+
+    # Delete removed subtasks
+    to_delete = [st for st_id, st in existing_subtasks.items() if st_id not in kept_ids]
+    if to_delete:
+        Subtask.objects.filter(id__in=[st.id for st in to_delete]).delete()
+
+    return result
+
+
+@transaction.atomic
+def create_subtask(task: Task, title: str, is_completed: bool = False, actor=None):
+    """
+    Create a single subtask on a task and optionally log TaskActivity.
+    """
+    from .models import Subtask
+    title = title.strip()
+    if not title:
+        raise ValueError("Subtask title cannot be blank.")
+
+    next_order = task.subtasks.count()
+    subtask = Subtask.objects.create(
+        task=task,
+        title=title,
+        is_completed=is_completed,
+        order=next_order
+    )
+
+    if actor:
+        TaskActivity.objects.create(
+            task=task,
+            actor=actor,
+            action=TaskActivity.Action.UPDATED,
+            new_value=title,
+            message=f"Added subtask: '{title}'"
+        )
+
+    return subtask
+
+
+@transaction.atomic
+def toggle_subtask(task: Task, subtask_id, actor=None):
+    """
+    Toggle subtask completion status.
+    """
+    from .models import Subtask
+    subtask = task.subtasks.get(id=subtask_id)
+    subtask.is_completed = not subtask.is_completed
+    subtask.save(update_fields=['is_completed', 'updated_at'])
+
+    if actor:
+        status_text = "completed" if subtask.is_completed else "reopened"
+        TaskActivity.objects.create(
+            task=task,
+            actor=actor,
+            action=TaskActivity.Action.UPDATED,
+            new_value=str(subtask.is_completed),
+            message=f"Marked subtask '{subtask.title}' as {status_text}."
+        )
+
+    return subtask
+
+
+@transaction.atomic
+def delete_subtask(task: Task, subtask_id, actor=None):
+    """
+    Delete a subtask from a task.
+    """
+    from .models import Subtask
+    subtask = task.subtasks.get(id=subtask_id)
+    title = subtask.title
+    subtask.delete()
+
+    if actor:
+        TaskActivity.objects.create(
+            task=task,
+            actor=actor,
+            action=TaskActivity.Action.UPDATED,
+            new_value="",
+            message=f"Deleted subtask: '{title}'"
+        )
+    return True
+

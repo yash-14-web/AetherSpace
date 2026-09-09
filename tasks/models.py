@@ -96,6 +96,46 @@ class Task(models.Model):
             return self.due_date < timezone.now().date()
         return False
 
+    @property
+    def subtask_count(self):
+        return self.subtasks.count()
+
+    @property
+    def completed_subtask_count(self):
+        return self.subtasks.filter(is_completed=True).count()
+
+    @property
+    def subtask_progress_percentage(self):
+        total = self.subtask_count
+        if total == 0:
+            return 0
+        return int(round((self.completed_subtask_count / total) * 100))
+
+
+class Subtask(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    task = models.ForeignKey(
+        Task,
+        on_delete=models.CASCADE,
+        related_name='subtasks'
+    )
+    title = models.CharField(max_length=255)
+    is_completed = models.BooleanField(default=False, db_index=True)
+    order = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['order', 'created_at']
+        indexes = [
+            models.Index(fields=['task', 'order']),
+            models.Index(fields=['task', 'is_completed']),
+        ]
+
+    def __str__(self):
+        status = "[x]" if self.is_completed else "[ ]"
+        return f"{status} {self.title} (#{self.task.task_code})"
+
 
 class TaskActivity(models.Model):
     class Action(models.TextChoices):

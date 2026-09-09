@@ -9,9 +9,12 @@ from django.utils import timezone
 
 from workspaces.permissions import workspace_member_required
 from workspaces.models import Workspace, WorkspaceMembership, MembershipStatus, WorkspaceRole
-from .models import Task, TaskActivity, TaskComment, TaskStatus, TaskPriority
+from .models import Task, TaskActivity, TaskComment, TaskStatus, TaskPriority, Subtask
 from .forms import TaskForm, TaskFilterForm
-from .services import create_task, update_task, change_task_status
+from .services import (
+    create_task, update_task, change_task_status,
+    sync_subtasks, create_subtask, toggle_subtask, delete_subtask
+)
 
 
 @workspace_member_required
@@ -208,6 +211,17 @@ def task_create_view(request, slug):
                 sprint=form.cleaned_data.get('sprint', 'Sprint 01'),
                 tags=form.cleaned_data.get('tags', '')
             )
+            # Sync subtasks if submitted
+            raw_subtasks = request.POST.get('subtasks_json', '').strip()
+            if raw_subtasks:
+                try:
+                    import json
+                    subtasks_data = json.loads(raw_subtasks)
+                    if isinstance(subtasks_data, list):
+                        sync_subtasks(task, subtasks_data, actor=request.user)
+                except (ValueError, TypeError):
+                    pass
+
             messages.success(request, f"Task #{task.task_code} was successfully created.")
             return redirect('tasks:task_detail', slug=workspace.slug, task_code=task.task_code)
     else:
@@ -221,6 +235,7 @@ def task_create_view(request, slug):
         'membership': membership,
         'form': form,
         'is_create': True,
+        'existing_subtasks_json': '[]',
     }
     return render(request, 'tasks/task_form.html', context)
 
@@ -229,7 +244,7 @@ def task_create_view(request, slug):
 def task_detail_view(request, slug, task_code):
     """
     Detailed task view featuring metadata sidebar, description, status dropdown,
-    and chronological TaskActivity audit timeline.
+    subtasks list, and chronological TaskActivity audit timeline.
     """
     workspace = request.workspace
     membership = request.membership
@@ -237,7 +252,7 @@ def task_detail_view(request, slug, task_code):
     # Clean leading '#' if provided
     clean_code = task_code.lstrip('#')
     task = get_object_or_404(
-        Task.objects.select_related('workspace', 'assignee', 'reporter'),
+        Task.objects.select_related('workspace', 'assignee', 'reporter').prefetch_related('subtasks'),
         workspace=workspace,
         task_code=clean_code
     )
@@ -245,11 +260,13 @@ def task_detail_view(request, slug, task_code):
     activities = task.activities.select_related('actor').order_by('-created_at')
     comments = task.comments.select_related('author').order_by('created_at')
     related_bugs = task.bugs.select_related('assignee', 'module').order_by('-created_at')
+    subtasks = task.subtasks.all()
 
     context = {
         'workspace': workspace,
         'membership': membership,
         'task': task,
+        'subtasks': subtasks,
         'activities': activities,
         'comments': comments,
         'related_bugs': related_bugs,
@@ -263,14 +280,15 @@ def task_detail_view(request, slug, task_code):
 @workspace_member_required
 def task_edit_view(request, slug, task_code):
     """
-    Edit task view: modifies attributes, records granular activity logs.
+    Edit task view: modifies attributes, records granular activity logs,
+    and synchronizes subtasks.
     """
     workspace = request.workspace
     membership = request.membership
 
     clean_code = task_code.lstrip('#')
     task = get_object_or_404(
-        Task.objects.select_related('workspace', 'assignee', 'reporter'),
+        Task.objects.select_related('workspace', 'assignee', 'reporter').prefetch_related('subtasks'),
         workspace=workspace,
         task_code=clean_code
     )
@@ -291,10 +309,27 @@ def task_edit_view(request, slug, task_code):
                 sprint=form.cleaned_data.get('sprint', 'Sprint 01'),
                 tags=form.cleaned_data.get('tags', '')
             )
+            # Sync subtasks if submitted
+            raw_subtasks = request.POST.get('subtasks_json', '').strip()
+            if raw_subtasks is not None and raw_subtasks != '':
+                try:
+                    import json
+                    subtasks_data = json.loads(raw_subtasks)
+                    if isinstance(subtasks_data, list):
+                        sync_subtasks(task, subtasks_data, actor=request.user)
+                except (ValueError, TypeError):
+                    pass
+
             messages.success(request, f"Task #{task.task_code} was successfully updated.")
             return redirect('tasks:task_detail', slug=workspace.slug, task_code=task.task_code)
     else:
         form = TaskForm(instance=task, workspace=workspace)
+
+    import json
+    existing_subtasks = [
+        {'id': str(st.id), 'title': st.title, 'is_completed': st.is_completed, 'order': st.order}
+        for st in task.subtasks.all()
+    ]
 
     context = {
         'workspace': workspace,
@@ -302,6 +337,7 @@ def task_edit_view(request, slug, task_code):
         'task': task,
         'form': form,
         'is_create': False,
+        'existing_subtasks_json': json.dumps(existing_subtasks),
     }
     return render(request, 'tasks/task_form.html', context)
 
@@ -530,4 +566,112 @@ def task_comment_delete_view(request, slug, task_code, comment_id):
         messages.success(request, "Comment removed.")
 
     return redirect(f"{reverse('tasks:task_detail', kwargs={'slug': slug, 'task_code': task.task_code})}?tab=comments")
+
+
+@workspace_member_required
+def subtask_create_view(request, slug, task_code):
+    """
+    Create a new subtask under the given task.
+    Supports both JSON/AJAX and traditional POST.
+    """
+    if request.method != 'POST':
+        return HttpResponseBadRequest("POST required")
+
+    workspace = request.workspace
+    clean_code = task_code.lstrip('#').replace('T-', '').replace('t-', '')
+    task = get_object_or_404(Task, workspace=workspace, task_code=clean_code)
+
+    title = ''
+    if request.content_type == 'application/json':
+        try:
+            import json
+            data = json.loads(request.body)
+            title = data.get('title', '').strip()
+        except (ValueError, TypeError):
+            title = ''
+    else:
+        title = request.POST.get('title', '').strip()
+
+    if not title:
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.content_type == 'application/json':
+            return JsonResponse({'success': False, 'error': 'Title is required'}, status=400)
+        messages.error(request, "Subtask title cannot be empty.")
+        return redirect(f"{reverse('tasks:task_detail', kwargs={'slug': slug, 'task_code': task.task_code})}?tab=subtasks")
+
+    st = create_subtask(task=task, title=title, actor=request.user)
+
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.content_type == 'application/json':
+        return JsonResponse({
+            'success': True,
+            'subtask': {
+                'id': str(st.id),
+                'title': st.title,
+                'is_completed': st.is_completed,
+                'order': st.order,
+            },
+            'total_count': task.subtask_count,
+            'completed_count': task.completed_subtask_count,
+            'progress_percentage': task.subtask_progress_percentage,
+        })
+
+    messages.success(request, f"Added subtask '{st.title}'.")
+    return redirect(f"{reverse('tasks:task_detail', kwargs={'slug': slug, 'task_code': task.task_code})}?tab=subtasks")
+
+
+@workspace_member_required
+def subtask_toggle_view(request, slug, task_code, subtask_id):
+    """
+    Toggle completion status of a subtask.
+    Returns updated progress metrics for real-time UI updates.
+    """
+    if request.method != 'POST':
+        return HttpResponseBadRequest("POST required")
+
+    workspace = request.workspace
+    clean_code = task_code.lstrip('#').replace('T-', '').replace('t-', '')
+    task = get_object_or_404(Task, workspace=workspace, task_code=clean_code)
+    st = get_object_or_404(Subtask, id=subtask_id, task=task)
+
+    st = toggle_subtask(task=task, subtask_id=subtask_id, actor=request.user)
+
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.content_type == 'application/json' or request.GET.get('format') == 'json':
+        return JsonResponse({
+            'success': True,
+            'subtask_id': str(st.id),
+            'is_completed': st.is_completed,
+            'total_count': task.subtask_count,
+            'completed_count': task.completed_subtask_count,
+            'progress_percentage': task.subtask_progress_percentage,
+        })
+
+    return redirect(f"{reverse('tasks:task_detail', kwargs={'slug': slug, 'task_code': task.task_code})}?tab=subtasks")
+
+
+@workspace_member_required
+def subtask_delete_view(request, slug, task_code, subtask_id):
+    """
+    Delete a subtask.
+    """
+    if request.method != 'POST':
+        return HttpResponseBadRequest("POST required")
+
+    workspace = request.workspace
+    clean_code = task_code.lstrip('#').replace('T-', '').replace('t-', '')
+    task = get_object_or_404(Task, workspace=workspace, task_code=clean_code)
+    st = get_object_or_404(Subtask, id=subtask_id, task=task)
+
+    delete_subtask(task=task, subtask_id=subtask_id, actor=request.user)
+
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.content_type == 'application/json' or request.GET.get('format') == 'json':
+        return JsonResponse({
+            'success': True,
+            'subtask_id': str(subtask_id),
+            'total_count': task.subtask_count,
+            'completed_count': task.completed_subtask_count,
+            'progress_percentage': task.subtask_progress_percentage,
+        })
+
+    messages.success(request, "Subtask deleted.")
+    return redirect(f"{reverse('tasks:task_detail', kwargs={'slug': slug, 'task_code': task.task_code})}?tab=subtasks")
+
 

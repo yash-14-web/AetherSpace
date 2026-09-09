@@ -19,4 +19,10 @@ urlpatterns = [
     path('w/<slug:slug>/<str:task_code>/delete/', views.task_delete_view, name='task_delete'),
     path('w/<slug:slug>/<str:task_code>/comment/', views.task_comment_add_view, name='task_comment_add'),
     path('w/<slug:slug>/<str:task_code>/comment/<uuid:comment_id>/delete/', views.task_comment_delete_view, name='task_comment_delete'),
+
+    # Subtask endpoints
+    path('w/<slug:slug>/<str:task_code>/subtasks/create/', views.subtask_create_view, name='subtask_create'),
+    path('w/<slug:slug>/<str:task_code>/subtasks/<uuid:subtask_id>/toggle/', views.subtask_toggle_view, name='subtask_toggle'),
+    path('w/<slug:slug>/<str:task_code>/subtasks/<uuid:subtask_id>/delete/', views.subtask_delete_view, name='subtask_delete'),
 ]
+

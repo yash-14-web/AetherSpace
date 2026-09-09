@@ -352,3 +352,117 @@ class TaskManagementTests(TestCase):
         self.assertEqual(task.tags, "Frontend, Auth")
         self.assertEqual(task.display_code, f"T-{task.task_code}")
 
+    def test_subtask_creation_and_sync(self):
+        """Test creating and synchronizing subtasks on a task."""
+        from .models import Subtask
+        from .services import sync_subtasks
+
+        task = create_task(self.workspace, self.alice, "Task with Subtasks")
+        subtasks_data = [
+            {'id': 'temp_1', 'title': 'Design Database Schema', 'is_completed': True},
+            {'id': 'temp_2', 'title': 'Build API Views', 'is_completed': False},
+            {'id': 'temp_3', 'title': 'Write Unit Tests', 'is_completed': False},
+        ]
+        created = sync_subtasks(task, subtasks_data, actor=self.alice)
+        self.assertEqual(len(created), 3)
+        self.assertEqual(task.subtask_count, 3)
+        self.assertEqual(task.completed_subtask_count, 1)
+        self.assertEqual(task.subtask_progress_percentage, 33)
+
+        # Re-sync: update title of first, remove third, add fourth
+        updated_data = [
+            {'id': str(created[0].id), 'title': 'Design Database Schema (Done)', 'is_completed': True},
+            {'id': str(created[1].id), 'title': 'Build API Views', 'is_completed': True},
+            {'id': 'temp_4', 'title': 'Deploy to Staging', 'is_completed': False},
+        ]
+        synced = sync_subtasks(task, updated_data, actor=self.alice)
+        self.assertEqual(len(synced), 3)
+        self.assertEqual(task.subtask_count, 3)
+        self.assertEqual(task.completed_subtask_count, 2)
+        self.assertEqual(task.subtask_progress_percentage, 67)
+        self.assertFalse(Subtask.objects.filter(title='Write Unit Tests').exists())
+
+    def test_subtask_toggle_service_and_endpoint(self):
+        """Test toggling a subtask via service and via AJAX endpoint."""
+        import json
+        from .services import create_subtask
+
+        task = create_task(self.workspace, self.alice, "Toggle Subtask Task")
+        st = create_subtask(task, "Check responsive layout", is_completed=False, actor=self.alice)
+        self.assertFalse(st.is_completed)
+
+        self.client.login(email="alice.tasks@aetherspace.dev", password=self.password)
+        toggle_url = reverse('tasks:subtask_toggle', kwargs={
+            'slug': self.workspace.slug,
+            'task_code': task.task_code,
+            'subtask_id': st.id
+        })
+        resp = self.client.post(toggle_url, HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertTrue(data['success'])
+        self.assertTrue(data['is_completed'])
+        self.assertEqual(data['completed_count'], 1)
+
+        st.refresh_from_db()
+        self.assertTrue(st.is_completed)
+
+    def test_task_create_view_with_subtasks_payload(self):
+        """Test that task_create_view persists subtasks submitted as subtasks_json."""
+        import json
+        self.client.login(email="alice.tasks@aetherspace.dev", password=self.password)
+
+        create_url = reverse('tasks:task_create', kwargs={'slug': self.workspace.slug})
+        subtasks_json = json.dumps([
+            {'title': 'Write specification doc', 'is_completed': True},
+            {'title': 'Review code with peer', 'is_completed': False},
+        ])
+        post_data = {
+            'title': 'Feature: WebRTC Screen Sharing',
+            'description': 'Peer to peer video and audio sharing',
+            'status': TaskStatus.TODO,
+            'priority': TaskPriority.HIGH,
+            'subtasks_json': subtasks_json
+        }
+
+        resp = self.client.post(create_url, data=post_data)
+        self.assertEqual(resp.status_code, 302)
+
+        task = Task.objects.filter(workspace=self.workspace, title='Feature: WebRTC Screen Sharing').first()
+        self.assertIsNotNone(task)
+        self.assertEqual(task.subtask_count, 2)
+        self.assertEqual(task.completed_subtask_count, 1)
+
+    def test_subtask_create_and_delete_ajax_endpoints(self):
+        """Test AJAX creation and deletion of subtasks on the task detail page."""
+        import json
+        self.client.login(email="alice.tasks@aetherspace.dev", password=self.password)
+        task = create_task(self.workspace, self.alice, "Detail Subtasks Task")
+
+        create_url = reverse('tasks:subtask_create', kwargs={'slug': self.workspace.slug, 'task_code': task.task_code})
+        resp = self.client.post(
+            create_url,
+            data=json.dumps({'title': 'Inline added subtask'}),
+            content_type='application/json',
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest'
+        )
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertTrue(data['success'])
+        st_id = data['subtask']['id']
+        self.assertEqual(task.subtask_count, 1)
+
+        # Now delete it
+        del_url = reverse('tasks:subtask_delete', kwargs={
+            'slug': self.workspace.slug,
+            'task_code': task.task_code,
+            'subtask_id': st_id
+        })
+        resp_del = self.client.post(del_url, HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        self.assertEqual(resp_del.status_code, 200)
+        del_data = resp_del.json()
+        self.assertTrue(del_data['success'])
+        self.assertEqual(del_data['total_count'], 0)
+        self.assertEqual(task.subtask_count, 0)
+
+

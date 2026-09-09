@@ -128,26 +128,89 @@
                     </p>
                 </div>
 
-                <!-- Subtasks Section (Mockup alignment) -->
-                <div class="aether-card p-6 space-y-4">
+                <!-- Subtasks Section (Dynamic & Database Backed) -->
+                <div class="aether-card p-6 space-y-4"
+                     x-data="{
+                         subtasks: {{ existing_subtasks_json|default:'[]'|safe }},
+                         newTitle: '',
+                         addSubtask() {
+                             const trimmed = this.newTitle.trim();
+                             if (!trimmed) return;
+                             this.subtasks.push({
+                                 id: 'temp_' + Date.now(),
+                                 title: trimmed,
+                                 is_completed: false
+                             });
+                             this.newTitle = '';
+                         },
+                         removeSubtask(index) {
+                             this.subtasks.splice(index, 1);
+                         }
+                     }">
+                    <!-- Hidden field carrying JSON payload on submit -->
+                    <input type="hidden" name="subtasks_json" :value="JSON.stringify(subtasks)">
+
                     <div class="flex items-center justify-between">
-                        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500">
-                            Subtasks
-                        </h3>
-                        <span class="text-xs text-slate-400 dark:text-zinc-500">Optional breakdown</span>
+                        <div>
+                            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500">
+                                Subtasks
+                            </h3>
+                            <p class="text-[11px] text-slate-500 dark:text-zinc-400 mt-0.5">
+                                Break down this task into smaller executable checklist items.
+                            </p>
+                        </div>
+                        <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400"
+                              x-show="subtasks.length > 0"
+                              x-text="`${subtasks.filter(s => s.is_completed).length}/${subtasks.length} completed`"></span>
                     </div>
 
-                    <div class="space-y-2">
-                        <div class="flex items-center space-x-3 p-2.5 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-[#0c1322]">
-                            <span class="w-2 h-2 rounded-full bg-slate-400"></span>
-                            <span class="text-xs text-slate-600 dark:text-zinc-400 flex-1">Database schema definition & migrations</span>
-                            <span class="text-[10px] text-slate-400">Phase 1</span>
+                    <!-- Add subtask input -->
+                    <div class="flex items-center gap-2">
+                        <div class="relative flex-1">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                                </svg>
+                            </div>
+                            <input type="text"
+                                   x-model="newTitle"
+                                   @keydown.enter.prevent="addSubtask()"
+                                   placeholder="Add a subtask (press Enter)..."
+                                   class="w-full pl-9 pr-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-aether-blue">
                         </div>
-                        <div class="flex items-center space-x-3 p-2.5 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-[#0c1322]">
-                            <span class="w-2 h-2 rounded-full bg-slate-400"></span>
-                            <span class="text-xs text-slate-600 dark:text-zinc-400 flex-1">API endpoints & serializer integration</span>
-                            <span class="text-[10px] text-slate-400">Phase 2</span>
-                        </div>
+                        <button type="button"
+                                @click="addSubtask()"
+                                class="px-3.5 py-2 text-xs font-bold rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 transition shrink-0">
+                            Add
+                        </button>
+                    </div>
+
+                    <!-- Subtasks list -->
+                    <div class="space-y-2" x-show="subtasks.length > 0">
+                        <template x-for="(st, index) in subtasks" :key="st.id || index">
+                            <div class="flex items-center space-x-3 p-2.5 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-[#0c1322] group hover:border-slate-300 dark:hover:border-zinc-700 transition">
+                                <input type="checkbox"
+                                       x-model="st.is_completed"
+                                       class="w-4 h-4 rounded text-aether-blue focus:ring-aether-blue bg-white dark:bg-zinc-900 border-slate-300 dark:border-zinc-700 cursor-pointer">
+                                <input type="text"
+                                       x-model="st.title"
+                                       class="text-xs bg-transparent border-none focus:outline-none focus:ring-0 flex-1 text-slate-800 dark:text-zinc-200"
+                                       :class="st.is_completed ? 'line-through text-slate-400 dark:text-zinc-500' : ''">
+                                <button type="button"
+                                        @click="removeSubtask(index)"
+                                        title="Remove subtask"
+                                        class="text-slate-400 hover:text-rose-500 p-1 opacity-0 group-hover:opacity-100 transition">
+                                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                    </svg>
+                                </button>
+                            </div>
+                        </template>
+                    </div>
+
+                    <!-- Empty state -->
+                    <div x-show="subtasks.length === 0" class="text-center py-4 border border-dashed border-slate-200 dark:border-zinc-800 rounded-xl">
+                        <p class="text-xs text-slate-400 dark:text-zinc-500">No subtasks added yet. Break this task into smaller steps above.</p>
                     </div>
                 </div>
 

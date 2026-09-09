@@ -204,6 +204,16 @@
                                             </span>
                                         {% endif %}
 
+                                        <!-- Subtasks progress badge -->
+                                        {% if task.subtask_count > 0 %}
+                                            <span class="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400" title="{{ task.completed_subtask_count }} of {{ task.subtask_count }} subtasks completed">
+                                                <svg class="w-2.5 h-2.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                </svg>
+                                                <span>{{ task.completed_subtask_count }}/{{ task.subtask_count }}</span>
+                                            </span>
+                                        {% endif %}
+
                                         <!-- Assignee Profile Pic -->
                                         {% if task.assignee %}
                                             {% if task.assignee.avatar %}
