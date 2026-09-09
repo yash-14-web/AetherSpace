@@ -15,7 +15,7 @@
                     {{ workspace.name|slice:":2"|upper }}
                 </div>
                 <span class="text-xs font-bold text-slate-900 dark:text-zinc-100">{{ workspace.name }}</span>
-                <span class="text-slate-400">/</span>
+                <span class="text-slate-300 dark:text-zinc-700">/</span>
                 <span class="text-xs font-semibold text-blue-600 dark:text-blue-400">Meet Hub</span>
             </div>
             
@@ -30,7 +30,7 @@
         <!-- Right: Actions -->
         <div class="flex items-center space-x-2.5 w-full lg:w-auto">
             <a href="{% url 'meetings:meeting_join' slug=workspace.slug %}" 
-               class="inline-flex items-center space-x-1.5 px-3.5 py-2 text-xs font-bold rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] text-slate-700 dark:text-zinc-200 hover:border-blue-500 hover:text-blue-600 transition">
+               class="inline-flex items-center space-x-1.5 px-3.5 py-2 text-xs font-bold rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] text-slate-700 dark:text-zinc-200 hover:border-blue-500 hover:text-blue-600 shadow-2xs transition">
                 <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/>
                 </svg>
@@ -38,7 +38,7 @@
             </a>
 
             <a href="{% url 'meetings:meeting_history' slug=workspace.slug %}" 
-               class="p-2 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] text-slate-600 dark:text-zinc-400 hover:text-blue-600 transition"
+               class="p-2 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] text-slate-600 dark:text-zinc-400 hover:text-blue-600 shadow-2xs transition"
                title="Meeting History & Logs">
                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
@@ -46,7 +46,7 @@
             </a>
 
             <a href="{% url 'meetings:meeting_schedule' slug=workspace.slug %}" 
-               class="inline-flex items-center space-x-1.5 px-3.5 py-2 text-xs font-bold rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] text-slate-700 dark:text-zinc-200 hover:border-blue-500 hover:text-blue-600 transition">
+               class="inline-flex items-center space-x-1.5 px-3.5 py-2 text-xs font-bold rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] text-slate-700 dark:text-zinc-200 hover:border-blue-500 hover:text-blue-600 shadow-2xs transition">
                 <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
                 </svg>
@@ -68,7 +68,7 @@
         <div>
             <h1 class="text-xl sm:text-2xl font-black text-slate-900 dark:text-zinc-50 tracking-tight flex items-center gap-2">
                 <span>Meet Hub</span>
-                <span class="text-xs font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-400">Jitsi & WebRTC</span>
+                <span class="text-xs font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/50 dark:text-blue-400 dark:border-blue-900">Jitsi & WebRTC</span>
             </h1>
             <p class="text-xs text-slate-500 dark:text-zinc-400 mt-1">
                 Zero-install HD video conferencing, standups, audio calls, and workspace screen sharing.
@@ -76,14 +76,14 @@
         </div>
         <div class="flex items-center space-x-2">
             <span class="text-xs text-slate-500 dark:text-zinc-400">Server:</span>
-            <span class="text-xs font-mono font-bold text-slate-700 dark:text-zinc-300 px-2 py-0.5 rounded bg-slate-100 dark:bg-zinc-800/80">meet.jit.si (Encrypted)</span>
+            <span class="text-xs font-mono font-bold text-slate-700 dark:text-zinc-300 px-2 py-0.5 rounded bg-slate-100 dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700">meet.jit.si (Encrypted)</span>
         </div>
     </div>
 
     <!-- Quick Action Launchpad (3 interactive cards) -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <!-- Card 1: Start Instant Meeting -->
-        <div class="p-5 rounded-2xl border border-blue-200 dark:border-blue-900/40 bg-gradient-to-br from-blue-50/50 to-indigo-50/30 dark:from-blue-950/20 dark:to-indigo-950/10 flex flex-col justify-between">
+        <div class="p-5 rounded-2xl border border-blue-200 dark:border-blue-900/40 bg-gradient-to-br from-blue-50/70 to-indigo-50/40 dark:from-blue-950/20 dark:to-indigo-950/10 shadow-sm flex flex-col justify-between">
             <div>
                 <div class="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center mb-3 shadow-md shadow-blue-500/20">
                     <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -93,16 +93,16 @@
                 <h3 class="text-sm font-bold text-slate-900 dark:text-zinc-100">Instant Meeting</h3>
                 <p class="text-xs text-slate-600 dark:text-zinc-400 mt-1">Spin up an instant private room with audio, video, and screen sharing.</p>
             </div>
-            <div class="mt-4 pt-3 border-t border-blue-100 dark:border-blue-900/30">
+            <div class="mt-4 pt-3 border-t border-blue-200/60 dark:border-blue-900/30">
                 <a href="{% url 'meetings:meeting_start' slug=workspace.slug %}" 
-                   class="inline-flex items-center justify-center w-full px-3 py-2 text-xs font-bold rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition">
+                   class="inline-flex items-center justify-center w-full px-3 py-2 text-xs font-bold rounded-xl bg-blue-600 text-white hover:bg-blue-700 shadow-sm transition">
                     Start Room Now →
                 </a>
             </div>
         </div>
 
         <!-- Card 2: Quick Join by Code -->
-        <div class="p-5 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] flex flex-col justify-between">
+        <div class="p-5 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] shadow-sm flex flex-col justify-between">
             <div>
                 <div class="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center mb-3 shadow-md shadow-emerald-500/20">
                     <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -110,20 +110,20 @@
                     </svg>
                 </div>
                 <h3 class="text-sm font-bold text-slate-900 dark:text-zinc-100">Join by Code</h3>
-                <p class="text-xs text-slate-600 dark:text-zinc-400 mt-1">Enter a meeting code formatted as <code class="font-mono text-emerald-600 dark:text-emerald-400">meet-xxxx-xxxx</code>.</p>
+                <p class="text-xs text-slate-600 dark:text-zinc-400 mt-1">Enter a meeting code formatted as <code class="font-mono font-bold text-emerald-600 dark:text-emerald-400">meet-xxxx-xxxx</code>.</p>
             </div>
             <form method="post" action="{% url 'meetings:meeting_join' slug=workspace.slug %}" class="mt-4 pt-3 border-t border-slate-100 dark:border-zinc-800 flex gap-2">
                 {% csrf_token %}
                 <input type="text" name="meeting_code" placeholder="meet-xxxx-xxxx" required
-                       class="flex-1 px-3 py-1.5 text-xs font-mono rounded-xl bg-slate-50 dark:bg-zinc-900/80 border border-slate-200 dark:border-zinc-700 text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 uppercase">
-                <button type="submit" class="px-3.5 py-1.5 text-xs font-bold rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition shrink-0">
+                       class="flex-1 px-3 py-1.5 text-xs font-mono rounded-xl bg-white dark:bg-zinc-900/80 border border-slate-300 dark:border-zinc-700 text-slate-900 dark:text-zinc-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 uppercase">
+                <button type="submit" class="px-3.5 py-1.5 text-xs font-bold rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm transition shrink-0">
                     Join
                 </button>
             </form>
         </div>
 
         <!-- Card 3: Schedule Standup -->
-        <div class="p-5 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] flex flex-col justify-between">
+        <div class="p-5 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] shadow-sm flex flex-col justify-between">
             <div>
                 <div class="w-10 h-10 rounded-xl bg-purple-600 text-white flex items-center justify-center mb-3 shadow-md shadow-purple-500/20">
                     <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -135,7 +135,7 @@
             </div>
             <div class="mt-4 pt-3 border-t border-slate-100 dark:border-zinc-800">
                 <a href="{% url 'meetings:meeting_schedule' slug=workspace.slug %}" 
-                   class="inline-flex items-center justify-center w-full px-3 py-2 text-xs font-bold rounded-xl border border-purple-200 dark:border-purple-800 bg-purple-50/50 dark:bg-purple-950/20 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/30 transition">
+                   class="inline-flex items-center justify-center w-full px-3 py-2 text-xs font-bold rounded-xl border border-purple-200 dark:border-purple-800 bg-purple-50 text-purple-700 hover:bg-purple-100 dark:bg-purple-950/20 dark:text-purple-300 dark:hover:bg-purple-900/30 transition">
                     Schedule for Later →
                 </a>
             </div>
@@ -144,33 +144,33 @@
 
     <!-- Status Metric Chips -->
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div class="p-3.5 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322]">
+        <div class="p-3.5 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] shadow-sm">
             <div class="flex items-center justify-between">
-                <span class="text-xs font-bold text-slate-700 dark:text-zinc-300">Live Now</span>
+                <span class="text-xs font-bold text-slate-600 dark:text-zinc-400">Live Now</span>
                 <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
             </div>
-            <span class="text-xl font-black text-slate-900 dark:text-zinc-100 mt-1 block">{{ stats.live_count }}</span>
+            <span class="text-2xl font-black text-slate-900 dark:text-zinc-100 mt-1 block">{{ stats.live_count }}</span>
         </div>
-        <div class="p-3.5 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322]">
+        <div class="p-3.5 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] shadow-sm">
             <div class="flex items-center justify-between">
-                <span class="text-xs font-bold text-slate-700 dark:text-zinc-300">Today</span>
+                <span class="text-xs font-bold text-slate-600 dark:text-zinc-400">Today</span>
                 <span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
             </div>
-            <span class="text-xl font-black text-slate-900 dark:text-zinc-100 mt-1 block">{{ stats.today_count }}</span>
+            <span class="text-2xl font-black text-slate-900 dark:text-zinc-100 mt-1 block">{{ stats.today_count }}</span>
         </div>
-        <div class="p-3.5 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322]">
+        <div class="p-3.5 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] shadow-sm">
             <div class="flex items-center justify-between">
-                <span class="text-xs font-bold text-slate-700 dark:text-zinc-300">Upcoming</span>
+                <span class="text-xs font-bold text-slate-600 dark:text-zinc-400">Upcoming</span>
                 <span class="w-2.5 h-2.5 rounded-full bg-purple-500"></span>
             </div>
-            <span class="text-xl font-black text-slate-900 dark:text-zinc-100 mt-1 block">{{ stats.upcoming_count }}</span>
+            <span class="text-2xl font-black text-slate-900 dark:text-zinc-100 mt-1 block">{{ stats.upcoming_count }}</span>
         </div>
-        <div class="p-3.5 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322]">
+        <div class="p-3.5 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] shadow-sm">
             <div class="flex items-center justify-between">
-                <span class="text-xs font-bold text-slate-700 dark:text-zinc-300">Completed (Total)</span>
+                <span class="text-xs font-bold text-slate-600 dark:text-zinc-400">Completed (Total)</span>
                 <span class="w-2.5 h-2.5 rounded-full bg-slate-400"></span>
             </div>
-            <span class="text-xl font-black text-slate-900 dark:text-zinc-100 mt-1 block">{{ stats.completed_count }}</span>
+            <span class="text-2xl font-black text-slate-900 dark:text-zinc-100 mt-1 block">{{ stats.completed_count }}</span>
         </div>
     </div>
 
@@ -187,14 +187,14 @@
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             {% for m in live_meetings %}
-            <div class="p-4 rounded-2xl border-2 border-emerald-500/40 bg-emerald-50/30 dark:bg-emerald-950/10 backdrop-blur-sm shadow-sm flex flex-col justify-between">
+            <div class="p-4 rounded-2xl border border-emerald-300 dark:border-emerald-800/80 bg-emerald-50/60 dark:bg-emerald-950/20 shadow-sm flex flex-col justify-between">
                 <div>
                     <div class="flex items-center justify-between mb-2">
                         <span class="inline-flex items-center space-x-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300">
                             <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
                             <span>IN PROGRESS</span>
                         </span>
-                        <span class="text-xs font-mono font-bold text-slate-500 dark:text-zinc-400">{{ m.meeting_code }}</span>
+                        <span class="text-xs font-mono font-bold bg-white/80 dark:bg-zinc-900/60 text-slate-700 dark:text-zinc-300 px-2 py-0.5 rounded border border-slate-200 dark:border-zinc-800">{{ m.meeting_code }}</span>
                     </div>
 
                     <h3 class="text-base font-bold text-slate-900 dark:text-zinc-100">{{ m.title }}</h3>
@@ -202,17 +202,17 @@
                     <div class="flex items-center space-x-3 text-xs text-slate-600 dark:text-zinc-400 mt-2">
                         <span>Host: <strong class="text-slate-800 dark:text-zinc-200">{{ m.host.get_full_name|default:m.host.username }}</strong></span>
                         <span>•</span>
-                        <span>Started {{ m.started_at|timesince }} ago</span>
+                        <span>Started {{ m.actual_start|timesince }} ago</span>
                     </div>
                 </div>
 
-                <div class="mt-4 pt-3 border-t border-emerald-200/50 dark:border-emerald-900/40 flex items-center justify-between">
-                    <div class="text-xs text-slate-500 dark:text-zinc-400">
+                <div class="mt-4 pt-3 border-t border-emerald-200 dark:border-emerald-900/40 flex items-center justify-between">
+                    <div class="text-xs font-medium text-slate-600 dark:text-zinc-400">
                         {{ m.active_participants_count }} participant{{ m.active_participants_count|pluralize }}
                     </div>
                     <div class="flex items-center space-x-2">
                         <a href="{% url 'meetings:meeting_detail' slug=workspace.slug meeting_code=m.meeting_code %}" 
-                           class="px-3 py-1.5 text-xs font-semibold rounded-lg text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition">
+                           class="px-3 py-1.5 text-xs font-semibold rounded-lg text-slate-700 dark:text-zinc-300 hover:bg-emerald-100/60 dark:hover:bg-zinc-800 transition">
                             Details
                         </a>
                         <a href="{% url 'meetings:meeting_room' slug=workspace.slug meeting_code=m.meeting_code %}" 
@@ -242,47 +242,40 @@
                     </svg>
                     <span>Scheduled for Today</span>
                 </h2>
-                <span class="text-xs text-slate-500">{{ today_meetings|length }} planned</span>
+                <span class="text-xs text-slate-500 dark:text-zinc-400 font-medium">{{ today_meetings|length }} planned</span>
             </div>
 
             {% if today_meetings %}
             <div class="space-y-3">
                 {% for m in today_meetings %}
-                <div class="p-4 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] hover:border-blue-500/40 transition">
-                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                        <div class="space-y-1">
-                            <div class="flex items-center space-x-2">
-                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300">
-                                    {{ m.get_meeting_type_display }}
-                                </span>
-                                <span class="text-xs font-mono text-slate-400 dark:text-zinc-500">{{ m.meeting_code }}</span>
-                            </div>
+                <div class="p-4 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] shadow-sm flex items-center justify-between">
+                    <div class="flex items-center space-x-4">
+                        <div class="w-12 h-12 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex flex-col items-center justify-center font-bold">
+                            <span class="text-[10px] uppercase font-semibold">{{ m.scheduled_start|date:"M" }}</span>
+                            <span class="text-base leading-none">{{ m.scheduled_start|date:"d" }}</span>
+                        </div>
+                        <div>
                             <h3 class="text-sm font-bold text-slate-900 dark:text-zinc-100">{{ m.title }}</h3>
-                            <div class="flex items-center space-x-3 text-xs text-slate-500 dark:text-zinc-400">
-                                <span>🕒 {{ m.scheduled_start_time|date:"g:i A" }}</span>
+                            <div class="flex items-center space-x-2 text-xs text-slate-500 dark:text-zinc-400 mt-1">
+                                <span class="font-mono text-blue-600 dark:text-blue-400 font-semibold">{{ m.scheduled_start|date:"g:i A" }}</span>
+                                <span>•</span>
+                                <span>{{ m.duration_minutes }} mins</span>
                                 <span>•</span>
                                 <span>Host: {{ m.host.get_full_name|default:m.host.username }}</span>
-                                <span>•</span>
-                                <span>Est. {{ m.estimated_duration_minutes }}m</span>
                             </div>
                         </div>
-
-                        <div class="flex items-center space-x-2 shrink-0">
-                            <a href="{% url 'meetings:meeting_detail' slug=workspace.slug meeting_code=m.meeting_code %}" 
-                               class="px-3 py-1.5 text-xs font-semibold rounded-lg text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition">
-                                Details
-                            </a>
-                            <a href="{% url 'meetings:meeting_room' slug=workspace.slug meeting_code=m.meeting_code %}" 
-                               class="px-4 py-1.5 text-xs font-bold rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition">
-                                Enter Room
-                            </a>
-                        </div>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <a href="{% url 'meetings:meeting_room' slug=workspace.slug meeting_code=m.meeting_code %}" 
+                           class="px-4 py-2 text-xs font-bold rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition">
+                            Enter Room
+                        </a>
                     </div>
                 </div>
                 {% endfor %}
             </div>
             {% else %}
-            <div class="p-8 rounded-xl border border-dashed border-slate-200 dark:border-zinc-800 text-center bg-slate-50/50 dark:bg-zinc-900/30">
+            <div class="p-8 rounded-2xl border border-dashed border-slate-300 dark:border-zinc-800 text-center bg-white dark:bg-zinc-900/30 shadow-2xs">
                 <svg class="w-8 h-8 text-slate-400 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
                 </svg>
@@ -302,12 +295,12 @@
                 <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500 mb-3">Later This Week</h3>
                 <div class="space-y-2">
                     {% for m in upcoming_meetings %}
-                    <div class="p-3 rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] flex items-center justify-between text-xs">
+                    <div class="p-3.5 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] shadow-2xs flex items-center justify-between text-xs">
                         <div class="flex items-center space-x-3">
-                            <span class="font-mono text-slate-400">{{ m.scheduled_start_time|date:"M d, g:i A" }}</span>
+                            <span class="font-mono text-slate-500 dark:text-zinc-400 font-semibold">{{ m.scheduled_start|date:"M d, g:i A" }}</span>
                             <span class="font-bold text-slate-800 dark:text-zinc-200">{{ m.title }}</span>
                         </div>
-                        <a href="{% url 'meetings:meeting_detail' slug=workspace.slug meeting_code=m.meeting_code %}" class="text-blue-600 hover:underline font-semibold">
+                        <a href="{% url 'meetings:meeting_detail' slug=workspace.slug meeting_code=m.meeting_code %}" class="text-blue-600 dark:text-blue-400 hover:underline font-bold">
                             View →
                         </a>
                     </div>
@@ -326,23 +319,23 @@
                     </svg>
                     <span>Recent Meetings</span>
                 </h2>
-                <a href="{% url 'meetings:meeting_history' slug=workspace.slug %}" class="text-xs font-semibold text-blue-600 hover:underline">
+                <a href="{% url 'meetings:meeting_history' slug=workspace.slug %}" class="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline">
                     All History →
                 </a>
             </div>
 
-            <div class="p-4 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] space-y-3">
+            <div class="p-4 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] shadow-sm space-y-3">
                 {% if recent_ended %}
                     <div class="divide-y divide-slate-100 dark:divide-zinc-800">
                         {% for rm in recent_ended %}
                         <div class="py-2.5 first:pt-0 last:pb-0">
                             <div class="flex items-center justify-between">
                                 <span class="text-xs font-bold text-slate-800 dark:text-zinc-200 truncate max-w-[180px]">{{ rm.title }}</span>
-                                <span class="text-[11px] font-mono text-slate-400">{{ rm.ended_at|timesince }} ago</span>
+                                <span class="text-[11px] font-mono text-slate-400 dark:text-zinc-500">{{ rm.actual_end|default:rm.created_at|timesince }} ago</span>
                             </div>
                             <div class="flex items-center justify-between text-[11px] text-slate-500 dark:text-zinc-400 mt-1">
-                                <span>Duration: {{ rm.duration_display }}</span>
-                                <a href="{% url 'meetings:meeting_detail' slug=workspace.slug meeting_code=rm.meeting_code %}" class="text-blue-500 hover:underline">
+                                <span class="font-medium">Duration: {{ rm.duration_display }}</span>
+                                <a href="{% url 'meetings:meeting_detail' slug=workspace.slug meeting_code=rm.meeting_code %}" class="text-blue-600 dark:text-blue-400 hover:underline font-semibold">
                                     Log
                                 </a>
                             </div>
@@ -350,22 +343,22 @@
                         {% endfor %}
                     </div>
                 {% else %}
-                    <div class="text-center py-6 text-xs text-slate-400">
+                    <div class="text-center py-6 text-xs text-slate-400 italic">
                         No previous meeting logs in this workspace yet.
                     </div>
                 {% endif %}
             </div>
 
-            <!-- In-Chat Calling Tip Card (Phase 8 Requested Feature) -->
-            <div class="p-4 rounded-xl border border-indigo-100 dark:border-indigo-900/30 bg-indigo-50/40 dark:bg-indigo-950/20">
+            <!-- In-Chat Calling Tip Card -->
+            <div class="p-4 rounded-2xl border border-indigo-200 dark:border-indigo-900/40 bg-indigo-50/70 dark:bg-indigo-950/30 shadow-2xs">
                 <div class="flex items-start space-x-3">
                     <span class="text-xl">💬</span>
                     <div>
                         <h4 class="text-xs font-bold text-indigo-950 dark:text-indigo-200">Google Chat Style Calling</h4>
-                        <p class="text-[11px] text-indigo-800 dark:text-indigo-400 mt-0.5">
+                        <p class="text-[11px] text-indigo-900 dark:text-indigo-300 mt-0.5 leading-relaxed">
                             You can initiate 1-click audio or video calls directly inside any Channel or Direct Message! Look for the phone and camera icons in chat headers.
                         </p>
-                        <a href="{% url 'chat:chat_home' slug=workspace.slug %}" class="inline-flex text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline mt-2">
+                        <a href="{% url 'chat:chat_home' slug=workspace.slug %}" class="inline-flex text-[11px] font-bold text-indigo-700 dark:text-indigo-400 hover:underline mt-2">
                             Go to Chat →
                         </a>
                     </div>

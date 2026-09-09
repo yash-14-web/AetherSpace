@@ -34,8 +34,8 @@
                 Audit logs, attendee sessions, and duration records across {{ workspace.name }}.
             </p>
         </div>
-        <div class="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-lg text-xs font-mono font-semibold bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300">
-            <span class="font-bold text-blue-600 dark:text-blue-400">{{ total_meetings_count|default:"0" }}</span>
+        <div class="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-mono font-bold bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 shadow-2xs">
+            <span class="text-blue-600 dark:text-blue-400">{{ total_meetings_count|default:"0" }}</span>
             <span>total meeting{{ total_meetings_count|pluralize }}</span>
         </div>
     </div>
@@ -51,27 +51,39 @@
                     </svg>
                 </div>
                 <input type="text" name="q" value="{{ current_q }}" placeholder="Search by title or meet-xxxx-xxxx..." 
-                       class="w-full pl-10 pr-4 py-2 text-xs rounded-xl bg-slate-50 dark:bg-zinc-900/80 border border-slate-200 dark:border-zinc-700 text-slate-900 dark:text-zinc-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+                       class="w-full pl-10 pr-4 py-2 text-xs rounded-xl bg-white dark:bg-[#0c1322] border border-slate-300 dark:border-zinc-700 text-slate-900 dark:text-zinc-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
             </div>
 
-            <!-- Type Filter -->
-            <div class="w-full md:w-44">
-                <select name="type" class="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-zinc-900/80 border border-slate-200 dark:border-zinc-700 text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+            <!-- Type Filter Dropdown with Custom Chevron -->
+            <div class="relative w-full md:w-48">
+                <select name="type" 
+                        class="appearance-none w-full pl-3.5 pr-8 py-2 text-xs rounded-xl bg-white dark:bg-[#0c1322] border border-slate-300 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer transition">
                     <option value="">All Types</option>
                     {% for val, label in meeting_types %}
                     <option value="{{ val }}" {% if current_type == val %}selected{% endif %}>{{ label }}</option>
                     {% endfor %}
                 </select>
+                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400">
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                </div>
             </div>
 
-            <!-- Status Filter -->
-            <div class="w-full md:w-40">
-                <select name="status" class="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-zinc-900/80 border border-slate-200 dark:border-zinc-700 text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+            <!-- Status Filter Dropdown with Custom Chevron -->
+            <div class="relative w-full md:w-44">
+                <select name="status" 
+                        class="appearance-none w-full pl-3.5 pr-8 py-2 text-xs rounded-xl bg-white dark:bg-[#0c1322] border border-slate-300 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer transition">
                     <option value="">All Statuses</option>
                     {% for val, label in meeting_statuses %}
                     <option value="{{ val }}" {% if current_status == val %}selected{% endif %}>{{ label }}</option>
                     {% endfor %}
                 </select>
+                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400">
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                </div>
             </div>
 
             <!-- Buttons -->
@@ -81,7 +93,7 @@
                 </button>
                 {% if current_q or current_type or current_status %}
                 <a href="{% url 'meetings:meeting_history' slug=workspace.slug %}" 
-                   class="px-3 py-2 text-xs font-semibold rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-zinc-800 transition">
+                   class="px-3 py-2 text-xs font-semibold rounded-xl text-slate-500 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 transition">
                     Reset
                 </a>
                 {% endif %}
@@ -95,30 +107,32 @@
         <div class="overflow-x-auto">
             <table class="w-full text-left text-xs">
                 <thead>
-                    <tr class="border-b border-slate-100 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-900/30 text-slate-500 dark:text-zinc-400 uppercase text-[10px]">
-                        <th class="py-3 px-4 font-bold whitespace-nowrap">Meeting</th>
-                        <th class="py-3 px-4 font-bold whitespace-nowrap">Type</th>
-                        <th class="py-3 px-4 font-bold whitespace-nowrap">Host</th>
-                        <th class="py-3 px-4 font-bold whitespace-nowrap">Date & Time</th>
-                        <th class="py-3 px-4 font-bold whitespace-nowrap">Duration</th>
-                        <th class="py-3 px-4 font-bold whitespace-nowrap">Status</th>
-                        <th class="py-3 px-4 font-bold text-right whitespace-nowrap">Action</th>
+                    <tr class="border-b border-slate-200 dark:border-zinc-800 bg-slate-50/80 dark:bg-[#090d16] text-slate-500 dark:text-zinc-400 uppercase text-[10px] font-bold tracking-wider">
+                        <th class="py-3.5 px-4 whitespace-nowrap">Meeting</th>
+                        <th class="py-3.5 px-4 whitespace-nowrap">Type</th>
+                        <th class="py-3.5 px-4 whitespace-nowrap">Host</th>
+                        <th class="py-3.5 px-4 whitespace-nowrap">Date & Time</th>
+                        <th class="py-3.5 px-4 whitespace-nowrap">Duration</th>
+                        <th class="py-3.5 px-4 whitespace-nowrap">Status</th>
+                        <th class="py-3.5 px-4 font-bold text-right whitespace-nowrap">Action</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-slate-100 dark:divide-zinc-800">
+                <tbody class="divide-y divide-slate-100 dark:divide-zinc-800/70">
                     {% for m in meetings %}
-                    <tr class="hover:bg-slate-50/50 dark:hover:bg-zinc-900/30 transition">
+                    <tr class="hover:bg-slate-50/80 dark:hover:bg-zinc-800/40 transition-colors">
                         <td class="py-3.5 px-4">
                             <div class="font-bold text-slate-900 dark:text-zinc-100">{{ m.title }}</div>
-                            <div class="font-mono text-[11px] text-slate-400 mt-0.5">{{ m.meeting_code }}</div>
+                            <div class="font-mono text-[11px] font-semibold text-slate-500 dark:text-zinc-400 mt-0.5">{{ m.meeting_code }}</div>
                         </td>
                         <td class="py-3.5 px-4 text-slate-600 dark:text-zinc-400 whitespace-nowrap">
-                            {{ m.get_meeting_type_display }}
+                            <span class="px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-700 border border-slate-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700">
+                                {{ m.get_meeting_type_display }}
+                            </span>
                         </td>
-                        <td class="py-3.5 px-4 font-semibold text-slate-700 dark:text-zinc-300 whitespace-nowrap">
+                        <td class="py-3.5 px-4 font-semibold text-slate-800 dark:text-zinc-200 whitespace-nowrap">
                             {{ m.host.get_full_name|default:m.host.username }}
                         </td>
-                        <td class="py-3.5 px-4 text-slate-600 dark:text-zinc-400 whitespace-nowrap font-mono">
+                        <td class="py-3.5 px-4 text-slate-600 dark:text-zinc-400 whitespace-nowrap font-mono text-[11px]">
                             {% if m.actual_start %}
                                 {{ m.actual_start|date:"M d, Y g:i A" }}
                             {% elif m.scheduled_start %}
@@ -127,25 +141,25 @@
                                 {{ m.created_at|date:"M d, Y g:i A" }}
                             {% endif %}
                         </td>
-                        <td class="py-3.5 px-4 font-mono text-slate-600 dark:text-zinc-400 whitespace-nowrap">
+                        <td class="py-3.5 px-4 font-mono text-slate-700 dark:text-zinc-300 whitespace-nowrap font-semibold">
                             {{ m.duration_display }}
                         </td>
                         <td class="py-3.5 px-4 whitespace-nowrap">
                             {% if m.status == 'LIVE' %}
-                            <span class="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-400 animate-pulse">
+                            <span class="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950 dark:text-emerald-400 dark:border-emerald-800 animate-pulse">
                                 <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                                 <span>LIVE</span>
                             </span>
                             {% elif m.status == 'SCHEDULED' %}
-                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300">
+                            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800">
                                 SCHEDULED
                             </span>
                             {% elif m.status == 'ENDED' %}
-                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 dark:bg-zinc-800 dark:text-zinc-300">
+                            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700">
                                 COMPLETED
                             </span>
                             {% elif m.status == 'CANCELLED' %}
-                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300">
+                            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950 dark:text-rose-300 dark:border-rose-800">
                                 CANCELLED
                             </span>
                             {% endif %}
@@ -153,12 +167,12 @@
                         <td class="py-3.5 px-4 text-right space-x-2 whitespace-nowrap">
                             {% if m.status in 'SCHEDULED,LIVE' %}
                             <a href="{% url 'meetings:meeting_room' slug=workspace.slug meeting_code=m.meeting_code %}" 
-                               class="text-emerald-600 dark:text-emerald-400 font-bold hover:underline">
+                               class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:text-emerald-400 dark:border-emerald-800/80 transition">
                                 Join
                             </a>
                             {% endif %}
                             <a href="{% url 'meetings:meeting_detail' slug=workspace.slug meeting_code=m.meeting_code %}" 
-                                class="text-blue-600 dark:text-blue-400 font-semibold hover:underline">
+                                class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition">
                                 Details →
                             </a>
                         </td>
@@ -170,20 +184,20 @@
 
         <!-- Pagination -->
         {% if meetings.has_other_pages %}
-        <div class="px-4 py-3 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between text-xs">
-            <div class="text-slate-500">
+        <div class="px-4 py-3 border-t border-slate-200 dark:border-zinc-800 flex items-center justify-between text-xs bg-slate-50/50 dark:bg-[#090d16]">
+            <div class="text-slate-500 dark:text-zinc-400 font-medium">
                 Page {{ meetings.number }} of {{ meetings.paginator.num_pages }}
             </div>
             <div class="flex items-center space-x-2">
                 {% if meetings.has_previous %}
                 <a href="?page={{ meetings.previous_page_number }}&q={{ current_q }}&type={{ current_type }}&status={{ current_status }}" 
-                   class="px-3 py-1 rounded-lg border border-slate-200 dark:border-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-800 transition">
+                   class="px-3 py-1 rounded-lg border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 transition">
                     Previous
                 </a>
                 {% endif %}
                 {% if meetings.has_next %}
                 <a href="?page={{ meetings.next_page_number }}&q={{ current_q }}&type={{ current_type }}&status={{ current_status }}" 
-                   class="px-3 py-1 rounded-lg border border-slate-200 dark:border-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-800 transition">
+                   class="px-3 py-1 rounded-lg border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 transition">
                     Next
                 </a>
                 {% endif %}
@@ -197,7 +211,7 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
             </svg>
             <p class="text-xs font-bold text-slate-700 dark:text-zinc-300">No meeting history found</p>
-            <p class="text-xs text-slate-500">Try adjusting search query or filters.</p>
+            <p class="text-xs text-slate-500 dark:text-zinc-400">Try adjusting search query or filters.</p>
         </div>
         {% endif %}
     </div>

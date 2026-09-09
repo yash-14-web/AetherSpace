@@ -14,7 +14,7 @@ class StartMeetingForm(forms.Form):
         initial='Quick Sync Meeting',
         widget=forms.TextInput(attrs={
             'placeholder': 'e.g. Sprint Kickoff, Design Huddle...',
-            'class': 'w-full px-4 py-2.5 text-xs sm:text-sm rounded-xl bg-slate-50 dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 text-slate-900 dark:text-zinc-100 placeholder-slate-400 focus:ring-2 focus:ring-aether-blue focus:border-transparent outline-none transition'
+            'class': 'w-full px-4 py-2.5 text-xs sm:text-sm rounded-xl bg-white dark:bg-[#0c1322] border border-slate-300 dark:border-zinc-700 text-slate-900 dark:text-zinc-100 placeholder-slate-400 focus:ring-2 focus:ring-aether-blue focus:border-transparent outline-none transition'
         })
     )
     meeting_type = forms.ChoiceField(
@@ -22,7 +22,7 @@ class StartMeetingForm(forms.Form):
         required=False,
         initial=MeetingType.INSTANT,
         widget=forms.Select(attrs={
-            'class': 'w-full px-4 py-2.5 text-xs sm:text-sm rounded-xl bg-slate-50 dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 text-slate-900 dark:text-zinc-100 focus:ring-2 focus:ring-aether-blue focus:border-transparent outline-none transition'
+            'class': 'w-full px-4 py-2.5 text-xs sm:text-sm rounded-xl bg-white dark:bg-[#0c1322] border border-slate-300 dark:border-zinc-700 text-slate-900 dark:text-zinc-100 focus:ring-2 focus:ring-aether-blue focus:border-transparent outline-none transition'
         })
     )
     is_audio_only = forms.BooleanField(
@@ -39,7 +39,7 @@ class ScheduleMeetingForm(forms.Form):
         required=True,
         widget=forms.TextInput(attrs={
             'placeholder': 'e.g. Sprint 03 Review & Retrospective',
-            'class': 'w-full px-4 py-2.5 text-xs sm:text-sm rounded-xl bg-slate-50 dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 text-slate-900 dark:text-zinc-100 placeholder-slate-400 focus:ring-2 focus:ring-aether-blue focus:border-transparent outline-none transition'
+            'class': 'w-full px-4 py-2.5 text-xs sm:text-sm rounded-xl bg-white dark:bg-[#0c1322] border border-slate-300 dark:border-zinc-700 text-slate-900 dark:text-zinc-100 placeholder-slate-400 focus:ring-2 focus:ring-aether-blue focus:border-transparent outline-none transition'
         })
     )
     description = forms.CharField(
@@ -47,26 +47,26 @@ class ScheduleMeetingForm(forms.Form):
         widget=forms.Textarea(attrs={
             'rows': 3,
             'placeholder': 'Add meeting agenda, key topics to discuss, or required preparation...',
-            'class': 'w-full px-4 py-2.5 text-xs sm:text-sm rounded-xl bg-slate-50 dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 text-slate-900 dark:text-zinc-100 placeholder-slate-400 focus:ring-2 focus:ring-aether-blue focus:border-transparent outline-none transition'
+            'class': 'w-full px-4 py-2.5 text-xs sm:text-sm rounded-xl bg-white dark:bg-[#0c1322] border border-slate-300 dark:border-zinc-700 text-slate-900 dark:text-zinc-100 placeholder-slate-400 focus:ring-2 focus:ring-aether-blue focus:border-transparent outline-none transition'
         })
     )
     meeting_type = forms.ChoiceField(
         choices=MeetingType.choices,
         initial=MeetingType.GENERAL,
         widget=forms.Select(attrs={
-            'class': 'w-full px-4 py-2.5 text-xs sm:text-sm rounded-xl bg-slate-50 dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 text-slate-900 dark:text-zinc-100 focus:ring-2 focus:ring-aether-blue focus:border-transparent outline-none transition'
+            'class': 'w-full px-4 py-2.5 text-xs sm:text-sm rounded-xl bg-white dark:bg-[#0c1322] border border-slate-300 dark:border-zinc-700 text-slate-900 dark:text-zinc-100 focus:ring-2 focus:ring-aether-blue focus:border-transparent outline-none transition'
         })
     )
     scheduled_date = forms.DateField(
         widget=forms.DateInput(attrs={
             'type': 'date',
-            'class': 'w-full px-4 py-2.5 text-xs sm:text-sm rounded-xl bg-slate-50 dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 text-slate-900 dark:text-zinc-100 focus:ring-2 focus:ring-aether-blue focus:border-transparent outline-none transition'
+            'class': 'w-full px-4 py-2.5 text-xs sm:text-sm rounded-xl bg-white dark:bg-[#0c1322] border border-slate-300 dark:border-zinc-700 text-slate-900 dark:text-zinc-100 focus:ring-2 focus:ring-aether-blue focus:border-transparent outline-none transition'
         })
     )
     scheduled_time = forms.TimeField(
         widget=forms.TimeInput(attrs={
             'type': 'time',
-            'class': 'w-full px-4 py-2.5 text-xs sm:text-sm rounded-xl bg-slate-50 dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 text-slate-900 dark:text-zinc-100 focus:ring-2 focus:ring-aether-blue focus:border-transparent outline-none transition'
+            'class': 'w-full px-4 py-2.5 text-xs sm:text-sm rounded-xl bg-white dark:bg-[#0c1322] border border-slate-300 dark:border-zinc-700 text-slate-900 dark:text-zinc-100 focus:ring-2 focus:ring-aether-blue focus:border-transparent outline-none transition'
         })
     )
     duration_minutes = forms.ChoiceField(
@@ -80,7 +80,7 @@ class ScheduleMeetingForm(forms.Form):
         ],
         initial=30,
         widget=forms.Select(attrs={
-            'class': 'w-full px-4 py-2.5 text-xs sm:text-sm rounded-xl bg-slate-50 dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 text-slate-900 dark:text-zinc-100 focus:ring-2 focus:ring-aether-blue focus:border-transparent outline-none transition'
+            'class': 'w-full px-4 py-2.5 text-xs sm:text-sm rounded-xl bg-white dark:bg-[#0c1322] border border-slate-300 dark:border-zinc-700 text-slate-900 dark:text-zinc-100 focus:ring-2 focus:ring-aether-blue focus:border-transparent outline-none transition'
         })
     )
     invitees = forms.ModelMultipleChoiceField(
@@ -129,7 +129,7 @@ class JoinMeetingForm(forms.Form):
         required=True,
         widget=forms.TextInput(attrs={
             'placeholder': 'Enter code (e.g. meet-k7xp-2m9q)',
-            'class': 'w-full px-4 py-3 text-sm font-mono rounded-xl bg-slate-50 dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 text-slate-900 dark:text-zinc-100 placeholder-slate-400 focus:ring-2 focus:ring-aether-blue focus:border-transparent outline-none transition uppercase'
+            'class': 'w-full px-4 py-3 text-sm font-mono rounded-xl bg-white dark:bg-[#0c1322] border border-slate-300 dark:border-zinc-700 text-slate-900 dark:text-zinc-100 placeholder-slate-400 focus:ring-2 focus:ring-aether-blue focus:border-transparent outline-none transition uppercase'
         })
     )
 
