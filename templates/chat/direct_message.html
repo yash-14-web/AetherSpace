@@ -127,6 +127,7 @@
                         <!-- Content text or Call Card (Google Chat style) -->
                         {% if msg.content|is_call_invite %}
                             {% with call_info=msg.content|parse_call_invite %}
+                            {% if call_info.is_live %}
                             <div class="mt-2 p-3.5 rounded-2xl border-2 border-blue-500/30 bg-blue-50/40 dark:bg-blue-950/20 max-w-sm flex items-center justify-between gap-3 shadow-xs">
                                 <div class="flex items-center space-x-3">
                                     <div class="w-10 h-10 rounded-xl {% if call_info.is_video %}bg-blue-600 text-white{% else %}bg-emerald-600 text-white{% endif %} flex items-center justify-center shrink-0 shadow-md">
@@ -142,14 +143,43 @@
                                     </div>
                                     <div>
                                         <div class="text-xs font-bold text-slate-900 dark:text-zinc-100">{{ call_info.title }}</div>
-                                        <div class="text-[11px] font-mono text-slate-500 dark:text-zinc-400">{{ call_info.code }}</div>
+                                        <div class="text-[11px] font-mono text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1.5">
+                                            <span class="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                                            <span>Live Now &bull; {{ call_info.code }}</span>
+                                        </div>
                                     </div>
                                 </div>
                                 <a href="{% url 'meetings:meeting_room' slug=workspace.slug meeting_code=call_info.code %}" 
-                                   class="px-3.5 py-1.5 text-xs font-bold rounded-xl {% if call_info.is_video %}bg-blue-600 hover:bg-blue-700{% else %}bg-emerald-600 hover:bg-emerald-700{% endif %} text-white shadow-sm transition">
-                                    Join Call
+                                   class="px-3.5 py-1.5 text-xs font-bold rounded-xl {% if call_info.is_video %}bg-blue-600 hover:bg-blue-700{% else %}bg-emerald-600 hover:bg-emerald-700{% endif %} text-white shadow-sm transition flex items-center space-x-1">
+                                    <span>Join Call</span>
                                 </a>
                             </div>
+                            {% else %}
+                            <div class="mt-2 p-3.5 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-slate-50/70 dark:bg-zinc-900/50 max-w-sm flex items-center justify-between gap-3 shadow-xs">
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-10 h-10 rounded-xl bg-slate-200 text-slate-500 dark:bg-zinc-800 dark:text-zinc-400 flex items-center justify-center shrink-0">
+                                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2M5 3a2 2 0 00-2 2v1c0 8.284 6.716 15 15 15h1a2 2 0 002-2v-3.28a1 1 0 00-.684-.948l-4.493-1.498a1 1 0 00-1.21.502l-1.13 2.257a11.042 11.042 0 01-5.516-5.517l2.257-1.128a1 1 0 00.502-1.21L9.228 3.683A1 1 0 008.279 3H5z"/>
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <div class="text-xs font-bold text-slate-700 dark:text-zinc-300">{{ call_info.title }}</div>
+                                        <div class="text-[11px] font-mono text-slate-400 dark:text-zinc-500">{{ call_info.code }} &bull; Call ended</div>
+                                    </div>
+                                </div>
+                                <div class="flex items-center space-x-1.5">
+                                    <span class="px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-slate-200/80 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400">
+                                        Ended
+                                    </span>
+                                    {% if call_info.meeting %}
+                                    <a href="{% url 'meetings:meeting_detail' slug=workspace.slug meeting_code=call_info.code %}" 
+                                       class="px-2.5 py-1 text-[11px] font-medium rounded-lg text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-zinc-800 transition">
+                                        Logs
+                                    </a>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endif %}
                             {% endwith %}
                         {% else %}
                             <div class="text-xs text-slate-800 dark:text-zinc-200 mt-1 whitespace-pre-line break-words leading-relaxed font-normal">
@@ -223,10 +253,13 @@
                                     </div>
                                     <div>
                                         <div class="text-xs font-bold text-slate-900 dark:text-zinc-100">Live Call</div>
-                                        <div class="text-[11px] font-mono text-slate-500 dark:text-zinc-400" x-text="item.content.split('|')[0].replace('CALL_INVITE:', '')"></div>
+                                        <div class="text-[11px] font-mono text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
+                                            <span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                                            <span x-text="extractCallCode(item.content)"></span>
+                                        </div>
                                     </div>
                                 </div>
-                                <a :href="'/meetings/w/{{ workspace.slug }}/room/' + item.content.split('|')[0].replace('CALL_INVITE:', '') + '/'" 
+                                <a :href="'/meetings/w/{{ workspace.slug }}/room/' + extractCallCode(item.content) + '/'" 
                                    class="px-3.5 py-1.5 text-xs font-bold rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition">
                                     Join Call
                                 </a>
@@ -314,6 +347,14 @@ function chatDmStream(config) {
         init() {
             this.connectWebSocket();
             this.scrollToBottom();
+        },
+
+        extractCallCode(content) {
+            if (!content) return '';
+            const match = content.match(/meet-[a-z0-9]{4}-[a-z0-9]{4}/i);
+            if (match) return match[0].toLowerCase();
+            const clean = content.replace('CALL_INVITE:', '');
+            return clean.split(/[:|]/)[0].trim().toLowerCase();
         },
 
         connectWebSocket() {

@@ -123,30 +123,6 @@
             </div>
         </form>
 
-        <!-- Screen 3: Recent Meetings List -->
-        {% if recent_meetings %}
-        <div class="p-6 sm:p-8 meet-subcard border-t border-slate-100 dark:border-zinc-800/80 space-y-3">
-            <h3 class="text-xs font-bold uppercase tracking-wider meet-sub">Recent Meetings</h3>
-            <div class="space-y-2">
-                {% for rm in recent_meetings %}
-                <div class="p-3 meet-card shadow-2xs flex items-center justify-between gap-3">
-                    <div class="min-w-0">
-                        <h4 class="text-xs font-bold meet-title truncate">{{ rm.title }}</h4>
-                        <div class="flex items-center space-x-2 text-[11px] meet-sub mt-0.5">
-                            <span>{{ rm.actual_start|default:rm.created_at|date:"M d, Y" }}</span>
-                            <span>•</span>
-                            <span class="font-mono">{{ rm.meeting_code }}</span>
-                        </div>
-                    </div>
-                    <a href="{% url 'meetings:meeting_room' slug=workspace.slug meeting_code=rm.meeting_code %}"
-                       class="meet-btn-secondary px-3 py-1 text-xs font-bold shrink-0">
-                        Join Again
-                    </a>
-                </div>
-                {% endfor %}
-            </div>
-        </div>
-        {% endif %}
 
     </div>
 

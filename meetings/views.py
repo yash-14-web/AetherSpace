@@ -1,3 +1,4 @@
+import re
 from datetime import timedelta
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
@@ -20,6 +21,14 @@ from .services import (
     start_meeting, end_meeting, cancel_meeting,
     record_participant_join, record_participant_leave
 )
+
+
+def _clean_code(meeting_code):
+    """Safely extracts a valid meeting code from URL, fragment, or raw input."""
+    raw = (meeting_code or '').strip().lower()
+    match = re.search(r'meet-[a-z0-9]{4}-[a-z0-9]{4}', raw)
+    return match.group(0) if match else raw.split(':')[0].strip()
+
 
 
 @login_required
@@ -281,14 +290,11 @@ def meeting_join_view(request, slug):
         else:
             form = JoinMeetingForm()
 
-    recent_meetings = Meeting.objects.filter(workspace=workspace).exclude(status=MeetingStatus.CANCELLED).order_by('-created_at')[:4]
-
     context = {
         'workspace': workspace,
         'membership': request.membership,
         'form': form,
         'error_message': error_message,
-        'recent_meetings': recent_meetings,
     }
     return render(request, 'meetings/meeting_join.html', context)
 
@@ -302,18 +308,23 @@ def meeting_room_view(request, slug, meeting_code):
     workspace = request.workspace
     membership = request.membership
 
-    clean_code = meeting_code.strip().lower()
-    meeting = get_object_or_404(
-        Meeting.objects.select_related('workspace', 'host').prefetch_related('participants__user'),
+    clean_code = _clean_code(meeting_code)
+
+    meeting = Meeting.objects.select_related('workspace', 'host').prefetch_related('participants__user').filter(
         workspace=workspace,
         meeting_code__iexact=clean_code
-    )
+    ).first()
+
+    if not meeting:
+        messages.error(request, f"Meeting '{clean_code}' was not found in this workspace.")
+        return redirect('meetings:meet_hub', slug=workspace.slug)
 
     # If meeting was cancelled, render cancelled notice
     if meeting.status == MeetingStatus.CANCELLED:
         return render(request, 'meetings/meeting_room_status.html', {
             'workspace': workspace,
             'meeting': meeting,
+            'status_reason': 'cancelled',
             'status_heading': 'Meeting Cancelled',
             'status_message': 'This meeting was cancelled by the host and cannot be joined.',
             'can_reopen': False
@@ -325,6 +336,7 @@ def meeting_room_view(request, slug, meeting_code):
         return render(request, 'meetings/meeting_room_status.html', {
             'workspace': workspace,
             'meeting': meeting,
+            'status_reason': 'ended',
             'status_heading': 'Meeting Ended',
             'status_message': f"This meeting ended at {meeting.actual_end.strftime('%I:%M %p') if meeting.actual_end else 'an earlier time'}.",
             'can_reopen': is_host
@@ -458,12 +470,15 @@ def meeting_detail_view(request, slug, meeting_code):
     workspace = request.workspace
     cleanup_stale_meetings(workspace)
 
-    clean_code = meeting_code.strip().lower()
-    meeting = get_object_or_404(
-        Meeting.objects.select_related('workspace', 'host').prefetch_related('participants__user', 'invites__user'),
+    clean_code = _clean_code(meeting_code)
+    meeting = Meeting.objects.select_related('workspace', 'host').prefetch_related('participants__user', 'invites__user').filter(
         workspace=workspace,
         meeting_code__iexact=clean_code
-    )
+    ).first()
+
+    if not meeting:
+        messages.error(request, f"Meeting '{clean_code}' was not found in this workspace.")
+        return redirect('meetings:meet_hub', slug=workspace.slug)
 
     participants = meeting.participants.select_related('user').order_by('joined_at')
     invites = meeting.invites.select_related('user').all()
@@ -488,7 +503,7 @@ def meeting_edit_view(request, slug, meeting_code):
     Edit meeting details (Host or Admin/Manager only).
     """
     workspace = request.workspace
-    clean_code = meeting_code.strip().lower()
+    clean_code = _clean_code(meeting_code)
     meeting = get_object_or_404(Meeting, workspace=workspace, meeting_code__iexact=clean_code)
 
     if meeting.host != request.user and not request.membership.can_manage_content:
@@ -524,7 +539,7 @@ def meeting_cancel_view(request, slug, meeting_code):
     Cancel a scheduled meeting (Host or Admin/Manager only).
     """
     workspace = request.workspace
-    clean_code = meeting_code.strip().lower()
+    clean_code = _clean_code(meeting_code)
     meeting = get_object_or_404(Meeting, workspace=workspace, meeting_code__iexact=clean_code)
 
     if meeting.host != request.user and not request.membership.can_manage_content:
@@ -609,7 +624,7 @@ def meeting_history_view(request, slug):
         'membership': membership,
         'meetings': page_obj,
         'page_obj': page_obj,
-        'total_meetings_count': total_meetings_count,
+        'total_meetings_count': total_count,
         'status_counts': status_counts,
         'stats_summary': stats_summary,
         'current_q': q,
@@ -633,8 +648,10 @@ def meeting_ping_api(request, slug, meeting_code):
         return HttpResponseBadRequest("POST required")
 
     workspace = request.workspace
-    clean_code = meeting_code.strip().lower()
-    meeting = get_object_or_404(Meeting, workspace=workspace, meeting_code__iexact=clean_code)
+    clean_code = _clean_code(meeting_code)
+    meeting = Meeting.objects.filter(workspace=workspace, meeting_code__iexact=clean_code).first()
+    if not meeting:
+        return JsonResponse({'success': False, 'error': 'Meeting not found', 'status': 'ended'})
 
     import json
     action = 'ping'
@@ -689,8 +706,13 @@ def meeting_end_api(request, slug, meeting_code):
         return HttpResponseBadRequest("POST required")
 
     workspace = request.workspace
-    clean_code = meeting_code.strip().lower()
-    meeting = get_object_or_404(Meeting, workspace=workspace, meeting_code__iexact=clean_code)
+    clean_code = _clean_code(meeting_code)
+    meeting = Meeting.objects.filter(workspace=workspace, meeting_code__iexact=clean_code).first()
+    if not meeting:
+        redirect_url = reverse('meetings:meet_hub', kwargs={'slug': workspace.slug})
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.content_type == 'application/json':
+            return JsonResponse({'success': True, 'redirect_url': redirect_url, 'message': 'Meeting ended.'})
+        return redirect(redirect_url)
 
     is_host_or_manager = (meeting.host == request.user or request.membership.can_manage_content)
 
