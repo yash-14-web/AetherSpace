@@ -341,6 +341,40 @@ def meeting_room_view(request, slug, meeting_code):
         status=MembershipStatus.ACTIVE
     ).select_related('user')
 
+    # Build dynamic active participants list
+    import json
+    active_participants_qs = meeting.participants.filter(left_at__isnull=True).select_related('user').order_by('joined_at')
+    active_participants_list = []
+    has_self = False
+    for p in active_participants_qs:
+        p_name = p.user.get_full_name() or p.user.username or p.user.email.split('@')[0]
+        initials = ''.join([part[0].upper() for part in p_name.split()[:2]]) or p_name[:1].upper()
+        is_self = (p.user == request.user)
+        if is_self:
+            has_self = True
+        active_participants_list.append({
+            'id': str(p.user.id),
+            'name': p_name,
+            'initials': initials,
+            'email': p.user.email,
+            'role': p.role,
+            'is_self': is_self,
+        })
+
+    if not has_self:
+        user_name = request.user.get_full_name() or request.user.username or request.user.email.split('@')[0]
+        initials = ''.join([part[0].upper() for part in user_name.split()[:2]]) or user_name[:1].upper()
+        active_participants_list.insert(0, {
+            'id': str(request.user.id),
+            'name': user_name,
+            'initials': initials,
+            'email': request.user.email,
+            'role': ParticipantRole.HOST if is_host else ParticipantRole.ATTENDEE,
+            'is_self': True,
+        })
+
+    participants_json = json.dumps(active_participants_list)
+
     context = {
         'workspace': workspace,
         'membership': membership,
@@ -352,6 +386,7 @@ def meeting_room_view(request, slug, meeting_code):
         'user_email': request.user.email,
         'user_avatar': request.user.avatar if hasattr(request.user, 'avatar') and request.user.avatar else '',
         'participants': participants,
+        'participants_json': participants_json,
         'workspace_members': workspace_members,
         'shareable_url': request.build_absolute_uri(reverse('meetings:meeting_room', kwargs={'slug': workspace.slug, 'meeting_code': meeting.meeting_code})),
     }
@@ -622,10 +657,24 @@ def meeting_ping_api(request, slug, meeting_code):
         # Touch meeting updated_at so heartbeat freshness is preserved
         meeting.save(update_fields=['updated_at'])
 
+    active_participants = []
+    for p in meeting.participants.filter(left_at__isnull=True).select_related('user').order_by('joined_at'):
+        p_name = p.user.get_full_name() or p.user.username or p.user.email.split('@')[0]
+        initials = ''.join([part[0].upper() for part in p_name.split()[:2]]) or p_name[:1].upper()
+        active_participants.append({
+            'id': str(p.user.id),
+            'name': p_name,
+            'initials': initials,
+            'email': p.user.email,
+            'role': p.role,
+            'is_self': (p.user == request.user),
+        })
+
     return JsonResponse({
         'success': True,
         'status': meeting.status,
-        'active_count': meeting.active_participants_count,
+        'active_count': len(active_participants),
+        'participants': active_participants,
         'duration_display': meeting.duration_display
     })
 
