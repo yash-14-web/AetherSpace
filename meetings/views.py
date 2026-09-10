@@ -49,19 +49,6 @@ def meet_router(request):
     return redirect('workspaces:create')
 
 
-@workspace_member_required
-def meet_hub_view(request, slug):
-    """
-    Primary Meet Hub dashboard: live active calls, scheduled conferences,
-    metric cards, and quick start/join controls.
-    """
-    workspace = request.workspace
-    membership = request.membership
-
-    now = timezone.now()
-    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-    today_end = today_start + timedelta(days=1)
-
 def cleanup_stale_meetings(workspace):
     """
     Auto-close live meetings that have no active participants or haven't received
@@ -83,7 +70,7 @@ def cleanup_stale_meetings(workspace):
 def meet_hub_view(request, slug):
     """
     Primary Meet Hub dashboard: live active calls, scheduled conferences,
-    metric cards, and quick start/join controls.
+    metric cards, and quick start/join controls matching Screen 1 reference design.
     """
     workspace = request.workspace
     membership = request.membership
@@ -99,9 +86,16 @@ def meet_hub_view(request, slug):
     live_meetings = Meeting.objects.filter(
         workspace=workspace,
         status=MeetingStatus.LIVE
-    ).select_related('host').prefetch_related('participants__user')
+    ).select_related('host').prefetch_related('participants__user', 'invites__user')
 
-    # 2. Scheduled Meetings for Today
+    # 2. Upcoming & Scheduled Meetings
+    upcoming_qs = Meeting.objects.filter(
+        workspace=workspace,
+        status__in=[MeetingStatus.SCHEDULED, MeetingStatus.LIVE]
+    ).select_related('host').prefetch_related('participants__user', 'invites__user').order_by('-status', 'scheduled_start', '-created_at')
+    upcoming_meetings = upcoming_qs[:10]
+
+    # 3. Scheduled Meetings for Today
     today_meetings = Meeting.objects.filter(
         workspace=workspace,
         status=MeetingStatus.SCHEDULED,
@@ -109,48 +103,44 @@ def meet_hub_view(request, slug):
         scheduled_start__lt=today_end
     ).select_related('host').order_by('scheduled_start')
 
-    # 3. Upcoming Meetings (Next 7 days)
-    upcoming_meetings = Meeting.objects.filter(
+    # 4. Recent Completed Meetings
+    recent_ended = Meeting.objects.filter(
         workspace=workspace,
-        status=MeetingStatus.SCHEDULED,
-        scheduled_start__gte=now,
-        scheduled_start__lte=now + timedelta(days=7)
-    ).select_related('host').order_by('scheduled_start')
-
-    # 4. Recent Past Meetings
-    recent_history = Meeting.objects.filter(
-        workspace=workspace,
-        status__in=[MeetingStatus.ENDED, MeetingStatus.LIVE]
-    ).select_related('host').order_by('-created_at')[:4]
+        status=MeetingStatus.ENDED
+    ).select_related('host').order_by('-actual_end', '-created_at')[:6]
 
     # Metrics
     metrics = {
         'live_count': live_meetings.count(),
         'today_count': today_meetings.count(),
-        'upcoming_count': upcoming_meetings.count(),
-        'upcoming_week_count': upcoming_meetings.count(),
+        'upcoming_count': upcoming_qs.filter(status=MeetingStatus.SCHEDULED).count(),
         'completed_count': Meeting.objects.filter(workspace=workspace, status=MeetingStatus.ENDED).count(),
         'total_meetings': Meeting.objects.filter(workspace=workspace).count(),
     }
 
     start_form = StartMeetingForm()
     join_form = JoinMeetingForm()
+    personal_link = f"meet.aetherspace.dev/{request.user.username}"
 
     context = {
         'workspace': workspace,
         'membership': membership,
         'live_meetings': live_meetings,
-        'today_meetings': today_meetings,
         'upcoming_meetings': upcoming_meetings,
-        'recent_history': recent_history,
-        'recent_ended': recent_history,
+        'upcoming_cards': upcoming_meetings,
+        'today_meetings': today_meetings,
+        'recent_ended': recent_ended,
+        'recent_history': recent_ended,
+        'recent_meetings_list': recent_ended,
         'metrics': metrics,
         'stats': metrics,
         'start_form': start_form,
         'join_form': join_form,
+        'personal_link': personal_link,
         'MeetingType': MeetingType,
     }
     return render(request, 'meetings/meet_hub.html', context)
+
 
 
 @workspace_member_required
@@ -260,16 +250,23 @@ def meeting_join_view(request, slug):
 
     if request.method == 'POST':
         form = JoinMeetingForm(request.POST)
-        if form.is_valid():
-            code = form.cleaned_data['meeting_code']
-            meeting = Meeting.objects.filter(workspace=workspace, meeting_code__iexact=code).first()
+        raw_input = request.POST.get('meeting_code', '').strip()
+        # If user pasted a URL or link, extract the meeting code
+        import re
+        extracted = re.search(r'meet-[a-z0-9]{4}-[a-z0-9]{4}', raw_input.lower())
+        code_to_check = extracted.group(0) if extracted else raw_input.strip()
+
+        if code_to_check:
+            meeting = Meeting.objects.filter(workspace=workspace, meeting_code__iexact=code_to_check).first()
             if meeting:
                 if meeting.status == MeetingStatus.CANCELLED:
                     error_message = f"Meeting '{meeting.title}' was cancelled by the host."
                 else:
                     return redirect('meetings:meeting_room', slug=workspace.slug, meeting_code=meeting.meeting_code)
             else:
-                error_message = f"No meeting found with code '{code}' in this workspace."
+                error_message = f"No meeting found with code '{code_to_check}' in this workspace."
+        else:
+            error_message = "Please enter a valid meeting code or link."
     else:
         raw_code = request.GET.get('code', '').strip().lower()
         if raw_code:
@@ -284,12 +281,14 @@ def meeting_join_view(request, slug):
         else:
             form = JoinMeetingForm()
 
+    recent_meetings = Meeting.objects.filter(workspace=workspace).exclude(status=MeetingStatus.CANCELLED).order_by('-created_at')[:4]
+
     context = {
         'workspace': workspace,
         'membership': request.membership,
         'form': form,
         'error_message': error_message,
-        'recent_meetings': Meeting.objects.filter(workspace=workspace, status__in=[MeetingStatus.LIVE, MeetingStatus.SCHEDULED]).order_by('-created_at')[:3]
+        'recent_meetings': recent_meetings,
     }
     return render(request, 'meetings/meeting_join.html', context)
 
@@ -336,6 +335,11 @@ def meeting_room_view(request, slug, meeting_code):
 
     is_host = (meeting.host == request.user or membership.can_manage_content)
     jitsi_domain = getattr(settings, 'JITSI_DOMAIN', 'meet.jit.si')
+    participants = meeting.participants.select_related('user').order_by('joined_at')
+    workspace_members = WorkspaceMembership.objects.filter(
+        workspace=workspace,
+        status=MembershipStatus.ACTIVE
+    ).select_related('user')
 
     context = {
         'workspace': workspace,
@@ -347,6 +351,8 @@ def meeting_room_view(request, slug, meeting_code):
         'user_display_name': request.user.full_name or request.user.email.split('@')[0],
         'user_email': request.user.email,
         'user_avatar': request.user.avatar if hasattr(request.user, 'avatar') and request.user.avatar else '',
+        'participants': participants,
+        'workspace_members': workspace_members,
         'shareable_url': request.build_absolute_uri(reverse('meetings:meeting_room', kwargs={'slug': workspace.slug, 'meeting_code': meeting.meeting_code})),
     }
     return render(request, 'meetings/meeting_room.html', context)
@@ -549,7 +555,19 @@ def meeting_history_view(request, slug):
         'cancelled': Meeting.objects.filter(workspace=workspace, status=MeetingStatus.CANCELLED).count(),
     }
 
-    total_meetings_count = meetings_qs.count()
+    all_meetings = Meeting.objects.filter(workspace=workspace)
+    total_count = all_meetings.count()
+    completed_meetings = all_meetings.filter(status=MeetingStatus.ENDED)
+    total_minutes = sum([m.duration_minutes or 30 for m in completed_meetings])
+    total_hours = round(total_minutes / 60.0, 1) if total_minutes else 0.0
+    avg_minutes = round(total_minutes / completed_meetings.count()) if completed_meetings.exists() else 0
+
+    stats_summary = {
+        'total_meetings': total_count,
+        'total_hours': total_hours,
+        'avg_duration': avg_minutes,
+        'completed_count': completed_meetings.count(),
+    }
 
     context = {
         'workspace': workspace,
@@ -558,6 +576,7 @@ def meeting_history_view(request, slug):
         'page_obj': page_obj,
         'total_meetings_count': total_meetings_count,
         'status_counts': status_counts,
+        'stats_summary': stats_summary,
         'current_q': q,
         'current_type': m_type,
         'current_status': status_filter,
@@ -614,7 +633,8 @@ def meeting_ping_api(request, slug, meeting_code):
 @workspace_member_required
 def meeting_end_api(request, slug, meeting_code):
     """
-    Host or Manager action to end meeting for all participants.
+    Host action to end meeting for all, or attendee leave action.
+    Immediately closes sessions and transitions state to ENDED.
     """
     if request.method != 'POST':
         return HttpResponseBadRequest("POST required")
@@ -623,19 +643,25 @@ def meeting_end_api(request, slug, meeting_code):
     clean_code = meeting_code.strip().lower()
     meeting = get_object_or_404(Meeting, workspace=workspace, meeting_code__iexact=clean_code)
 
-    if meeting.host != request.user and not request.membership.can_manage_content:
-        return HttpResponseForbidden("Only the host or manager can end the meeting.")
+    is_host_or_manager = (meeting.host == request.user or request.membership.can_manage_content)
 
-    end_meeting(meeting, request.user)
-    messages.success(request, f"Meeting '{meeting.title}' has been ended.")
+    if is_host_or_manager:
+        end_meeting(meeting, request.user)
+        messages.success(request, f"Meeting '{meeting.title}' has ended.")
+    else:
+        record_participant_leave(meeting, request.user)
+        # If no more participants remain, auto-end the meeting
+        if not meeting.participants.filter(left_at__isnull=True).exists():
+            end_meeting(meeting, request.user)
+        messages.info(request, "You have left the meeting.")
+
+    redirect_url = reverse('meetings:meet_hub', kwargs={'slug': workspace.slug})
 
     if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.content_type == 'application/json':
         return JsonResponse({
             'success': True,
-            'message': 'Meeting ended for all participants.'
+            'redirect_url': redirect_url,
+            'message': 'Meeting ended successfully.'
         })
 
-    referer = request.META.get('HTTP_REFERER')
-    if referer and 'meeting_room' not in referer:
-        return redirect(referer)
-    return redirect('meetings:meet_hub', slug=workspace.slug)
+    return redirect(redirect_url)

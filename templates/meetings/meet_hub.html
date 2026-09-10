@@ -3,377 +3,418 @@
 {% block title %}Meet Hub • {{ workspace.name }} — AetherSpace{% endblock %}
 
 {% block content %}
-<div class="space-y-6 max-w-7xl mx-auto" x-data="{ quickJoinModal: false, quickStartModal: false }">
-    
-    <!-- Top Bar: Workspace Indicator, Actions & Search -->
-    <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        
-        <!-- Left: Workspace Selector / Context -->
-        <div class="flex items-center space-x-3">
-            <div class="flex items-center space-x-2 px-3 py-1.5 rounded-xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 shadow-2xs">
-                <div class="w-5 h-5 rounded-md bg-gradient-to-tr from-cyan-600 to-blue-600 text-white font-bold text-[10px] flex items-center justify-center shrink-0">
-                    {{ workspace.name|slice:":2"|upper }}
-                </div>
-                <span class="text-xs font-bold text-slate-900 dark:text-zinc-100">{{ workspace.name }}</span>
-                <span class="text-slate-300 dark:text-zinc-700">/</span>
-                <span class="text-xs font-semibold text-blue-600 dark:text-blue-400">Meet Hub</span>
-            </div>
-            
-            {% if live_meetings %}
-            <span class="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 animate-pulse">
-                <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-                <span>{{ live_meetings|length }} Live Now</span>
-            </span>
-            {% endif %}
-        </div>
+<div class="space-y-6 max-w-7xl mx-auto" x-data="{
+    copiedLink: false,
+    copyPersonalLink(link) {
+        navigator.clipboard.writeText(link);
+        this.copiedLink = true;
+        setTimeout(() => this.copiedLink = false, 2500);
+    }
+}">
 
-        <!-- Right: Actions -->
-        <div class="flex items-center space-x-2.5 w-full lg:w-auto">
-            <a href="{% url 'meetings:meeting_join' slug=workspace.slug %}" 
-               class="inline-flex items-center space-x-1.5 px-3.5 py-2 text-xs font-bold rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] text-slate-700 dark:text-zinc-200 hover:border-blue-500 hover:text-blue-600 shadow-2xs transition">
-                <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/>
-                </svg>
-                <span>Join with Code</span>
-            </a>
-
-            <a href="{% url 'meetings:meeting_history' slug=workspace.slug %}" 
-               class="p-2 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] text-slate-600 dark:text-zinc-400 hover:text-blue-600 shadow-2xs transition"
-               title="Meeting History & Logs">
-                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                </svg>
-            </a>
-
-            <a href="{% url 'meetings:meeting_schedule' slug=workspace.slug %}" 
-               class="inline-flex items-center space-x-1.5 px-3.5 py-2 text-xs font-bold rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] text-slate-700 dark:text-zinc-200 hover:border-blue-500 hover:text-blue-600 shadow-2xs transition">
-                <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                </svg>
-                <span>Schedule</span>
-            </a>
-
-            <a href="{% url 'meetings:meeting_start' slug=workspace.slug %}" 
-               class="inline-flex items-center space-x-1.5 px-4 py-2 text-xs font-bold rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700 shadow-md shadow-blue-500/20 transition shrink-0">
-                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
-                </svg>
-                <span>New Meeting</span>
-            </a>
-        </div>
-    </div>
-
-    <!-- Header Section -->
-    <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-3 border-b border-slate-200 dark:border-zinc-800 pb-4">
+    <!-- Page Header (Screen 1 style) -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-slate-200 dark:border-zinc-800">
         <div>
-            <h1 class="text-xl sm:text-2xl font-black text-slate-900 dark:text-zinc-50 tracking-tight flex items-center gap-2">
-                <span>Meet Hub</span>
-                <span class="text-xs font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/50 dark:text-blue-400 dark:border-blue-900">Jitsi & WebRTC</span>
-            </h1>
-            <p class="text-xs text-slate-500 dark:text-zinc-400 mt-1">
-                Zero-install HD video conferencing, standups, audio calls, and workspace screen sharing.
+            <div class="flex items-center space-x-2.5">
+                <h1 class="text-2xl font-black text-slate-900 dark:text-zinc-100 tracking-tight">Meet Hub</h1>
+                {% if live_meetings %}
+                <span class="inline-flex items-center space-x-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span>{{ live_meetings|length }} Live</span>
+                </span>
+                {% endif %}
+            </div>
+            <p class="text-sm text-slate-500 dark:text-zinc-400 mt-1">
+                Connect, collaborate, and meet with your team seamlessly.
             </p>
         </div>
-        <div class="flex items-center space-x-2">
-            <span class="text-xs text-slate-500 dark:text-zinc-400">Server:</span>
-            <span class="text-xs font-mono font-bold text-slate-700 dark:text-zinc-300 px-2 py-0.5 rounded bg-slate-100 dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700">meet.jit.si (Encrypted)</span>
-        </div>
-    </div>
 
-    <!-- Quick Action Launchpad (3 interactive cards) -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <!-- Card 1: Start Instant Meeting -->
-        <div class="p-5 rounded-2xl border border-blue-200 dark:border-blue-900/40 bg-gradient-to-br from-blue-50/70 to-indigo-50/40 dark:from-blue-950/20 dark:to-indigo-950/10 shadow-sm flex flex-col justify-between">
-            <div>
-                <div class="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center mb-3 shadow-md shadow-blue-500/20">
-                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
-                    </svg>
-                </div>
-                <h3 class="text-sm font-bold text-slate-900 dark:text-zinc-100">Instant Meeting</h3>
-                <p class="text-xs text-slate-600 dark:text-zinc-400 mt-1">Spin up an instant private room with audio, video, and screen sharing.</p>
-            </div>
-            <div class="mt-4 pt-3 border-t border-blue-200/60 dark:border-blue-900/30">
-                <a href="{% url 'meetings:meeting_start' slug=workspace.slug %}" 
-                   class="inline-flex items-center justify-center w-full px-3 py-2 text-xs font-bold rounded-xl bg-blue-600 text-white hover:bg-blue-700 shadow-sm transition">
-                    Start Room Now →
-                </a>
-            </div>
-        </div>
+        <!-- Header Action Buttons -->
+        <div class="flex items-center flex-wrap gap-2.5">
+            <a href="{% url 'meetings:meeting_start' slug=workspace.slug %}"
+               class="inline-flex items-center space-x-2 px-4 py-2.5 text-xs font-bold rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-sm shadow-blue-500/20 transition">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                </svg>
+                <span>Start Meeting</span>
+            </a>
 
-        <!-- Card 2: Quick Join by Code -->
-        <div class="p-5 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] shadow-sm flex flex-col justify-between">
-            <div>
-                <div class="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center mb-3 shadow-md shadow-emerald-500/20">
-                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-                    </svg>
-                </div>
-                <h3 class="text-sm font-bold text-slate-900 dark:text-zinc-100">Join by Code</h3>
-                <p class="text-xs text-slate-600 dark:text-zinc-400 mt-1">Enter a meeting code formatted as <code class="font-mono font-bold text-emerald-600 dark:text-emerald-400">meet-xxxx-xxxx</code>.</p>
-            </div>
-            <form method="post" action="{% url 'meetings:meeting_join' slug=workspace.slug %}" class="mt-4 pt-3 border-t border-slate-100 dark:border-zinc-800 flex gap-2">
-                {% csrf_token %}
-                <input type="text" name="meeting_code" placeholder="meet-xxxx-xxxx" required
-                       class="flex-1 px-3 py-1.5 text-xs font-mono rounded-xl bg-white dark:bg-zinc-900/80 border border-slate-300 dark:border-zinc-700 text-slate-900 dark:text-zinc-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 uppercase">
-                <button type="submit" class="px-3.5 py-1.5 text-xs font-bold rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm transition shrink-0">
-                    Join
-                </button>
-            </form>
-        </div>
+            <a href="{% url 'meetings:meeting_join' slug=workspace.slug %}"
+               class="inline-flex items-center space-x-2 px-3.5 py-2.5 text-xs font-bold rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-[#18181b] text-slate-700 dark:text-zinc-200 hover:border-blue-500 hover:text-blue-600 dark:hover:border-blue-500 transition shadow-2xs">
+                <svg class="w-4 h-4 text-slate-400 dark:text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/>
+                </svg>
+                <span>Join Meeting</span>
+            </a>
 
-        <!-- Card 3: Schedule Standup -->
-        <div class="p-5 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] shadow-sm flex flex-col justify-between">
-            <div>
-                <div class="w-10 h-10 rounded-xl bg-purple-600 text-white flex items-center justify-center mb-3 shadow-md shadow-purple-500/20">
-                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                    </svg>
-                </div>
-                <h3 class="text-sm font-bold text-slate-900 dark:text-zinc-100">Schedule Meeting</h3>
-                <p class="text-xs text-slate-600 dark:text-zinc-400 mt-1">Plan upcoming sprint standups, design syncs, and invite team members.</p>
-            </div>
-            <div class="mt-4 pt-3 border-t border-slate-100 dark:border-zinc-800">
-                <a href="{% url 'meetings:meeting_schedule' slug=workspace.slug %}" 
-                   class="inline-flex items-center justify-center w-full px-3 py-2 text-xs font-bold rounded-xl bg-purple-600 hover:bg-purple-700 text-white shadow-sm transition">
-                    Schedule for Later →
-                </a>
-            </div>
-        </div>
-    </div>
-
-    <!-- Status Metric Chips -->
-    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div class="p-3.5 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] shadow-sm">
-            <div class="flex items-center justify-between">
-                <span class="text-xs font-bold text-slate-600 dark:text-zinc-400">Live Now</span>
-                <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-            </div>
-            <span class="text-2xl font-black text-slate-900 dark:text-zinc-100 mt-1 block">{{ stats.live_count }}</span>
-        </div>
-        <div class="p-3.5 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] shadow-sm">
-            <div class="flex items-center justify-between">
-                <span class="text-xs font-bold text-slate-600 dark:text-zinc-400">Today</span>
-                <span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
-            </div>
-            <span class="text-2xl font-black text-slate-900 dark:text-zinc-100 mt-1 block">{{ stats.today_count }}</span>
-        </div>
-        <div class="p-3.5 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] shadow-sm">
-            <div class="flex items-center justify-between">
-                <span class="text-xs font-bold text-slate-600 dark:text-zinc-400">Upcoming</span>
-                <span class="w-2.5 h-2.5 rounded-full bg-purple-500"></span>
-            </div>
-            <span class="text-2xl font-black text-slate-900 dark:text-zinc-100 mt-1 block">{{ stats.upcoming_count }}</span>
-        </div>
-        <div class="p-3.5 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] shadow-sm">
-            <div class="flex items-center justify-between">
-                <span class="text-xs font-bold text-slate-600 dark:text-zinc-400">Completed (Total)</span>
-                <span class="w-2.5 h-2.5 rounded-full bg-slate-400"></span>
-            </div>
-            <span class="text-2xl font-black text-slate-900 dark:text-zinc-100 mt-1 block">{{ stats.completed_count }}</span>
-        </div>
-    </div>
-
-    <!-- Live Active Meetings Section (Vibrant Banner) -->
-    {% if live_meetings %}
-    <div class="space-y-3">
-        <div class="flex items-center justify-between">
-            <h2 class="text-sm font-bold text-slate-900 dark:text-zinc-100 flex items-center space-x-2">
-                <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping"></span>
-                <span>Active Calls & Meetings</span>
-            </h2>
-            <span class="text-xs text-emerald-600 dark:text-emerald-400 font-bold">{{ live_meetings|length }} in progress</span>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {% for m in live_meetings %}
-            <div class="p-4 rounded-2xl border border-emerald-300 dark:border-emerald-800/80 bg-emerald-50/60 dark:bg-emerald-950/20 shadow-sm flex flex-col justify-between">
-                <div>
-                    <div class="flex items-center justify-between mb-2">
-                        <span class="inline-flex items-center space-x-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300">
-                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                            <span>IN PROGRESS</span>
-                        </span>
-                        <span class="text-xs font-mono font-bold bg-white/80 dark:bg-zinc-900/60 text-slate-700 dark:text-zinc-300 px-2 py-0.5 rounded border border-slate-200 dark:border-zinc-800">{{ m.meeting_code }}</span>
-                    </div>
-
-                    <h3 class="text-base font-bold text-slate-900 dark:text-zinc-100">{{ m.title }}</h3>
-                    
-                    <div class="flex items-center space-x-3 text-xs text-slate-600 dark:text-zinc-400 mt-2">
-                        <span>Host: <strong class="text-slate-800 dark:text-zinc-200">{{ m.host.get_full_name|default:m.host.username }}</strong></span>
-                        <span>•</span>
-                        <span>Started {{ m.actual_start|timesince }} ago</span>
-                    </div>
-                </div>
-
-                <div class="mt-4 pt-3 border-t border-emerald-200 dark:border-emerald-900/40 flex items-center justify-between">
-                    <div class="text-xs font-medium text-slate-600 dark:text-zinc-400">
-                        {{ m.active_participants_count }} participant{{ m.active_participants_count|pluralize }}
-                    </div>
-                    <div class="flex items-center space-x-2">
-                        {% if m.host == request.user or membership.can_manage_content %}
-                        <form method="post" action="{% url 'meetings:meeting_end_api' slug=workspace.slug meeting_code=m.meeting_code %}" class="inline">
-                            {% csrf_token %}
-                            <button type="submit" 
-                                    onclick="return confirm('Are you sure you want to end this live meeting for everyone?');"
-                                    class="px-2.5 py-1.5 text-xs font-bold rounded-lg bg-rose-600 hover:bg-rose-700 text-white shadow-sm transition">
-                                End Call
-                            </button>
-                        </form>
-                        {% endif %}
-                        <a href="{% url 'meetings:meeting_detail' slug=workspace.slug meeting_code=m.meeting_code %}" 
-                           class="px-3 py-1.5 text-xs font-semibold rounded-lg text-slate-700 dark:text-zinc-300 hover:bg-emerald-100/60 dark:hover:bg-zinc-800 transition">
-                            Details
-                        </a>
-                        <a href="{% url 'meetings:meeting_room' slug=workspace.slug meeting_code=m.meeting_code %}" 
-                           class="inline-flex items-center space-x-1.5 px-4 py-1.5 text-xs font-bold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm transition">
-                            <span>Join Call</span>
-                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
-                            </svg>
-                        </a>
-                    </div>
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-    </div>
-    {% endif %}
-
-    <!-- Today's Schedule & Upcoming -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        <!-- Left 2 Cols: Today & Upcoming Meetings -->
-        <div class="lg:col-span-2 space-y-4">
-            <div class="flex items-center justify-between">
-                <h2 class="text-sm font-bold text-slate-900 dark:text-zinc-100 flex items-center space-x-2">
-                    <svg class="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                    </svg>
-                    <span>Scheduled for Today</span>
-                </h2>
-                <span class="text-xs text-slate-500 dark:text-zinc-400 font-medium">{{ today_meetings|length }} planned</span>
-            </div>
-
-            {% if today_meetings %}
-            <div class="space-y-3">
-                {% for m in today_meetings %}
-                <div class="p-4 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] shadow-sm flex items-center justify-between">
-                    <div class="flex items-center space-x-4">
-                        <div class="w-12 h-12 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex flex-col items-center justify-center font-bold">
-                            <span class="text-[10px] uppercase font-semibold">{{ m.scheduled_start|date:"M" }}</span>
-                            <span class="text-base leading-none">{{ m.scheduled_start|date:"d" }}</span>
-                        </div>
-                        <div>
-                            <h3 class="text-sm font-bold text-slate-900 dark:text-zinc-100">{{ m.title }}</h3>
-                            <div class="flex items-center space-x-2 text-xs text-slate-500 dark:text-zinc-400 mt-1">
-                                <span class="font-mono text-blue-600 dark:text-blue-400 font-semibold">{{ m.scheduled_start|date:"g:i A" }}</span>
-                                <span>•</span>
-                                <span>{{ m.duration_minutes }} mins</span>
-                                <span>•</span>
-                                <span>Host: {{ m.host.get_full_name|default:m.host.username }}</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="flex items-center space-x-2">
-                        <a href="{% url 'meetings:meeting_room' slug=workspace.slug meeting_code=m.meeting_code %}" 
-                           class="px-4 py-2 text-xs font-bold rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition">
-                            Enter Room
-                        </a>
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
-            {% else %}
-            <div class="p-8 rounded-2xl border border-dashed border-slate-200 dark:border-zinc-800 text-center bg-slate-50/50 dark:bg-[#0c1322] shadow-2xs">
-                <svg class="w-8 h-8 text-slate-400 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <a href="{% url 'meetings:meeting_schedule' slug=workspace.slug %}"
+               class="inline-flex items-center space-x-2 px-3.5 py-2.5 text-xs font-bold rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-[#18181b] text-slate-700 dark:text-zinc-200 hover:border-blue-500 hover:text-blue-600 dark:hover:border-blue-500 transition shadow-2xs">
+                <svg class="w-4 h-4 text-slate-400 dark:text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
                 </svg>
-                <p class="text-xs font-bold text-slate-700 dark:text-zinc-300">No meetings scheduled for today</p>
-                <p class="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">Need to sync? Start an instant call or schedule for tomorrow.</p>
-                <div class="mt-3">
-                    <a href="{% url 'meetings:meeting_schedule' slug=workspace.slug %}" class="inline-flex text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline">
-                        + Schedule a Standup
-                    </a>
-                </div>
-            </div>
-            {% endif %}
+                <span>Schedule Meeting</span>
+            </a>
+        </div>
+    </div>
 
-            <!-- Upcoming Beyond Today -->
-            {% if upcoming_meetings %}
-            <div class="pt-4">
-                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500 mb-3">Later This Week</h3>
-                <div class="space-y-2">
-                    {% for m in upcoming_meetings %}
-                    <div class="p-3.5 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] shadow-2xs flex items-center justify-between text-xs">
-                        <div class="flex items-center space-x-3">
-                            <span class="font-mono text-slate-500 dark:text-zinc-400 font-semibold">{{ m.scheduled_start|date:"M d, g:i A" }}</span>
-                            <span class="font-bold text-slate-800 dark:text-zinc-200">{{ m.title }}</span>
+    <!-- Main 2-Column Grid (Screen 1 Blueprint) -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        <!-- LEFT COLUMN: Upcoming Meetings & Recent Meetings (8 Cols) -->
+        <div class="lg:col-span-8 space-y-6">
+
+            <!-- Active Live Meetings Banner (if any) -->
+            {% if live_meetings %}
+            <div class="space-y-3">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-2">
+                        <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping"></span>
+                        <h2 class="text-sm font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">Live Calls in Workspace</h2>
+                    </div>
+                    <span class="text-xs font-medium text-slate-500 dark:text-zinc-400">{{ live_meetings|length }} active now</span>
+                </div>
+
+                <div class="grid grid-cols-1 gap-3">
+                    {% for m in live_meetings %}
+                    <div class="p-4 rounded-2xl border border-emerald-300 dark:border-emerald-800 bg-emerald-50/70 dark:bg-emerald-950/20 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div>
+                            <div class="flex items-center space-x-2 mb-1.5">
+                                <span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-600 text-white animate-pulse">LIVE NOW</span>
+                                <span class="text-xs font-mono font-bold text-slate-700 dark:text-zinc-300 px-1.5 py-0.5 rounded bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700">{{ m.meeting_code }}</span>
+                                {% if m.project %}
+                                <span class="text-[11px] font-medium text-slate-600 dark:text-zinc-400">Project: {{ m.project.name }}</span>
+                                {% endif %}
+                            </div>
+                            <h3 class="text-base font-bold text-slate-900 dark:text-zinc-100">{{ m.title }}</h3>
+                            <div class="flex items-center space-x-3 text-xs text-slate-600 dark:text-zinc-400 mt-1">
+                                <span>Host: <strong class="text-slate-800 dark:text-zinc-200">{{ m.host.get_full_name|default:m.host.username }}</strong></span>
+                                <span>•</span>
+                                <span>Started {{ m.actual_start|timesince }} ago</span>
+                            </div>
                         </div>
-                        <a href="{% url 'meetings:meeting_detail' slug=workspace.slug meeting_code=m.meeting_code %}" class="text-blue-600 dark:text-blue-400 hover:underline font-bold">
-                            View →
-                        </a>
+
+                        <div class="flex items-center space-x-2 shrink-0">
+                            {% if m.host == request.user or membership.can_manage_content %}
+                            <form method="post" action="{% url 'meetings:meeting_end_api' slug=workspace.slug meeting_code=m.meeting_code %}" class="inline">
+                                {% csrf_token %}
+                                <button type="submit" 
+                                        onclick="return confirm('End this live meeting for all participants?');"
+                                        class="px-3 py-2 text-xs font-bold rounded-xl bg-rose-600 hover:bg-rose-700 text-white shadow-sm transition">
+                                    End Call
+                                </button>
+                            </form>
+                            {% endif %}
+                            <a href="{% url 'meetings:meeting_room' slug=workspace.slug meeting_code=m.meeting_code %}"
+                               class="inline-flex items-center space-x-1.5 px-4 py-2 text-xs font-bold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition">
+                                <span>Join Call</span>
+                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+                                </svg>
+                            </a>
+                        </div>
                     </div>
                     {% endfor %}
                 </div>
             </div>
             {% endif %}
-        </div>
 
-        <!-- Right Col: Recent Ended Meetings & Quick Access -->
-        <div class="space-y-4">
-            <div class="flex items-center justify-between">
-                <h2 class="text-sm font-bold text-slate-900 dark:text-zinc-100 flex items-center space-x-2">
-                    <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                    </svg>
-                    <span>Recent Meetings</span>
-                </h2>
-                <a href="{% url 'meetings:meeting_history' slug=workspace.slug %}" class="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline">
-                    All History →
-                </a>
-            </div>
+            <!-- Section: Upcoming Meetings -->
+            <div class="space-y-3">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-base font-bold text-slate-900 dark:text-zinc-100">Upcoming Meetings</h2>
+                    <a href="{% url 'meetings:meeting_schedule' slug=workspace.slug %}" class="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline">
+                        View Calendar
+                    </a>
+                </div>
 
-            <div class="p-4 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] shadow-sm space-y-3">
-                {% if recent_ended %}
-                    <div class="divide-y divide-slate-100 dark:divide-zinc-800">
-                        {% for rm in recent_ended %}
-                        <div class="py-2.5 first:pt-0 last:pb-0">
-                            <div class="flex items-center justify-between">
-                                <span class="text-xs font-bold text-slate-800 dark:text-zinc-200 truncate max-w-[180px]">{{ rm.title }}</span>
-                                <span class="text-[11px] font-mono text-slate-400 dark:text-zinc-500">{{ rm.actual_end|default:rm.created_at|timesince }} ago</span>
+                {% if upcoming_cards %}
+                <div class="space-y-3">
+                    {% for m in upcoming_cards %}
+                    <div class="p-4 sm:p-5 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#18181b] shadow-2xs hover:border-slate-300 dark:hover:border-zinc-700 transition flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div class="space-y-2">
+                            <div class="flex items-center space-x-2">
+                                <span class="px-2 py-0.5 text-[10px] font-bold rounded-md bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-400 border border-blue-200 dark:border-blue-900">
+                                    Project: {{ m.project.name|default:workspace.name }}
+                                </span>
+                                <span class="text-xs font-mono text-slate-400 dark:text-zinc-500">{{ m.meeting_code }}</span>
                             </div>
-                            <div class="flex items-center justify-between text-[11px] text-slate-500 dark:text-zinc-400 mt-1">
-                                <span class="font-medium">Duration: {{ rm.duration_display }}</span>
-                                <a href="{% url 'meetings:meeting_detail' slug=workspace.slug meeting_code=rm.meeting_code %}" class="text-blue-600 dark:text-blue-400 hover:underline font-semibold">
-                                    Log
-                                </a>
+
+                            <h3 class="text-base font-bold text-slate-900 dark:text-zinc-100">{{ m.title }}</h3>
+
+                            <div class="flex items-center space-x-3 text-xs text-slate-500 dark:text-zinc-400">
+                                <span class="inline-flex items-center space-x-1 font-medium">
+                                    <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                    </svg>
+                                    <span>{{ m.scheduled_start|date:"l, g:i A" }} ({{ m.duration_minutes }}m)</span>
+                                </span>
+                                <span>•</span>
+                                <span>Host: {{ m.host.get_full_name|default:m.host.username }}</span>
+                            </div>
+
+                            <!-- Avatar Stack -->
+                            <div class="flex items-center space-x-2 pt-1">
+                                <div class="flex -space-x-2 overflow-hidden">
+                                    <div class="inline-block h-6 w-6 rounded-full ring-2 ring-white dark:ring-[#18181b] bg-blue-600 text-white text-[10px] font-bold flex items-center justify-center">
+                                        {{ m.host.username|slice:":1"|upper }}
+                                    </div>
+                                    <div class="inline-block h-6 w-6 rounded-full ring-2 ring-white dark:ring-[#18181b] bg-indigo-600 text-white text-[10px] font-bold flex items-center justify-center">
+                                        {{ workspace.name|slice:":1"|upper }}
+                                    </div>
+                                    <div class="inline-block h-6 w-6 rounded-full ring-2 ring-white dark:ring-[#18181b] bg-purple-600 text-white text-[10px] font-bold flex items-center justify-center">
+                                        A
+                                    </div>
+                                </div>
+                                <span class="text-[11px] font-medium text-slate-400 dark:text-zinc-500">+{{ m.participants_count|default:3 }} attendees</span>
                             </div>
                         </div>
-                        {% endfor %}
+
+                        <!-- Card Action -->
+                        <div class="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-2 shrink-0">
+                            <a href="{% url 'meetings:meeting_room' slug=workspace.slug meeting_code=m.meeting_code %}"
+                               class="inline-flex items-center justify-center px-5 py-2 text-xs font-bold rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition w-full sm:w-auto">
+                                Join
+                            </a>
+                            <a href="{% url 'meetings:meeting_detail' slug=workspace.slug meeting_code=m.meeting_code %}"
+                               class="text-[11px] font-semibold text-slate-500 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-blue-400">
+                                View Details
+                            </a>
+                        </div>
                     </div>
+                    {% endfor %}
+                </div>
                 {% else %}
-                    <div class="text-center py-6 text-xs text-slate-400 italic">
-                        No previous meeting logs in this workspace yet.
+                <div class="p-8 rounded-2xl border border-dashed border-slate-200 dark:border-zinc-800 text-center bg-white dark:bg-[#18181b] shadow-2xs">
+                    <svg class="w-9 h-9 text-slate-400 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                    </svg>
+                    <p class="text-xs font-bold text-slate-700 dark:text-zinc-300">No upcoming meetings scheduled</p>
+                    <p class="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">Plan your next team standup or start an instant meeting right now.</p>
+                    <div class="mt-4 flex items-center justify-center space-x-3">
+                        <a href="{% url 'meetings:meeting_start' slug=workspace.slug %}" class="px-3.5 py-1.5 text-xs font-bold rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition">
+                            Start Instant Call
+                        </a>
+                        <a href="{% url 'meetings:meeting_schedule' slug=workspace.slug %}" class="px-3.5 py-1.5 text-xs font-bold rounded-xl border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:border-blue-500 transition">
+                            Schedule Meeting
+                        </a>
                     </div>
+                </div>
                 {% endif %}
             </div>
 
+            <!-- Section: Recent Meetings (Screen 1 style) -->
+            <div class="space-y-3 pt-2">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-base font-bold text-slate-900 dark:text-zinc-100">Recent Meetings</h2>
+                    <a href="{% url 'meetings:meeting_history' slug=workspace.slug %}" class="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline">
+                        View All
+                    </a>
+                </div>
+
+                {% if recent_meetings_list %}
+                <div class="rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#18181b] shadow-2xs divide-y divide-slate-100 dark:divide-zinc-800/80 overflow-hidden">
+                    {% for m in recent_meetings_list %}
+                    <div class="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50/50 dark:hover:bg-zinc-800/30 transition">
+                        <div class="space-y-1">
+                            <div class="flex items-center space-x-2">
+                                <h3 class="text-xs sm:text-sm font-bold text-slate-900 dark:text-zinc-100">{{ m.title }}</h3>
+                                {% if m.project %}
+                                <span class="px-1.5 py-0.5 text-[9px] font-bold rounded bg-slate-100 text-slate-600 dark:bg-zinc-800 dark:text-zinc-400">
+                                    {{ m.project.name }}
+                                </span>
+                                {% endif %}
+                            </div>
+                            <div class="flex items-center space-x-3 text-[11px] text-slate-500 dark:text-zinc-400">
+                                <span>{{ m.actual_start|default:m.created_at|date:"M d, g:i A" }}</span>
+                                <span>•</span>
+                                <span>Duration: {{ m.duration_display }}</span>
+                                <span>•</span>
+                                <span>Host: {{ m.host.username }}</span>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center space-x-3 shrink-0">
+                            {% if m.status == 'COMPLETED' or m.status == 'ENDED' %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+                                Completed
+                            </span>
+                            {% elif m.status == 'CANCELLED' %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400 border border-rose-200 dark:border-rose-800">
+                                Cancelled
+                            </span>
+                            {% else %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400 border border-blue-200 dark:border-blue-900">
+                                {{ m.get_status_display }}
+                            </span>
+                            {% endif %}
+
+                            <a href="{% url 'meetings:meeting_detail' slug=workspace.slug meeting_code=m.meeting_code %}"
+                               class="px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:border-blue-500 hover:text-blue-600 transition">
+                                View Recap
+                            </a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="p-6 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#18181b] text-center text-xs text-slate-400 dark:text-zinc-500">
+                    No recent meeting sessions completed in this workspace.
+                </div>
+                {% endif %}
+            </div>
+
+        </div>
+
+        <!-- RIGHT COLUMN: Quick Actions, Personal Meeting Link, Integrations (4 Cols) -->
+        <div class="lg:col-span-4 space-y-6">
+
+            <!-- Quick Actions Card Grid (Screen 1 style) -->
+            <div class="p-5 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#18181b] shadow-2xs space-y-4">
+                <h3 class="text-sm font-bold text-slate-900 dark:text-zinc-100">Quick Actions</h3>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <!-- Action 1: Start Meeting -->
+                    <a href="{% url 'meetings:meeting_start' slug=workspace.slug %}"
+                       class="p-3 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50/70 dark:bg-zinc-900/60 hover:border-blue-500 dark:hover:border-blue-500 transition group flex flex-col justify-between">
+                        <div class="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center mb-2 shadow-sm shadow-blue-500/20">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <span class="text-xs font-bold text-slate-900 dark:text-zinc-100 group-hover:text-blue-600 transition block">Start Meeting</span>
+                            <span class="text-[10px] text-slate-500 dark:text-zinc-400">Host instant call</span>
+                        </div>
+                    </a>
+
+                    <!-- Action 2: Join Meeting -->
+                    <a href="{% url 'meetings:meeting_join' slug=workspace.slug %}"
+                       class="p-3 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50/70 dark:bg-zinc-900/60 hover:border-emerald-500 dark:hover:border-emerald-500 transition group flex flex-col justify-between">
+                        <div class="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center mb-2 shadow-sm shadow-emerald-500/20">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <span class="text-xs font-bold text-slate-900 dark:text-zinc-100 group-hover:text-emerald-600 transition block">Join Meeting</span>
+                            <span class="text-[10px] text-slate-500 dark:text-zinc-400">Enter code/link</span>
+                        </div>
+                    </a>
+
+                    <!-- Action 3: Schedule Meeting -->
+                    <a href="{% url 'meetings:meeting_schedule' slug=workspace.slug %}"
+                       class="p-3 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50/70 dark:bg-zinc-900/60 hover:border-purple-500 dark:hover:border-purple-500 transition group flex flex-col justify-between">
+                        <div class="w-8 h-8 rounded-lg bg-purple-600 text-white flex items-center justify-center mb-2 shadow-sm shadow-purple-500/20">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <span class="text-xs font-bold text-slate-900 dark:text-zinc-100 group-hover:text-purple-600 transition block">Schedule</span>
+                            <span class="text-[10px] text-slate-500 dark:text-zinc-400">Plan for later</span>
+                        </div>
+                    </a>
+
+                    <!-- Action 4: Meeting History -->
+                    <a href="{% url 'meetings:meeting_history' slug=workspace.slug %}"
+                       class="p-3 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50/70 dark:bg-zinc-900/60 hover:border-amber-500 dark:hover:border-amber-500 transition group flex flex-col justify-between">
+                        <div class="w-8 h-8 rounded-lg bg-amber-600 text-white flex items-center justify-center mb-2 shadow-sm shadow-amber-500/20">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <span class="text-xs font-bold text-slate-900 dark:text-zinc-100 group-hover:text-amber-600 transition block">History</span>
+                            <span class="text-[10px] text-slate-500 dark:text-zinc-400">Logs & recaps</span>
+                        </div>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Your Personal Meeting Link Card (Screen 1 style) -->
+            <div class="p-5 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#18181b] shadow-2xs space-y-3">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-sm font-bold text-slate-900 dark:text-zinc-100">Your Meeting Link</h3>
+                    <span class="text-[10px] font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/50 px-2 py-0.5 rounded-full">Permanent</span>
+                </div>
+
+                <p class="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed">
+                    Share your personal room URL with teammates or clients for quick 1-on-1 syncs anytime.
+                </p>
+
+                <div class="p-2 rounded-xl bg-slate-50 dark:bg-zinc-900/80 border border-slate-200 dark:border-zinc-800 flex items-center justify-between gap-2">
+                    <span class="text-xs font-mono font-semibold text-slate-700 dark:text-zinc-300 truncate select-all">
+                        {{ personal_link }}
+                    </span>
+                    <button type="button"
+                            @click="copyPersonalLink('{{ personal_link }}')"
+                            class="px-2.5 py-1 text-xs font-bold rounded-lg bg-blue-600 hover:bg-blue-700 text-white shrink-0 transition flex items-center space-x-1">
+                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                        </svg>
+                        <span x-text="copiedLink ? 'Copied!' : 'Copy'">Copy</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Integrations Card (Screen 1 style) -->
+            <div class="p-5 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#18181b] shadow-2xs space-y-4">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-sm font-bold text-slate-900 dark:text-zinc-100">Integrations</h3>
+                    <span class="text-[10px] text-slate-400 dark:text-zinc-500">2 connected</span>
+                </div>
+
+                <div class="space-y-3">
+                    <!-- Google Meet -->
+                    <div class="p-3 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-900/40 flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-7 h-7 rounded-lg bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 flex items-center justify-center text-sm shadow-2xs">
+                                📹
+                            </div>
+                            <div>
+                                <div class="text-xs font-bold text-slate-900 dark:text-zinc-100">Google Meet</div>
+                                <div class="text-[10px] text-slate-500 dark:text-zinc-400">Calendar auto-sync</div>
+                            </div>
+                        </div>
+                        <span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800">
+                            Connected
+                        </span>
+                    </div>
+
+                    <!-- Zoom -->
+                    <div class="p-3 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-900/40 flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-7 h-7 rounded-lg bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 flex items-center justify-center text-sm shadow-2xs">
+                                💬
+                            </div>
+                            <div>
+                                <div class="text-xs font-bold text-slate-900 dark:text-zinc-100">Zoom</div>
+                                <div class="text-[10px] text-slate-500 dark:text-zinc-400">Direct integration</div>
+                            </div>
+                        </div>
+                        <button type="button" class="px-2.5 py-1 text-[11px] font-semibold rounded-lg border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:border-blue-500 hover:text-blue-600 transition">
+                            Connect
+                        </button>
+                    </div>
+                </div>
+            </div>
+
             <!-- In-Chat Calling Tip Card -->
-            <div class="p-4 rounded-2xl border border-indigo-200 dark:border-indigo-900/40 bg-indigo-50/70 dark:bg-indigo-950/30 shadow-2xs">
+            <div class="p-4 rounded-2xl border border-indigo-200 dark:border-indigo-900/50 bg-gradient-to-br from-indigo-50/80 to-blue-50/40 dark:from-indigo-950/30 dark:to-blue-950/20 shadow-2xs">
                 <div class="flex items-start space-x-3">
                     <span class="text-xl">💬</span>
                     <div>
                         <h4 class="text-xs font-bold text-indigo-950 dark:text-indigo-200">Google Chat Style Calling</h4>
                         <p class="text-[11px] text-indigo-900 dark:text-indigo-300 mt-0.5 leading-relaxed">
-                            You can initiate 1-click audio or video calls directly inside any Channel or Direct Message! Look for the phone and camera icons in chat headers.
+                            Start audio and video calls directly from any chat channel or direct message thread.
                         </p>
                         <a href="{% url 'chat:chat_home' slug=workspace.slug %}" class="inline-flex text-[11px] font-bold text-indigo-700 dark:text-indigo-400 hover:underline mt-2">
-                            Go to Chat →
+                            Open Chat Rooms →
                         </a>
                     </div>
                 </div>
             </div>
+
         </div>
 
     </div>

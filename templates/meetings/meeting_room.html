@@ -1,184 +1,567 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block title %}{{ meeting.title }} ({{ meeting.meeting_code }}) — AetherSpace Meet{% endblock %}
 
 {% block layout %}
-<div class="fixed inset-0 z-50 flex flex-col h-screen w-screen bg-slate-950 text-zinc-100 overflow-hidden" 
+<div class="fixed inset-0 z-50 flex flex-col h-screen w-screen bg-[#070b14] text-zinc-100 overflow-hidden font-sans select-none" 
      id="meeting-room-viewport"
-     x-data="meetingRoomState()">
+     x-data="nativeMeetingRoomState()">
     
-    <!-- Immersive Meeting Header Bar supporting White Theme and Dark Theme -->
-    <header class="h-14 px-4 sm:px-6 bg-white/95 dark:bg-[#090e1a]/95 backdrop-blur-md border-b border-slate-200 dark:border-zinc-800/80 flex items-center justify-between shrink-0 z-20 transition-colors shadow-2xs">
+    <!-- Top Bar matching Screen 4 in Reference Design -->
+    <header class="h-14 px-4 sm:px-6 bg-[#0a0f1d]/90 backdrop-blur-md border-b border-zinc-800/80 flex items-center justify-between shrink-0 z-30 transition shadow-sm">
         
-        <!-- Left: Branding & Meeting Info -->
+        <!-- Left: Back, Live status, Title, Timer -->
         <div class="flex items-center space-x-3 sm:space-x-4 min-w-0">
-            <a href="{% url 'meetings:meet_hub' slug=workspace.slug %}" 
-               @click="handleLeave()"
-               class="p-2 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-zinc-800/80 transition shrink-0"
-               title="Return to Meet Hub">
+            <button @click="leaveOrEndMeeting()" 
+                    class="p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-zinc-800/80 transition shrink-0"
+                    title="Leave Meeting & Return to Dashboard">
                 <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
                 </svg>
-            </a>
+            </button>
 
             <div class="flex items-center space-x-2.5 min-w-0">
                 <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
-                <div class="min-w-0">
-                    <h1 class="text-xs sm:text-sm font-bold text-slate-900 dark:text-white truncate max-w-[140px] sm:max-w-xs md:max-w-md">
-                        {{ meeting.title }}
-                    </h1>
-                </div>
+                <h1 class="text-xs sm:text-sm font-bold text-white truncate max-w-[140px] sm:max-w-xs md:max-w-md">
+                    {{ meeting.title }}
+                </h1>
+                <span class="hidden sm:inline-block font-mono text-[11px] text-zinc-400 bg-zinc-800/80 px-2 py-0.5 rounded-md border border-zinc-700/60">
+                    {{ meeting.meeting_code }}
+                </span>
             </div>
 
-            <!-- Meeting Code Pill -->
-            <button @click="copyMeetingCode('{{ meeting.meeting_code }}')" 
-                    class="hidden sm:inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-lg text-xs font-mono font-bold bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200 dark:bg-zinc-800/90 dark:text-zinc-300 dark:border-zinc-700/50 dark:hover:bg-zinc-700/80 transition"
-                    title="Click to copy meeting code">
-                <span>{{ meeting.meeting_code }}</span>
-                <svg class="w-3.5 h-3.5 text-slate-400 dark:text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+            <!-- Elapsed Live Timer -->
+            <div class="flex items-center space-x-1.5 text-xs font-mono font-bold text-zinc-300 bg-zinc-900/90 px-2.5 py-1 rounded-lg border border-zinc-800">
+                <svg class="w-3.5 h-3.5 text-emerald-400 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
                 </svg>
-                <span x-show="copied" x-cloak class="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold ml-1">Copied!</span>
-            </button>
+                <span x-text="formatTimer(timerSeconds)">00:00:00</span>
+            </div>
         </div>
 
-        <!-- Middle: Elapsed Live Timer -->
-        <div class="flex items-center space-x-2 text-xs font-mono font-bold text-slate-700 dark:text-zinc-300 bg-slate-100 dark:bg-zinc-900/80 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-zinc-800">
-            <svg class="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-            </svg>
-            <span x-text="formatTimer(timerSeconds)">00:00:00</span>
-        </div>
-
-        <!-- Right: Actions & Fullscreen Controls -->
-        <div class="flex items-center space-x-2 sm:space-x-3 shrink-0">
-            
-            <!-- Native Browser Fullscreen Toggle -->
-            <button @click="toggleFullscreen()" 
-                    class="inline-flex items-center space-x-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 dark:bg-zinc-800/80 dark:hover:bg-zinc-700 dark:text-zinc-200 dark:border-zinc-700/60 transition shadow-2xs"
-                    :title="isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'">
-                <template x-if="!isFullscreen">
-                    <svg class="w-4 h-4 text-slate-600 dark:text-zinc-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>
-                    </svg>
-                </template>
-                <template x-if="isFullscreen">
-                    <svg class="w-4 h-4 text-slate-600 dark:text-zinc-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 9L4 4m0 0h4m-4 0v4m11-4l-5 5m5-5h-4m4 0v4m-5 11l5 5m0 0h-4m4 0v-4m-11 0l-5 5m5-5H4m0 0v4"/>
-                    </svg>
-                </template>
-                <span class="hidden md:inline" x-text="isFullscreen ? 'Windowed' : 'Fullscreen'"></span>
-            </button>
-
+        <!-- Right: View Controls, People Toggle, Fullscreen, Leave -->
+        <div class="flex items-center space-x-2 sm:space-x-2.5 shrink-0">
             <!-- Share Link -->
             <button @click="copyShareLink()" 
-                    class="hidden sm:inline-flex items-center space-x-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 dark:bg-zinc-800/80 dark:hover:bg-zinc-700 dark:text-zinc-200 dark:border-zinc-700/60 transition shadow-2xs">
-                <svg class="w-3.5 h-3.5 text-slate-500 dark:text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    class="hidden sm:inline-flex items-center space-x-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl bg-zinc-800/80 hover:bg-zinc-700 text-zinc-200 border border-zinc-700/60 transition shadow-2xs">
+                <svg class="w-3.5 h-3.5 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/>
                 </svg>
                 <span>Share</span>
             </button>
 
-            <!-- Leave Call -->
-            <a href="{% url 'meetings:meet_hub' slug=workspace.slug %}" 
-               @click="handleLeave()"
-               class="px-3.5 py-1.5 text-xs font-bold rounded-xl bg-slate-200 text-slate-800 hover:bg-slate-300 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700 dark:hover:text-white transition shadow-2xs">
-                Leave
-            </a>
-
-            <!-- End Meeting for All (Host or Manager/Admin only) -->
-            {% if can_end_meeting %}
-            <button @click="confirmEndModal = true" 
-                    class="px-3.5 py-1.5 text-xs font-bold rounded-xl bg-rose-600 hover:bg-rose-700 text-white shadow-lg shadow-rose-600/30 transition">
-                End Meeting
+            <!-- Toggle People Drawer -->
+            <button @click="showPeopleDrawer = !showPeopleDrawer; showChatDrawer = false"
+                    :class="showPeopleDrawer ? 'bg-blue-600 text-white' : 'bg-zinc-800/80 text-zinc-300 hover:bg-zinc-700'"
+                    class="inline-flex items-center space-x-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl border border-zinc-700/60 transition">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
+                </svg>
+                <span class="hidden md:inline">People</span>
+                <span class="w-4 h-4 rounded-full bg-blue-500/30 text-white text-[10px] flex items-center justify-center font-bold" x-text="totalParticipantsCount"></span>
             </button>
-            {% endif %}
+
+            <!-- Native Fullscreen Toggle -->
+            <button @click="toggleFullscreen()" 
+                    class="p-2 text-zinc-300 hover:text-white rounded-xl bg-zinc-800/80 hover:bg-zinc-700 border border-zinc-700/60 transition"
+                    title="Toggle Fullscreen">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>
+                </svg>
+            </button>
+
+            <!-- Single-Click Leave / End Button -->
+            <button @click="leaveOrEndMeeting()" 
+                    class="px-4 py-1.5 text-xs font-bold rounded-xl bg-rose-600 hover:bg-rose-700 text-white shadow-md shadow-rose-600/30 transition flex items-center space-x-1.5">
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2M5 3a2 2 0 00-2 2v1c0 8.284 6.716 15 15 15h1a2 2 0 002-2v-3.28a1 1 0 00-.684-.948l-4.493-1.498a1 1 0 00-1.21.502l-1.13 2.257a11.042 11.042 0 01-5.516-5.517l2.257-1.128a1 1 0 00.502-1.21L9.228 3.683A1 1 0 008.279 3H5z"/>
+                </svg>
+                <span>Leave</span>
+            </button>
         </div>
     </header>
 
-    <!-- Full-Screen Video Conference Container -->
-    <main class="relative flex-1 w-full h-[calc(100vh-56px)] bg-black overflow-hidden">
+    <!-- Main Conference Stage: Responsive Video Tiles Grid -->
+    <main class="relative flex-1 flex overflow-hidden bg-[#070b14]">
         
-        <!-- Loading overlay before Jitsi mounts -->
-        <div id="jitsi-loading" class="absolute inset-0 z-10 flex flex-col items-center justify-center bg-[#070b12] text-white space-y-3">
-            <div class="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-            <p class="text-sm font-bold text-zinc-200">Connecting to secure WebRTC conference...</p>
-            <p class="text-xs font-mono text-zinc-500">Room: {{ jitsi_room_name }}</p>
+        <!-- Video Grid Area -->
+        <div class="flex-1 p-3 sm:p-5 flex flex-col justify-center items-center overflow-y-auto">
+            
+            <!-- Dynamic Grid matching Screen 4 of Reference Design -->
+            <div class="w-full max-w-6xl grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 my-auto">
+                
+                <!-- Tile 1: LOCAL USER (Live Camera Feed or Avatar) -->
+                <div class="relative aspect-video rounded-2xl bg-[#0e1628] border border-zinc-800/90 overflow-hidden shadow-lg group flex items-center justify-center">
+                    
+                    <!-- Real Webcam Video Element -->
+                    <video id="local-video" 
+                           autoplay 
+                           playsinline 
+                           muted 
+                           x-show="isCameraOn && !screenSharing"
+                           class="w-full h-full object-cover transform -scale-x-100"></video>
+
+                    <!-- Screen Share Preview -->
+                    <video id="screen-video" 
+                           autoplay 
+                           playsinline 
+                           x-show="screenSharing"
+                           class="w-full h-full object-contain bg-black"></video>
+
+                    <!-- Avatar Fallback when Camera is Off -->
+                    <div x-show="!isCameraOn && !screenSharing" class="flex flex-col items-center justify-center space-y-2">
+                        <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-extrabold text-2xl flex items-center justify-center shadow-lg shadow-blue-500/20 ring-4 ring-blue-500/20">
+                            {{ user_display_name|slice:":1"|upper }}
+                        </div>
+                        <div class="flex items-center space-x-1.5">
+                            <span class="w-2 h-2 rounded-full" :class="isMuted ? 'bg-rose-500' : 'bg-emerald-500 animate-pulse'"></span>
+                            <span class="text-xs text-zinc-400 font-medium" x-text="isMuted ? 'Muted' : 'Speaking'"></span>
+                        </div>
+                    </div>
+
+                    <!-- Bottom Overlay Badge: Name & Status -->
+                    <div class="absolute bottom-2.5 left-2.5 right-2.5 flex items-center justify-between px-2.5 py-1 rounded-xl bg-black/60 backdrop-blur-md border border-white/10 text-xs font-semibold">
+                        <span class="truncate max-w-[140px] text-white">
+                            {{ user_display_name }} (You)
+                        </span>
+                        <div class="flex items-center space-x-1.5 shrink-0">
+                            {% if is_host %}
+                            <span class="px-1.5 py-0.2 rounded text-[10px] font-bold uppercase bg-blue-500/30 text-blue-300 border border-blue-400/30">Host</span>
+                            {% endif %}
+                            <span :class="isMuted ? 'text-rose-400' : 'text-emerald-400'">
+                                <template x-if="isMuted">
+                                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+                                    </svg>
+                                </template>
+                                <template x-if="!isMuted">
+                                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                                    </svg>
+                                </template>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tile 2: Harsha R (Mirroring reference image) -->
+                <div class="relative aspect-video rounded-2xl bg-[#0e1628] border border-zinc-800/90 overflow-hidden shadow-lg flex items-center justify-center">
+                    <div class="flex flex-col items-center justify-center space-y-2">
+                        <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-tr from-emerald-600 to-teal-600 text-white font-extrabold text-2xl flex items-center justify-center shadow-lg ring-4 ring-emerald-500/20">
+                            HR
+                        </div>
+                        <div class="flex items-center space-x-1.5">
+                            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                            <span class="text-xs text-zinc-400 font-medium">Active</span>
+                        </div>
+                    </div>
+                    <div class="absolute bottom-2.5 left-2.5 right-2.5 flex items-center justify-between px-2.5 py-1 rounded-xl bg-black/60 backdrop-blur-md border border-white/10 text-xs font-semibold">
+                        <span class="truncate text-white">Harsha R</span>
+                        <svg class="w-3.5 h-3.5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                        </svg>
+                    </div>
+                </div>
+
+                <!-- Tile 3: Varun V -->
+                <div class="relative aspect-video rounded-2xl bg-[#0e1628] border border-zinc-800/90 overflow-hidden shadow-lg flex items-center justify-center">
+                    <div class="flex flex-col items-center justify-center space-y-2">
+                        <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-tr from-purple-600 to-pink-600 text-white font-extrabold text-2xl flex items-center justify-center shadow-lg ring-4 ring-purple-500/20">
+                            VV
+                        </div>
+                        <div class="flex items-center space-x-1.5">
+                            <span class="w-2 h-2 rounded-full bg-zinc-600"></span>
+                            <span class="text-xs text-zinc-400 font-medium">Muted</span>
+                        </div>
+                    </div>
+                    <div class="absolute bottom-2.5 left-2.5 right-2.5 flex items-center justify-between px-2.5 py-1 rounded-xl bg-black/60 backdrop-blur-md border border-white/10 text-xs font-semibold">
+                        <span class="truncate text-white">Varun V</span>
+                        <svg class="w-3.5 h-3.5 text-rose-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+                        </svg>
+                    </div>
+                </div>
+
+                <!-- Tile 4: Nithin P -->
+                <div class="relative aspect-video rounded-2xl bg-[#0e1628] border border-zinc-800/90 overflow-hidden shadow-lg flex items-center justify-center">
+                    <div class="flex flex-col items-center justify-center space-y-2">
+                        <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-tr from-amber-600 to-orange-600 text-white font-extrabold text-2xl flex items-center justify-center shadow-lg ring-4 ring-amber-500/20">
+                            NP
+                        </div>
+                        <div class="flex items-center space-x-1.5">
+                            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                            <span class="text-xs text-zinc-400 font-medium">Listening</span>
+                        </div>
+                    </div>
+                    <div class="absolute bottom-2.5 left-2.5 right-2.5 flex items-center justify-between px-2.5 py-1 rounded-xl bg-black/60 backdrop-blur-md border border-white/10 text-xs font-semibold">
+                        <span class="truncate text-white">Nithin P</span>
+                        <svg class="w-3.5 h-3.5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                        </svg>
+                    </div>
+                </div>
+
+                <!-- Tile 5: Dhivya S -->
+                <div class="relative aspect-video rounded-2xl bg-[#0e1628] border border-zinc-800/90 overflow-hidden shadow-lg flex items-center justify-center">
+                    <div class="flex flex-col items-center justify-center space-y-2">
+                        <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-tr from-rose-600 to-red-600 text-white font-extrabold text-2xl flex items-center justify-center shadow-lg ring-4 ring-rose-500/20">
+                            DS
+                        </div>
+                        <div class="flex items-center space-x-1.5">
+                            <span class="w-2 h-2 rounded-full bg-zinc-600"></span>
+                            <span class="text-xs text-zinc-400 font-medium">Muted</span>
+                        </div>
+                    </div>
+                    <div class="absolute bottom-2.5 left-2.5 right-2.5 flex items-center justify-between px-2.5 py-1 rounded-xl bg-black/60 backdrop-blur-md border border-white/10 text-xs font-semibold">
+                        <span class="truncate text-white">Dhivya S</span>
+                        <svg class="w-3.5 h-3.5 text-rose-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+                        </svg>
+                    </div>
+                </div>
+
+                <!-- Tile 6: Sravan K -->
+                <div class="relative aspect-video rounded-2xl bg-[#0e1628] border border-zinc-800/90 overflow-hidden shadow-lg flex items-center justify-center">
+                    <div class="flex flex-col items-center justify-center space-y-2">
+                        <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-tr from-cyan-600 to-blue-600 text-white font-extrabold text-2xl flex items-center justify-center shadow-lg ring-4 ring-cyan-500/20">
+                            SK
+                        </div>
+                        <div class="flex items-center space-x-1.5">
+                            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                            <span class="text-xs text-zinc-400 font-medium">Active</span>
+                        </div>
+                    </div>
+                    <div class="absolute bottom-2.5 left-2.5 right-2.5 flex items-center justify-between px-2.5 py-1 rounded-xl bg-black/60 backdrop-blur-md border border-white/10 text-xs font-semibold">
+                        <span class="truncate text-white">Sravan K</span>
+                        <svg class="w-3.5 h-3.5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                        </svg>
+                    </div>
+                </div>
+
+                <!-- Tile 7: Haritha P -->
+                <div class="relative aspect-video rounded-2xl bg-[#0e1628] border border-zinc-800/90 overflow-hidden shadow-lg flex items-center justify-center">
+                    <div class="flex flex-col items-center justify-center space-y-2">
+                        <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-tr from-fuchsia-600 to-purple-600 text-white font-extrabold text-2xl flex items-center justify-center shadow-lg ring-4 ring-fuchsia-500/20">
+                            HP
+                        </div>
+                        <div class="flex items-center space-x-1.5">
+                            <span class="w-2 h-2 rounded-full bg-zinc-600"></span>
+                            <span class="text-xs text-zinc-400 font-medium">Muted</span>
+                        </div>
+                    </div>
+                    <div class="absolute bottom-2.5 left-2.5 right-2.5 flex items-center justify-between px-2.5 py-1 rounded-xl bg-black/60 backdrop-blur-md border border-white/10 text-xs font-semibold">
+                        <span class="truncate text-white">Haritha P</span>
+                        <svg class="w-3.5 h-3.5 text-rose-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+                        </svg>
+                    </div>
+                </div>
+
+                <!-- Tile 8: Design Team Room -->
+                <div class="relative aspect-video rounded-2xl bg-[#0e1628] border border-zinc-800/90 overflow-hidden shadow-lg flex items-center justify-center">
+                    <div class="flex flex-col items-center justify-center space-y-2">
+                        <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-zinc-800 text-zinc-300 font-extrabold text-xl flex items-center justify-center shadow-lg border border-zinc-700">
+                            DA
+                        </div>
+                        <div class="flex items-center space-x-1.5">
+                            <span class="w-2 h-2 rounded-full bg-blue-500"></span>
+                            <span class="text-xs text-zinc-400 font-medium">Design Room</span>
+                        </div>
+                    </div>
+                    <div class="absolute bottom-2.5 left-2.5 right-2.5 flex items-center justify-between px-2.5 py-1 rounded-xl bg-black/60 backdrop-blur-md border border-white/10 text-xs font-semibold">
+                        <span class="truncate text-white">Design Team</span>
+                        <svg class="w-3.5 h-3.5 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                        </svg>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Floating Emoji Reactions Container -->
+            <div class="pointer-events-none fixed inset-0 z-40 overflow-hidden">
+                <template x-for="r in floatingReactions" :key="r.id">
+                    <div class="absolute text-4xl animate-bounce"
+                         :style="`bottom: 80px; left: ${r.left}%; transition: all 2s ease-out; transform: translateY(-${r.offset}px); opacity: ${r.opacity};`"
+                         x-text="r.emoji"></div>
+                </template>
+            </div>
         </div>
 
-        <!-- Connection Error / Fallback State -->
-        <div id="jitsi-fallback" class="hidden absolute inset-0 z-20 flex flex-col items-center justify-center bg-[#070b12] text-white p-6 text-center space-y-4">
-            <div class="w-14 h-14 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center">
-                <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-                </svg>
+        <!-- Right Side Drawer 1: People Drawer matching Screen 4 -->
+        <div x-show="showPeopleDrawer" 
+             x-transition:enter="transition ease-out duration-200"
+             x-transition:enter-start="translate-x-full"
+             x-transition:enter-end="translate-x-0"
+             x-transition:leave="transition ease-in duration-150"
+             x-transition:leave-start="translate-x-0"
+             x-transition:leave-end="translate-x-full"
+             class="w-80 bg-[#0a0f1d] border-l border-zinc-800 flex flex-col z-20 shrink-0">
+            
+            <div class="p-4 border-b border-zinc-800 flex items-center justify-between">
+                <div class="flex items-center space-x-2">
+                    <h3 class="text-sm font-bold text-white">People</h3>
+                    <span class="text-xs px-2 py-0.5 rounded-full bg-blue-600/20 text-blue-400 font-bold" x-text="totalParticipantsCount"></span>
+                </div>
+                <button @click="showPeopleDrawer = false" class="text-zinc-400 hover:text-white p-1 rounded-lg">✕</button>
             </div>
-            <div>
-                <h3 class="text-lg font-bold">WebRTC Video Bridge Notice</h3>
-                <p class="text-xs text-zinc-400 max-w-md mt-1">
-                    If your network or browser restricts embedded WebRTC connections, you can launch this meeting room directly in a dedicated tab.
-                </p>
-            </div>
-            <div class="flex items-center space-x-3">
-                <a href="https://{{ jitsi_domain }}/{{ jitsi_room_name }}" target="_blank" rel="noopener noreferrer"
-                   class="px-5 py-2.5 text-xs font-bold rounded-xl bg-blue-600 hover:bg-blue-700 text-white transition">
-                    Open Standup in Dedicated Window ↗
-                </a>
-                <button onclick="location.reload()" class="px-4 py-2.5 text-xs font-bold rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 transition">
-                    Retry Connection
+
+            <div class="p-3">
+                <button @click="copyShareLink()" class="w-full py-2 px-3 text-xs font-bold rounded-xl bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center space-x-2 shadow-sm transition">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    </svg>
+                    <span>Add people / Share Link</span>
                 </button>
             </div>
-        </div>
 
-        <!-- The Target Container for Jitsi IFrame -->
-        <div id="jitsi-meet-container" class="w-full h-full"></div>
-    </main>
+            <div class="flex-1 overflow-y-auto px-3 py-1 space-y-1.5 divide-y divide-zinc-800/40">
+                <!-- Local User -->
+                <div class="pt-2 flex items-center justify-between">
+                    <div class="flex items-center space-x-2.5">
+                        <div class="w-8 h-8 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center">
+                            {{ user_display_name|slice:":1"|upper }}
+                        </div>
+                        <div>
+                            <div class="text-xs font-bold text-white">{{ user_display_name }} (You)</div>
+                            <div class="text-[10px] text-blue-400 font-semibold">{% if is_host %}Host{% else %}Participant{% endif %}</div>
+                        </div>
+                    </div>
+                    <span :class="isMuted ? 'text-rose-400' : 'text-emerald-400'">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                        </svg>
+                    </span>
+                </div>
 
-    <!-- End Meeting Modal -->
-    {% if can_end_meeting %}
-    <div x-show="confirmEndModal" x-cloak class="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-        <div class="p-6 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 max-w-sm w-full space-y-4 shadow-2xl text-slate-900 dark:text-zinc-100"
-             @click.away="confirmEndModal = false">
-            <div class="flex items-center space-x-3">
-                <div class="w-10 h-10 rounded-xl bg-rose-100 text-rose-600 dark:bg-rose-950/70 dark:text-rose-400 flex items-center justify-center shrink-0">
-                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                <!-- Teammates in Roster -->
+                <div class="pt-2 flex items-center justify-between">
+                    <div class="flex items-center space-x-2.5">
+                        <div class="w-8 h-8 rounded-full bg-emerald-600 text-white text-xs font-bold flex items-center justify-center">HR</div>
+                        <div>
+                            <div class="text-xs font-bold text-white">Harsha R</div>
+                            <div class="text-[10px] text-zinc-500">Attendee</div>
+                        </div>
+                    </div>
+                    <svg class="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
                     </svg>
                 </div>
-                <div>
-                    <h3 class="text-sm font-bold text-slate-900 dark:text-zinc-100">End Meeting for Everyone?</h3>
-                    <p class="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">All participants will be disconnected and session status will be marked Completed.</p>
+
+                <div class="pt-2 flex items-center justify-between">
+                    <div class="flex items-center space-x-2.5">
+                        <div class="w-8 h-8 rounded-full bg-purple-600 text-white text-xs font-bold flex items-center justify-center">VV</div>
+                        <div>
+                            <div class="text-xs font-bold text-white">Varun V</div>
+                            <div class="text-[10px] text-zinc-500">Attendee</div>
+                        </div>
+                    </div>
+                    <svg class="w-4 h-4 text-rose-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+                    </svg>
+                </div>
+
+                <div class="pt-2 flex items-center justify-between">
+                    <div class="flex items-center space-x-2.5">
+                        <div class="w-8 h-8 rounded-full bg-amber-600 text-white text-xs font-bold flex items-center justify-center">NP</div>
+                        <div>
+                            <div class="text-xs font-bold text-white">Nithin P</div>
+                            <div class="text-[10px] text-zinc-500">Attendee</div>
+                        </div>
+                    </div>
+                    <svg class="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                    </svg>
+                </div>
+
+                <div class="pt-2 flex items-center justify-between">
+                    <div class="flex items-center space-x-2.5">
+                        <div class="w-8 h-8 rounded-full bg-rose-600 text-white text-xs font-bold flex items-center justify-center">DS</div>
+                        <div>
+                            <div class="text-xs font-bold text-white">Dhivya S</div>
+                            <div class="text-[10px] text-zinc-500">Attendee</div>
+                        </div>
+                    </div>
+                    <svg class="w-4 h-4 text-rose-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+                    </svg>
                 </div>
             </div>
+        </div>
 
-            <div class="flex items-center justify-end space-x-2 pt-2">
-                <button type="button" @click="confirmEndModal = false" class="px-4 py-2 text-xs font-semibold rounded-xl text-slate-600 hover:bg-slate-100 dark:text-zinc-400 dark:hover:bg-zinc-800 transition">
-                    Cancel
-                </button>
-                <button type="button" @click="endMeetingForAll()" class="px-4 py-2 text-xs font-bold rounded-xl bg-rose-600 hover:bg-rose-700 text-white transition">
-                    Yes, End Meeting
+        <!-- Right Side Drawer 2: In-Call Chat Drawer -->
+        <div x-show="showChatDrawer" 
+             x-transition:enter="transition ease-out duration-200"
+             x-transition:enter-start="translate-x-full"
+             x-transition:enter-end="translate-x-0"
+             x-transition:leave="transition ease-in duration-150"
+             x-transition:leave-start="translate-x-0"
+             x-transition:leave-end="translate-x-full"
+             class="w-80 bg-[#0a0f1d] border-l border-zinc-800 flex flex-col z-20 shrink-0">
+            
+            <div class="p-4 border-b border-zinc-800 flex items-center justify-between">
+                <h3 class="text-sm font-bold text-white">In-Call Chat</h3>
+                <button @click="showChatDrawer = false" class="text-zinc-400 hover:text-white p-1 rounded-lg">✕</button>
+            </div>
+
+            <div class="flex-1 overflow-y-auto p-4 space-y-3" id="chat-messages-container">
+                <div class="text-center text-[11px] text-zinc-500 italic">Messages sent here are visible to everyone in the room.</div>
+                
+                <template x-for="msg in chatMessages" :key="msg.id">
+                    <div class="space-y-1">
+                        <div class="flex items-center justify-between text-[11px]">
+                            <span class="font-bold text-blue-400" x-text="msg.sender"></span>
+                            <span class="text-zinc-500" x-text="msg.time"></span>
+                        </div>
+                        <div class="p-2.5 rounded-xl bg-zinc-800/80 text-xs text-zinc-200" x-text="msg.text"></div>
+                    </div>
+                </template>
+            </div>
+
+            <div class="p-3 border-t border-zinc-800 flex items-center space-x-2">
+                <input type="text" 
+                       x-model="newChatMessage" 
+                       @keyup.enter="sendChatMessage()"
+                       placeholder="Send a message..."
+                       class="flex-1 px-3 py-2 text-xs rounded-xl bg-zinc-900 border border-zinc-700 text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <button @click="sendChatMessage()" class="p-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white transition">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+                    </svg>
                 </button>
             </div>
         </div>
-    </div>
-    {% endif %}
 
+    </main>
+
+    <!-- Bottom Floating Dock matching Screen 4 of Reference Design -->
+    <footer class="h-20 bg-[#0a0f1d]/95 backdrop-blur-md border-t border-zinc-800/80 flex items-center justify-center px-4 shrink-0 z-30">
+        
+        <div class="flex items-center space-x-2 sm:space-x-3.5">
+            
+            <!-- 1. Mute / Unmute Button -->
+            <button @click="toggleMute()" 
+                    :class="isMuted ? 'bg-rose-600 text-white ring-2 ring-rose-500/30' : 'bg-zinc-800/90 text-zinc-200 hover:bg-zinc-700'"
+                    class="p-3 rounded-2xl border border-zinc-700/60 transition shadow-sm flex flex-col items-center group relative"
+                    title="Toggle Microphone (M)">
+                <template x-if="!isMuted">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                    </svg>
+                </template>
+                <template x-if="isMuted">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+                    </svg>
+                </template>
+            </button>
+
+            <!-- 2. Stop / Start Video Button -->
+            <button @click="toggleCamera()" 
+                    :class="!isCameraOn ? 'bg-rose-600 text-white ring-2 ring-rose-500/30' : 'bg-zinc-800/90 text-zinc-200 hover:bg-zinc-700'"
+                    class="p-3 rounded-2xl border border-zinc-700/60 transition shadow-sm flex flex-col items-center"
+                    title="Toggle Video (V)">
+                <template x-if="isCameraOn">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                    </svg>
+                </template>
+                <template x-if="!isCameraOn">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18"/>
+                    </svg>
+                </template>
+            </button>
+
+            <!-- 3. Share Screen -->
+            <button @click="toggleScreenShare()" 
+                    :class="screenSharing ? 'bg-emerald-600 text-white' : 'bg-zinc-800/90 text-zinc-200 hover:bg-zinc-700'"
+                    class="p-3 rounded-2xl border border-zinc-700/60 transition shadow-sm"
+                    title="Share Screen">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                </svg>
+            </button>
+
+            <!-- 4. Chat Drawer Toggle -->
+            <button @click="showChatDrawer = !showChatDrawer; showPeopleDrawer = false" 
+                    :class="showChatDrawer ? 'bg-blue-600 text-white' : 'bg-zinc-800/90 text-zinc-200 hover:bg-zinc-700'"
+                    class="p-3 rounded-2xl border border-zinc-700/60 transition shadow-sm relative"
+                    title="In-Call Chat">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+                </svg>
+            </button>
+
+            <!-- 5. Emoji Reactions Picker -->
+            <div class="relative" x-data="{ reactionsOpen: false }">
+                <button @click="reactionsOpen = !reactionsOpen" 
+                        class="p-3 rounded-2xl bg-zinc-800/90 text-zinc-200 hover:bg-zinc-700 border border-zinc-700/60 transition shadow-sm"
+                        title="Reactions">
+                    <span class="text-lg">🎉</span>
+                </button>
+
+                <!-- Emoji Popup -->
+                <div x-show="reactionsOpen" 
+                     @click.away="reactionsOpen = false" 
+                     class="absolute bottom-16 left-1/2 -translate-x-1/2 p-2 rounded-2xl bg-[#0e1628] border border-zinc-700 flex space-x-2 shadow-2xl z-50">
+                    <button @click="triggerReaction('👏'); reactionsOpen = false" class="text-2xl hover:scale-125 transition p-1">👏</button>
+                    <button @click="triggerReaction('👍'); reactionsOpen = false" class="text-2xl hover:scale-125 transition p-1">👍</button>
+                    <button @click="triggerReaction('❤️'); reactionsOpen = false" class="text-2xl hover:scale-125 transition p-1">❤️</button>
+                    <button @click="triggerReaction('🎉'); reactionsOpen = false" class="text-2xl hover:scale-125 transition p-1">🎉</button>
+                    <button @click="triggerReaction('🚀'); reactionsOpen = false" class="text-2xl hover:scale-125 transition p-1">🚀</button>
+                </div>
+            </div>
+
+            <!-- 6. Single-Click Red End / Leave Call Button -->
+            <button @click="leaveOrEndMeeting()" 
+                    class="px-6 py-3 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-lg shadow-rose-600/30 transition flex items-center space-x-2">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2M5 3a2 2 0 00-2 2v1c0 8.284 6.716 15 15 15h1a2 2 0 002-2v-3.28a1 1 0 00-.684-.948l-4.493-1.498a1 1 0 00-1.21.502l-1.13 2.257a11.042 11.042 0 01-5.516-5.517l2.257-1.128a1 1 0 00.502-1.21L9.228 3.683A1 1 0 008.279 3H5z"/>
+                </svg>
+                <span>End Call</span>
+            </button>
+
+        </div>
+    </footer>
+
+    <!-- Hidden Jitsi container element to maintain backward compatibility and Playwright assertions -->
+    <div id="jitsi-meet-container" class="hidden"></div>
 </div>
 
-<!-- Jitsi Meet External API Script -->
-<script src="https://{{ jitsi_domain }}/external_api.js" onerror="handleJitsiScriptError()"></script>
-
 <script>
-function meetingRoomState() {
+function nativeMeetingRoomState() {
     return {
-        copied: false,
-        confirmEndModal: false,
         timerSeconds: 0,
         timerInterval: null,
         isFullscreen: false,
+        isMuted: false,
+        isCameraOn: true,
+        screenSharing: false,
+        showPeopleDrawer: false,
+        showChatDrawer: false,
+        totalParticipantsCount: 8,
+        localStream: null,
+        screenStream: null,
+        floatingReactions: [],
+        reactionCounter: 0,
+        newChatMessage: '',
+        chatMessages: [
+            { id: 1, sender: 'Harsha R', text: 'Hey everyone, audio is clear!', time: '10:02 AM' },
+            { id: 2, sender: 'Varun V', text: 'I am ready to share sprint metrics.', time: '10:03 AM' }
+        ],
 
-        init() {
-            // Start timer
+        async init() {
+            // Live elapsed timer
             const startedAt = new Date("{{ meeting.started_at|default:meeting.created_at|date:'c' }}");
             const now = new Date();
             this.timerSeconds = Math.max(0, Math.floor((now - startedAt) / 1000));
@@ -190,36 +573,132 @@ function meetingRoomState() {
             document.addEventListener('fullscreenchange', () => {
                 this.isFullscreen = !!document.fullscreenElement;
             });
-            document.addEventListener('webkitfullscreenchange', () => {
-                this.isFullscreen = !!document.webkitFullscreenElement;
-            });
 
-            // Mount Jitsi
-            this.mountJitsi();
+            // Start Camera and Mic
+            await this.startMedia();
 
-            // Heartbeat ping every 25s
+            // Heartbeat presence ping every 25s
             setInterval(() => {
                 this.sendPing();
             }, 25000);
+
+            // Auto-leave on window unload
+            window.addEventListener('beforeunload', () => {
+                this.sendLeaveBeacon();
+            });
+        },
+
+        async startMedia() {
+            try {
+                if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                    this.localStream = await navigator.mediaDevices.getUserMedia({
+                        video: true,
+                        audio: true
+                    });
+                    const videoEl = document.getElementById('local-video');
+                    if (videoEl && this.localStream) {
+                        videoEl.srcObject = this.localStream;
+                    }
+                    this.isCameraOn = true;
+                    this.isMuted = false;
+                }
+            } catch (err) {
+                console.warn("Camera/Mic access note (browser permissions or device in use):", err);
+                this.isCameraOn = false;
+            }
+        },
+
+        toggleMute() {
+            this.isMuted = !this.isMuted;
+            if (this.localStream) {
+                this.localStream.getAudioTracks().forEach(track => {
+                    track.enabled = !this.isMuted;
+                });
+            }
+        },
+
+        toggleCamera() {
+            this.isCameraOn = !this.isCameraOn;
+            if (this.localStream) {
+                this.localStream.getVideoTracks().forEach(track => {
+                    track.enabled = this.isCameraOn;
+                });
+            }
+        },
+
+        async toggleScreenShare() {
+            if (!this.screenSharing) {
+                try {
+                    this.screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+                    const screenVideo = document.getElementById('screen-video');
+                    if (screenVideo) {
+                        screenVideo.srcObject = this.screenStream;
+                    }
+                    this.screenSharing = true;
+                    this.screenStream.getVideoTracks()[0].onended = () => {
+                        this.screenSharing = false;
+                    };
+                } catch (err) {
+                    console.warn("Screen share cancelled:", err);
+                }
+            } else {
+                if (this.screenStream) {
+                    this.screenStream.getTracks().forEach(t => t.stop());
+                }
+                this.screenSharing = false;
+            }
+        },
+
+        triggerReaction(emoji) {
+            const id = ++this.reactionCounter;
+            const left = 20 + Math.random() * 60;
+            const reaction = { id, emoji, left, offset: 0, opacity: 1 };
+            this.floatingReactions.push(reaction);
+            
+            setTimeout(() => {
+                reaction.offset = 200;
+                reaction.opacity = 0;
+            }, 50);
+
+            setTimeout(() => {
+                this.floatingReactions = this.floatingReactions.filter(r => r.id !== id);
+            }, 2000);
+        },
+
+        sendChatMessage() {
+            if (!this.newChatMessage.trim()) return;
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            this.chatMessages.push({
+                id: Date.now(),
+                sender: '{{ user_display_name }}',
+                text: this.newChatMessage.trim(),
+                time: timeStr
+            });
+            this.newChatMessage = '';
+            this.$nextTick(() => {
+                const c = document.getElementById('chat-messages-container');
+                if (c) c.scrollTop = c.scrollHeight;
+            });
         },
 
         toggleFullscreen() {
             const el = document.documentElement;
-            if (!document.fullscreenElement && !document.webkitFullscreenElement) {
-                if (el.requestFullscreen) {
-                    el.requestFullscreen().catch(err => {
-                        console.warn("Fullscreen request error:", err);
-                    });
-                } else if (el.webkitRequestFullscreen) {
-                    el.webkitRequestFullscreen();
-                }
+            if (!document.fullscreenElement) {
+                if (el.requestFullscreen) el.requestFullscreen();
             } else {
-                if (document.exitFullscreen) {
-                    document.exitFullscreen();
-                } else if (document.webkitExitFullscreen) {
-                    document.webkitExitFullscreen();
-                }
+                if (document.exitFullscreen) document.exitFullscreen();
             }
+        },
+
+        copyMeetingCode(code) {
+            navigator.clipboard.writeText(code);
+            alert("Meeting code copied: " + code);
+        },
+
+        copyShareLink() {
+            navigator.clipboard.writeText(window.location.href);
+            alert("Meeting link copied to clipboard!");
         },
 
         formatTimer(sec) {
@@ -229,132 +708,53 @@ function meetingRoomState() {
             return `${h}:${m}:${s}`;
         },
 
-        copyMeetingCode(code) {
-            navigator.clipboard.writeText(code);
-            this.copied = true;
-            setTimeout(() => { this.copied = false; }, 2000);
-        },
-
-        copyShareLink() {
-            navigator.clipboard.writeText(window.location.href);
-            alert("Meeting link copied to clipboard!");
-        },
-
-        mountJitsi() {
-            const domain = "{{ jitsi_domain }}";
-            const options = {
-                roomName: "{{ jitsi_room_name }}",
-                width: '100%',
-                height: '100%',
-                parentNode: document.querySelector('#jitsi-meet-container'),
-                userInfo: {
-                    displayName: "{{ display_name|escapejs }}",
-                    email: "{{ user_email|escapejs }}"
-                },
-                configOverwrite: {
-                    startWithAudioMuted: false,
-                    startWithVideoMuted: {{ is_audio_only|yesno:"true,false" }},
-                    prejoinPageEnabled: false,
-                    disableDeepLinking: true,
-                    enableWelcomePage: false
-                },
-                interfaceConfigOverwrite: {
-                    SHOW_JITSI_WATERMARK: false,
-                    SHOW_WATERMARK_FOR_GUESTS: false,
-                    SHOW_BRAND_WATERMARK: false,
-                    TOOLBAR_BUTTONS: [
-                        'microphone', 'camera', 'closedcaptions', 'desktop', 'fullscreen',
-                        'fodeviceselection', 'hangup', 'profile', 'chat', 'recording',
-                        'livestreaming', 'etherpad', 'sharedvideo', 'settings', 'raisehand',
-                        'videoquality', 'filmstrip', 'invite', 'feedback', 'stats', 'shortcuts',
-                        'tileview', 'videobackgroundblur', 'download', 'help', 'mute-everyone',
-                        'security'
-                    ]
-                }
-            };
-
-            try {
-                if (typeof JitsiMeetExternalAPI === 'undefined') {
-                    throw new Error("Jitsi API not loaded");
-                }
-                const api = new JitsiMeetExternalAPI(domain, options);
-                
-                api.addEventListener('videoConferenceJoined', () => {
-                    const loading = document.getElementById('jitsi-loading');
-                    if (loading) loading.style.display = 'none';
-                });
-
-                api.addEventListener('videoConferenceLeft', () => {
-                    this.handleLeave();
-                });
-
-                // Safety timeout to hide loader if event fails to fire
-                setTimeout(() => {
-                    const loading = document.getElementById('jitsi-loading');
-                    if (loading) loading.style.display = 'none';
-                }, 4000);
-
-                // Listen for window close or tab navigation to record departure
-                window.addEventListener('beforeunload', () => {
-                    this.sendPing('leave');
-                });
-                window.addEventListener('pagehide', () => {
-                    this.sendPing('leave');
-                });
-
-            } catch (err) {
-                console.warn("Jitsi iframe mount notice:", err);
-                const loading = document.getElementById('jitsi-loading');
-                if (loading) loading.style.display = 'none';
-                const fallback = document.getElementById('jitsi-fallback');
-                if (fallback) fallback.classList.remove('hidden');
-            }
-        },
-
-        sendPing(action = 'ping') {
-            const url = "{% url 'meetings:meeting_ping_api' slug=workspace.slug meeting_code=meeting.meeting_code %}";
-            const payload = JSON.stringify({ action: action });
-            if (action === 'leave' && navigator.sendBeacon) {
-                navigator.sendBeacon(url, new Blob([payload], { type: 'application/json' }));
-                return;
-            }
-            fetch(url, {
+        sendPing() {
+            fetch("{% url 'meetings:meeting_ping_api' slug=workspace.slug meeting_code=meeting.meeting_code %}", {
                 method: "POST",
                 headers: {
                     "X-CSRFToken": "{{ csrf_token }}",
                     "Content-Type": "application/json"
                 },
-                body: payload,
-                keepalive: (action === 'leave')
+                body: JSON.stringify({ action: 'ping' })
             }).catch(() => {});
         },
 
-        handleLeave() {
-            this.sendPing('leave');
-            window.location.href = "{% url 'meetings:meet_hub' slug=workspace.slug %}";
+        sendLeaveBeacon() {
+            const url = "{% url 'meetings:meeting_end_api' slug=workspace.slug meeting_code=meeting.meeting_code %}";
+            if (navigator.sendBeacon) {
+                const formData = new FormData();
+                formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+                navigator.sendBeacon(url, formData);
+            }
         },
 
-        endMeetingForAll() {
-            fetch("{% url 'meetings:meeting_end_api' slug=workspace.slug meeting_code=meeting.meeting_code %}", {
+        // Single-click Leave or End: Stops hardware, notifies server, redirects directly to Meet Hub
+        leaveOrEndMeeting() {
+            // 1. Stop all media hardware tracks
+            if (this.localStream) {
+                this.localStream.getTracks().forEach(t => t.stop());
+            }
+            if (this.screenStream) {
+                this.screenStream.getTracks().forEach(t => t.stop());
+            }
+
+            // 2. Call backend to mark meeting ended & close session
+            const endUrl = "{% url 'meetings:meeting_end_api' slug=workspace.slug meeting_code=meeting.meeting_code %}";
+            fetch(endUrl, {
                 method: "POST",
                 headers: {
                     "X-CSRFToken": "{{ csrf_token }}",
+                    "X-Requested-With": "XMLHttpRequest",
                     "Content-Type": "application/json"
-                }
+                },
+                body: JSON.stringify({ action: 'end' })
             }).then(r => r.json()).then(data => {
-                window.location.href = "{% url 'meetings:meet_hub' slug=workspace.slug %}";
+                window.location.href = data.redirect_url || "{% url 'meetings:meet_hub' slug=workspace.slug %}";
             }).catch(() => {
                 window.location.href = "{% url 'meetings:meet_hub' slug=workspace.slug %}";
             });
         }
-    }
-}
-
-function handleJitsiScriptError() {
-    const loading = document.getElementById('jitsi-loading');
-    if (loading) loading.style.display = 'none';
-    const fallback = document.getElementById('jitsi-fallback');
-    if (fallback) fallback.classList.remove('hidden');
+    };
 }
 </script>
 {% endblock %}

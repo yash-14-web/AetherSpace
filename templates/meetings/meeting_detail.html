@@ -3,84 +3,84 @@
 {% block title %}{{ meeting.title }} ({{ meeting.meeting_code }}) • Details — AetherSpace{% endblock %}
 
 {% block content %}
-<div class="max-w-5xl mx-auto space-y-6" x-data="{ copied: false }">
-    
-    <!-- Breadcrumbs -->
+<div class="max-w-7xl mx-auto space-y-6" x-data="{
+    activeTab: 'overview',
+    copiedLink: false,
+    copiedCode: false,
+    copyText(text, type) {
+        navigator.clipboard.writeText(text);
+        if (type === 'link') {
+            this.copiedLink = true;
+            setTimeout(() => this.copiedLink = false, 2000);
+        } else {
+            this.copiedCode = true;
+            setTimeout(() => this.copiedCode = false, 2000);
+        }
+    }
+}">
+
+    <!-- Top Navigation & Back Link (Screen 6) -->
     <div class="flex items-center space-x-2 text-xs text-slate-500 dark:text-zinc-400">
-        <a href="{% url 'meetings:meet_hub' slug=workspace.slug %}" class="hover:text-blue-600 transition">Meet Hub</a>
+        <a href="{% url 'meetings:meet_hub' slug=workspace.slug %}" class="inline-flex items-center space-x-1 hover:text-blue-600 transition font-medium">
+            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+            </svg>
+            <span>Back to Meetings</span>
+        </a>
         <span>/</span>
-        <a href="{% url 'meetings:meeting_history' slug=workspace.slug %}" class="hover:text-blue-600 transition">History</a>
-        <span>/</span>
-        <span class="text-slate-900 dark:text-zinc-100 font-mono font-bold bg-white dark:bg-zinc-800 px-2.5 py-0.5 rounded-lg border border-slate-200 dark:border-zinc-700">{{ meeting.meeting_code }}</span>
+        <span class="text-slate-900 dark:text-zinc-100 font-semibold font-mono">{{ meeting.meeting_code }}</span>
     </div>
 
-    <!-- Header Card -->
-    <div class="p-6 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <!-- Header Card (Screen 6) -->
+    <div class="p-6 sm:p-7 rounded-3xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#18181b] shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div class="space-y-2">
-            <div class="flex items-center space-x-2.5">
+            <div class="flex items-center space-x-3">
+                <h1 class="text-xl sm:text-2xl font-black text-slate-900 dark:text-zinc-100 tracking-tight">
+                    {{ meeting.title }}
+                </h1>
+                
                 {% if meeting.status == 'LIVE' %}
-                <span class="inline-flex items-center space-x-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-800 animate-pulse">
+                <span class="inline-flex items-center space-x-1.5 px-3 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800 animate-pulse">
                     <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
                     <span>LIVE NOW</span>
                 </span>
                 {% elif meeting.status == 'SCHEDULED' %}
-                <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800">
-                    SCHEDULED
+                <span class="px-3 py-0.5 rounded-full text-xs font-bold bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-400 border border-blue-200 dark:border-blue-900">
+                    Upcoming
                 </span>
                 {% elif meeting.status == 'ENDED' %}
-                <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700">
-                    COMPLETED
+                <span class="px-3 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+                    Completed
                 </span>
                 {% elif meeting.status == 'CANCELLED' %}
-                <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950 dark:text-rose-300 dark:border-rose-800">
-                    CANCELLED
+                <span class="px-3 py-0.5 rounded-full text-xs font-bold bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400 border border-rose-200 dark:border-rose-900">
+                    Cancelled
                 </span>
                 {% endif %}
-
-                <!-- Code pill with copy action -->
-                <button @click="navigator.clipboard.writeText('{{ meeting.meeting_code }}'); copied = true; setTimeout(() => copied = false, 2000)"
-                        class="inline-flex items-center space-x-1.5 font-mono text-xs font-bold text-slate-700 dark:text-zinc-300 bg-white dark:bg-zinc-800 px-2.5 py-0.5 rounded-lg border border-slate-300 dark:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-700 transition shadow-2xs"
-                        title="Copy meeting code">
-                    <span>{{ meeting.meeting_code }}</span>
-                    <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
-                    </svg>
-                    <span x-show="copied" x-cloak class="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold ml-1">Copied!</span>
-                </button>
             </div>
 
-            <h1 class="text-xl sm:text-2xl font-black text-slate-900 dark:text-zinc-50 tracking-tight">
-                {{ meeting.title }}
-            </h1>
-
-            <div class="flex flex-wrap items-center gap-3 text-xs text-slate-500 dark:text-zinc-400">
-                <span>Hosted by <strong class="text-slate-800 dark:text-zinc-200">{{ meeting.host.get_full_name|default:meeting.host.username }}</strong></span>
-                <span>•</span>
-                <span>Type: <strong class="text-slate-800 dark:text-zinc-200">{{ meeting.get_meeting_type_display }}</strong></span>
-                <span>•</span>
-                <span>Created: {{ meeting.created_at|date:"M d, Y g:i A" }}</span>
-            </div>
+            <p class="text-xs text-slate-500 dark:text-zinc-400">
+                Created {{ meeting.created_at|date:"M d, Y" }} by <strong class="text-slate-700 dark:text-zinc-300">{{ meeting.host.get_full_name|default:meeting.host.username }}</strong>
+                {% if meeting.project %} • Project: <span class="font-semibold text-blue-600 dark:text-blue-400">{{ meeting.project.name }}</span>{% endif %}
+            </p>
         </div>
 
-        <!-- Action buttons -->
-        <div class="flex items-center space-x-2.5 shrink-0">
+        <!-- Action Buttons (Screen 6) -->
+        <div class="flex items-center flex-wrap gap-2.5 shrink-0">
             {% if meeting.status == 'LIVE' and is_host or meeting.status == 'LIVE' and membership.can_manage_content %}
             <form method="post" action="{% url 'meetings:meeting_end_api' slug=workspace.slug meeting_code=meeting.meeting_code %}" class="inline">
                 {% csrf_token %}
                 <button type="submit" 
-                        onclick="return confirm('Are you sure you want to end this live meeting for everyone?');"
-                        class="inline-flex items-center space-x-1.5 px-4 py-2 text-xs font-bold rounded-xl bg-rose-600 hover:bg-rose-700 text-white shadow-md shadow-rose-500/20 transition">
-                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                    </svg>
-                    <span>End Meeting</span>
+                        onclick="return confirm('End this live meeting for everyone?');"
+                        class="px-4 py-2.5 text-xs font-bold rounded-xl bg-rose-600 hover:bg-rose-700 text-white shadow-sm transition">
+                    End Call
                 </button>
             </form>
             {% endif %}
 
             {% if meeting.status in 'SCHEDULED,LIVE' %}
             <a href="{% url 'meetings:meeting_room' slug=workspace.slug meeting_code=meeting.meeting_code %}" 
-               class="inline-flex items-center space-x-1.5 px-4 py-2 text-xs font-bold rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-500/20 transition">
+               class="inline-flex items-center space-x-1.5 px-5 py-2.5 text-xs font-bold rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-500/20 transition">
                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
                 </svg>
@@ -90,163 +90,342 @@
 
             {% if can_manage and meeting.status != 'ENDED' and meeting.status != 'CANCELLED' %}
             <a href="{% url 'meetings:meeting_edit' slug=workspace.slug meeting_code=meeting.meeting_code %}" 
-               class="px-3.5 py-2 text-xs font-bold rounded-xl border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-700 shadow-2xs transition">
-                Edit
+               class="px-4 py-2.5 text-xs font-bold rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:border-blue-500 transition shadow-2xs">
+                Edit Meeting
             </a>
             <a href="{% url 'meetings:meeting_cancel' slug=workspace.slug meeting_code=meeting.meeting_code %}" 
-               class="px-3.5 py-2 text-xs font-bold rounded-xl bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-900 hover:bg-rose-100 transition">
+               class="px-4 py-2.5 text-xs font-bold rounded-xl border border-rose-200 dark:border-rose-900 bg-rose-50/50 dark:bg-rose-950/20 text-rose-600 dark:text-rose-400 hover:bg-rose-100 transition">
                 Cancel
             </a>
             {% endif %}
         </div>
     </div>
 
-    <!-- Overview Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-        
-        <!-- Left 2 Cols: Details & Agenda -->
-        <div class="md:col-span-2 space-y-6">
-            
-            <!-- Agenda / Description Card -->
-            <div class="p-6 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] shadow-sm space-y-3">
-                <h2 class="text-sm font-bold text-slate-900 dark:text-zinc-100">Meeting Agenda & Notes</h2>
-                {% if meeting.description %}
-                <div class="text-xs text-slate-700 dark:text-zinc-300 whitespace-pre-line leading-relaxed">
-                    {{ meeting.description }}
+    <!-- Navigation Tabs (Screen 6: Overview, People, Agenda, Files, Chat) -->
+    <div class="border-b border-slate-200 dark:border-zinc-800">
+        <div class="flex space-x-6 text-xs">
+            <button type="button"
+                    @click="activeTab = 'overview'"
+                    :class="activeTab === 'overview' ? 'border-blue-600 text-blue-600 dark:text-blue-400 font-bold' : 'border-transparent text-slate-500 dark:text-zinc-400 font-medium hover:text-slate-800 dark:hover:text-zinc-200'"
+                    class="pb-3 border-b-2 transition">
+                Overview
+            </button>
+            <button type="button"
+                    @click="activeTab = 'people'"
+                    :class="activeTab === 'people' ? 'border-blue-600 text-blue-600 dark:text-blue-400 font-bold' : 'border-transparent text-slate-500 dark:text-zinc-400 font-medium hover:text-slate-800 dark:hover:text-zinc-200'"
+                    class="pb-3 border-b-2 transition flex items-center space-x-1.5">
+                <span>People</span>
+                <span class="px-1.5 py-0.2 rounded-full text-[10px] bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 font-bold">
+                    {{ total_participant_count|default:invites|length }}
+                </span>
+            </button>
+            <button type="button"
+                    @click="activeTab = 'agenda'"
+                    :class="activeTab === 'agenda' ? 'border-blue-600 text-blue-600 dark:text-blue-400 font-bold' : 'border-transparent text-slate-500 dark:text-zinc-400 font-medium hover:text-slate-800 dark:hover:text-zinc-200'"
+                    class="pb-3 border-b-2 transition">
+                Agenda
+            </button>
+            <button type="button"
+                    @click="activeTab = 'files'"
+                    :class="activeTab === 'files' ? 'border-blue-600 text-blue-600 dark:text-blue-400 font-bold' : 'border-transparent text-slate-500 dark:text-zinc-400 font-medium hover:text-slate-800 dark:hover:text-zinc-200'"
+                    class="pb-3 border-b-2 transition">
+                Files
+            </button>
+            <button type="button"
+                    @click="activeTab = 'chat'"
+                    :class="activeTab === 'chat' ? 'border-blue-600 text-blue-600 dark:text-blue-400 font-bold' : 'border-transparent text-slate-500 dark:text-zinc-400 font-medium hover:text-slate-800 dark:hover:text-zinc-200'"
+                    class="pb-3 border-b-2 transition">
+                In-Room Chat
+            </button>
+        </div>
+    </div>
+
+    <!-- 2-Column Split View (Screen 6) -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        <!-- LEFT COLUMN: Main Details / Tab Content (8 Cols) -->
+        <div class="lg:col-span-8 space-y-6">
+
+            <!-- TAB 1: OVERVIEW -->
+            <div x-show="activeTab === 'overview'" class="space-y-6">
+                <!-- Session Specs Card (Screen 6) -->
+                <div class="p-6 sm:p-7 rounded-3xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#18181b] shadow-xl space-y-5">
+                    <h3 class="text-sm font-bold text-slate-900 dark:text-zinc-100">Meeting Information</h3>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                        <!-- Date & Time -->
+                        <div class="p-3.5 rounded-2xl bg-slate-50/60 dark:bg-zinc-900/60 border border-slate-200 dark:border-zinc-800 flex items-center space-x-3">
+                            <div class="w-9 h-9 rounded-xl bg-blue-100 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                </svg>
+                            </div>
+                            <div>
+                                <span class="text-[10px] uppercase font-bold text-slate-400 dark:text-zinc-500 block">Date & Time</span>
+                                <span class="font-bold text-slate-900 dark:text-zinc-100">
+                                    {{ meeting.scheduled_start|date:"l, M d, Y • g:i A"|default:"Instant Call" }}
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- Duration -->
+                        <div class="p-3.5 rounded-2xl bg-slate-50/60 dark:bg-zinc-900/60 border border-slate-200 dark:border-zinc-800 flex items-center space-x-3">
+                            <div class="w-9 h-9 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                            </div>
+                            <div>
+                                <span class="text-[10px] uppercase font-bold text-slate-400 dark:text-zinc-500 block">Duration</span>
+                                <span class="font-bold text-slate-900 dark:text-zinc-100">
+                                    {{ meeting.duration_display|default:"30 minutes" }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Meeting Link & Code with Copy (Screen 6) -->
+                    <div class="space-y-3 pt-2">
+                        <!-- Meeting Link -->
+                        <div class="space-y-1">
+                            <span class="text-[11px] font-bold text-slate-500 dark:text-zinc-400">Meeting Link</span>
+                            <div class="p-2.5 rounded-xl bg-slate-50 dark:bg-zinc-900/80 border border-slate-200 dark:border-zinc-800 flex items-center justify-between gap-2">
+                                <span class="text-xs font-mono text-slate-700 dark:text-zinc-300 truncate select-all">
+                                    {{ request.scheme }}://{{ request.get_host }}/meetings/w/{{ workspace.slug }}/room/{{ meeting.meeting_code }}/
+                                </span>
+                                <button type="button"
+                                        @click="copyText('{{ request.scheme }}://{{ request.get_host }}/meetings/w/{{ workspace.slug }}/room/{{ meeting.meeting_code }}/', 'link')"
+                                        class="px-3 py-1 text-xs font-bold rounded-lg bg-blue-600 hover:bg-blue-700 text-white shrink-0 transition flex items-center space-x-1">
+                                    <span x-text="copiedLink ? 'Copied!' : 'Copy Link'">Copy Link</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Meeting ID -->
+                        <div class="space-y-1">
+                            <span class="text-[11px] font-bold text-slate-500 dark:text-zinc-400">Meeting ID</span>
+                            <div class="p-2.5 rounded-xl bg-slate-50 dark:bg-zinc-900/80 border border-slate-200 dark:border-zinc-800 flex items-center justify-between gap-2">
+                                <span class="text-xs font-mono font-bold text-slate-900 dark:text-zinc-100 select-all">
+                                    {{ meeting.meeting_code }}
+                                </span>
+                                <button type="button"
+                                        @click="copyText('{{ meeting.meeting_code }}', 'code')"
+                                        class="px-3 py-1 text-xs font-semibold rounded-lg border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 shrink-0 transition">
+                                    <span x-text="copiedCode ? 'Copied!' : 'Copy ID'">Copy ID</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Description / Agenda Section (Screen 6) -->
+                    <div class="pt-4 border-t border-slate-100 dark:border-zinc-800 space-y-2">
+                        <h4 class="text-xs font-bold text-slate-900 dark:text-zinc-100">Description</h4>
+                        <div class="text-xs text-slate-600 dark:text-zinc-300 leading-relaxed whitespace-pre-line bg-slate-50/50 dark:bg-zinc-900/30 p-4 rounded-2xl border border-slate-200 dark:border-zinc-800">
+                            {{ meeting.description|default:"No detailed description or agenda provided for this meeting." }}
+                        </div>
+                    </div>
                 </div>
-                {% else %}
-                <p class="text-xs text-slate-400 italic">No agenda or notes provided for this meeting.</p>
-                {% endif %}
             </div>
 
-            <!-- Participants Roster -->
-            <div class="p-6 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] shadow-sm space-y-4">
-                <div class="flex items-center justify-between">
-                    <h2 class="text-sm font-bold text-slate-900 dark:text-zinc-100">
-                        Participants ({{ total_participant_count|default:participants|length }})
-                    </h2>
-                    <span class="text-xs text-slate-400 font-mono">Sessions recorded</span>
-                </div>
+            <!-- TAB 2: PEOPLE / ATTENDEES ROSTER (Screen 6) -->
+            <div x-show="activeTab === 'people'" class="space-y-4" style="display: none;">
+                <div class="p-6 sm:p-7 rounded-3xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#18181b] shadow-xl space-y-4">
+                    <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-zinc-800">
+                        <h3 class="text-sm font-bold text-slate-900 dark:text-zinc-100">
+                            Attendee History & Attendance ({{ participants|length }})
+                        </h3>
+                    </div>
 
-                {% if participants %}
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left text-xs">
-                        <thead>
-                            <tr class="border-b border-slate-200 dark:border-zinc-800 bg-slate-50/80 dark:bg-[#090d16] text-slate-500 dark:text-zinc-400 uppercase text-[10px] font-bold tracking-wider">
-                                <th class="py-3 px-3 whitespace-nowrap">User</th>
-                                <th class="py-3 px-3 whitespace-nowrap">Role</th>
-                                <th class="py-3 px-3 whitespace-nowrap">Joined At</th>
-                                <th class="py-3 px-3 whitespace-nowrap">Left At</th>
-                                <th class="py-3 px-3 font-bold text-right whitespace-nowrap">Status</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-slate-100 dark:divide-zinc-800/70">
-                            {% for p in participants %}
-                            <tr class="hover:bg-slate-50/80 dark:hover:bg-zinc-800/40 transition-colors">
-                                <td class="py-3 px-3 font-semibold text-slate-900 dark:text-zinc-100 flex items-center space-x-2.5 whitespace-nowrap">
-                                    <div class="w-7 h-7 rounded-full bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-400 font-bold text-xs flex items-center justify-center shrink-0">
-                                        {{ p.user.first_name|default:p.user.username|slice:":1"|upper }}
-                                    </div>
-                                    <span>{{ p.user.get_full_name|default:p.user.username }}</span>
-                                </td>
-                                <td class="py-3 px-3 text-slate-600 dark:text-zinc-400 whitespace-nowrap">
-                                    <span class="px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-700 border border-slate-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700">
+                    {% if participants %}
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs">
+                            <thead>
+                                <tr class="border-b border-slate-200 dark:border-zinc-800 text-[10px] uppercase font-bold text-slate-400 dark:text-zinc-500 tracking-wider">
+                                    <th class="py-2.5 px-3">Participant</th>
+                                    <th class="py-2.5 px-3">Role</th>
+                                    <th class="py-2.5 px-3">Joined</th>
+                                    <th class="py-2.5 px-3">Left</th>
+                                    <th class="py-2.5 px-3 text-right">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100 dark:divide-zinc-800">
+                                {% for p in participants %}
+                                <tr>
+                                    <td class="py-3 px-3 font-semibold text-slate-900 dark:text-zinc-100 flex items-center space-x-2">
+                                        <div class="w-6 h-6 rounded-full bg-blue-600 text-white text-[10px] font-bold flex items-center justify-center">
+                                            {{ p.user.username|slice:":1"|upper }}
+                                        </div>
+                                        <span>{{ p.user.get_full_name|default:p.user.username }}</span>
+                                    </td>
+                                    <td class="py-3 px-3 text-slate-500 dark:text-zinc-400">
                                         {{ p.get_role_display }}
-                                    </span>
-                                </td>
-                                <td class="py-3 px-3 font-mono text-slate-600 dark:text-zinc-400 whitespace-nowrap text-[11px]">
-                                    {{ p.joined_at|date:"g:i:s A" }}
-                                </td>
-                                <td class="py-3 px-3 font-mono text-slate-600 dark:text-zinc-400 whitespace-nowrap text-[11px]">
-                                    {% if p.left_at %}
-                                        {{ p.left_at|date:"g:i:s A" }}
-                                    {% else %}
-                                        <span class="text-emerald-600 dark:text-emerald-400 font-bold">Online</span>
-                                    {% endif %}
-                                </td>
-                                <td class="py-3 px-3 text-right whitespace-nowrap">
-                                    {% if not p.left_at %}
-                                    <span class="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950 dark:text-emerald-400 dark:border-emerald-800">
-                                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                                        <span>Active</span>
-                                    </span>
-                                    {% else %}
-                                    <span class="text-slate-400 dark:text-zinc-500 text-[11px]">Departed</span>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                                    </td>
+                                    <td class="py-3 px-3 font-mono text-[11px] text-slate-500 dark:text-zinc-400">
+                                        {{ p.joined_at|date:"g:i:s A" }}
+                                    </td>
+                                    <td class="py-3 px-3 font-mono text-[11px] text-slate-500 dark:text-zinc-400">
+                                        {{ p.left_at|date:"g:i:s A"|default:"Active / In Room" }}
+                                    </td>
+                                    <td class="py-3 px-3 text-right">
+                                        {% if not p.left_at %}
+                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-400">
+                                            Online
+                                        </span>
+                                        {% else %}
+                                        <span class="text-slate-400 dark:text-zinc-500 text-[11px]">Attended</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-xs text-slate-400 dark:text-zinc-500 italic py-4 text-center">
+                        No participants have connected to this room yet.
+                    </p>
+                    {% endif %}
                 </div>
-                {% else %}
-                <p class="text-xs text-slate-400 italic">No participants have joined this session yet.</p>
-                {% endif %}
+            </div>
+
+            <!-- TAB 3: AGENDA (Screen 6) -->
+            <div x-show="activeTab === 'agenda'" class="space-y-4" style="display: none;">
+                <div class="p-6 sm:p-7 rounded-3xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#18181b] shadow-xl space-y-4">
+                    <h3 class="text-sm font-bold text-slate-900 dark:text-zinc-100">Meeting Agenda Items</h3>
+                    <div class="space-y-3 text-xs">
+                        <div class="p-3.5 rounded-2xl bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 flex items-start space-x-3">
+                            <span class="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center shrink-0">1</span>
+                            <div>
+                                <span class="font-bold text-slate-900 dark:text-zinc-100 block">Sprint Goals Review</span>
+                                <span class="text-slate-500 dark:text-zinc-400 text-[11px]">Assess team progress against sprint commitments and milestones.</span>
+                            </div>
+                        </div>
+
+                        <div class="p-3.5 rounded-2xl bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 flex items-start space-x-3">
+                            <span class="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center shrink-0">2</span>
+                            <div>
+                                <span class="font-bold text-slate-900 dark:text-zinc-100 block">Architecture & Bug Triage</span>
+                                <span class="text-slate-500 dark:text-zinc-400 text-[11px]">Identify blockers, resolve critical issues, and assign next actions.</span>
+                            </div>
+                        </div>
+
+                        <div class="p-3.5 rounded-2xl bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 flex items-start space-x-3">
+                            <span class="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center shrink-0">3</span>
+                            <div>
+                                <span class="font-bold text-slate-900 dark:text-zinc-100 block">Open Discussion & Q&A</span>
+                                <span class="text-slate-500 dark:text-zinc-400 text-[11px]">Floor open for questions and coordination across workspaces.</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 4: FILES (Screen 6) -->
+            <div x-show="activeTab === 'files'" class="space-y-4" style="display: none;">
+                <div class="p-6 sm:p-7 rounded-3xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#18181b] shadow-xl space-y-4">
+                    <h3 class="text-sm font-bold text-slate-900 dark:text-zinc-100">Meeting Attachments & Documents</h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div class="p-3.5 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-slate-50/60 dark:bg-zinc-900/60 flex items-center justify-between text-xs">
+                            <div class="flex items-center space-x-3">
+                                <span class="text-xl">📄</span>
+                                <div>
+                                    <span class="font-bold text-slate-900 dark:text-zinc-100 block">Sprint_Backlog.pdf</span>
+                                    <span class="text-[10px] text-slate-400">1.8 MB • PDF</span>
+                                </div>
+                            </div>
+                            <span class="text-blue-600 font-bold hover:underline cursor-pointer">View</span>
+                        </div>
+
+                        <div class="p-3.5 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-slate-50/60 dark:bg-zinc-900/60 flex items-center justify-between text-xs">
+                            <div class="flex items-center space-x-3">
+                                <span class="text-xl">🖼️</span>
+                                <div>
+                                    <span class="font-bold text-slate-900 dark:text-zinc-100 block">Architecture_v2.png</span>
+                                    <span class="text-[10px] text-slate-400">3.4 MB • PNG</span>
+                                </div>
+                            </div>
+                            <span class="text-blue-600 font-bold hover:underline cursor-pointer">View</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 5: IN-ROOM CHAT (Screen 6) -->
+            <div x-show="activeTab === 'chat'" class="space-y-4" style="display: none;">
+                <div class="p-6 sm:p-7 rounded-3xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#18181b] shadow-xl text-center space-y-3">
+                    <div class="w-12 h-12 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center mx-auto text-xl">
+                        💬
+                    </div>
+                    <h3 class="text-sm font-bold text-slate-900 dark:text-zinc-100">Live In-Call Chat Transcript</h3>
+                    <p class="text-xs text-slate-500 dark:text-zinc-400 max-w-md mx-auto">
+                        In-call messages and shared links are delivered live inside the active meeting room drawer.
+                    </p>
+                    <div class="pt-2">
+                        <a href="{% url 'meetings:meeting_room' slug=workspace.slug meeting_code=meeting.meeting_code %}"
+                           class="inline-flex items-center space-x-2 px-4 py-2 text-xs font-bold rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition">
+                            <span>Open In-Room Chat</span>
+                        </a>
+                    </div>
+                </div>
             </div>
 
         </div>
 
-        <!-- Right Col: Metadata, Timestamps & Invites -->
-        <div class="space-y-6">
-            
-            <!-- Metadata Card -->
-            <div class="p-5 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] shadow-sm space-y-3">
-                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500">Session Specs</h3>
-                
-                <div class="divide-y divide-slate-100 dark:divide-zinc-800 text-xs">
-                    <div class="py-2.5 flex justify-between items-center">
-                        <span class="text-slate-500 dark:text-zinc-400">Scheduled:</span>
-                        <span class="font-semibold text-slate-900 dark:text-zinc-100">
-                            {{ meeting.scheduled_start|date:"M d, g:i A"|default:"Instant Session" }}
-                        </span>
-                    </div>
-                    <div class="py-2.5 flex justify-between items-center">
-                        <span class="text-slate-500 dark:text-zinc-400">Started:</span>
-                        <span class="font-semibold text-slate-900 dark:text-zinc-100">
-                            {{ meeting.actual_start|date:"g:i:s A"|default:"Not started" }}
-                        </span>
-                    </div>
-                    <div class="py-2.5 flex justify-between items-center">
-                        <span class="text-slate-500 dark:text-zinc-400">Ended:</span>
-                        <span class="font-semibold text-slate-900 dark:text-zinc-100">
-                            {{ meeting.actual_end|date:"g:i:s A"|default:"—" }}
-                        </span>
-                    </div>
-                    <div class="py-2.5 flex justify-between items-center">
-                        <span class="text-slate-500 dark:text-zinc-400">Duration:</span>
-                        <span class="font-semibold text-slate-900 dark:text-zinc-100">
-                            {{ meeting.duration_display }}
-                        </span>
-                    </div>
-                    <div class="py-2.5 flex justify-between items-center">
-                        <span class="text-slate-500 dark:text-zinc-400">Media Mode:</span>
-                        <span class="font-semibold text-slate-900 dark:text-zinc-100">
-                            {% if meeting.is_audio_only %}Audio Only 📞{% else %}Audio & Video 📹{% endif %}
-                        </span>
-                    </div>
+        <!-- RIGHT COLUMN: Guests / Invitees Roster (4 Cols, Screen 6) -->
+        <div class="lg:col-span-4 space-y-6">
+            <div class="p-6 rounded-3xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#18181b] shadow-xl space-y-4">
+                <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-zinc-800">
+                    <h3 class="text-sm font-bold text-slate-900 dark:text-zinc-100">
+                        Guests ({{ invites|length|default:total_participant_count }})
+                    </h3>
+                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">RSVP Status</span>
                 </div>
-            </div>
 
-            <!-- Invites Card -->
-            {% if invites %}
-            <div class="p-5 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] shadow-sm space-y-3">
-                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500">Invited Members ({{ invites|length }})</h3>
-                <div class="space-y-2">
-                    {% for inv in invites %}
+                <div class="space-y-3">
+                    <!-- Host Item -->
                     <div class="flex items-center justify-between text-xs">
-                        <span class="font-semibold text-slate-800 dark:text-zinc-200">{{ inv.user.get_full_name|default:inv.user.username }}</span>
-                        <span class="text-[10px] px-2 py-0.5 rounded-full font-bold 
-                            {% if inv.status == 'ACCEPTED' %}bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-800
-                            {% elif inv.status == 'DECLINED' %}bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950 dark:text-rose-300 dark:border-rose-800
-                            {% else %}bg-slate-100 text-slate-700 border border-slate-200 dark:bg-zinc-800 dark:text-zinc-400 dark:border-zinc-700{% endif %}">
+                        <div class="flex items-center space-x-2.5">
+                            <div class="w-8 h-8 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center">
+                                {{ meeting.host.username|slice:":1"|upper }}
+                            </div>
+                            <div>
+                                <span class="font-bold text-slate-900 dark:text-zinc-100 block">
+                                    {{ meeting.host.get_full_name|default:meeting.host.username }}
+                                </span>
+                                <span class="text-[10px] text-slate-400">{{ meeting.host.email }}</span>
+                            </div>
+                        </div>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-400 border border-blue-200 dark:border-blue-900">
+                            Host
+                        </span>
+                    </div>
+
+                    <!-- Invites List -->
+                    {% for inv in invites %}
+                    {% if inv.user != meeting.host %}
+                    <div class="flex items-center justify-between text-xs">
+                        <div class="flex items-center space-x-2.5">
+                            <div class="w-8 h-8 rounded-full bg-indigo-600 text-white text-xs font-bold flex items-center justify-center">
+                                {{ inv.user.username|slice:":1"|upper }}
+                            </div>
+                            <div>
+                                <span class="font-bold text-slate-900 dark:text-zinc-100 block">
+                                    {{ inv.user.get_full_name|default:inv.user.username }}
+                                </span>
+                                <span class="text-[10px] text-slate-400">{{ inv.user.email }}</span>
+                            </div>
+                        </div>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold 
+                            {% if inv.status == 'ACCEPTED' %}bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800
+                            {% elif inv.status == 'DECLINED' %}bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-400 border border-rose-200 dark:border-rose-900
+                            {% else %}bg-slate-100 text-slate-700 dark:bg-zinc-800 dark:text-zinc-400 border border-slate-200 dark:border-zinc-700{% endif %}">
                             {{ inv.get_status_display }}
                         </span>
                     </div>
+                    {% endif %}
                     {% endfor %}
                 </div>
             </div>
-            {% endif %}
-
         </div>
 
     </div>

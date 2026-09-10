@@ -3,198 +3,337 @@
 {% block title %}Schedule Meeting • {{ workspace.name }} — AetherSpace{% endblock %}
 
 {% block content %}
-<div class="max-w-2xl mx-auto py-6 space-y-6">
+<div class="space-y-6 max-w-7xl mx-auto" x-data="schedulePageHandler()">
     
-    <!-- Breadcrumb -->
-    <div class="flex items-center space-x-2 text-xs text-slate-500 dark:text-zinc-400">
+    <!-- Breadcrumb & Top Bar -->
+    <div class="flex items-center space-x-2 text-xs text-slate-500 dark:text-zinc-400 pb-2 border-b border-slate-200 dark:border-zinc-800">
         <a href="{% url 'meetings:meet_hub' slug=workspace.slug %}" class="hover:text-blue-600 transition">Meet Hub</a>
         <span>/</span>
         <span class="text-slate-900 dark:text-zinc-100 font-semibold">Schedule Meeting</span>
     </div>
 
-    <!-- Main Card -->
-    <div class="p-6 sm:p-8 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] shadow-sm">
-        <div class="flex items-center space-x-3 mb-6">
-            <div class="w-10 h-10 rounded-xl bg-purple-600 text-white flex items-center justify-center shadow-md shadow-purple-500/20">
-                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                </svg>
-            </div>
-            <div>
-                <h1 class="text-lg font-bold text-slate-900 dark:text-zinc-100">Schedule a Standup / Meeting</h1>
-                <p class="text-xs text-slate-500 dark:text-zinc-400">Coordinate time, agenda, and invitees in {{ workspace.name }}.</p>
-            </div>
-        </div>
+    <!-- Screen 5: 2-Column Layout (Form on Left, Calendar & Summary on Right) -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
-        <form method="post" class="space-y-5" x-data="scheduleMemberPicker()">
-            {% csrf_token %}
-
-            <div>
-                <label for="id_title" class="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1.5">
-                    Meeting Title *
-                </label>
-                {{ form.title }}
-                {% if form.title.errors %}
-                <p class="text-xs text-rose-500 mt-1">{{ form.title.errors.0 }}</p>
-                {% endif %}
-            </div>
-
-            <div>
-                <label for="id_description" class="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1.5">
-                    Agenda / Notes (Optional)
-                </label>
-                {{ form.description }}
-                {% if form.description.errors %}
-                <p class="text-xs text-rose-500 mt-1">{{ form.description.errors.0 }}</p>
-                {% endif %}
-            </div>
-
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <!-- LEFT COLUMN: Schedule Form (8 Cols) -->
+        <div class="lg:col-span-8">
+            <div class="p-6 sm:p-8 rounded-3xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#18181b] shadow-xl space-y-6">
+                
                 <div>
-                    <label for="id_meeting_type" class="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1.5">
-                        Meeting Type
-                    </label>
-                    {{ form.meeting_type }}
-                    {% if form.meeting_type.errors %}
-                    <p class="text-xs text-rose-500 mt-1">{{ form.meeting_type.errors.0 }}</p>
-                    {% endif %}
-                </div>
-
-                <div>
-                    <label for="id_duration_minutes" class="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1.5">
-                        Duration
-                    </label>
-                    {{ form.duration_minutes }}
-                    {% if form.duration_minutes.errors %}
-                    <p class="text-xs text-rose-500 mt-1">{{ form.duration_minutes.errors.0 }}</p>
-                    {% endif %}
-                </div>
-            </div>
-
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                    <label for="id_scheduled_date" class="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1.5">
-                        Date *
-                    </label>
-                    {{ form.scheduled_date }}
-                    {% if form.scheduled_date.errors %}
-                    <p class="text-xs text-rose-500 mt-1">{{ form.scheduled_date.errors.0 }}</p>
-                    {% endif %}
-                </div>
-                <div>
-                    <label for="id_scheduled_time" class="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1.5">
-                        Time *
-                    </label>
-                    {{ form.scheduled_time }}
-                    {% if form.scheduled_time.errors %}
-                    <p class="text-xs text-rose-500 mt-1">{{ form.scheduled_time.errors.0 }}</p>
-                    {% endif %}
-                </div>
-            </div>
-
-            <!-- Searchable Member Picker -->
-            <div class="space-y-2.5">
-                <div class="flex items-center justify-between">
-                    <label class="block text-xs font-bold text-slate-700 dark:text-zinc-300">
-                        Invite Workspace Members
-                    </label>
-                    <div class="flex items-center space-x-2 text-[11px]">
-                        <button type="button" @click="selectAll()" class="text-blue-600 dark:text-blue-400 hover:underline font-semibold">
-                            Select All
-                        </button>
-                        <span class="text-slate-300 dark:text-zinc-700">•</span>
-                        <button type="button" @click="clearAll()" class="text-slate-500 dark:text-zinc-400 hover:underline font-medium">
-                            Clear
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Search Input Field -->
-                <div class="relative">
-                    <div class="absolute inset-y-0 left-0 flex items-center pointer-events-none text-slate-400" style="left: 0.85rem;">
-                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                        </svg>
-                    </div>
-                    <input type="text" 
-                           x-model="searchQuery" 
-                           placeholder="Search members by name or email to add..." 
-                           style="padding-left: 2.75rem !important;"
-                           class="w-full pr-4 py-2.5 text-xs rounded-xl bg-white dark:bg-[#0c1322] border border-slate-300 dark:border-zinc-700 text-slate-900 dark:text-zinc-100 placeholder-slate-400 focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition">
-                </div>
-
-                <!-- Selected Members Chips Container -->
-                <div class="p-3 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50/80 dark:bg-zinc-900/40 min-h-[52px]">
-                    <div class="flex flex-wrap items-center gap-1.5" x-show="selectedMembers.length > 0">
-                        <template x-for="m in selectedMembers" :key="m.id">
-                            <span class="inline-flex items-center space-x-1.5 pl-1.5 pr-2 py-1 rounded-lg text-xs font-semibold bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800/60 shadow-2xs">
-                                <span class="w-5 h-5 rounded-full bg-purple-600 text-white text-[10px] font-bold flex items-center justify-center" x-text="m.initial"></span>
-                                <span class="truncate max-w-[130px]" x-text="m.name"></span>
-                                <button type="button" @click="removeMember(m.id)" class="text-purple-400 hover:text-purple-700 dark:hover:text-purple-200 font-bold ml-1 focus:outline-none">
-                                    ✕
-                                </button>
-                            </span>
-                        </template>
-                    </div>
-
-                    <p x-show="selectedMembers.length === 0" class="text-xs text-slate-500 dark:text-zinc-400 italic py-1">
-                        No specific invitees selected. (Anyone in the workspace can still join via the meeting room code).
+                    <h1 class="text-xl sm:text-2xl font-black text-slate-900 dark:text-zinc-100 tracking-tight">Schedule a Meeting</h1>
+                    <p class="text-xs text-slate-500 dark:text-zinc-400 mt-1">
+                        Set up a future meeting and invite your team members.
                     </p>
                 </div>
 
-                <!-- Filtered Member Results Dropdown List (only appears when typing search query) -->
-                <div x-show="searchQuery.trim().length > 0" class="max-h-48 overflow-y-auto rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] divide-y divide-slate-100 dark:divide-zinc-800/80 shadow-sm">
-                    <template x-for="m in filteredMembers" :key="m.id">
-                        <div @click="toggleMember(m)" 
-                             class="p-2.5 flex items-center justify-between cursor-pointer bg-white dark:bg-[#0c1322] hover:bg-slate-50 dark:hover:bg-zinc-800/60 transition"
-                             :class="{ 'bg-purple-50/80 dark:bg-purple-950/40': isSelected(m.id) }">
-                            <div class="flex items-center space-x-2.5">
-                                <div class="w-7 h-7 rounded-full bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-400 text-xs font-bold flex items-center justify-center" x-text="m.initial"></div>
-                                <div>
-                                    <div class="text-xs font-semibold text-slate-900 dark:text-zinc-100" x-text="m.name"></div>
-                                    <div class="text-[11px] text-slate-500 dark:text-zinc-400" x-text="m.email"></div>
-                                </div>
-                            </div>
-                            <div class="flex items-center space-x-2">
-                                <span class="text-[10px] px-2 py-0.5 rounded font-mono font-bold uppercase bg-slate-100 text-slate-700 border border-slate-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700" x-text="m.role"></span>
-                                <div class="w-4 h-4 rounded border flex items-center justify-center transition"
-                                     :class="isSelected(m.id) ? 'bg-purple-600 border-purple-600 text-white' : 'border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-900'">
-                                    <svg x-show="isSelected(m.id)" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
-                                    </svg>
-                                </div>
+                <form method="post" class="space-y-6" id="scheduleForm">
+                    {% csrf_token %}
+
+                    <!-- Meeting Title -->
+                    <div class="space-y-1.5">
+                        <label for="id_title" class="block text-xs font-bold text-slate-700 dark:text-zinc-300">
+                            Meeting Title <span class="text-rose-500">*</span>
+                        </label>
+                        <input type="text"
+                               id="id_title"
+                               name="title"
+                               x-model="formTitle"
+                               required
+                               placeholder="e.g., Sprint Planning, Project Kickoff"
+                               class="w-full px-4 py-2.5 text-xs font-medium rounded-xl bg-slate-50 dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 text-slate-900 dark:text-zinc-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+                        {% if form.title.errors %}
+                        <p class="text-xs text-rose-500 mt-1">{{ form.title.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Meeting Type / Category -->
+                    <div class="space-y-1.5">
+                        <label for="id_meeting_type" class="block text-xs font-bold text-slate-700 dark:text-zinc-300">
+                            Meeting Category
+                        </label>
+                        {{ form.meeting_type }}
+                        {% if form.meeting_type.errors %}
+                        <p class="text-xs text-rose-500 mt-1">{{ form.meeting_type.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- 3-Column Row: Date, Time, Duration (Screen 5) -->
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                        <!-- Date -->
+                        <div class="space-y-1.5">
+                            <label for="id_scheduled_date" class="block text-xs font-bold text-slate-700 dark:text-zinc-300">
+                                Date <span class="text-rose-500">*</span>
+                            </label>
+                            <input type="date"
+                                   id="id_scheduled_date"
+                                   name="scheduled_date"
+                                   x-model="formDate"
+                                   required
+                                   class="w-full px-3 py-2.5 text-xs font-medium rounded-xl bg-slate-50 dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+                            {% if form.scheduled_date.errors %}
+                            <p class="text-xs text-rose-500 mt-1">{{ form.scheduled_date.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+
+                        <!-- Time -->
+                        <div class="space-y-1.5">
+                            <label for="id_scheduled_time" class="block text-xs font-bold text-slate-700 dark:text-zinc-300">
+                                Time <span class="text-rose-500">*</span>
+                            </label>
+                            <input type="time"
+                                   id="id_scheduled_time"
+                                   name="scheduled_time"
+                                   x-model="formTime"
+                                   required
+                                   class="w-full px-3 py-2.5 text-xs font-medium rounded-xl bg-slate-50 dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+                            {% if form.scheduled_time.errors %}
+                            <p class="text-xs text-rose-500 mt-1">{{ form.scheduled_time.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+
+                        <!-- Duration -->
+                        <div class="space-y-1.5">
+                            <label for="id_duration_minutes" class="block text-xs font-bold text-slate-700 dark:text-zinc-300">
+                                Duration
+                            </label>
+                            <select id="id_duration_minutes"
+                                    name="duration_minutes"
+                                    x-model="formDuration"
+                                    class="w-full px-3 py-2.5 text-xs font-medium rounded-xl bg-slate-50 dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+                                <option value="15">15 mins</option>
+                                <option value="30">30 mins</option>
+                                <option value="45">45 mins</option>
+                                <option value="60">1 hour</option>
+                                <option value="90">1.5 hours</option>
+                                <option value="120">2 hours</option>
+                            </select>
+                            {% if form.duration_minutes.errors %}
+                            <p class="text-xs text-rose-500 mt-1">{{ form.duration_minutes.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Description / Agenda -->
+                    <div class="space-y-1.5">
+                        <label for="id_description" class="block text-xs font-bold text-slate-700 dark:text-zinc-300">
+                            Description / Agenda <span class="text-slate-400 font-normal">(Optional)</span>
+                        </label>
+                        <textarea id="id_description"
+                                  name="description"
+                                  rows="3"
+                                  placeholder="Add meeting description, agenda topics, or required prep..."
+                                  class="w-full px-4 py-2.5 text-xs font-medium rounded-xl bg-slate-50 dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 text-slate-900 dark:text-zinc-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"></textarea>
+                    </div>
+
+                    <!-- Invite People (Search Box + Chips, No checkboxes) -->
+                    <div class="space-y-2.5">
+                        <div class="flex items-center justify-between">
+                            <label class="block text-xs font-bold text-slate-700 dark:text-zinc-300">
+                                Invite People
+                            </label>
+                            <div class="flex items-center space-x-2 text-[11px]">
+                                <button type="button" @click="selectAll()" class="text-blue-600 dark:text-blue-400 hover:underline font-semibold">
+                                    Select All
+                                </button>
+                                <span class="text-slate-300 dark:text-zinc-700">•</span>
+                                <button type="button" @click="clearAll()" class="text-slate-500 dark:text-zinc-400 hover:underline font-medium">
+                                    Clear
+                                </button>
                             </div>
                         </div>
-                    </template>
-                    <div x-show="filteredMembers.length === 0" class="p-3 text-center text-xs text-slate-400 dark:text-zinc-500 italic">
-                        No workspace members match "<span x-text="searchQuery"></span>"
+
+                        <!-- Search Box -->
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                                </svg>
+                            </div>
+                            <input type="text" 
+                                   x-model="searchQuery" 
+                                   placeholder="Search members by name or email to add..." 
+                                   class="w-full pl-10 pr-4 py-2.5 text-xs font-medium rounded-xl bg-slate-50 dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 text-slate-900 dark:text-zinc-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+                        </div>
+
+                        <!-- Search Results Dropdown List (Screen 5: ONLY appears when query is typed) -->
+                        <div x-show="searchQuery.trim().length > 0" 
+                             class="max-h-48 overflow-y-auto rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-[#18181b] divide-y divide-slate-100 dark:divide-zinc-800 shadow-md">
+                            <template x-for="m in filteredMembers" :key="m.id">
+                                <div @click="toggleMember(m)" 
+                                     class="p-2.5 flex items-center justify-between cursor-pointer hover:bg-slate-50 dark:hover:bg-zinc-800 transition"
+                                     :class="{ 'bg-blue-50/70 dark:bg-blue-950/30': isSelected(m.id) }">
+                                    <div class="flex items-center space-x-2.5">
+                                        <div class="w-7 h-7 rounded-full bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-400 text-xs font-bold flex items-center justify-center" x-text="m.initial"></div>
+                                        <div>
+                                            <div class="text-xs font-semibold text-slate-900 dark:text-zinc-100" x-text="m.name"></div>
+                                            <div class="text-[11px] text-slate-500 dark:text-zinc-400" x-text="m.email"></div>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center space-x-2">
+                                        <span class="text-[10px] px-2 py-0.5 rounded font-mono font-bold uppercase bg-slate-100 text-slate-700 dark:bg-zinc-800 dark:text-zinc-300" x-text="m.role"></span>
+                                        <div class="w-4 h-4 rounded border flex items-center justify-center transition"
+                                             :class="isSelected(m.id) ? 'bg-blue-600 border-blue-600 text-white' : 'border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-900'">
+                                            <svg x-show="isSelected(m.id)" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
+                                            </svg>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+                            <div x-show="filteredMembers.length === 0" class="p-3 text-center text-xs text-slate-400 dark:text-zinc-500 italic">
+                                No workspace members match "<span x-text="searchQuery"></span>"
+                            </div>
+                        </div>
+
+                        <!-- Selected Members Chips Container (Screen 5) -->
+                        <div class="p-3 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50/60 dark:bg-zinc-900/60 min-h-[50px]">
+                            <div class="flex flex-wrap items-center gap-1.5" x-show="selectedMembers.length > 0">
+                                <template x-for="m in selectedMembers" :key="m.id">
+                                    <span class="inline-flex items-center space-x-1.5 pl-1.5 pr-2 py-1 rounded-lg text-xs font-semibold bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 shadow-2xs">
+                                        <span class="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-bold flex items-center justify-center" x-text="m.initial"></span>
+                                        <span class="truncate max-w-[130px]" x-text="m.name"></span>
+                                        <button type="button" @click="removeMember(m.id)" class="text-blue-400 hover:text-blue-700 dark:hover:text-blue-200 font-bold ml-1 focus:outline-none">
+                                            ✕
+                                        </button>
+                                    </span>
+                                </template>
+                            </div>
+
+                            <p x-show="selectedMembers.length === 0" class="text-xs text-slate-400 dark:text-zinc-500 italic py-1">
+                                No specific invitees added yet. Anyone in {{ workspace.name }} can join via the room link.
+                            </p>
+                        </div>
+
+                        <!-- Hidden Inputs for Django Form Submission -->
+                        <template x-for="m in selectedMembers" :key="'input-' + m.id">
+                            <input type="hidden" name="invitees" :value="m.id">
+                        </template>
+                    </div>
+
+                    <!-- More Options (Screen 5: Waiting room, Recording, Audio-only) -->
+                    <div class="pt-2 border-t border-slate-100 dark:border-zinc-800/80 space-y-3">
+                        <span class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500 block">More Options</span>
+                        
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                            <label class="flex items-center space-x-2.5 p-3 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50/40 dark:bg-zinc-900/40 cursor-pointer">
+                                <input type="checkbox" name="is_audio_only" class="w-4 h-4 rounded text-blue-600 border-slate-300 dark:border-zinc-700">
+                                <div>
+                                    <span class="font-bold text-slate-800 dark:text-zinc-200 block">Audio Only Standup</span>
+                                    <span class="text-[10px] text-slate-400 dark:text-zinc-500">Camera disabled on entry</span>
+                                </div>
+                            </label>
+
+                            <label class="flex items-center space-x-2.5 p-3 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50/40 dark:bg-zinc-900/40 cursor-pointer">
+                                <input type="checkbox" checked class="w-4 h-4 rounded text-blue-600 border-slate-300 dark:border-zinc-700">
+                                <div>
+                                    <span class="font-bold text-slate-800 dark:text-zinc-200 block">Allow Recording</span>
+                                    <span class="text-[10px] text-slate-400 dark:text-zinc-500">Enable local room recap</span>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Form Action Buttons (Screen 5) -->
+                    <div class="flex items-center justify-end space-x-3 pt-4 border-t border-slate-100 dark:border-zinc-800">
+                        <a href="{% url 'meetings:meet_hub' slug=workspace.slug %}" 
+                           class="px-4 py-2.5 text-xs font-semibold rounded-xl text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 transition">
+                            Cancel
+                        </a>
+                        <button type="submit" 
+                                class="px-6 py-2.5 text-xs font-bold rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-500/20 transition">
+                            Schedule Meeting
+                        </button>
+                    </div>
+
+                </form>
+
+            </div>
+        </div>
+
+        <!-- RIGHT COLUMN: Interactive Mini Calendar & Live Meeting Summary (4 Cols, Screen 5) -->
+        <div class="lg:col-span-4 space-y-6">
+
+            <!-- Interactive Mini Calendar (Screen 5) -->
+            <div class="p-5 rounded-3xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#18181b] shadow-xl space-y-4">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-bold text-slate-900 dark:text-zinc-100" x-text="currentMonthName + ' ' + currentYear"></span>
+                    <div class="flex items-center space-x-1">
+                        <button type="button" @click="prevMonth()" class="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-600 dark:text-zinc-400">
+                            ‹
+                        </button>
+                        <button type="button" @click="nextMonth()" class="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-600 dark:text-zinc-400">
+                            ›
+                        </button>
                     </div>
                 </div>
 
-                <!-- Hidden inputs bound to Django form for submission -->
-                <template x-for="m in selectedMembers" :key="'input-' + m.id">
-                    <input type="hidden" name="invitees" :value="m.id">
-                </template>
+                <!-- Days of Week Header -->
+                <div class="grid grid-cols-7 text-center text-[10px] font-bold text-slate-400 dark:text-zinc-500">
+                    <div>Su</div><div>Mo</div><div>Tu</div><div>We</div><div>Th</div><div>Fr</div><div>Sa</div>
+                </div>
+
+                <!-- Calendar Days Grid -->
+                <div class="grid grid-cols-7 gap-1 text-center text-xs">
+                    <template x-for="d in calendarDays" :key="d.key">
+                        <button type="button"
+                                @click="selectDate(d.dateString)"
+                                :disabled="!d.currentMonth"
+                                :class="{
+                                    'opacity-30 pointer-events-none': !d.currentMonth,
+                                    'bg-blue-600 text-white font-bold rounded-lg': d.dateString === formDate,
+                                    'hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-800 dark:text-zinc-200 rounded-lg': d.currentMonth && d.dateString !== formDate
+                                }"
+                                class="h-8 flex items-center justify-center transition"
+                                x-text="d.day">
+                        </button>
+                    </template>
+                </div>
             </div>
 
-            <div class="flex items-center space-x-2 pt-2">
-                {{ form.is_audio_only }}
-                <label for="id_is_audio_only" class="text-xs font-semibold text-slate-700 dark:text-zinc-300 cursor-pointer">
-                    Audio only standup (cameras muted by default)
-                </label>
+            <!-- Live Meeting Summary Card (Screen 5) -->
+            <div class="p-5 rounded-3xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#18181b] shadow-xl space-y-4">
+                <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-zinc-800">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500">Meeting Summary</h3>
+                    <span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400">
+                        Live Preview
+                    </span>
+                </div>
+
+                <div class="space-y-3 text-xs">
+                    <div>
+                        <span class="text-[11px] text-slate-400 dark:text-zinc-500 block">Title</span>
+                        <span class="font-bold text-slate-900 dark:text-zinc-100 text-sm" x-text="formTitle || 'Untitled Meeting'"></span>
+                    </div>
+
+                    <div class="flex items-center space-x-2">
+                        <svg class="w-4 h-4 text-blue-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                        </svg>
+                        <span class="text-slate-700 dark:text-zinc-300 font-medium" x-text="formatDisplayDate(formDate) + ' at ' + formatDisplayTime(formTime)"></span>
+                    </div>
+
+                    <div class="flex items-center space-x-2">
+                        <svg class="w-4 h-4 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        <span class="text-slate-700 dark:text-zinc-300" x-text="formDuration + ' minutes'"></span>
+                    </div>
+
+                    <div class="flex items-center space-x-2">
+                        <svg class="w-4 h-4 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+                        </svg>
+                        <span class="text-slate-700 dark:text-zinc-300" x-text="selectedMembers.length + ' member(s) invited'"></span>
+                    </div>
+                </div>
+
+                <div class="pt-3 border-t border-slate-100 dark:border-zinc-800 text-[11px] text-slate-400 dark:text-zinc-500">
+                    Room will be created on AetherSpace with HD Video & Screen Sharing.
+                </div>
             </div>
 
-            <div class="flex items-center justify-end space-x-3 pt-4 border-t border-slate-100 dark:border-zinc-800">
-                <a href="{% url 'meetings:meet_hub' slug=workspace.slug %}" 
-                   class="px-4 py-2 text-xs font-semibold rounded-xl text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 transition">
-                    Cancel
-                </a>
-                <button type="submit" 
-                        class="px-5 py-2.5 text-xs font-bold rounded-xl bg-purple-600 hover:bg-purple-700 text-white shadow-md shadow-purple-500/20 transition">
-                    Schedule Standup
-                </button>
-            </div>
-        </form>
+        </div>
+
     </div>
 
 </div>
@@ -213,20 +352,122 @@ const WORKSPACE_MEMBERS = [
     {% endfor %}
 ];
 
-function scheduleMemberPicker() {
+function schedulePageHandler() {
+    const today = new Date();
+    const defaultDateStr = today.toISOString().split('T')[0];
+    const defaultTimeStr = (today.getHours() + 1).toString().padStart(2, '0') + ':00';
+
     return {
+        formTitle: '',
+        formDate: defaultDateStr,
+        formTime: defaultTimeStr,
+        formDuration: '30',
         searchQuery: '',
         allMembers: WORKSPACE_MEMBERS,
         selectedIds: [],
+        currentCalDate: new Date(),
+
+        init() {
+            // Set initial date from form if present
+            const elDate = document.getElementById('id_scheduled_date');
+            if (elDate && elDate.value) {
+                this.formDate = elDate.value;
+                this.currentCalDate = new Date(elDate.value);
+            }
+            const elTime = document.getElementById('id_scheduled_time');
+            if (elTime && elTime.value) {
+                this.formTime = elTime.value;
+            }
+        },
+
+        get currentMonthName() {
+            return this.currentCalDate.toLocaleString('default', { month: 'long' });
+        },
+
+        get currentYear() {
+            return this.currentCalDate.getFullYear();
+        },
+
+        get calendarDays() {
+            const year = this.currentCalDate.getFullYear();
+            const month = this.currentCalDate.getMonth();
+            const firstDay = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const daysInPrevMonth = new Date(year, month, 0).getDate();
+
+            const days = [];
+            // Prev month padding
+            for (let i = firstDay - 1; i >= 0; i--) {
+                days.push({
+                    day: daysInPrevMonth - i,
+                    currentMonth: false,
+                    dateString: '',
+                    key: 'prev-' + i
+                });
+            }
+            // Current month days
+            for (let i = 1; i <= daysInMonth; i++) {
+                const mStr = (month + 1).toString().padStart(2, '0');
+                const dStr = i.toString().padStart(2, '0');
+                days.push({
+                    day: i,
+                    currentMonth: true,
+                    dateString: `${year}-${mStr}-${dStr}`,
+                    key: 'cur-' + i
+                });
+            }
+            // Fill remaining grid up to 35 or 42
+            const totalCells = days.length > 35 ? 42 : 35;
+            const remaining = totalCells - days.length;
+            for (let i = 1; i <= remaining; i++) {
+                days.push({
+                    day: i,
+                    currentMonth: false,
+                    dateString: '',
+                    key: 'next-' + i
+                });
+            }
+            return days;
+        },
+
+        prevMonth() {
+            this.currentCalDate = new Date(this.currentCalDate.getFullYear(), this.currentCalDate.getMonth() - 1, 1);
+        },
+
+        nextMonth() {
+            this.currentCalDate = new Date(this.currentCalDate.getFullYear(), this.currentCalDate.getMonth() + 1, 1);
+        },
+
+        selectDate(dateStr) {
+            if (dateStr) {
+                this.formDate = dateStr;
+            }
+        },
+
+        formatDisplayDate(dStr) {
+            if (!dStr) return 'Date not set';
+            const parts = dStr.split('-');
+            if (parts.length !== 3) return dStr;
+            const dateObj = new Date(parts[0], parts[1] - 1, parts[2]);
+            return dateObj.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+        },
+
+        formatDisplayTime(tStr) {
+            if (!tStr) return '';
+            const parts = tStr.split(':');
+            let h = parseInt(parts[0], 10);
+            const m = parts[1];
+            const ampm = h >= 12 ? 'PM' : 'AM';
+            h = h % 12 || 12;
+            return `${h}:${m} ${ampm}`;
+        },
 
         get selectedMembers() {
             return this.allMembers.filter(m => this.selectedIds.includes(m.id));
         },
 
         get filteredMembers() {
-            if (!this.searchQuery.trim()) {
-                return [];
-            }
+            if (!this.searchQuery.trim()) return [];
             const q = this.searchQuery.toLowerCase().trim();
             return this.allMembers.filter(m => 
                 m.name.toLowerCase().includes(q) || 
@@ -247,7 +488,7 @@ function scheduleMemberPicker() {
         },
 
         removeMember(id) {
-            this.selectedIds = this.selectedIds.filter(selectedId => selectedId !== id);
+            this.selectedIds = this.selectedIds.filter(i => i !== id);
         },
 
         selectAll() {

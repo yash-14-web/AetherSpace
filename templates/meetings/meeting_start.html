@@ -3,77 +3,138 @@
 {% block title %}Start Meeting • {{ workspace.name }} — AetherSpace{% endblock %}
 
 {% block content %}
-<div class="max-w-xl mx-auto py-6 space-y-6">
-    
-    <!-- Breadcrumb -->
+<div class="max-w-xl mx-auto py-6 space-y-6" x-data="{
+    cameraEnabled: true,
+    micEnabled: true,
+    audioDevice: 'Default System Microphone',
+    audioMenuOpen: false
+}">
+
+    <!-- Breadcrumb Header -->
     <div class="flex items-center space-x-2 text-xs text-slate-500 dark:text-zinc-400">
         <a href="{% url 'meetings:meet_hub' slug=workspace.slug %}" class="hover:text-blue-600 transition">Meet Hub</a>
         <span>/</span>
-        <span class="text-slate-900 dark:text-zinc-100 font-semibold">Start Instant Meeting</span>
+        <span class="text-slate-900 dark:text-zinc-100 font-semibold">Start Meeting</span>
     </div>
 
-    <!-- Main Card -->
-    <div class="p-6 sm:p-8 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] shadow-sm">
-        <div class="flex items-center space-x-3 mb-6">
-            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center shadow-md shadow-blue-500/20">
-                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <!-- Screen 2: Start Meeting Card -->
+    <div class="rounded-3xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#18181b] shadow-xl overflow-hidden">
+        
+        <!-- Blue Camera Header Icon Banner -->
+        <div class="pt-8 pb-4 flex flex-col items-center justify-center text-center px-6">
+            <div class="w-16 h-16 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-500/25 mb-4">
+                <svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
                 </svg>
             </div>
-            <div>
-                <h1 class="text-lg font-bold text-slate-900 dark:text-zinc-100">Start an Instant Meeting</h1>
-                <p class="text-xs text-slate-500 dark:text-zinc-400">Generate a secure room and get an instant shareable link.</p>
-            </div>
+            <h1 class="text-xl font-black text-slate-900 dark:text-zinc-100">Instant Meeting</h1>
+            <p class="text-xs text-slate-500 dark:text-zinc-400 mt-1 max-w-sm">
+                Your private workspace room is configured and ready to launch immediately.
+            </p>
         </div>
 
-        <form method="post" class="space-y-5">
+        <form method="post" class="p-6 sm:p-8 space-y-6 border-t border-slate-100 dark:border-zinc-800/80">
             {% csrf_token %}
 
-            <div>
-                <label for="id_title" class="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1.5">
-                    Meeting Title
+            <!-- Title Input -->
+            <div class="space-y-1.5">
+                <label for="id_title" class="block text-xs font-bold text-slate-700 dark:text-zinc-300">
+                    Meeting Title <span class="text-slate-400 font-normal">(Optional)</span>
                 </label>
                 {{ form.title }}
                 {% if form.title.errors %}
                 <p class="text-xs text-rose-500 mt-1">{{ form.title.errors.0 }}</p>
                 {% endif %}
-                <p class="text-[11px] text-slate-400 dark:text-zinc-500 mt-1">E.g., Morning Standup, Bug Review, Quick Catchup</p>
+                <p class="text-[11px] text-slate-400 dark:text-zinc-500">Leave blank to default to "Quick Sync • {{ workspace.name }}"</p>
             </div>
 
-            <div class="grid grid-cols-2 gap-4">
-                <label class="relative flex flex-col p-4 border border-slate-300 dark:border-zinc-700 rounded-xl cursor-pointer hover:border-blue-500 transition has-[:checked]:border-blue-600 has-[:checked]:bg-blue-50/80 dark:has-[:checked]:bg-blue-950/30">
-                    <input type="radio" name="call_mode" value="VIDEO" checked class="sr-only">
-                    <span class="text-xl mb-1">📹</span>
-                    <span class="text-xs font-bold text-slate-900 dark:text-zinc-100">Video Call</span>
-                    <span class="text-[11px] text-slate-500 dark:text-zinc-400">Camera + Microphone</span>
-                </label>
+            <!-- Hardware Toggles (Screen 2: Camera & Mic) -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
+                <!-- Camera Toggle -->
+                <div class="p-4 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-slate-50/60 dark:bg-zinc-900/60 flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-8 h-8 rounded-xl bg-blue-100 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <span class="text-xs font-bold text-slate-900 dark:text-zinc-100 block">Camera</span>
+                            <span class="text-[11px] text-slate-500 dark:text-zinc-400" x-text="cameraEnabled ? 'Turned On' : 'Turned Off'">Turned On</span>
+                        </div>
+                    </div>
+                    <button type="button" 
+                            @click="cameraEnabled = !cameraEnabled"
+                            :class="cameraEnabled ? 'bg-blue-600' : 'bg-slate-300 dark:bg-zinc-700'"
+                            class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none">
+                        <span :class="cameraEnabled ? 'translate-x-5' : 'translate-x-0'"
+                              class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"></span>
+                    </button>
+                    <input type="hidden" name="camera_enabled" :value="cameraEnabled">
+                </div>
 
-                <label class="relative flex flex-col p-4 border border-slate-300 dark:border-zinc-700 rounded-xl cursor-pointer hover:border-blue-500 transition has-[:checked]:border-blue-600 has-[:checked]:bg-blue-50/80 dark:has-[:checked]:bg-blue-950/30">
-                    <input type="radio" name="call_mode" value="AUDIO" class="sr-only">
-                    <span class="text-xl mb-1">📞</span>
-                    <span class="text-xs font-bold text-slate-900 dark:text-zinc-100">Audio Only</span>
-                    <span class="text-[11px] text-slate-500 dark:text-zinc-400">Microphone Only (Fast)</span>
-                </label>
+                <!-- Mic Toggle -->
+                <div class="p-4 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-slate-50/60 dark:bg-zinc-900/60 flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-8 h-8 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <span class="text-xs font-bold text-slate-900 dark:text-zinc-100 block">Microphone</span>
+                            <span class="text-[11px] text-slate-500 dark:text-zinc-400" x-text="micEnabled ? 'Unmuted' : 'Muted'">Unmuted</span>
+                        </div>
+                    </div>
+                    <button type="button" 
+                            @click="micEnabled = !micEnabled"
+                            :class="micEnabled ? 'bg-emerald-600' : 'bg-slate-300 dark:bg-zinc-700'"
+                            class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none">
+                        <span :class="micEnabled ? 'translate-x-5' : 'translate-x-0'"
+                              class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"></span>
+                    </button>
+                    <input type="hidden" name="mic_enabled" :value="micEnabled">
+                </div>
             </div>
 
-            <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800 text-xs text-slate-700 dark:text-zinc-300 flex items-center space-x-2">
-                <svg class="w-4 h-4 text-blue-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                </svg>
-                <span>A unique <code class="font-mono font-bold text-blue-600 dark:text-blue-400">meet-xxxx-xxxx</code> code will be assigned to this workspace automatically.</span>
+            <!-- Audio Source Selectors (Screen 2: Use Computer Audio / Phone Audio) -->
+            <div class="space-y-2 pt-1">
+                <span class="text-xs font-bold text-slate-700 dark:text-zinc-300 block">Audio Mode</span>
+                
+                <div class="p-3.5 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50/40 dark:bg-zinc-900/40 flex items-center justify-between text-xs">
+                    <div class="flex items-center space-x-2.5">
+                        <span class="text-base">🎧</span>
+                        <div>
+                            <span class="font-bold text-slate-800 dark:text-zinc-200">Use Computer Audio</span>
+                            <span class="text-[11px] text-slate-400 dark:text-zinc-500 block">Default System Speakers & Mic</span>
+                        </div>
+                    </div>
+                    <span class="text-xs font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/50 px-2 py-0.5 rounded">Default ✓</span>
+                </div>
             </div>
 
-            <div class="flex items-center justify-end space-x-3 pt-4 border-t border-slate-100 dark:border-zinc-800">
-                <a href="{% url 'meetings:meet_hub' slug=workspace.slug %}" 
-                   class="px-4 py-2 text-xs font-semibold rounded-xl text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 transition">
-                    Cancel
-                </a>
+            <!-- Start Meeting Button (Screen 2: Big full-width blue CTA) -->
+            <div class="pt-3">
                 <button type="submit" 
-                        class="px-5 py-2.5 text-xs font-bold rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-500/20 transition">
-                    Start Meeting Now
+                        class="w-full py-3 text-sm font-bold rounded-2xl bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/25 transition flex items-center justify-center space-x-2">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <span>Start Meeting Now</span>
                 </button>
             </div>
+
+            <!-- Bottom Security Badging -->
+            <div class="flex items-center justify-center space-x-2 text-[11px] text-slate-400 dark:text-zinc-500 pt-2">
+                <svg class="w-3.5 h-3.5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                </svg>
+                <span>End-to-end encrypted • Workspace RBAC access enforced</span>
+            </div>
+
         </form>
+
     </div>
 
 </div>

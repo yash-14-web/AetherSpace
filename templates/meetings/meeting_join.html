@@ -3,64 +3,151 @@
 {% block title %}Join Meeting • {{ workspace.name }} — AetherSpace{% endblock %}
 
 {% block content %}
-<div class="max-w-md mx-auto py-8 space-y-6">
-    
-    <!-- Breadcrumb -->
+<div class="max-w-xl mx-auto py-6 space-y-6" x-data="{
+    activeTab: 'code',
+    meetingCode: '',
+    meetingLink: '',
+    displayName: '{{ request.user.get_full_name|default:request.user.username }}'
+}">
+
+    <!-- Breadcrumb Header -->
     <div class="flex items-center space-x-2 text-xs text-slate-500 dark:text-zinc-400">
         <a href="{% url 'meetings:meet_hub' slug=workspace.slug %}" class="hover:text-blue-600 transition">Meet Hub</a>
         <span>/</span>
         <span class="text-slate-900 dark:text-zinc-100 font-semibold">Join Meeting</span>
     </div>
 
-    <!-- Main Card -->
-    <div class="p-6 sm:p-8 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] shadow-sm">
-        <div class="flex items-center space-x-3 mb-6">
-            <div class="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-md shadow-emerald-500/20">
-                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/>
+    <!-- Screen 3: Join Meeting Card -->
+    <div class="rounded-3xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#18181b] shadow-xl overflow-hidden">
+        
+        <!-- Purple Users Icon Banner -->
+        <div class="pt-8 pb-4 flex flex-col items-center justify-center text-center px-6">
+            <div class="w-16 h-16 rounded-full bg-purple-600 text-white flex items-center justify-center shadow-lg shadow-purple-500/25 mb-4">
+                <svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
                 </svg>
             </div>
-            <div>
-                <h1 class="text-lg font-bold text-slate-900 dark:text-zinc-100">Join a Meeting</h1>
-                <p class="text-xs text-slate-500 dark:text-zinc-400">Enter the 8-character meeting code.</p>
+            <h1 class="text-xl font-black text-slate-900 dark:text-zinc-100">Join a Meeting</h1>
+            <p class="text-xs text-slate-500 dark:text-zinc-400 mt-1 max-w-sm">
+                Enter the meeting details to connect with your team.
+            </p>
+        </div>
+
+        {% if error_message %}
+        <div class="mx-6 sm:mx-8 mb-4 p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-xs font-semibold text-rose-700 dark:text-rose-400 flex items-center space-x-2">
+            <svg class="w-4 h-4 text-rose-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+            </svg>
+            <span>{{ error_message }}</span>
+        </div>
+        {% endif %}
+
+        <!-- Tab Selection (Screen 3: Meeting Code | Meeting Link) -->
+        <div class="px-6 sm:px-8 border-b border-slate-100 dark:border-zinc-800">
+            <div class="flex space-x-6">
+                <button type="button"
+                        @click="activeTab = 'code'"
+                        :class="activeTab === 'code' ? 'border-blue-600 text-blue-600 dark:text-blue-400 font-bold' : 'border-transparent text-slate-500 dark:text-zinc-400 font-medium hover:text-slate-800 dark:hover:text-zinc-200'"
+                        class="pb-3 text-xs border-b-2 transition">
+                    Meeting Code
+                </button>
+                <button type="button"
+                        @click="activeTab = 'link'"
+                        :class="activeTab === 'link' ? 'border-blue-600 text-blue-600 dark:text-blue-400 font-bold' : 'border-transparent text-slate-500 dark:text-zinc-400 font-medium hover:text-slate-800 dark:hover:text-zinc-200'"
+                        class="pb-3 text-xs border-b-2 transition">
+                    Meeting Link
+                </button>
             </div>
         </div>
 
-        <form method="post" class="space-y-4">
+        <form method="post" class="p-6 sm:p-8 space-y-5">
             {% csrf_token %}
 
-            <div>
-                <label for="id_meeting_code" class="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1.5">
-                    Meeting Code
+            <!-- Tab 1: Enter Code -->
+            <div x-show="activeTab === 'code'" class="space-y-1.5">
+                <label for="meeting_code_input" class="block text-xs font-bold text-slate-700 dark:text-zinc-300">
+                    Enter Meeting Code
                 </label>
-                {{ form.meeting_code }}
-                {% if form.meeting_code.errors %}
-                <p class="text-xs text-rose-500 mt-1">{{ form.meeting_code.errors.0 }}</p>
-                {% endif %}
-                <p class="text-[11px] text-slate-400 dark:text-zinc-500 mt-1">Example: <code class="font-mono font-bold text-emerald-600 dark:text-emerald-400">meet-4a8b-9c2d</code></p>
-            </div>
-
-            <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800 text-xs text-slate-700 dark:text-zinc-300 space-y-1">
-                <div class="font-semibold text-slate-800 dark:text-zinc-200 flex items-center space-x-1.5">
-                    <svg class="w-3.5 h-3.5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
-                    </svg>
-                    <span>Workspace Security</span>
+                <div class="relative">
+                    <input type="text"
+                           id="meeting_code_input"
+                           name="meeting_code"
+                           x-model="meetingCode"
+                           :required="activeTab === 'code'"
+                           placeholder="e.g. meet-4a8b-9c2d or ABC-123-XYZ"
+                           class="w-full px-4 py-2.5 text-xs font-mono font-medium rounded-xl bg-slate-50 dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 text-slate-900 dark:text-zinc-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition uppercase">
                 </div>
-                <p class="text-[11px] leading-relaxed">Only verified members of <strong class="text-slate-900 dark:text-zinc-100">{{ workspace.name }}</strong> can enter this room.</p>
+                <p class="text-[11px] text-slate-400 dark:text-zinc-500">Provide the 8-character code sent by the meeting organizer.</p>
             </div>
 
-            <div class="flex items-center justify-end space-x-3 pt-4 border-t border-slate-100 dark:border-zinc-800">
-                <a href="{% url 'meetings:meet_hub' slug=workspace.slug %}" 
-                   class="px-4 py-2 text-xs font-semibold rounded-xl text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 transition">
-                    Cancel
-                </a>
+            <!-- Tab 2: Enter Link -->
+            <div x-show="activeTab === 'link'" class="space-y-1.5" style="display: none;">
+                <label for="meeting_link_input" class="block text-xs font-bold text-slate-700 dark:text-zinc-300">
+                    Enter Meeting Link
+                </label>
+                <div class="relative">
+                    <input type="text"
+                           id="meeting_link_input"
+                           x-model="meetingLink"
+                           @input="meetingCode = meetingLink"
+                           :required="activeTab === 'link'"
+                           placeholder="https://meet.aetherspace.dev/room/meet-..."
+                           class="w-full px-4 py-2.5 text-xs font-sans rounded-xl bg-slate-50 dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 text-slate-900 dark:text-zinc-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+                </div>
+                <p class="text-[11px] text-slate-400 dark:text-zinc-500">Paste any invite link, Jitsi URL, or internal workspace room URL.</p>
+            </div>
+
+            <!-- Input: Your Name (Screen 3) -->
+            <div class="space-y-1.5">
+                <label for="user_display_name" class="block text-xs font-bold text-slate-700 dark:text-zinc-300">
+                    Your Name
+                </label>
+                <input type="text"
+                       id="user_display_name"
+                       name="display_name"
+                       x-model="displayName"
+                       required
+                       class="w-full px-4 py-2.5 text-xs font-medium rounded-xl bg-slate-50 dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 text-slate-900 dark:text-zinc-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+                <p class="text-[11px] text-slate-400 dark:text-zinc-500">This name will be shown to other participants in the room.</p>
+            </div>
+
+            <!-- Big Blue Join Meeting CTA Button (Screen 3) -->
+            <div class="pt-2">
                 <button type="submit" 
-                        class="px-5 py-2.5 text-xs font-bold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-500/20 transition">
-                    Join Room
+                        class="w-full py-3 text-sm font-bold rounded-2xl bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/25 transition flex items-center justify-center space-x-2">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/>
+                    </svg>
+                    <span>Join Meeting</span>
                 </button>
             </div>
         </form>
+
+        <!-- Screen 3: Recent Meetings List -->
+        {% if recent_meetings %}
+        <div class="p-6 sm:p-8 bg-slate-50/60 dark:bg-zinc-900/40 border-t border-slate-100 dark:border-zinc-800 space-y-3">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">Recent Meetings</h3>
+            <div class="space-y-2">
+                {% for rm in recent_meetings %}
+                <div class="p-3 rounded-xl bg-white dark:bg-[#18181b] border border-slate-200 dark:border-zinc-800 shadow-2xs flex items-center justify-between gap-3">
+                    <div class="min-w-0">
+                        <h4 class="text-xs font-bold text-slate-900 dark:text-zinc-100 truncate">{{ rm.title }}</h4>
+                        <div class="flex items-center space-x-2 text-[11px] text-slate-400 dark:text-zinc-500 mt-0.5">
+                            <span>{{ rm.actual_start|default:rm.created_at|date:"M d, Y" }}</span>
+                            <span>•</span>
+                            <span class="font-mono">{{ rm.meeting_code }}</span>
+                        </div>
+                    </div>
+                    <a href="{% url 'meetings:meeting_room' slug=workspace.slug meeting_code=rm.meeting_code %}"
+                       class="px-3 py-1 text-xs font-bold rounded-lg border border-slate-200 dark:border-zinc-700 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition shrink-0">
+                        Join Again
+                    </a>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
     </div>
 
 </div>
