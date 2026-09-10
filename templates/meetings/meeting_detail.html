@@ -32,10 +32,10 @@
     </div>
 
     <!-- Header Card (Screen 6) -->
-    <div class="p-6 sm:p-7 rounded-3xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#18181b] shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div class="meet-card p-6 sm:p-7 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div class="space-y-2">
             <div class="flex items-center space-x-3">
-                <h1 class="text-xl sm:text-2xl font-black text-slate-900 dark:text-zinc-100 tracking-tight">
+                <h1 class="text-xl sm:text-2xl font-black meet-title tracking-tight">
                     {{ meeting.title }}
                 </h1>
                 
@@ -59,8 +59,8 @@
                 {% endif %}
             </div>
 
-            <p class="text-xs text-slate-500 dark:text-zinc-400">
-                Created {{ meeting.created_at|date:"M d, Y" }} by <strong class="text-slate-700 dark:text-zinc-300">{{ meeting.host.get_full_name|default:meeting.host.username }}</strong>
+            <p class="text-xs meet-sub">
+                Created {{ meeting.created_at|date:"M d, Y" }} by <strong class="meet-title">{{ meeting.host.get_full_name|default:meeting.host.username }}</strong>
                 {% if meeting.project %} • Project: <span class="font-semibold text-blue-600 dark:text-blue-400">{{ meeting.project.name }}</span>{% endif %}
             </p>
         </div>
@@ -90,7 +90,7 @@
 
             {% if can_manage and meeting.status != 'ENDED' and meeting.status != 'CANCELLED' %}
             <a href="{% url 'meetings:meeting_edit' slug=workspace.slug meeting_code=meeting.meeting_code %}" 
-               class="px-4 py-2.5 text-xs font-bold rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:border-blue-500 transition shadow-2xs">
+               class="meet-btn-secondary px-4 py-2.5 text-xs font-bold">
                 Edit Meeting
             </a>
             <a href="{% url 'meetings:meeting_cancel' slug=workspace.slug meeting_code=meeting.meeting_code %}" 
@@ -106,13 +106,13 @@
         <div class="flex space-x-6 text-xs">
             <button type="button"
                     @click="activeTab = 'overview'"
-                    :class="activeTab === 'overview' ? 'border-blue-600 text-blue-600 dark:text-blue-400 font-bold' : 'border-transparent text-slate-500 dark:text-zinc-400 font-medium hover:text-slate-800 dark:hover:text-zinc-200'"
+                    :class="activeTab === 'overview' ? 'border-blue-600 text-blue-600 dark:text-blue-400 font-bold' : 'border-transparent meet-sub font-medium hover:text-slate-800 dark:hover:text-zinc-200'"
                     class="pb-3 border-b-2 transition">
                 Overview
             </button>
             <button type="button"
                     @click="activeTab = 'people'"
-                    :class="activeTab === 'people' ? 'border-blue-600 text-blue-600 dark:text-blue-400 font-bold' : 'border-transparent text-slate-500 dark:text-zinc-400 font-medium hover:text-slate-800 dark:hover:text-zinc-200'"
+                    :class="activeTab === 'people' ? 'border-blue-600 text-blue-600 dark:text-blue-400 font-bold' : 'border-transparent meet-sub font-medium hover:text-slate-800 dark:hover:text-zinc-200'"
                     class="pb-3 border-b-2 transition flex items-center space-x-1.5">
                 <span>People</span>
                 <span class="px-1.5 py-0.2 rounded-full text-[10px] bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 font-bold">
@@ -121,19 +121,19 @@
             </button>
             <button type="button"
                     @click="activeTab = 'agenda'"
-                    :class="activeTab === 'agenda' ? 'border-blue-600 text-blue-600 dark:text-blue-400 font-bold' : 'border-transparent text-slate-500 dark:text-zinc-400 font-medium hover:text-slate-800 dark:hover:text-zinc-200'"
+                    :class="activeTab === 'agenda' ? 'border-blue-600 text-blue-600 dark:text-blue-400 font-bold' : 'border-transparent meet-sub font-medium hover:text-slate-800 dark:hover:text-zinc-200'"
                     class="pb-3 border-b-2 transition">
                 Agenda
             </button>
             <button type="button"
                     @click="activeTab = 'files'"
-                    :class="activeTab === 'files' ? 'border-blue-600 text-blue-600 dark:text-blue-400 font-bold' : 'border-transparent text-slate-500 dark:text-zinc-400 font-medium hover:text-slate-800 dark:hover:text-zinc-200'"
+                    :class="activeTab === 'files' ? 'border-blue-600 text-blue-600 dark:text-blue-400 font-bold' : 'border-transparent meet-sub font-medium hover:text-slate-800 dark:hover:text-zinc-200'"
                     class="pb-3 border-b-2 transition">
                 Files
             </button>
             <button type="button"
                     @click="activeTab = 'chat'"
-                    :class="activeTab === 'chat' ? 'border-blue-600 text-blue-600 dark:text-blue-400 font-bold' : 'border-transparent text-slate-500 dark:text-zinc-400 font-medium hover:text-slate-800 dark:hover:text-zinc-200'"
+                    :class="activeTab === 'chat' ? 'border-blue-600 text-blue-600 dark:text-blue-400 font-bold' : 'border-transparent meet-sub font-medium hover:text-slate-800 dark:hover:text-zinc-200'"
                     class="pb-3 border-b-2 transition">
                 In-Room Chat
             </button>
@@ -149,35 +149,35 @@
             <!-- TAB 1: OVERVIEW -->
             <div x-show="activeTab === 'overview'" class="space-y-6">
                 <!-- Session Specs Card (Screen 6) -->
-                <div class="p-6 sm:p-7 rounded-3xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#18181b] shadow-xl space-y-5">
-                    <h3 class="text-sm font-bold text-slate-900 dark:text-zinc-100">Meeting Information</h3>
+                <div class="meet-card p-6 sm:p-7 shadow-xl space-y-5">
+                    <h3 class="text-sm font-bold meet-title">Meeting Information</h3>
 
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                         <!-- Date & Time -->
-                        <div class="p-3.5 rounded-2xl bg-slate-50/60 dark:bg-zinc-900/60 border border-slate-200 dark:border-zinc-800 flex items-center space-x-3">
+                        <div class="meet-subcard p-3.5 flex items-center space-x-3">
                             <div class="w-9 h-9 rounded-xl bg-blue-100 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
                                 <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
                                 </svg>
                             </div>
                             <div>
-                                <span class="text-[10px] uppercase font-bold text-slate-400 dark:text-zinc-500 block">Date & Time</span>
-                                <span class="font-bold text-slate-900 dark:text-zinc-100">
+                                <span class="text-[10px] uppercase font-bold meet-sub block">Date & Time</span>
+                                <span class="font-bold meet-title">
                                     {{ meeting.scheduled_start|date:"l, M d, Y • g:i A"|default:"Instant Call" }}
                                 </span>
                             </div>
                         </div>
 
                         <!-- Duration -->
-                        <div class="p-3.5 rounded-2xl bg-slate-50/60 dark:bg-zinc-900/60 border border-slate-200 dark:border-zinc-800 flex items-center space-x-3">
+                        <div class="meet-subcard p-3.5 flex items-center space-x-3">
                             <div class="w-9 h-9 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
                                 <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
                                 </svg>
                             </div>
                             <div>
-                                <span class="text-[10px] uppercase font-bold text-slate-400 dark:text-zinc-500 block">Duration</span>
-                                <span class="font-bold text-slate-900 dark:text-zinc-100">
+                                <span class="text-[10px] uppercase font-bold meet-sub block">Duration</span>
+                                <span class="font-bold meet-title">
                                     {{ meeting.duration_display|default:"30 minutes" }}
                                 </span>
                             </div>
@@ -188,9 +188,9 @@
                     <div class="space-y-3 pt-2">
                         <!-- Meeting Link -->
                         <div class="space-y-1">
-                            <span class="text-[11px] font-bold text-slate-500 dark:text-zinc-400">Meeting Link</span>
-                            <div class="p-2.5 rounded-xl bg-slate-50 dark:bg-zinc-900/80 border border-slate-200 dark:border-zinc-800 flex items-center justify-between gap-2">
-                                <span class="text-xs font-mono text-slate-700 dark:text-zinc-300 truncate select-all">
+                            <span class="text-[11px] font-bold meet-sub">Meeting Link</span>
+                            <div class="meet-subcard p-2.5 flex items-center justify-between gap-2">
+                                <span class="text-xs font-mono meet-title truncate select-all">
                                     {{ request.scheme }}://{{ request.get_host }}/meetings/w/{{ workspace.slug }}/room/{{ meeting.meeting_code }}/
                                 </span>
                                 <button type="button"
@@ -203,14 +203,14 @@
 
                         <!-- Meeting ID -->
                         <div class="space-y-1">
-                            <span class="text-[11px] font-bold text-slate-500 dark:text-zinc-400">Meeting ID</span>
-                            <div class="p-2.5 rounded-xl bg-slate-50 dark:bg-zinc-900/80 border border-slate-200 dark:border-zinc-800 flex items-center justify-between gap-2">
-                                <span class="text-xs font-mono font-bold text-slate-900 dark:text-zinc-100 select-all">
+                            <span class="text-[11px] font-bold meet-sub">Meeting ID</span>
+                            <div class="meet-subcard p-2.5 flex items-center justify-between gap-2">
+                                <span class="text-xs font-mono font-bold meet-title select-all">
                                     {{ meeting.meeting_code }}
                                 </span>
                                 <button type="button"
                                         @click="copyText('{{ meeting.meeting_code }}', 'code')"
-                                        class="px-3 py-1 text-xs font-semibold rounded-lg border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 shrink-0 transition">
+                                        class="meet-btn-secondary px-3 py-1 text-xs font-semibold shrink-0">
                                     <span x-text="copiedCode ? 'Copied!' : 'Copy ID'">Copy ID</span>
                                 </button>
                             </div>
@@ -219,8 +219,8 @@
 
                     <!-- Description / Agenda Section (Screen 6) -->
                     <div class="pt-4 border-t border-slate-100 dark:border-zinc-800 space-y-2">
-                        <h4 class="text-xs font-bold text-slate-900 dark:text-zinc-100">Description</h4>
-                        <div class="text-xs text-slate-600 dark:text-zinc-300 leading-relaxed whitespace-pre-line bg-slate-50/50 dark:bg-zinc-900/30 p-4 rounded-2xl border border-slate-200 dark:border-zinc-800">
+                        <h4 class="text-xs font-bold meet-title">Description</h4>
+                        <div class="text-xs meet-title leading-relaxed whitespace-pre-line meet-subcard p-4">
                             {{ meeting.description|default:"No detailed description or agenda provided for this meeting." }}
                         </div>
                     </div>
@@ -229,9 +229,9 @@
 
             <!-- TAB 2: PEOPLE / ATTENDEES ROSTER (Screen 6) -->
             <div x-show="activeTab === 'people'" class="space-y-4" style="display: none;">
-                <div class="p-6 sm:p-7 rounded-3xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#18181b] shadow-xl space-y-4">
+                <div class="meet-card p-6 sm:p-7 shadow-xl space-y-4">
                     <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-zinc-800">
-                        <h3 class="text-sm font-bold text-slate-900 dark:text-zinc-100">
+                        <h3 class="text-sm font-bold meet-title">
                             Attendee History & Attendance ({{ participants|length }})
                         </h3>
                     </div>
@@ -240,7 +240,7 @@
                     <div class="overflow-x-auto">
                         <table class="w-full text-left text-xs">
                             <thead>
-                                <tr class="border-b border-slate-200 dark:border-zinc-800 text-[10px] uppercase font-bold text-slate-400 dark:text-zinc-500 tracking-wider">
+                                <tr class="border-b border-slate-200 dark:border-zinc-800 text-[10px] uppercase font-bold meet-sub tracking-wider">
                                     <th class="py-2.5 px-3">Participant</th>
                                     <th class="py-2.5 px-3">Role</th>
                                     <th class="py-2.5 px-3">Joined</th>
@@ -248,22 +248,22 @@
                                     <th class="py-2.5 px-3 text-right">Status</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-slate-100 dark:divide-zinc-800">
+                            <tbody class="divide-y divide-slate-100 dark:divide-zinc-800/80">
                                 {% for p in participants %}
                                 <tr>
-                                    <td class="py-3 px-3 font-semibold text-slate-900 dark:text-zinc-100 flex items-center space-x-2">
-                                        <div class="w-6 h-6 rounded-full bg-blue-600 text-white text-[10px] font-bold flex items-center justify-center">
-                                            {{ p.user.username|slice:":1"|upper }}
-                                        </div>
-                                        <span>{{ p.user.get_full_name|default:p.user.username }}</span>
+                                    <td class="py-3 px-3">
+                                        <div class="font-bold meet-title">{{ p.user.get_full_name|default:p.user.username }}</div>
+                                        <div class="text-[11px] meet-sub">{{ p.user.email }}</div>
                                     </td>
-                                    <td class="py-3 px-3 text-slate-500 dark:text-zinc-400">
-                                        {{ p.get_role_display }}
+                                    <td class="py-3 px-3">
+                                        <span class="px-2 py-0.5 rounded font-mono text-[10px] uppercase font-bold bg-slate-100 text-slate-700 dark:bg-zinc-800 dark:text-zinc-300">
+                                            {{ p.role }}
+                                        </span>
                                     </td>
-                                    <td class="py-3 px-3 font-mono text-[11px] text-slate-500 dark:text-zinc-400">
+                                    <td class="py-3 px-3 meet-sub">
                                         {{ p.joined_at|date:"g:i:s A" }}
                                     </td>
-                                    <td class="py-3 px-3 font-mono text-[11px] text-slate-500 dark:text-zinc-400">
+                                    <td class="py-3 px-3 meet-sub">
                                         {{ p.left_at|date:"g:i:s A"|default:"Active / In Room" }}
                                     </td>
                                     <td class="py-3 px-3 text-right">
@@ -272,7 +272,7 @@
                                             Online
                                         </span>
                                         {% else %}
-                                        <span class="text-slate-400 dark:text-zinc-500 text-[11px]">Attended</span>
+                                        <span class="meet-sub text-[11px]">Attended</span>
                                         {% endif %}
                                     </td>
                                 </tr>
@@ -281,7 +281,7 @@
                         </table>
                     </div>
                     {% else %}
-                    <p class="text-xs text-slate-400 dark:text-zinc-500 italic py-4 text-center">
+                    <p class="text-xs meet-sub italic py-4 text-center">
                         No participants have connected to this room yet.
                     </p>
                     {% endif %}
@@ -290,30 +290,30 @@
 
             <!-- TAB 3: AGENDA (Screen 6) -->
             <div x-show="activeTab === 'agenda'" class="space-y-4" style="display: none;">
-                <div class="p-6 sm:p-7 rounded-3xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#18181b] shadow-xl space-y-4">
-                    <h3 class="text-sm font-bold text-slate-900 dark:text-zinc-100">Meeting Agenda Items</h3>
+                <div class="meet-card p-6 sm:p-7 shadow-xl space-y-4">
+                    <h3 class="text-sm font-bold meet-title">Meeting Agenda Items</h3>
                     <div class="space-y-3 text-xs">
-                        <div class="p-3.5 rounded-2xl bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 flex items-start space-x-3">
+                        <div class="meet-subcard p-3.5 flex items-start space-x-3">
                             <span class="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center shrink-0">1</span>
                             <div>
-                                <span class="font-bold text-slate-900 dark:text-zinc-100 block">Sprint Goals Review</span>
-                                <span class="text-slate-500 dark:text-zinc-400 text-[11px]">Assess team progress against sprint commitments and milestones.</span>
+                                <span class="font-bold meet-title block">Sprint Goals Review</span>
+                                <span class="meet-sub text-[11px]">Assess team progress against sprint commitments and milestones.</span>
                             </div>
                         </div>
 
-                        <div class="p-3.5 rounded-2xl bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 flex items-start space-x-3">
+                        <div class="meet-subcard p-3.5 flex items-start space-x-3">
                             <span class="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center shrink-0">2</span>
                             <div>
-                                <span class="font-bold text-slate-900 dark:text-zinc-100 block">Architecture & Bug Triage</span>
-                                <span class="text-slate-500 dark:text-zinc-400 text-[11px]">Identify blockers, resolve critical issues, and assign next actions.</span>
+                                <span class="font-bold meet-title block">Architecture & Bug Triage</span>
+                                <span class="meet-sub text-[11px]">Identify blockers, resolve critical issues, and assign next actions.</span>
                             </div>
                         </div>
 
-                        <div class="p-3.5 rounded-2xl bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 flex items-start space-x-3">
+                        <div class="meet-subcard p-3.5 flex items-start space-x-3">
                             <span class="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center shrink-0">3</span>
                             <div>
-                                <span class="font-bold text-slate-900 dark:text-zinc-100 block">Open Discussion & Q&A</span>
-                                <span class="text-slate-500 dark:text-zinc-400 text-[11px]">Floor open for questions and coordination across workspaces.</span>
+                                <span class="font-bold meet-title block">Open Discussion & Q&A</span>
+                                <span class="meet-sub text-[11px]">Floor open for questions and coordination across workspaces.</span>
                             </div>
                         </div>
                     </div>
@@ -322,29 +322,29 @@
 
             <!-- TAB 4: FILES (Screen 6) -->
             <div x-show="activeTab === 'files'" class="space-y-4" style="display: none;">
-                <div class="p-6 sm:p-7 rounded-3xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#18181b] shadow-xl space-y-4">
-                    <h3 class="text-sm font-bold text-slate-900 dark:text-zinc-100">Meeting Attachments & Documents</h3>
+                <div class="meet-card p-6 sm:p-7 shadow-xl space-y-4">
+                    <h3 class="text-sm font-bold meet-title">Meeting Attachments & Documents</h3>
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div class="p-3.5 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-slate-50/60 dark:bg-zinc-900/60 flex items-center justify-between text-xs">
+                        <div class="meet-subcard p-3.5 flex items-center justify-between text-xs">
                             <div class="flex items-center space-x-3">
                                 <span class="text-xl">📄</span>
                                 <div>
-                                    <span class="font-bold text-slate-900 dark:text-zinc-100 block">Sprint_Backlog.pdf</span>
-                                    <span class="text-[10px] text-slate-400">1.8 MB • PDF</span>
+                                    <span class="font-bold meet-title block">Sprint_Backlog.pdf</span>
+                                    <span class="text-[10px] meet-sub">1.8 MB • PDF</span>
                                 </div>
                             </div>
-                            <span class="text-blue-600 font-bold hover:underline cursor-pointer">View</span>
+                            <span class="text-blue-600 dark:text-blue-400 font-bold hover:underline cursor-pointer">View</span>
                         </div>
 
-                        <div class="p-3.5 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-slate-50/60 dark:bg-zinc-900/60 flex items-center justify-between text-xs">
+                        <div class="meet-subcard p-3.5 flex items-center justify-between text-xs">
                             <div class="flex items-center space-x-3">
                                 <span class="text-xl">🖼️</span>
                                 <div>
-                                    <span class="font-bold text-slate-900 dark:text-zinc-100 block">Architecture_v2.png</span>
-                                    <span class="text-[10px] text-slate-400">3.4 MB • PNG</span>
+                                    <span class="font-bold meet-title block">Architecture_v2.png</span>
+                                    <span class="text-[10px] meet-sub">3.4 MB • PNG</span>
                                 </div>
                             </div>
-                            <span class="text-blue-600 font-bold hover:underline cursor-pointer">View</span>
+                            <span class="text-blue-600 dark:text-blue-400 font-bold hover:underline cursor-pointer">View</span>
                         </div>
                     </div>
                 </div>
@@ -352,12 +352,12 @@
 
             <!-- TAB 5: IN-ROOM CHAT (Screen 6) -->
             <div x-show="activeTab === 'chat'" class="space-y-4" style="display: none;">
-                <div class="p-6 sm:p-7 rounded-3xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#18181b] shadow-xl text-center space-y-3">
+                <div class="meet-card p-6 sm:p-7 shadow-xl text-center space-y-3">
                     <div class="w-12 h-12 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center mx-auto text-xl">
                         💬
                     </div>
-                    <h3 class="text-sm font-bold text-slate-900 dark:text-zinc-100">Live In-Call Chat Transcript</h3>
-                    <p class="text-xs text-slate-500 dark:text-zinc-400 max-w-md mx-auto">
+                    <h3 class="text-sm font-bold meet-title">Live In-Call Chat Transcript</h3>
+                    <p class="text-xs meet-sub max-w-md mx-auto">
                         In-call messages and shared links are delivered live inside the active meeting room drawer.
                     </p>
                     <div class="pt-2">
@@ -373,12 +373,12 @@
 
         <!-- RIGHT COLUMN: Guests / Invitees Roster (4 Cols, Screen 6) -->
         <div class="lg:col-span-4 space-y-6">
-            <div class="p-6 rounded-3xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#18181b] shadow-xl space-y-4">
+            <div class="meet-card p-6 shadow-xl space-y-4">
                 <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-zinc-800">
-                    <h3 class="text-sm font-bold text-slate-900 dark:text-zinc-100">
+                    <h3 class="text-sm font-bold meet-title">
                         Guests ({{ invites|length|default:total_participant_count }})
                     </h3>
-                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">RSVP Status</span>
+                    <span class="text-[10px] font-bold meet-sub uppercase tracking-wider">RSVP Status</span>
                 </div>
 
                 <div class="space-y-3">
@@ -389,10 +389,10 @@
                                 {{ meeting.host.username|slice:":1"|upper }}
                             </div>
                             <div>
-                                <span class="font-bold text-slate-900 dark:text-zinc-100 block">
+                                <span class="font-bold meet-title block">
                                     {{ meeting.host.get_full_name|default:meeting.host.username }}
                                 </span>
-                                <span class="text-[10px] text-slate-400">{{ meeting.host.email }}</span>
+                                <span class="text-[10px] meet-sub">{{ meeting.host.email }}</span>
                             </div>
                         </div>
                         <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-400 border border-blue-200 dark:border-blue-900">
@@ -409,10 +409,10 @@
                                 {{ inv.user.username|slice:":1"|upper }}
                             </div>
                             <div>
-                                <span class="font-bold text-slate-900 dark:text-zinc-100 block">
+                                <span class="font-bold meet-title block">
                                     {{ inv.user.get_full_name|default:inv.user.username }}
                                 </span>
-                                <span class="text-[10px] text-slate-400">{{ inv.user.email }}</span>
+                                <span class="text-[10px] meet-sub">{{ inv.user.email }}</span>
                             </div>
                         </div>
                         <span class="px-2 py-0.5 rounded-full text-[10px] font-bold 

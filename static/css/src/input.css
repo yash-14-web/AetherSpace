@@ -37,6 +37,14 @@
   .aether-card {
     @apply bg-white dark:bg-obsidian-800 border border-slate-border dark:border-obsidian-border rounded-xl shadow-sm;
   }
+  .dark .aether-card,
+  html.dark .aether-card,
+  :is(.dark *) .aether-card {
+    background-color: #18181b !important;
+    border-color: #27272a !important;
+    color: #f4f4f5 !important;
+  }
+
   .aether-button-primary {
     @apply inline-flex items-center justify-center px-4 py-2 font-medium text-sm rounded-lg bg-aether-blue hover:bg-aether-blue-hover text-white transition-all shadow-sm focus:outline-none focus:ring-2 focus:ring-aether-blue/50;
   }
@@ -46,4 +54,111 @@
   .aether-input {
     @apply w-full px-3.5 py-2 text-xs rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-aether-blue focus:border-aether-blue transition-all;
   }
+
+  /* Bulletproof Meet Hub theme components (Guaranteed in both Dark & Light modes) */
+  .meet-card {
+    background-color: #ffffff;
+    border: 1px solid #e2e8f0;
+    color: #0f172a;
+    border-radius: 1rem;
+  }
+  .dark .meet-card,
+  html.dark .meet-card,
+  :is(.dark *) .meet-card {
+    background-color: #18181b !important;
+    border-color: #27272a !important;
+    color: #f4f4f5 !important;
+  }
+
+  .meet-subcard {
+    background-color: #f8fafc;
+    border: 1px solid #e2e8f0;
+    color: #0f172a;
+    border-radius: 0.75rem;
+  }
+  .dark .meet-subcard,
+  html.dark .meet-subcard,
+  :is(.dark *) .meet-subcard {
+    background-color: #0f172a !important;
+    border-color: #27272a !important;
+    color: #f4f4f5 !important;
+  }
+
+  .meet-card-hover {
+    transition: all 0.15s ease-in-out;
+  }
+  .meet-card-hover:hover {
+    border-color: #3b82f6 !important;
+  }
+
+  .meet-btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #ffffff;
+    border: 1px solid #e2e8f0;
+    color: #334155;
+    border-radius: 0.75rem;
+    transition: all 0.15s ease-in-out;
+  }
+  .meet-btn-secondary:hover {
+    border-color: #3b82f6;
+    color: #2563eb;
+    background-color: #f8fafc;
+  }
+  .dark .meet-btn-secondary,
+  html.dark .meet-btn-secondary,
+  :is(.dark *) .meet-btn-secondary {
+    background-color: #18181b !important;
+    border-color: #27272a !important;
+    color: #e4e4e7 !important;
+  }
+  .dark .meet-btn-secondary:hover,
+  html.dark .meet-btn-secondary:hover,
+  :is(.dark *) .meet-btn-secondary:hover {
+    background-color: #27272a !important;
+    border-color: #3b82f6 !important;
+    color: #ffffff !important;
+  }
+
+  .meet-input-field {
+    background-color: #ffffff;
+    border: 1px solid #cbd5e1;
+    color: #0f172a;
+    border-radius: 0.75rem;
+  }
+  .meet-input-field::placeholder {
+    color: #94a3b8;
+  }
+  .dark .meet-input-field,
+  html.dark .meet-input-field,
+  :is(.dark *) .meet-input-field {
+    background-color: #0c1322 !important;
+    border-color: #27272a !important;
+    color: #f4f4f5 !important;
+  }
+  .dark .meet-input-field::placeholder,
+  html.dark .meet-input-field::placeholder,
+  :is(.dark *) .meet-input-field::placeholder {
+    color: #71717a !important;
+  }
+
+  .meet-title {
+    color: #0f172a;
+  }
+  .dark .meet-title,
+  html.dark .meet-title,
+  :is(.dark *) .meet-title {
+    color: #f4f4f5 !important;
+  }
+
+  .meet-sub {
+    color: #64748b;
+  }
+  .dark .meet-sub,
+  html.dark .meet-sub,
+  :is(.dark *) .meet-sub {
+    color: #a1a1aa !important;
+  }
 }
+

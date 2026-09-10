@@ -43,35 +43,35 @@
             <!-- Filter Tabs (Screen 7) -->
             <div class="flex items-center space-x-1.5 overflow-x-auto pb-1 border-b border-slate-200 dark:border-zinc-800">
                 <a href="?{% if current_q %}q={{ current_q }}&{% endif %}{% if current_type %}type={{ current_type }}&{% endif %}status=all" 
-                   class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 {% if not current_status or current_status == 'all' %}bg-blue-600 text-white shadow-sm{% else %}bg-white dark:bg-[#18181b] text-slate-600 dark:text-zinc-400 border border-slate-200 dark:border-zinc-800 hover:text-slate-900 dark:hover:text-zinc-200{% endif %}">
+                   class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 {% if not current_status or current_status == 'all' %}bg-blue-600 text-white shadow-sm{% else %}meet-btn-secondary{% endif %}">
                     <span>All Meetings</span>
                     <span class="px-1.5 py-0.2 rounded-full text-[10px] {% if not current_status or current_status == 'all' %}bg-white/20 text-white{% else %}bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400{% endif %}">{{ status_counts.all }}</span>
                 </a>
                 <a href="?{% if current_q %}q={{ current_q }}&{% endif %}{% if current_type %}type={{ current_type }}&{% endif %}status=LIVE" 
-                   class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 {% if current_status == 'LIVE' %}bg-emerald-600 text-white shadow-sm{% else %}bg-white dark:bg-[#18181b] text-slate-600 dark:text-zinc-400 border border-slate-200 dark:border-zinc-800 hover:text-emerald-600{% endif %}">
+                   class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 {% if current_status == 'LIVE' %}bg-emerald-600 text-white shadow-sm{% else %}meet-btn-secondary hover:text-emerald-600{% endif %}">
                     <span class="w-2 h-2 rounded-full bg-emerald-500 {% if current_status != 'LIVE' %}animate-pulse{% endif %}"></span>
                     <span>Live Now</span>
                     <span class="px-1.5 py-0.2 rounded-full text-[10px] {% if current_status == 'LIVE' %}bg-white/20 text-white{% else %}bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400{% endif %}">{{ status_counts.live }}</span>
                 </a>
                 <a href="?{% if current_q %}q={{ current_q }}&{% endif %}{% if current_type %}type={{ current_type }}&{% endif %}status=SCHEDULED" 
-                   class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 {% if current_status == 'SCHEDULED' %}bg-blue-600 text-white shadow-sm{% else %}bg-white dark:bg-[#18181b] text-slate-600 dark:text-zinc-400 border border-slate-200 dark:border-zinc-800 hover:text-blue-600{% endif %}">
+                   class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 {% if current_status == 'SCHEDULED' %}bg-blue-600 text-white shadow-sm{% else %}meet-btn-secondary hover:text-blue-600{% endif %}">
                     <span>Scheduled</span>
                     <span class="px-1.5 py-0.2 rounded-full text-[10px] {% if current_status == 'SCHEDULED' %}bg-white/20 text-white{% else %}bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400{% endif %}">{{ status_counts.scheduled }}</span>
                 </a>
                 <a href="?{% if current_q %}q={{ current_q }}&{% endif %}{% if current_type %}type={{ current_type }}&{% endif %}status=ENDED" 
-                   class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 {% if current_status == 'ENDED' %}bg-slate-700 text-white shadow-sm{% else %}bg-white dark:bg-[#18181b] text-slate-600 dark:text-zinc-400 border border-slate-200 dark:border-zinc-800 hover:text-slate-900 dark:hover:text-zinc-200{% endif %}">
+                   class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 {% if current_status == 'ENDED' %}bg-slate-700 text-white shadow-sm{% else %}meet-btn-secondary{% endif %}">
                     <span>Completed</span>
                     <span class="px-1.5 py-0.2 rounded-full text-[10px] {% if current_status == 'ENDED' %}bg-white/20 text-white{% else %}bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400{% endif %}">{{ status_counts.completed }}</span>
                 </a>
                 <a href="?{% if current_q %}q={{ current_q }}&{% endif %}{% if current_type %}type={{ current_type }}&{% endif %}status=CANCELLED" 
-                   class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 {% if current_status == 'CANCELLED' %}bg-rose-600 text-white shadow-sm{% else %}bg-white dark:bg-[#18181b] text-slate-600 dark:text-zinc-400 border border-slate-200 dark:border-zinc-800 hover:text-rose-600{% endif %}">
+                   class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 {% if current_status == 'CANCELLED' %}bg-rose-600 text-white shadow-sm{% else %}meet-btn-secondary hover:text-rose-600{% endif %}">
                     <span>Cancelled</span>
                     <span class="px-1.5 py-0.2 rounded-full text-[10px] {% if current_status == 'CANCELLED' %}bg-white/20 text-white{% else %}bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400{% endif %}">{{ status_counts.cancelled }}</span>
                 </a>
             </div>
 
             <!-- Search & Filters Toolbar -->
-            <div class="p-4 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#18181b] shadow-2xs">
+            <div class="p-4 meet-card shadow-2xs">
                 <form method="get" class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                     <!-- Clean Search Input without overlapping icon -->
                     <div class="relative flex-1">
@@ -84,13 +84,13 @@
                                name="q" 
                                value="{{ current_q }}" 
                                placeholder="Search meetings by title or meet-xxxx-xxxx..." 
-                               class="w-full pl-10 pr-4 py-2 text-xs rounded-xl bg-slate-50 dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 text-slate-900 dark:text-zinc-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+                               class="meet-input-field w-full pl-10 pr-4 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
                     </div>
 
                     <!-- Type Selector -->
                     <div class="relative w-full sm:w-44">
                         <select name="type" 
-                                class="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer transition">
+                                class="meet-input-field w-full px-3 py-2 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer transition">
                             <option value="">All Categories</option>
                             {% for val, label in meeting_types %}
                             <option value="{{ val }}" {% if current_type == val %}selected{% endif %}>{{ label }}</option>
@@ -105,7 +105,7 @@
                         </button>
                         {% if current_q or current_type or current_status %}
                         <a href="{% url 'meetings:meeting_history' slug=workspace.slug %}" 
-                           class="px-3 py-2 text-xs font-semibold rounded-xl text-slate-500 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 transition">
+                           class="meet-btn-secondary px-3 py-2 text-xs font-semibold">
                             Reset
                         </a>
                         {% endif %}
@@ -114,12 +114,12 @@
             </div>
 
             <!-- History Table (Screen 7) -->
-            <div class="rounded-3xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#18181b] shadow-xl overflow-hidden">
+            <div class="meet-card shadow-xl overflow-hidden">
                 {% if meetings %}
                 <div class="overflow-x-auto">
                     <table class="w-full text-left text-xs">
                         <thead>
-                            <tr class="border-b border-slate-200 dark:border-zinc-800 bg-slate-50/70 dark:bg-zinc-900/60 text-slate-400 dark:text-zinc-500 uppercase text-[10px] font-bold tracking-wider">
+                            <tr class="border-b border-slate-200 dark:border-zinc-800 bg-slate-50/70 dark:bg-[#0f172a] meet-sub uppercase text-[10px] font-bold tracking-wider">
                                 <th class="py-3.5 px-4 whitespace-nowrap">Meeting & Project</th>
                                 <th class="py-3.5 px-4 whitespace-nowrap">Date & Time</th>
                                 <th class="py-3.5 px-4 whitespace-nowrap">Duration</th>
@@ -133,8 +133,8 @@
                             <tr class="hover:bg-slate-50/50 dark:hover:bg-zinc-800/30 transition-colors">
                                 <!-- Meeting & Project -->
                                 <td class="py-3.5 px-4">
-                                    <div class="font-bold text-slate-900 dark:text-zinc-100">{{ m.title }}</div>
-                                    <div class="flex items-center space-x-2 text-[11px] text-slate-400 dark:text-zinc-500 mt-0.5">
+                                    <div class="font-bold meet-title">{{ m.title }}</div>
+                                    <div class="flex items-center space-x-2 text-[11px] meet-sub mt-0.5">
                                         <span class="font-mono font-semibold">{{ m.meeting_code }}</span>
                                         <span>•</span>
                                         <span>Project: {{ m.project.name|default:workspace.name }}</span>
@@ -142,62 +142,57 @@
                                 </td>
 
                                 <!-- Date & Time -->
-                                <td class="py-3.5 px-4 text-slate-600 dark:text-zinc-400 whitespace-nowrap text-[11px]">
-                                    {{ m.actual_start|default:m.scheduled_start|default:m.created_at|date:"M d, Y • g:i A" }}
+                                <td class="py-3.5 px-4 whitespace-nowrap meet-sub">
+                                    <div class="font-medium meet-title">{{ m.scheduled_start|default:m.created_at|date:"M d, Y" }}</div>
+                                    <div class="text-[11px]">{{ m.scheduled_start|default:m.created_at|date:"g:i A" }}</div>
                                 </td>
 
                                 <!-- Duration -->
-                                <td class="py-3.5 px-4 font-medium text-slate-700 dark:text-zinc-300 whitespace-nowrap">
+                                <td class="py-3.5 px-4 whitespace-nowrap meet-sub">
                                     {{ m.duration_display }}
                                 </td>
 
-                                <!-- Attendees (Avatar Stack) -->
+                                <!-- Attendees -->
                                 <td class="py-3.5 px-4 whitespace-nowrap">
                                     <div class="flex items-center space-x-1.5">
-                                        <div class="flex -space-x-2 overflow-hidden">
-                                            <div class="inline-block h-6 w-6 rounded-full ring-2 ring-white dark:ring-[#18181b] bg-blue-600 text-white text-[10px] font-bold flex items-center justify-center">
+                                        <div class="flex -space-x-1.5 overflow-hidden">
+                                            <div class="inline-block h-6 w-6 rounded-full ring-2 ring-white dark:ring-zinc-900 bg-blue-600 text-white text-[10px] font-bold flex items-center justify-center">
                                                 {{ m.host.username|slice:":1"|upper }}
                                             </div>
-                                            <div class="inline-block h-6 w-6 rounded-full ring-2 ring-white dark:ring-[#18181b] bg-indigo-600 text-white text-[10px] font-bold flex items-center justify-center">
+                                            <div class="inline-block h-6 w-6 rounded-full ring-2 ring-white dark:ring-zinc-900 bg-indigo-600 text-white text-[10px] font-bold flex items-center justify-center">
                                                 {{ workspace.name|slice:":1"|upper }}
                                             </div>
                                         </div>
-                                        <span class="text-[11px] text-slate-400 font-medium">+{{ m.participants.count|default:1 }}</span>
+                                        <span class="text-[11px] meet-sub font-medium">+{{ m.participants_count|default:1 }}</span>
                                     </div>
                                 </td>
 
-                                <!-- Status Badge -->
+                                <!-- Status -->
                                 <td class="py-3.5 px-4 whitespace-nowrap">
                                     {% if m.status == 'LIVE' %}
-                                    <span class="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800 animate-pulse">
+                                    <span class="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-400 animate-pulse">
                                         <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                                        <span>LIVE NOW</span>
+                                        <span>Live</span>
                                     </span>
                                     {% elif m.status == 'SCHEDULED' %}
-                                    <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-400 border border-blue-200 dark:border-blue-900">
+                                    <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-400 border border-blue-200 dark:border-blue-900">
                                         Scheduled
                                     </span>
                                     {% elif m.status == 'ENDED' %}
-                                    <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+                                    <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
                                         Completed
                                     </span>
                                     {% elif m.status == 'CANCELLED' %}
-                                    <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400 border border-rose-200 dark:border-rose-900">
+                                    <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-400 border border-rose-200 dark:border-rose-900">
                                         Cancelled
                                     </span>
                                     {% endif %}
                                 </td>
 
                                 <!-- Action -->
-                                <td class="py-3.5 px-4 text-right space-x-1.5 whitespace-nowrap">
-                                    {% if m.status == 'LIVE' %}
-                                    <a href="{% url 'meetings:meeting_room' slug=workspace.slug meeting_code=m.meeting_code %}" 
-                                       class="inline-flex items-center px-3 py-1 rounded-lg text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition">
-                                        Join
-                                    </a>
-                                    {% endif %}
+                                <td class="py-3.5 px-4 text-right whitespace-nowrap">
                                     <a href="{% url 'meetings:meeting_detail' slug=workspace.slug meeting_code=m.meeting_code %}" 
-                                       class="inline-flex items-center px-3 py-1 rounded-lg text-xs font-semibold rounded-lg border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:border-blue-500 hover:text-blue-600 transition">
+                                       class="meet-btn-secondary px-3 py-1 text-xs font-semibold">
                                         View Recap
                                     </a>
                                 </td>
@@ -210,19 +205,19 @@
                 <!-- Pagination -->
                 {% if meetings.has_other_pages %}
                 <div class="px-4 py-3 border-t border-slate-200 dark:border-zinc-800 flex items-center justify-between text-xs bg-slate-50/50 dark:bg-zinc-900/40">
-                    <div class="text-slate-500 dark:text-zinc-400 font-medium">
+                    <div class="meet-sub font-medium">
                         Page {{ meetings.number }} of {{ meetings.paginator.num_pages }}
                     </div>
                     <div class="flex items-center space-x-2">
                         {% if meetings.has_previous %}
                         <a href="?page={{ meetings.previous_page_number }}&q={{ current_q }}&type={{ current_type }}&status={{ current_status }}" 
-                           class="px-3 py-1 rounded-lg border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 transition">
+                           class="meet-btn-secondary px-3 py-1 text-xs">
                             Previous
                         </a>
                         {% endif %}
                         {% if meetings.has_next %}
                         <a href="?page={{ meetings.next_page_number }}&q={{ current_q }}&type={{ current_type }}&status={{ current_status }}" 
-                           class="px-3 py-1 rounded-lg border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 transition">
+                           class="meet-btn-secondary px-3 py-1 text-xs">
                             Next
                         </a>
                         {% endif %}
@@ -235,8 +230,8 @@
                     <svg class="w-10 h-10 mx-auto text-slate-300 dark:text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
                     </svg>
-                    <p class="text-xs font-bold text-slate-700 dark:text-zinc-300">No meeting history found</p>
-                    <p class="text-xs text-slate-500 dark:text-zinc-400">Try clearing filters or starting a new meeting.</p>
+                    <p class="text-xs font-bold meet-title">No meeting history found</p>
+                    <p class="text-xs meet-sub">Try clearing filters or starting a new meeting.</p>
                 </div>
                 {% endif %}
             </div>
@@ -247,19 +242,19 @@
         <div class="lg:col-span-4 space-y-6">
             
             <!-- Statistics Card (Screen 7) -->
-            <div class="p-6 rounded-3xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#18181b] shadow-xl space-y-5">
+            <div class="meet-card p-6 shadow-xl space-y-5">
                 <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-zinc-800">
-                    <h3 class="text-sm font-bold text-slate-900 dark:text-zinc-100">Meeting Statistics</h3>
-                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Workspace Summary</span>
+                    <h3 class="text-sm font-bold meet-title">Meeting Statistics</h3>
+                    <span class="text-[10px] font-bold meet-sub uppercase tracking-wider">Workspace Summary</span>
                 </div>
 
                 <!-- 3 Metric Blocks (Screen 7) -->
                 <div class="grid grid-cols-1 gap-3.5">
                     <!-- Total Meetings -->
-                    <div class="p-4 rounded-2xl bg-slate-50/60 dark:bg-zinc-900/60 border border-slate-200 dark:border-zinc-800 flex items-center justify-between">
+                    <div class="p-4 meet-subcard flex items-center justify-between">
                         <div>
-                            <span class="text-[11px] font-bold text-slate-400 dark:text-zinc-500 block uppercase">Total Meetings</span>
-                            <span class="text-2xl font-black text-slate-900 dark:text-zinc-100">{{ stats_summary.total_meetings }}</span>
+                            <span class="text-[11px] font-bold meet-sub block uppercase">Total Meetings</span>
+                            <span class="text-2xl font-black meet-title">{{ stats_summary.total_meetings }}</span>
                         </div>
                         <div class="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center">
                             <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -269,10 +264,10 @@
                     </div>
 
                     <!-- Total Hours -->
-                    <div class="p-4 rounded-2xl bg-slate-50/60 dark:bg-zinc-900/60 border border-slate-200 dark:border-zinc-800 flex items-center justify-between">
+                    <div class="p-4 meet-subcard flex items-center justify-between">
                         <div>
-                            <span class="text-[11px] font-bold text-slate-400 dark:text-zinc-500 block uppercase">Total Hours</span>
-                            <span class="text-2xl font-black text-slate-900 dark:text-zinc-100">{{ stats_summary.total_hours }} <span class="text-sm font-semibold text-slate-400">hrs</span></span>
+                            <span class="text-[11px] font-bold meet-sub block uppercase">Total Hours</span>
+                            <span class="text-2xl font-black meet-title">{{ stats_summary.total_hours }} <span class="text-sm font-semibold meet-sub">hrs</span></span>
                         </div>
                         <div class="w-10 h-10 rounded-xl bg-purple-100 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center">
                             <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -282,10 +277,10 @@
                     </div>
 
                     <!-- Avg Duration -->
-                    <div class="p-4 rounded-2xl bg-slate-50/60 dark:bg-zinc-900/60 border border-slate-200 dark:border-zinc-800 flex items-center justify-between">
+                    <div class="p-4 meet-subcard flex items-center justify-between">
                         <div>
-                            <span class="text-[11px] font-bold text-slate-400 dark:text-zinc-500 block uppercase">Average Duration</span>
-                            <span class="text-2xl font-black text-slate-900 dark:text-zinc-100">{{ stats_summary.avg_duration }} <span class="text-sm font-semibold text-slate-400">mins</span></span>
+                            <span class="text-[11px] font-bold meet-sub block uppercase">Average Duration</span>
+                            <span class="text-2xl font-black meet-title">{{ stats_summary.avg_duration }} <span class="text-sm font-semibold meet-sub">mins</span></span>
                         </div>
                         <div class="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
                             <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -296,7 +291,7 @@
                 </div>
 
                 <!-- Info Tip -->
-                <div class="pt-2 text-[11px] text-slate-500 dark:text-zinc-400 leading-relaxed border-t border-slate-100 dark:border-zinc-800">
+                <div class="pt-2 text-[11px] meet-sub leading-relaxed border-t border-slate-100 dark:border-zinc-800">
                     💡 <strong>Pro Tip:</strong> Meeting logs and participant timelines are retained for all workspace audit histories.
                 </div>
             </div>
