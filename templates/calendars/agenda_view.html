@@ -1,0 +1,291 @@
+{% extends 'base.html' %}
+
+{% block title %}Agenda • {{ workspace.name }} — AetherSpace{% endblock %}
+
+{% block content %}
+<div class="space-y-6 max-w-7xl mx-auto"
+     x-data="{
+         selectedCategory: '{{ cat_filter }}',
+         filterCategory(cat) {
+             const params = new URLSearchParams(window.location.search);
+             params.set('cat', cat);
+             window.location.search = params.toString();
+         },
+         navigateDate(dateStr) {
+             const params = new URLSearchParams(window.location.search);
+             params.set('date', dateStr);
+             window.location.search = params.toString();
+         }
+     }">
+
+    <!-- Top Header & Navigation (Screen 2) -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-[#0c1322] p-6 rounded-2xl border border-slate-200 dark:border-zinc-800 shadow-sm">
+        <div>
+            <div class="flex items-center space-x-2">
+                <a href="{% url 'calendars:calendar_view' slug=workspace.slug %}" class="text-xs text-blue-600 dark:text-blue-400 hover:underline font-semibold">&larr; Month Calendar</a>
+                <span class="text-slate-300 dark:text-zinc-700">•</span>
+                <span class="text-xs font-semibold text-slate-500 dark:text-zinc-400">Timeline Stream</span>
+            </div>
+            <h1 class="text-xl font-bold text-slate-900 dark:text-zinc-100 mt-1">Agenda</h1>
+            <p class="text-xs text-slate-500 dark:text-zinc-400">Your agenda for <strong class="text-slate-700 dark:text-zinc-300">{{ target_date|date:"F j, Y" }}</strong></p>
+        </div>
+
+        <!-- Date Navigator Controls -->
+        <div class="flex items-center space-x-3">
+            <div class="flex items-center space-x-1">
+                <a href="?date={{ prev_day|date:'Y-m-d' }}&cat={{ cat_filter }}" 
+                   class="p-2 rounded-xl border border-slate-200 dark:border-zinc-800 text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 transition" 
+                   title="Previous Day">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                    </svg>
+                </a>
+                <a href="?date={{ today|date:'Y-m-d' }}&cat={{ cat_filter }}" 
+                   class="px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition">
+                    Today
+                </a>
+                <a href="?date={{ next_day|date:'Y-m-d' }}&cat={{ cat_filter }}" 
+                   class="p-2 rounded-xl border border-slate-200 dark:border-zinc-800 text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 transition" 
+                   title="Next Day">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                    </svg>
+                </a>
+            </div>
+
+            <input type="date" 
+                   value="{{ target_date|date:'Y-m-d' }}" 
+                   @change="navigateDate($event.target.value)"
+                   class="px-3 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900 text-slate-800 dark:text-zinc-200 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500">
+
+            <a href="{% url 'calendars:event_create' slug=workspace.slug %}" 
+               class="px-4 py-2 text-xs font-bold rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-500/20 transition flex items-center space-x-1.5">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                </svg>
+                <span>New Event</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Category Filter Pills (Screen 2: All, Tasks, Bugs, Meetings, Milestones, Events) -->
+    <div class="flex items-center space-x-2 overflow-x-auto pb-1">
+        <button type="button" @click="filterCategory('all')" 
+                class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 {% if cat_filter == 'all' %}bg-blue-600 text-white shadow-xs{% else %}bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800{% endif %}">
+            All
+        </button>
+        <button type="button" @click="filterCategory('tasks')" 
+                class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center space-x-1.5 {% if cat_filter == 'tasks' %}bg-emerald-600 text-white shadow-xs{% else %}bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800{% endif %}">
+            <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+            <span>Tasks</span>
+        </button>
+        <button type="button" @click="filterCategory('bugs')" 
+                class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center space-x-1.5 {% if cat_filter == 'bugs' %}bg-rose-600 text-white shadow-xs{% else %}bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800{% endif %}">
+            <span class="w-2 h-2 rounded-full bg-rose-500"></span>
+            <span>Bugs</span>
+        </button>
+        <button type="button" @click="filterCategory('meetings')" 
+                class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center space-x-1.5 {% if cat_filter == 'meetings' %}bg-purple-600 text-white shadow-xs{% else %}bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800{% endif %}">
+            <span class="w-2 h-2 rounded-full bg-purple-500"></span>
+            <span>Meetings</span>
+        </button>
+        <button type="button" @click="filterCategory('milestones')" 
+                class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center space-x-1.5 {% if cat_filter == 'milestones' %}bg-amber-600 text-white shadow-xs{% else %}bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800{% endif %}">
+            <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+            <span>Milestones</span>
+        </button>
+        <button type="button" @click="filterCategory('events')" 
+                class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center space-x-1.5 {% if cat_filter == 'events' %}bg-blue-600 text-white shadow-xs{% else %}bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800{% endif %}">
+            <span class="w-2 h-2 rounded-full bg-blue-500"></span>
+            <span>Custom Events</span>
+        </button>
+    </div>
+
+    <!-- MAIN TWO-COLUMN CONTENT AREA (Screen 2) -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        <!-- TIMELINE STREAM (Col-span 2) -->
+        <div class="lg:col-span-2 space-y-6">
+            {% if date_groups %}
+                {% for group in date_groups %}
+                    <div class="space-y-3">
+                        <!-- Date Header -->
+                        <div class="flex items-center space-x-3 pb-1 border-b border-slate-200 dark:border-zinc-800">
+                            <h2 class="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-zinc-200 flex items-center space-x-2">
+                                <span>{{ group.label }}</span>
+                                {% if group.is_today %}
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 dark:bg-blue-950/70 text-blue-600 dark:text-blue-400">Today</span>
+                                {% endif %}
+                            </h2>
+                            <span class="text-[11px] text-slate-400 font-medium">({{ group.items|length }} item{{ group.items|length|pluralize }})</span>
+                        </div>
+
+                        <!-- Items in this date -->
+                        <div class="space-y-2.5">
+                            {% for it in group.items %}
+                                <div class="p-4 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 shadow-2xs hover:shadow-sm transition flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-l-4 
+                                    {% if it.color == 'amber' %}border-l-amber-500{% elif it.color == 'emerald' %}border-l-emerald-500{% elif it.color == 'purple' %}border-l-purple-500{% elif it.color == 'rose' %}border-l-rose-500{% else %}border-l-blue-500{% endif %}">
+                                    
+                                    <!-- Time & Main Details -->
+                                    <div class="flex items-start sm:items-center space-x-3.5 min-w-0">
+                                        <!-- Time Column -->
+                                        <div class="w-24 shrink-0 text-left">
+                                            <span class="text-xs font-bold text-slate-700 dark:text-zinc-300 font-mono block">{{ it.start_time }}</span>
+                                            {% if not it.is_all_day %}
+                                                <span class="text-[10px] text-slate-400 dark:text-zinc-500 font-mono block">{{ it.time_display }}</span>
+                                            {% endif %}
+                                        </div>
+
+                                        <!-- Divider -->
+                                        <div class="h-8 w-px bg-slate-200 dark:bg-zinc-800 hidden sm:block"></div>
+
+                                        <!-- Badge & Title -->
+                                        <div class="min-w-0">
+                                            <div class="flex items-center space-x-2 mb-0.5">
+                                                <span class="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider
+                                                    {% if it.color == 'amber' %}bg-amber-100 dark:bg-amber-950/70 text-amber-700 dark:text-amber-300
+                                                    {% elif it.color == 'emerald' %}bg-emerald-100 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300
+                                                    {% elif it.color == 'purple' %}bg-purple-100 dark:bg-purple-950/70 text-purple-700 dark:text-purple-300
+                                                    {% elif it.color == 'rose' %}bg-rose-100 dark:bg-rose-950/70 text-rose-700 dark:text-rose-300
+                                                    {% else %}bg-blue-100 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300{% endif %}">
+                                                    {{ it.category_label }}
+                                                </span>
+                                                {% if it.code %}
+                                                    <span class="text-[11px] font-mono text-slate-400 dark:text-zinc-500 font-bold">#{{ it.code }}</span>
+                                                {% endif %}
+                                            </div>
+                                            <a href="{{ it.detail_url }}" class="text-xs font-bold text-slate-900 dark:text-zinc-100 hover:text-blue-600 dark:hover:text-blue-400 transition truncate block">
+                                                {{ it.title }}
+                                            </a>
+                                        </div>
+                                    </div>
+
+                                    <!-- Right Meta: Status & Assignee -->
+                                    <div class="flex items-center space-x-3 shrink-0 self-end sm:self-center">
+                                        {% if it.status %}
+                                            <span class="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300">
+                                                {{ it.status }}
+                                            </span>
+                                        {% endif %}
+
+                                        <!-- Avatar -->
+                                        <div class="flex items-center space-x-2" title="{{ it.assignee_name }}">
+                                            <div class="w-6 h-6 rounded-full bg-slate-200 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 font-bold text-[10px] flex items-center justify-center">
+                                                {{ it.assignee_initials }}
+                                            </div>
+                                            <span class="text-xs text-slate-600 dark:text-zinc-400 hidden sm:inline max-w-[100px] truncate">{{ it.assignee_name }}</span>
+                                        </div>
+                                    </div>
+
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <!-- Empty State -->
+                <div class="p-12 text-center rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 shadow-sm space-y-3">
+                    <div class="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center mx-auto">
+                        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                        </svg>
+                    </div>
+                    <h3 class="text-sm font-bold text-slate-900 dark:text-zinc-100">No Agenda Items Scheduled</h3>
+                    <p class="text-xs text-slate-500 dark:text-zinc-400 max-w-sm mx-auto">
+                        There are no upcoming tasks, bugs, meetings, or calendar events scheduled for this timeframe.
+                    </p>
+                    <a href="{% url 'calendars:event_create' slug=workspace.slug %}" 
+                       class="inline-flex items-center space-x-1.5 px-4 py-2 text-xs font-bold rounded-xl bg-blue-600 hover:bg-blue-700 text-white transition">
+                        <span>+ Schedule an Event</span>
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- RIGHT SIDEBAR: Today's Summary & Upcoming (Screen 2) -->
+        <div class="space-y-6">
+
+            <!-- Today's Summary (Screen 2) -->
+            <div class="p-5 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 shadow-sm space-y-3.5">
+                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">Today's Summary</h3>
+
+                <div class="space-y-2.5 text-xs">
+                    <!-- Tasks count -->
+                    <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-zinc-900/60 border border-slate-100 dark:border-zinc-800">
+                        <div class="flex items-center space-x-2.5">
+                            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                            <span class="font-medium text-slate-700 dark:text-zinc-300">Tasks</span>
+                        </div>
+                        <span class="font-bold text-slate-900 dark:text-zinc-100 font-mono">{{ today_summary.tasks }}</span>
+                    </div>
+
+                    <!-- Bugs count -->
+                    <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-zinc-900/60 border border-slate-100 dark:border-zinc-800">
+                        <div class="flex items-center space-x-2.5">
+                            <span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
+                            <span class="font-medium text-slate-700 dark:text-zinc-300">Bugs</span>
+                        </div>
+                        <span class="font-bold text-slate-900 dark:text-zinc-100 font-mono">{{ today_summary.bugs }}</span>
+                    </div>
+
+                    <!-- Meetings count -->
+                    <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-zinc-900/60 border border-slate-100 dark:border-zinc-800">
+                        <div class="flex items-center space-x-2.5">
+                            <span class="w-2.5 h-2.5 rounded-full bg-purple-500"></span>
+                            <span class="font-medium text-slate-700 dark:text-zinc-300">Meetings</span>
+                        </div>
+                        <span class="font-bold text-slate-900 dark:text-zinc-100 font-mono">{{ today_summary.meetings }}</span>
+                    </div>
+
+                    <!-- Milestones count -->
+                    <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-zinc-900/60 border border-slate-100 dark:border-zinc-800">
+                        <div class="flex items-center space-x-2.5">
+                            <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+                            <span class="font-medium text-slate-700 dark:text-zinc-300">Milestones</span>
+                        </div>
+                        <span class="font-bold text-slate-900 dark:text-zinc-100 font-mono">{{ today_summary.milestones }}</span>
+                    </div>
+
+                    <!-- Custom events count -->
+                    <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-zinc-900/60 border border-slate-100 dark:border-zinc-800">
+                        <div class="flex items-center space-x-2.5">
+                            <span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
+                            <span class="font-medium text-slate-700 dark:text-zinc-300">Events</span>
+                        </div>
+                        <span class="font-bold text-slate-900 dark:text-zinc-100 font-mono">{{ today_summary.events }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Upcoming Stream (Screen 2) -->
+            <div class="p-5 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 shadow-sm space-y-3.5">
+                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">Upcoming Next</h3>
+
+                <div class="space-y-3 text-xs">
+                    {% for item in upcoming_items %}
+                        <div class="p-2.5 rounded-xl bg-slate-50 dark:bg-zinc-900/60 border border-slate-100 dark:border-zinc-800 space-y-1">
+                            <div class="flex items-center justify-between">
+                                <span class="text-[10px] font-bold text-slate-400 dark:text-zinc-500 font-mono">{{ item.date|date:"M d" }}</span>
+                                <span class="text-[10px] font-mono text-slate-500">{{ item.start_time }}</span>
+                            </div>
+                            <a href="{{ item.detail_url }}" class="font-bold text-slate-800 dark:text-zinc-200 hover:text-blue-600 dark:hover:text-blue-400 transition block truncate">
+                                {{ item.title }}
+                            </a>
+                        </div>
+                    {% empty %}
+                        <p class="text-slate-400 text-xs text-center py-2">No upcoming items.</p>
+                    {% endfor %}
+                </div>
+
+                <a href="{% url 'calendars:calendar_view' slug=workspace.slug %}" 
+                   class="block text-center py-2 text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline pt-2 border-t border-slate-100 dark:border-zinc-800/80">
+                    View Full Calendar &rarr;
+                </a>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+{% endblock %}

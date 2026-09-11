@@ -1,0 +1,394 @@
+{% extends 'base.html' %}
+
+{% block title %}Upcoming Deadlines • {{ workspace.name }} — AetherSpace{% endblock %}
+
+{% block content %}
+<div class="space-y-6 max-w-7xl mx-auto"
+     x-data="{
+         selectedCategory: '{{ cat_filter }}',
+         filterCategory(cat) {
+             const params = new URLSearchParams(window.location.search);
+             params.set('cat', cat);
+             window.location.search = params.toString();
+         },
+         filterTimeframe(days) {
+             const params = new URLSearchParams(window.location.search);
+             params.set('days', days);
+             window.location.search = params.toString();
+         }
+     }">
+
+    <!-- Top Header (Screen 5) -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-[#0c1322] p-6 rounded-2xl border border-slate-200 dark:border-zinc-800 shadow-sm">
+        <div>
+            <div class="flex items-center space-x-2">
+                <a href="{% url 'calendars:calendar_view' slug=workspace.slug %}" class="text-xs text-blue-600 dark:text-blue-400 hover:underline font-semibold">&larr; Month Calendar</a>
+                <span class="text-slate-300 dark:text-zinc-700">•</span>
+                <span class="text-xs font-semibold text-slate-500 dark:text-zinc-400">Target Tracking</span>
+            </div>
+            <h1 class="text-xl font-bold text-slate-900 dark:text-zinc-100 mt-1">Upcoming Deadlines</h1>
+            <p class="text-xs text-slate-500 dark:text-zinc-400">All important deadlines from tasks, bugs, meetings and milestones.</p>
+        </div>
+
+        <div class="flex items-center space-x-3">
+            <a href="{% url 'calendars:calendar_view' slug=workspace.slug %}" 
+               class="px-4 py-2 text-xs font-semibold rounded-xl border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition">
+                View Calendar
+            </a>
+            <a href="{% url 'calendars:event_create' slug=workspace.slug %}" 
+               class="px-4 py-2 text-xs font-bold rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-500/20 transition flex items-center space-x-1.5">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                </svg>
+                <span>New Event</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Filter Pills & Timeframe Dropdown (Screen 5) -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <!-- Category Filter Pills -->
+        <div class="flex items-center space-x-2 overflow-x-auto pb-1">
+            <button type="button" @click="filterCategory('all')" 
+                    class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 {% if cat_filter == 'all' %}bg-blue-600 text-white shadow-xs{% else %}bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800{% endif %}">
+                All
+            </button>
+            <button type="button" @click="filterCategory('tasks')" 
+                    class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center space-x-1.5 {% if cat_filter == 'tasks' %}bg-emerald-600 text-white shadow-xs{% else %}bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800{% endif %}">
+                <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                <span>Tasks</span>
+            </button>
+            <button type="button" @click="filterCategory('bugs')" 
+                    class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center space-x-1.5 {% if cat_filter == 'bugs' %}bg-rose-600 text-white shadow-xs{% else %}bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800{% endif %}">
+                <span class="w-2 h-2 rounded-full bg-rose-500"></span>
+                <span>Bugs</span>
+            </button>
+            <button type="button" @click="filterCategory('meetings')" 
+                    class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center space-x-1.5 {% if cat_filter == 'meetings' %}bg-purple-600 text-white shadow-xs{% else %}bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800{% endif %}">
+                <span class="w-2 h-2 rounded-full bg-purple-500"></span>
+                <span>Meetings</span>
+            </button>
+            <button type="button" @click="filterCategory('milestones')" 
+                    class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center space-x-1.5 {% if cat_filter == 'milestones' %}bg-amber-600 text-white shadow-xs{% else %}bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800{% endif %}">
+                <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+                <span>Milestones</span>
+            </button>
+        </div>
+
+        <!-- Timeframe Select -->
+        <div class="flex items-center space-x-2">
+            <select @change="filterTimeframe($event.target.value)" 
+                    class="px-3 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] text-slate-800 dark:text-zinc-200 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="7" {% if timeframe_days == 7 %}selected{% endif %}>Next 7 Days</option>
+                <option value="14" {% if timeframe_days == 14 %}selected{% endif %}>Next 14 Days</option>
+                <option value="30" {% if timeframe_days == 30 %}selected{% endif %}>Next 30 Days</option>
+                <option value="60" {% if timeframe_days == 60 %}selected{% endif %}>Next 60 Days</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- MAIN TWO-COLUMN CONTENT AREA (Screen 5) -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        <!-- DEADLINES STREAM (Col-span 2, Screen 5) -->
+        <div class="lg:col-span-2 space-y-6">
+
+            <!-- 1. TODAY SECTION -->
+            <div class="space-y-3">
+                <div class="flex items-center space-x-2 pb-1 border-b border-slate-200 dark:border-zinc-800">
+                    <h2 class="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-zinc-200">Today</h2>
+                    <span class="text-[11px] text-slate-400 font-medium">({{ today_items|length }})</span>
+                </div>
+
+                {% if today_items %}
+                    <div class="space-y-2">
+                        {% for item in today_items %}
+                            <div class="p-3.5 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 shadow-2xs hover:shadow-sm transition flex items-center justify-between gap-3 border-l-4
+                                {% if item.color == 'amber' %}border-l-amber-500{% elif item.color == 'emerald' %}border-l-emerald-500{% elif item.color == 'purple' %}border-l-purple-500{% elif item.color == 'rose' %}border-l-rose-500{% else %}border-l-blue-500{% endif %}">
+                                
+                                <div class="flex items-center space-x-3 min-w-0">
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider
+                                        {% if item.color == 'amber' %}bg-amber-100 dark:bg-amber-950/70 text-amber-700 dark:text-amber-300
+                                        {% elif item.color == 'emerald' %}bg-emerald-100 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300
+                                        {% elif item.color == 'purple' %}bg-purple-100 dark:bg-purple-950/70 text-purple-700 dark:text-purple-300
+                                        {% elif item.color == 'rose' %}bg-rose-100 dark:bg-rose-950/70 text-rose-700 dark:text-rose-300
+                                        {% else %}bg-blue-100 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300{% endif %}">
+                                        {{ item.category_label }}
+                                    </span>
+                                    <div class="min-w-0">
+                                        <a href="{{ item.detail_url }}" class="text-xs font-bold text-slate-900 dark:text-zinc-100 hover:text-blue-600 dark:hover:text-blue-400 truncate block">
+                                            {% if item.code %}<span class="font-mono text-slate-400 dark:text-zinc-500">#{{ item.code }}</span>{% endif %}
+                                            {{ item.title }}
+                                        </a>
+                                        <span class="text-[11px] text-slate-500 font-mono">{{ item.time_display }}</span>
+                                    </div>
+                                </div>
+
+                                <div class="flex items-center space-x-3 shrink-0">
+                                    {% if item.priority %}
+                                        <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-900/60">
+                                            {{ item.priority }}
+                                        </span>
+                                    {% endif %}
+                                    {% if item.status %}
+                                        <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300">
+                                            {{ item.status }}
+                                        </span>
+                                    {% endif %}
+                                    <div class="w-6 h-6 rounded-full bg-slate-200 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 font-bold text-[10px] flex items-center justify-center shrink-0" title="{{ item.assignee_name }}">
+                                        {{ item.assignee_initials }}
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-xs text-slate-400 italic py-1">No deadlines due today.</p>
+                {% endif %}
+            </div>
+
+            <!-- 2. TOMORROW SECTION -->
+            <div class="space-y-3">
+                <div class="flex items-center space-x-2 pb-1 border-b border-slate-200 dark:border-zinc-800">
+                    <h2 class="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-zinc-200">Tomorrow</h2>
+                    <span class="text-[11px] text-slate-400 font-medium">({{ tomorrow_items|length }})</span>
+                </div>
+
+                {% if tomorrow_items %}
+                    <div class="space-y-2">
+                        {% for item in tomorrow_items %}
+                            <div class="p-3.5 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 shadow-2xs hover:shadow-sm transition flex items-center justify-between gap-3 border-l-4
+                                {% if item.color == 'amber' %}border-l-amber-500{% elif item.color == 'emerald' %}border-l-emerald-500{% elif item.color == 'purple' %}border-l-purple-500{% elif item.color == 'rose' %}border-l-rose-500{% else %}border-l-blue-500{% endif %}">
+                                
+                                <div class="flex items-center space-x-3 min-w-0">
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider
+                                        {% if item.color == 'amber' %}bg-amber-100 dark:bg-amber-950/70 text-amber-700 dark:text-amber-300
+                                        {% elif item.color == 'emerald' %}bg-emerald-100 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300
+                                        {% elif item.color == 'purple' %}bg-purple-100 dark:bg-purple-950/70 text-purple-700 dark:text-purple-300
+                                        {% elif item.color == 'rose' %}bg-rose-100 dark:bg-rose-950/70 text-rose-700 dark:text-rose-300
+                                        {% else %}bg-blue-100 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300{% endif %}">
+                                        {{ item.category_label }}
+                                    </span>
+                                    <div class="min-w-0">
+                                        <a href="{{ item.detail_url }}" class="text-xs font-bold text-slate-900 dark:text-zinc-100 hover:text-blue-600 dark:hover:text-blue-400 truncate block">
+                                            {% if item.code %}<span class="font-mono text-slate-400 dark:text-zinc-500">#{{ item.code }}</span>{% endif %}
+                                            {{ item.title }}
+                                        </a>
+                                        <span class="text-[11px] text-slate-500 font-mono">{{ item.time_display }}</span>
+                                    </div>
+                                </div>
+
+                                <div class="flex items-center space-x-3 shrink-0">
+                                    {% if item.priority %}
+                                        <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-900/60">
+                                            {{ item.priority }}
+                                        </span>
+                                    {% endif %}
+                                    {% if item.status %}
+                                        <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300">
+                                            {{ item.status }}
+                                        </span>
+                                    {% endif %}
+                                    <div class="w-6 h-6 rounded-full bg-slate-200 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 font-bold text-[10px] flex items-center justify-center shrink-0" title="{{ item.assignee_name }}">
+                                        {{ item.assignee_initials }}
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-xs text-slate-400 italic py-1">No deadlines due tomorrow.</p>
+                {% endif %}
+            </div>
+
+            <!-- 3. NEXT 7 DAYS SECTION -->
+            <div class="space-y-3">
+                <div class="flex items-center space-x-2 pb-1 border-b border-slate-200 dark:border-zinc-800">
+                    <h2 class="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-zinc-200">Next 7 Days</h2>
+                    <span class="text-[11px] text-slate-400 font-medium">({{ next_7_items|length }})</span>
+                </div>
+
+                {% if next_7_items %}
+                    <div class="space-y-2">
+                        {% for item in next_7_items %}
+                            <div class="p-3.5 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 shadow-2xs hover:shadow-sm transition flex items-center justify-between gap-3 border-l-4
+                                {% if item.color == 'amber' %}border-l-amber-500{% elif item.color == 'emerald' %}border-l-emerald-500{% elif item.color == 'purple' %}border-l-purple-500{% elif item.color == 'rose' %}border-l-rose-500{% else %}border-l-blue-500{% endif %}">
+                                
+                                <div class="flex items-center space-x-3 min-w-0">
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider
+                                        {% if item.color == 'amber' %}bg-amber-100 dark:bg-amber-950/70 text-amber-700 dark:text-amber-300
+                                        {% elif item.color == 'emerald' %}bg-emerald-100 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300
+                                        {% elif item.color == 'purple' %}bg-purple-100 dark:bg-purple-950/70 text-purple-700 dark:text-purple-300
+                                        {% elif item.color == 'rose' %}bg-rose-100 dark:bg-rose-950/70 text-rose-700 dark:text-rose-300
+                                        {% else %}bg-blue-100 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300{% endif %}">
+                                        {{ item.category_label }}
+                                    </span>
+                                    <div class="min-w-0">
+                                        <a href="{{ item.detail_url }}" class="text-xs font-bold text-slate-900 dark:text-zinc-100 hover:text-blue-600 dark:hover:text-blue-400 truncate block">
+                                            {% if item.code %}<span class="font-mono text-slate-400 dark:text-zinc-500">#{{ item.code }}</span>{% endif %}
+                                            {{ item.title }}
+                                        </a>
+                                        <span class="text-[11px] text-slate-500 font-mono">{{ item.date|date:"l, M d" }} • {{ item.start_time }}</span>
+                                    </div>
+                                </div>
+
+                                <div class="flex items-center space-x-3 shrink-0">
+                                    {% if item.priority %}
+                                        <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-900/60">
+                                            {{ item.priority }}
+                                        </span>
+                                    {% endif %}
+                                    {% if item.status %}
+                                        <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300">
+                                            {{ item.status }}
+                                        </span>
+                                    {% endif %}
+                                    <div class="w-6 h-6 rounded-full bg-slate-200 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 font-bold text-[10px] flex items-center justify-center shrink-0" title="{{ item.assignee_name }}">
+                                        {{ item.assignee_initials }}
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-xs text-slate-400 italic py-1">No deadlines due in the next 7 days.</p>
+                {% endif %}
+            </div>
+
+            <!-- 4. LATER SECTION -->
+            {% if later_items %}
+            <div class="space-y-3">
+                <div class="flex items-center space-x-2 pb-1 border-b border-slate-200 dark:border-zinc-800">
+                    <h2 class="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-zinc-200">Later</h2>
+                    <span class="text-[11px] text-slate-400 font-medium">({{ later_items|length }})</span>
+                </div>
+
+                <div class="space-y-2">
+                    {% for item in later_items %}
+                        <div class="p-3.5 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 shadow-2xs hover:shadow-sm transition flex items-center justify-between gap-3">
+                            <div class="flex items-center space-x-3 min-w-0">
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300">
+                                    {{ item.category_label }}
+                                </span>
+                                <div class="min-w-0">
+                                    <a href="{{ item.detail_url }}" class="text-xs font-bold text-slate-900 dark:text-zinc-100 hover:text-blue-600 dark:hover:text-blue-400 truncate block">
+                                        {% if item.code %}<span class="font-mono text-slate-400 dark:text-zinc-500">#{{ item.code }}</span>{% endif %}
+                                        {{ item.title }}
+                                    </a>
+                                    <span class="text-[11px] text-slate-500 font-mono">{{ item.date|date:"M d, Y" }}</span>
+                                </div>
+                            </div>
+
+                            <div class="flex items-center space-x-3 shrink-0">
+                                {% if item.status %}
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300">
+                                        {{ item.status }}
+                                    </span>
+                                {% endif %}
+                                <div class="w-6 h-6 rounded-full bg-slate-200 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 font-bold text-[10px] flex items-center justify-center shrink-0" title="{{ item.assignee_name }}">
+                                    {{ item.assignee_initials }}
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+        </div>
+
+        <!-- RIGHT SIDEBAR: Deadline Summary & Overdue Items (Screen 5) -->
+        <div class="space-y-6">
+
+            <!-- Deadline Summary (Screen 5) -->
+            <div class="p-5 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 shadow-sm space-y-3.5">
+                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">Deadline Summary</h3>
+
+                <div class="grid grid-cols-2 gap-3 text-xs">
+                    <!-- Tasks due soon -->
+                    <div class="p-3 rounded-xl bg-slate-50 dark:bg-zinc-900/60 border border-slate-100 dark:border-zinc-800 space-y-1">
+                        <div class="flex items-center space-x-1.5 text-emerald-600 dark:text-emerald-400 font-semibold">
+                            <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                            <span>Tasks</span>
+                        </div>
+                        <div class="text-lg font-black text-slate-900 dark:text-zinc-100 font-mono">{{ deadline_summary.tasks_due_soon }}</div>
+                        <div class="text-[10px] text-slate-400">Due soon</div>
+                    </div>
+
+                    <!-- Bugs due soon -->
+                    <div class="p-3 rounded-xl bg-slate-50 dark:bg-zinc-900/60 border border-slate-100 dark:border-zinc-800 space-y-1">
+                        <div class="flex items-center space-x-1.5 text-rose-600 dark:text-rose-400 font-semibold">
+                            <span class="w-2 h-2 rounded-full bg-rose-500"></span>
+                            <span>Bugs</span>
+                        </div>
+                        <div class="text-lg font-black text-slate-900 dark:text-zinc-100 font-mono">{{ deadline_summary.bugs_due_soon }}</div>
+                        <div class="text-[10px] text-slate-400">Due soon</div>
+                    </div>
+
+                    <!-- Meetings upcoming -->
+                    <div class="p-3 rounded-xl bg-slate-50 dark:bg-zinc-900/60 border border-slate-100 dark:border-zinc-800 space-y-1">
+                        <div class="flex items-center space-x-1.5 text-purple-600 dark:text-purple-400 font-semibold">
+                            <span class="w-2 h-2 rounded-full bg-purple-500"></span>
+                            <span>Meetings</span>
+                        </div>
+                        <div class="text-lg font-black text-slate-900 dark:text-zinc-100 font-mono">{{ deadline_summary.meetings_upcoming }}</div>
+                        <div class="text-[10px] text-slate-400">Upcoming</div>
+                    </div>
+
+                    <!-- Milestones upcoming -->
+                    <div class="p-3 rounded-xl bg-slate-50 dark:bg-zinc-900/60 border border-slate-100 dark:border-zinc-800 space-y-1">
+                        <div class="flex items-center space-x-1.5 text-amber-600 dark:text-amber-400 font-semibold">
+                            <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+                            <span>Milestones</span>
+                        </div>
+                        <div class="text-lg font-black text-slate-900 dark:text-zinc-100 font-mono">{{ deadline_summary.milestones_upcoming }}</div>
+                        <div class="text-[10px] text-slate-400">Upcoming</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Overdue Items (Screen 5: Red Warning Badges) -->
+            <div class="p-5 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 shadow-sm space-y-3.5">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400 flex items-center space-x-1.5">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                        </svg>
+                        <span>Overdue Items</span>
+                    </h3>
+                    <span class="text-xs font-bold text-rose-600 dark:text-rose-400 font-mono">{{ overdue_items|length }}</span>
+                </div>
+
+                <div class="space-y-2.5 text-xs">
+                    {% for ov in overdue_items|slice:":5" %}
+                        <div class="p-3 rounded-xl bg-rose-50/50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-900/50 space-y-1.5">
+                            <div class="flex items-center justify-between gap-2">
+                                <a href="{{ ov.detail_url }}" class="font-bold text-slate-900 dark:text-zinc-100 hover:text-rose-600 dark:hover:text-rose-400 transition truncate block">
+                                    {% if ov.code %}<span class="font-mono text-slate-500">#{{ ov.code }}</span>{% endif %}
+                                    {{ ov.title }}
+                                </a>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 dark:bg-rose-950/80 text-rose-700 dark:text-rose-300 shrink-0">
+                                    {{ ov.overdue_label }}
+                                </span>
+                            </div>
+                            <div class="flex items-center justify-between text-[11px] text-slate-400">
+                                <span>{{ ov.category }}</span>
+                                {% if ov.assignee %}
+                                    <span>{{ ov.assignee.get_full_name|default:ov.assignee.username }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% empty %}
+                        <div class="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/40 text-center text-xs text-emerald-700 dark:text-emerald-300">
+                            🎉 No overdue items! Workspace is on track.
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+{% endblock %}

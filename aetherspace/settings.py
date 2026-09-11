@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'bugs.apps.BugsConfig',
     'chat.apps.ChatConfig',
     'meetings.apps.MeetingsConfig',
+    'calendars.apps.CalendarsConfig',
 ]
 
 MIDDLEWARE = [

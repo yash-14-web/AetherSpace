@@ -1,0 +1,384 @@
+{% extends 'base.html' %}
+{% load calendar_tags %}
+
+{% block title %}Calendar • {{ workspace.name }} — AetherSpace{% endblock %}
+
+{% block content %}
+<div class="h-full flex flex-col lg:flex-row gap-5 -m-4 sm:-m-6 p-4 sm:p-6 bg-slate-50 dark:bg-obsidian-950 min-h-[calc(100vh-4rem)]" 
+     x-data="{
+         selectedCategory: 'all',
+         filterCats: {{ active_cats|safe }},
+         toggleCategory(cat) {
+             if (this.filterCats.includes(cat)) {
+                 if (this.filterCats.length > 1) {
+                     this.filterCats = this.filterCats.filter(c => c !== cat);
+                 }
+             } else {
+                 this.filterCats.push(cat);
+             }
+             this.applyFilter();
+         },
+         applyFilter() {
+             const params = new URLSearchParams(window.location.search);
+             params.set('cats', this.filterCats.join(','));
+             window.location.search = params.toString();
+         },
+         filterMember(memberId) {
+             const params = new URLSearchParams(window.location.search);
+             if (memberId) {
+                 params.set('member', memberId);
+             } else {
+                 params.delete('member');
+             }
+             window.location.search = params.toString();
+         }
+     }">
+
+    <!-- LEFT SIDEBAR: Mini Calendar, Calendars Toggle, Filters, Quick Add (Screen 1) -->
+    <aside class="w-full lg:w-64 shrink-0 space-y-5">
+        
+        <!-- Interactive Mini Calendar (Screen 1) -->
+        <div class="p-4 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 shadow-sm space-y-3">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-slate-800 dark:text-zinc-200">{{ month_name }} {{ year }}</span>
+                <div class="flex items-center space-x-1 text-slate-500">
+                    <a href="?year={{ prev_year }}&month={{ prev_month }}&view={{ active_view }}" 
+                       class="p-1 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded transition" title="Previous Month">
+                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                        </svg>
+                    </a>
+                    <a href="?year={{ next_year }}&month={{ next_month }}&view={{ active_view }}" 
+                       class="p-1 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded transition" title="Next Month">
+                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                        </svg>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Mini Calendar Grid -->
+            <div class="grid grid-cols-7 gap-1 text-center text-[10px]">
+                <span class="font-bold text-slate-400 dark:text-zinc-500 py-0.5">Su</span>
+                <span class="font-bold text-slate-400 dark:text-zinc-500 py-0.5">Mo</span>
+                <span class="font-bold text-slate-400 dark:text-zinc-500 py-0.5">Tu</span>
+                <span class="font-bold text-slate-400 dark:text-zinc-500 py-0.5">We</span>
+                <span class="font-bold text-slate-400 dark:text-zinc-500 py-0.5">Th</span>
+                <span class="font-bold text-slate-400 dark:text-zinc-500 py-0.5">Fr</span>
+                <span class="font-bold text-slate-400 dark:text-zinc-500 py-0.5">Sa</span>
+
+                {% for week in mini_calendar.weeks %}
+                    {% for day in week %}
+                        <a href="{% url 'calendars:agenda_view' slug=workspace.slug %}?date={{ day.date|date:'Y-m-d' }}" 
+                           class="py-1 rounded-md transition-all text-[11px] {% if day.is_today %}bg-blue-600 font-bold text-white shadow-xs{% elif day.is_current_month %}text-slate-800 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800{% else %}text-slate-300 dark:text-zinc-600{% endif %}">
+                            {{ day.day_number }}
+                        </a>
+                    {% endfor %}
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Calendars Checklist (Screen 1) -->
+        <div class="p-4 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 shadow-sm space-y-3">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-slate-800 dark:text-zinc-200">Calendars</span>
+                <a href="{% url 'calendars:event_create' slug=workspace.slug %}" 
+                   class="text-[11px] text-blue-600 hover:text-blue-700 dark:text-blue-400 font-bold transition">
+                    + Add
+                </a>
+            </div>
+
+            <div class="space-y-2 text-xs">
+                <!-- My Calendar / Events (Blue) -->
+                <label class="flex items-center space-x-2.5 cursor-pointer select-none">
+                    <input type="checkbox" 
+                           :checked="filterCats.includes('events')" 
+                           @change="toggleCategory('events')"
+                           class="rounded border-slate-300 text-blue-600 focus:ring-blue-500">
+                    <span class="w-2 h-2 rounded-full bg-blue-500 shrink-0"></span>
+                    <span class="text-slate-700 dark:text-zinc-300 font-medium">My Calendar / Events</span>
+                </label>
+
+                <!-- Tasks (Emerald) -->
+                <label class="flex items-center space-x-2.5 cursor-pointer select-none">
+                    <input type="checkbox" 
+                           :checked="filterCats.includes('tasks')" 
+                           @change="toggleCategory('tasks')"
+                           class="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
+                    <span class="text-slate-700 dark:text-zinc-300 font-medium">Tasks</span>
+                </label>
+
+                <!-- Bugs (Rose) -->
+                <label class="flex items-center space-x-2.5 cursor-pointer select-none">
+                    <input type="checkbox" 
+                           :checked="filterCats.includes('bugs')" 
+                           @change="toggleCategory('bugs')"
+                           class="rounded border-slate-300 text-rose-600 focus:ring-rose-500">
+                    <span class="w-2 h-2 rounded-full bg-rose-500 shrink-0"></span>
+                    <span class="text-slate-700 dark:text-zinc-300 font-medium">Bugs</span>
+                </label>
+
+                <!-- Meetings (Purple) -->
+                <label class="flex items-center space-x-2.5 cursor-pointer select-none">
+                    <input type="checkbox" 
+                           :checked="filterCats.includes('meetings')" 
+                           @change="toggleCategory('meetings')"
+                           class="rounded border-slate-300 text-purple-600 focus:ring-purple-500">
+                    <span class="w-2 h-2 rounded-full bg-purple-500 shrink-0"></span>
+                    <span class="text-slate-700 dark:text-zinc-300 font-medium">Meetings</span>
+                </label>
+
+                <!-- Milestones (Amber) -->
+                <label class="flex items-center space-x-2.5 cursor-pointer select-none">
+                    <input type="checkbox" 
+                           :checked="filterCats.includes('milestones')" 
+                           @change="toggleCategory('milestones')"
+                           class="rounded border-slate-300 text-amber-500 focus:ring-amber-500">
+                    <span class="w-2 h-2 rounded-full bg-amber-500 shrink-0"></span>
+                    <span class="text-slate-700 dark:text-zinc-300 font-medium">Milestones</span>
+                </label>
+            </div>
+        </div>
+
+        <!-- Filters (Filter by & Team Member, Screen 1) -->
+        <div class="p-4 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 shadow-sm space-y-3">
+            <span class="text-xs font-bold text-slate-800 dark:text-zinc-200 block">Filters</span>
+            
+            <div class="space-y-2">
+                <div>
+                    <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500 block mb-1">Team Member</label>
+                    <select @change="filterMember($event.target.value)" 
+                            class="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900 text-slate-800 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="" {% if not selected_member %}selected{% endif %}>All Members</option>
+                        {% for mem in workspace_members %}
+                        <option value="{{ mem.user.id }}" {% if selected_member == mem.user.id|stringformat:"s" %}selected{% endif %}>
+                            {{ mem.user.get_full_name|default:mem.user.username }} ({{ mem.get_role_display }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Add Shortcuts (Screen 1) -->
+        <div class="p-4 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 shadow-sm space-y-2">
+            <span class="text-xs font-bold text-slate-800 dark:text-zinc-200 block">Quick Add</span>
+            <div class="grid grid-cols-2 gap-1.5 text-xs font-semibold">
+                <a href="{% url 'tasks:task_create' slug=workspace.slug %}" 
+                   class="flex items-center space-x-1.5 p-2 rounded-xl bg-slate-50 dark:bg-zinc-900/60 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 border border-slate-200 dark:border-zinc-800 transition">
+                    <span>🟢</span>
+                    <span>Task</span>
+                </a>
+                <a href="{% url 'bugs:bug_create' slug=workspace.slug %}" 
+                   class="flex items-center space-x-1.5 p-2 rounded-xl bg-slate-50 dark:bg-zinc-900/60 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 border border-slate-200 dark:border-zinc-800 transition">
+                    <span>🔴</span>
+                    <span>Bug</span>
+                </a>
+                <a href="{% url 'meetings:meeting_start' slug=workspace.slug %}" 
+                   class="flex items-center space-x-1.5 p-2 rounded-xl bg-slate-50 dark:bg-zinc-900/60 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/40 border border-slate-200 dark:border-zinc-800 transition">
+                    <span>🟣</span>
+                    <span>Meeting</span>
+                </a>
+                <a href="{% url 'calendars:event_create' slug=workspace.slug %}?type=MILESTONE" 
+                   class="flex items-center space-x-1.5 p-2 rounded-xl bg-slate-50 dark:bg-zinc-900/60 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40 border border-slate-200 dark:border-zinc-800 transition">
+                    <span>🟡</span>
+                    <span>Milestone</span>
+                </a>
+            </div>
+            <a href="{% url 'calendars:event_create' slug=workspace.slug %}" 
+               class="flex items-center justify-center space-x-1.5 p-2 rounded-xl bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/60 border border-blue-200 dark:border-blue-900/60 transition w-full text-xs font-bold mt-1">
+                <span>+ Custom Event</span>
+            </a>
+        </div>
+
+        <!-- User Role Profile Chip (Screen 1) -->
+        <div class="p-3 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 flex items-center space-x-3 shadow-sm">
+            <div class="w-8 h-8 rounded-full bg-blue-600 text-white font-bold text-xs flex items-center justify-center shrink-0">
+                {{ user.get_full_name|default:user.username|slice:":2"|upper }}
+            </div>
+            <div class="min-w-0">
+                <div class="text-xs font-bold text-slate-800 dark:text-zinc-200 truncate">{{ user.get_full_name|default:user.username }}</div>
+                <div class="text-[10px] font-semibold text-slate-400 dark:text-zinc-500 uppercase">{{ membership.get_role_display }}</div>
+            </div>
+        </div>
+
+    </aside>
+
+    <!-- MAIN CALENDAR DISPLAY (Screen 1) -->
+    <main class="flex-1 min-w-0 flex flex-col space-y-4">
+        
+        <!-- Header & Action Row (Screen 1) -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-[#0c1322] p-5 rounded-2xl border border-slate-200 dark:border-zinc-800 shadow-sm">
+            <div>
+                <h1 class="text-xl font-bold text-slate-900 dark:text-zinc-100 tracking-tight">Calendar</h1>
+                <p class="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">View and manage all your schedule, meetings and deadlines.</p>
+            </div>
+
+            <div class="flex items-center space-x-3">
+                <a href="{% url 'calendars:upcoming_deadlines' slug=workspace.slug %}" 
+                   class="px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition">
+                    Deadlines &rarr;
+                </a>
+                <a href="{% url 'calendars:event_create' slug=workspace.slug %}" 
+                   class="px-4 py-2 text-xs font-bold rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-500/20 transition flex items-center space-x-1.5">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    </svg>
+                    <span>Create Event</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- Controls Bar: Nav, Month Display, View Switcher (Screen 1) -->
+        <div class="flex flex-wrap items-center justify-between gap-3 bg-white dark:bg-[#0c1322] p-4 rounded-2xl border border-slate-200 dark:border-zinc-800 shadow-sm">
+            
+            <!-- Month Nav & Today Button -->
+            <div class="flex items-center space-x-2">
+                <a href="?year={{ today.year }}&month={{ today.month }}&view={{ active_view }}" 
+                   class="px-3 py-1.5 text-xs font-semibold rounded-xl border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition">
+                    Today
+                </a>
+                <div class="flex items-center space-x-1">
+                    <a href="?year={{ prev_year }}&month={{ prev_month }}&view={{ active_view }}" 
+                       class="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-zinc-800 transition" title="Previous Month">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                        </svg>
+                    </a>
+                    <a href="?year={{ next_year }}&month={{ next_month }}&view={{ active_view }}" 
+                       class="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-zinc-800 transition" title="Next Month">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                        </svg>
+                    </a>
+                </div>
+                <h2 class="text-sm sm:text-base font-bold text-slate-800 dark:text-zinc-100 ml-2">{{ month_name }} {{ year }}</h2>
+            </div>
+
+            <!-- View Switcher Pills (Month, Week, Day, Agenda) -->
+            <div class="flex items-center p-1 bg-slate-100 dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-800 text-xs font-semibold">
+                <a href="?year={{ year }}&month={{ month }}&view=month" 
+                   class="px-3 py-1 rounded-lg transition-colors {% if active_view == 'month' %}bg-white dark:bg-[#0c1322] text-blue-600 dark:text-blue-400 shadow-xs{% else %}text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200{% endif %}">
+                    Month
+                </a>
+                <a href="?year={{ year }}&month={{ month }}&view=week" 
+                   class="px-3 py-1 rounded-lg transition-colors {% if active_view == 'week' %}bg-white dark:bg-[#0c1322] text-blue-600 dark:text-blue-400 shadow-xs{% else %}text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200{% endif %}">
+                    Week
+                </a>
+                <a href="?year={{ year }}&month={{ month }}&view=day" 
+                   class="px-3 py-1 rounded-lg transition-colors {% if active_view == 'day' %}bg-white dark:bg-[#0c1322] text-blue-600 dark:text-blue-400 shadow-xs{% else %}text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200{% endif %}">
+                    Day
+                </a>
+                <a href="{% url 'calendars:agenda_view' slug=workspace.slug %}" 
+                   class="px-3 py-1 rounded-lg transition-colors {% if active_view == 'agenda' %}bg-white dark:bg-[#0c1322] text-blue-600 dark:text-blue-400 shadow-xs{% else %}text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200{% endif %}">
+                    Agenda
+                </a>
+            </div>
+        </div>
+
+        <!-- 7-COLUMN CALENDAR MONTH GRID (Screen 1) -->
+        <div class="flex-1 bg-white dark:bg-[#0c1322] rounded-2xl border border-slate-200 dark:border-zinc-800 shadow-sm overflow-hidden flex flex-col">
+            
+            <!-- Weekday Header Row (SUN to SAT) -->
+            <div class="grid grid-cols-7 border-b border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900/50 text-center py-2.5 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">
+                <span>Sun</span>
+                <span>Mon</span>
+                <span>Tue</span>
+                <span>Wed</span>
+                <span>Thu</span>
+                <span>Fri</span>
+                <span>Sat</span>
+            </div>
+
+            <!-- Calendar Days Grid -->
+            <div class="grid grid-cols-7 flex-1 divide-x divide-y divide-slate-100 dark:divide-zinc-800/60 text-xs">
+                {% for week in weeks %}
+                    {% for day in week %}
+                        <div class="min-h-[110px] p-2 flex flex-col justify-between transition-colors {% if not day.is_current_month %}bg-slate-50/50 dark:bg-zinc-950/40 text-slate-300 dark:text-zinc-600{% else %}bg-white dark:bg-[#0c1322] hover:bg-slate-50/50 dark:hover:bg-zinc-900/30{% endif %}">
+                            
+                            <!-- Day Number & New Action -->
+                            <div class="flex items-center justify-between mb-1">
+                                <span class="text-xs font-bold inline-flex items-center justify-center {% if day.is_today %}w-6 h-6 rounded-full bg-blue-600 text-white font-black shadow-xs{% elif day.is_current_month %}text-slate-800 dark:text-zinc-200{% else %}text-slate-400 dark:text-zinc-600{% endif %}">
+                                    {{ day.day_number }}
+                                </span>
+                                
+                                <a href="{% url 'calendars:event_create' slug=workspace.slug %}?date={{ day.date|date:'Y-m-d' }}" 
+                                   class="opacity-0 hover:opacity-100 focus:opacity-100 text-[10px] font-bold text-blue-600 dark:text-blue-400 transition" 
+                                   title="Add event on {{ day.date|date:'M d' }}">
+                                    +
+                                </a>
+                            </div>
+
+                            <!-- Schedule Items Chips -->
+                            <div class="space-y-1 flex-1 overflow-y-auto max-h-[120px]">
+                                {% for item in day.items|slice:":3" %}
+                                    <a href="{{ item.detail_url }}" 
+                                       class="block px-2 py-1 rounded-md text-[10px] font-semibold truncate transition-transform hover:scale-[1.02] shadow-2xs
+                                       {% if item.color == 'amber' %}
+                                           bg-amber-100 dark:bg-amber-950/70 border border-amber-300 dark:border-amber-800/80 text-amber-900 dark:text-amber-200
+                                       {% elif item.color == 'emerald' %}
+                                           bg-emerald-100 dark:bg-emerald-950/70 border border-emerald-300 dark:border-emerald-800/80 text-emerald-900 dark:text-emerald-200
+                                       {% elif item.color == 'purple' %}
+                                           bg-purple-100 dark:bg-purple-950/70 border border-purple-300 dark:border-purple-800/80 text-purple-900 dark:text-purple-200
+                                       {% elif item.color == 'rose' %}
+                                           bg-rose-100 dark:bg-rose-950/70 border border-rose-300 dark:border-rose-800/80 text-rose-900 dark:text-rose-200
+                                       {% else %}
+                                           bg-blue-100 dark:bg-blue-950/70 border border-blue-300 dark:border-blue-800/80 text-blue-900 dark:text-blue-200
+                                       {% endif %}"
+                                       title="{{ item.category_label }}: {{ item.title }} ({{ item.time_display }})">
+                                        <div class="flex items-center space-x-1 truncate">
+                                            <span class="w-1.5 h-1.5 rounded-full shrink-0 
+                                                {% if item.color == 'amber' %}bg-amber-500{% elif item.color == 'emerald' %}bg-emerald-500{% elif item.color == 'purple' %}bg-purple-500{% elif item.color == 'rose' %}bg-rose-500{% else %}bg-blue-500{% endif %}">
+                                            </span>
+                                            <span class="truncate">
+                                                {% if item.code %}<strong class="font-mono text-[9px] mr-0.5">{{ item.code }}</strong>{% endif %}
+                                                {{ item.title }}
+                                            </span>
+                                        </div>
+                                    </a>
+                                {% endfor %}
+
+                                {% if day.items|length > 3 %}
+                                    <a href="{% url 'calendars:agenda_view' slug=workspace.slug %}?date={{ day.date|date:'Y-m-d' }}" 
+                                       class="block text-[10px] font-bold text-slate-500 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-blue-400 pl-1">
+                                        +{{ day.items|slice_remaining:3 }} more
+                                    </a>
+                                {% endif %}
+                            </div>
+
+                        </div>
+                    {% endfor %}
+                {% endfor %}
+            </div>
+
+            <!-- Bottom Category Legend (Screen 1) -->
+            <div class="p-3.5 bg-slate-50 dark:bg-zinc-900/60 border-t border-slate-200 dark:border-zinc-800 flex flex-wrap items-center justify-center sm:justify-start gap-4 text-xs font-semibold text-slate-600 dark:text-zinc-400">
+                <span class="flex items-center space-x-1.5">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                    <span>Tasks</span>
+                </span>
+                <span class="flex items-center space-x-1.5">
+                    <span class="w-2 h-2 rounded-full bg-rose-500"></span>
+                    <span>Bugs</span>
+                </span>
+                <span class="flex items-center space-x-1.5">
+                    <span class="w-2 h-2 rounded-full bg-purple-500"></span>
+                    <span>Meetings</span>
+                </span>
+                <span class="flex items-center space-x-1.5">
+                    <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+                    <span>Milestones</span>
+                </span>
+                <span class="flex items-center space-x-1.5">
+                    <span class="w-2 h-2 rounded-full bg-blue-500"></span>
+                    <span>Events</span>
+                </span>
+            </div>
+
+        </div>
+
+    </main>
+
+</div>
+{% endblock %}

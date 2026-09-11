@@ -2772,3 +2772,94 @@ Implemented Phase 8 — Meet Hub according to blueprint specifications with zero
    - Click **Meeting History & Logs** (`/meetings/w/<slug>/history/`).
    - Verify previous sessions, durations, and participant counts are listed.
 
+---
+
+# 15. PHASE 9 — CALENDAR, AGENDA & SCHEDULING
+
+### Implementation Summary
+Implemented Phase 9 — Calendar & Scheduling module according to blueprint specifications and the approved reference collage in `AetherSpace_Designs/Dark Calendar Dashboard Mockup.png`.
+Provides unified multi-tenant scheduling across standalone events, milestones, work sessions, tasks, bugs, and meetings with full Light and Dark mode adherence.
+
+### Architecture & Components
+1. **App Architecture (`calendars/`):**
+   - **`CalendarEvent` Model:** Workspace-scoped calendar event supporting standalone events, milestones, and work sessions with UUID primary key, event types (`MEETING`, `MILESTONE`, `TASK_DEADLINE`, `WORK_SESSION`, `GENERAL`), status lifecycle (`UPCOMING`, `IN_PROGRESS`, `COMPLETED`, `CANCELLED`), recurrence rules (`NONE`, `DAILY`, `WEEKLY`, `MONTHLY`), location/URL fields, and cross-entity foreign keys to `Task`, `Bug`, and `Meeting`.
+   - **`CalendarEventAttendee` Model:** Tracks workspace member attendance status (`INVITED`, `ACCEPTED`, `DECLINED`, `TENTATIVE`).
+   - **`services.py`:** Unified scheduling engine providing:
+     - `get_unified_schedule_items`: Aggregates CalendarEvents, Tasks with due dates, Bugs with due dates, and Meetings with scheduled times with distinct color codes (Events: Blue `#2563eb`, Tasks: Emerald `#10b981`, Bugs: Rose `#ef4444`, Meetings: Purple `#8b5cf6`, Milestones: Amber `#f59e0b`).
+     - `build_month_calendar_matrix`: Generates 7-column Sunday–Saturday 42-cell calendar grid with previous/next month padding days, today indicator, active event pills, and mini-calendar matrix.
+     - `build_agenda_stream`: Constructs chronological timeline stream grouped by date with "Today's Summary" counts and upcoming schedule list.
+     - `build_upcoming_deadlines`: Groups upcoming deadlines by Today, Tomorrow, Next 7 Days, and Later, with dedicated Overdue items alert list for unresolved tasks and bugs.
+     - `create_calendar_event`: Atomic helper registering creator and invitees.
+   - **`forms.py` (`CalendarEventForm`):** 2-column event builder combining dates and times with timezone awareness, workspace-scoped invitee checklist, and workspace-scoped linked tasks, bugs, and meetings.
+
+2. **User Interface (`templates/calendars/`):**
+   - **Month Calendar (`calendar_view.html` — Screen 1):**
+     - Sidebar with interactive mini-calendar picker, month/year navigation, category checkboxes (Events, Tasks, Bugs, Meetings, Milestones), team member filter dropdown, quick-add shortcuts, and user profile role chip.
+     - Main 7-column Sunday–Saturday grid with view toggle buttons (Month, Agenda, Deadlines), today pill, event pills with time and title, and click-to-view/create workflows.
+   - **Agenda View (`agenda_view.html` — Screen 2):**
+     - Chronological timeline stream with date picker navigator, category filter pills, interactive event cards with status pills, location/meeting link icons, and assignee avatars.
+     - Sidebar with Today's Summary metric counts (Tasks, Bugs, Meetings, Milestones, Events) and Upcoming Schedule list.
+   - **Create Event (`event_create.html` — Screen 3):**
+     - 2-Column form: Left column for Event Title, Type, Category, Start/End dates and times, All-day checkbox, Repeat dropdown, Location, Meeting URL, and Description.
+     - Right column: "Connect With" section to link existing Tasks, Bugs, or Meetings, plus "Invite People" workspace member checklist.
+   - **Event Details (`event_detail.html` — Screen 4):**
+     - Hero card with title, event type pill, status badge, date/time banner, and location/link buttons.
+     - Metadata table (Date, Time, Category, Repeat, Workspace).
+     - Tab navigation (Overview, People/Attendees, Connected Items, Activity Log).
+     - RBAC-enforced action buttons (Edit Event, Delete Event, Share, Add to Calendar).
+   - **Upcoming Deadlines (`upcoming_deadlines.html` — Screen 5):**
+     - Deadline Summary metric chips (Total Deadlines, Overdue, Tasks Due, Bugs Due, Upcoming Meetings).
+     - Overdue Items warning card highlighting past-due unresolved tasks and bugs with urgency badges.
+     - Grouped timeline sections: Due Today, Due Tomorrow, Next 7 Days, and Later.
+
+3. **RBAC & Security:**
+   - Workspace isolation enforced server-side with `@workspace_member_required`.
+   - Event creation allowed for all active workspace members (Admin, Manager, Contributor).
+   - Event editing and deletion restricted to Event Creator, Workspace Managers, and Workspace Admins.
+
+### Code Verification
+- Django system check: **PASS** (`python manage.py check` — 0 issues, 0 silenced)
+- Automated test suite: **PASS** (`python manage.py test calendars --keepdb` — 9 tests passed, OK)
+- Migrations: **PASS** (`calendars.0001_initial` applied successfully to Supabase PostgreSQL)
+- Tailwind CSS build: **PASS** (`npm run build:css` completed in 3049ms)
+
+### Playwright
+- Script created: `tests/e2e/calendar/calendar_module.spec.ts`
+- Browser execution: **NOT RUN BY AGENT** (in strict adherence to safety rules)
+- Owner test command:
+  ```bash
+  npx playwright test tests/e2e/calendar/calendar_module.spec.ts --project=chromium
+  ```
+
+### Git
+- Branch: `main`
+- Remote: `https://github.com/yash-14-web/AetherSpace.git`
+
+### Owner Manual Verification Instructions
+1. Start the server:
+   ```bash
+   python manage.py runserver
+   ```
+2. Sign in at `http://127.0.0.1:8000/auth/login/`.
+3. Open Calendar:
+   - Navigate to `http://127.0.0.1:8000/calendar/` (or click Calendar in the global left rail).
+   - Verify the 7-column Month grid loads with the current month and year.
+   - Verify the left sidebar mini-calendar, category checkboxes, and quick-add buttons.
+4. Test View Toggles:
+   - Click **Agenda** in the top view switch. Verify the timeline stream and Today's Summary sidebar load (`/calendar/w/<slug>/agenda/`).
+   - Click **Deadlines** in the top view switch. Verify the Upcoming Deadlines view loads with summary chips and grouped date cards (`/calendar/w/<slug>/deadlines/`).
+5. Test Event Creation:
+   - Click **+ New Event** (`/calendar/w/<slug>/events/create/`).
+   - Fill in Title (e.g. "Sprint 12 Planning"), choose Event Type, select start/end dates and times.
+   - Check an invitee and optionally connect a Task or Bug.
+   - Click **Create Event**.
+   - Verify redirect to the Event Details page (`/calendar/w/<slug>/events/<id>/`).
+6. Test Event Details & Actions:
+   - In Event Details, verify the Hero card, Overview tab, People tab, and Connected Items tab.
+   - Click **Edit Event** to update details and save.
+   - Test deleting the event if you are creator or workspace admin.
+7. Test Cross-Entity Integration:
+   - Create a Task with a due date in Tasks module.
+   - Return to Calendar and verify the Task appears in Month view (emerald badge) and Upcoming Deadlines.
+
+

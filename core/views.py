@@ -12,21 +12,9 @@ def landing(request):
 
 @login_required
 def calendar_view(request):
-    """Calendar & Agenda navigation destination."""
-    return render(request, 'components/placeholder.html', {
-        'module_title': 'Calendar & Agenda',
-        'phase_badge': 'Phase 7 — Calendar',
-        'module_icon': 'calendar',
-        'module_description': 'Interactive team calendar, sprint milestones, meeting schedules, and project deadline tracking.',
-        'empty_heading': 'Agile Calendar & Deadlines',
-        'empty_text': 'Full calendar views, Google/Outlook sync, and drag-and-drop sprint event scheduling will arrive in Phase 7.',
-        'features': [
-            'Interactive Month, Week, and Day views',
-            'Sprint start & end milestone markers',
-            'Linked task & bug resolution deadlines',
-            'Live meeting schedule integration',
-        ],
-    })
+    """Calendar & Agenda navigation destination - redirects to active workspace calendar."""
+    return redirect('calendars:calendar_router')
+
 
 
 @login_required

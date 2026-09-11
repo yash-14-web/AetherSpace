@@ -15,6 +15,9 @@ urlpatterns = [
     path('bugs/', include('bugs.urls')),
     path('chat/', include('chat.urls')),
     path('meetings/', include('meetings.urls')),
+    path('calendar/', include('calendars.urls')),
+    path('calendars/<path:subpath>', RedirectView.as_view(url='/calendar/%(subpath)s', permanent=False)),
+    path('calendars/', RedirectView.as_view(url='/calendar/', permanent=False)),
     path('dashboard/', RedirectView.as_view(url='/workspaces/dashboard/', permanent=False)),
     path('', include('core.urls')),
 ]

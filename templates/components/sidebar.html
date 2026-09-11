@@ -282,6 +282,31 @@
                         </div>
                     </div>
 
+                    <!-- Calendar & Agenda -->
+                    <div>
+                        <a href="{% url 'calendars:calendar_view' slug=current_workspace.slug %}" 
+                           class="flex items-center space-x-2.5 px-3 py-2 text-xs font-semibold rounded-lg text-slate-700 dark:text-zinc-300 hover:bg-slate-200/60 dark:hover:bg-zinc-800/60 transition-colors">
+                            <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                            </svg>
+                            <span>Calendar</span>
+                        </a>
+                        <div class="pl-7 pr-2 space-y-0.5 pb-1">
+                            <a href="{% url 'calendars:calendar_view' slug=current_workspace.slug %}" 
+                               class="block py-1 text-[11px] font-medium text-slate-500 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-zinc-200 transition-colors">
+                                • Month Calendar
+                            </a>
+                            <a href="{% url 'calendars:agenda_view' slug=current_workspace.slug %}" 
+                               class="block py-1 text-[11px] font-medium text-slate-500 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-zinc-200 transition-colors">
+                                • Agenda
+                            </a>
+                            <a href="{% url 'calendars:upcoming_deadlines' slug=current_workspace.slug %}" 
+                               class="block py-1 text-[11px] font-medium text-slate-500 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-zinc-200 transition-colors">
+                                • Upcoming Deadlines
+                            </a>
+                        </div>
+                    </div>
+
                     <!-- Workspace Settings (RBAC: Admin / Manager only) -->
                     {% if current_membership.can_manage_workspace %}
                         <div class="pt-2 mt-2 border-t border-slate-200/60 dark:border-zinc-800/60">
