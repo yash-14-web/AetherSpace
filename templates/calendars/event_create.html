@@ -58,20 +58,12 @@
                     {{ form.title }}
                 </div>
 
-                <!-- Event Type & Calendar -->
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div class="space-y-1">
-                        <label for="{{ form.event_type.id_for_label }}" class="block text-xs font-bold text-slate-800 dark:text-zinc-200">
-                            Event Type <span class="text-rose-500">*</span>
-                        </label>
-                        {{ form.event_type }}
-                    </div>
-                    <div class="space-y-1">
-                        <label for="{{ form.calendar_category.id_for_label }}" class="block text-xs font-bold text-slate-800 dark:text-zinc-200">
-                            Calendar <span class="text-rose-500">*</span>
-                        </label>
-                        {{ form.calendar_category }}
-                    </div>
+                <!-- Event Type -->
+                <div class="space-y-1">
+                    <label for="{{ form.event_type.id_for_label }}" class="block text-xs font-bold text-slate-800 dark:text-zinc-200">
+                        Event Type <span class="text-rose-500">*</span>
+                    </label>
+                    {{ form.event_type }}
                 </div>
 
                 <!-- Start Date & Time -->
