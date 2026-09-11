@@ -61,31 +61,15 @@ def get_chat_sidebar_context(workspace, user):
             'last_message': last_msg,
         })
 
-    # Workspace team members for New DM modal
+    # Workspace team members for sidebar status
     active_members = workspace.memberships.filter(
         status=MembershipStatus.ACTIVE
     ).exclude(user=user).select_related('user')
-
-    # All registered database users (excluding current user) for direct message discovery
-    workspace_member_ids = set(active_members.values_list('user_id', flat=True))
-    all_db_users = User.objects.exclude(id=user.id).order_by('full_name', 'email')[:30]
-    formatted_db_users = []
-    for u in all_db_users:
-        formatted_db_users.append({
-            'id': str(u.id),
-            'name': u.full_name or u.email.split('@')[0],
-            'email': u.email,
-            'initial': (u.first_name[:1] if u.first_name else u.email[:1]).upper(),
-            'is_member': u.id in workspace_member_ids,
-            'role_display': 'Workspace Member' if u.id in workspace_member_ids else 'Direct Chat',
-            'dm_url': f"/chat/w/{workspace.slug}/dm/{u.id}/"
-        })
 
     return {
         'channels': channels,
         'formatted_dms': formatted_dms,
         'active_members': active_members,
-        'formatted_db_users': formatted_db_users,
     }
 
 
@@ -590,20 +574,22 @@ def api_search_users(request, slug):
     """
     Real-time database user search for direct messaging.
     Searches all registered users in the database by name, email, or username.
+    Strictly returns an empty list when query is empty.
     """
     q = request.GET.get('q', '').strip()
+    if not q:
+        return JsonResponse({'status': 'ok', 'users': []})
+
     workspace = request.workspace
     current_user = request.user
 
-    users_qs = User.objects.exclude(id=current_user.id)
-    if q:
-        users_qs = users_qs.filter(
-            Q(full_name__icontains=q) |
-            Q(email__icontains=q) |
-            Q(username__icontains=q)
-        )
+    users_qs = User.objects.exclude(id=current_user.id).filter(
+        Q(full_name__icontains=q) |
+        Q(email__icontains=q) |
+        Q(username__icontains=q)
+    ).order_by('full_name', 'email')[:20]
 
-    users_list = users_qs.order_by('full_name', 'email')[:25]
+    users_list = list(users_qs)
     workspace_memberships = {
         m.user_id: m for m in WorkspaceMembership.objects.filter(
             workspace=workspace,
