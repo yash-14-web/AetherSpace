@@ -15,6 +15,8 @@ from .services import (
     build_month_calendar_matrix, build_agenda_stream,
     build_upcoming_deadlines, create_calendar_event
 )
+from meetings.services import generate_unique_meeting_code
+
 
 
 @login_required
@@ -237,6 +239,7 @@ def event_create_view(request, slug):
     today = timezone.localdate()
     now = timezone.now()
     next_hour = (now + timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
+    auto_meet_code = generate_unique_meeting_code()
 
     if request.method == 'POST':
         form = CalendarEventForm(request.POST, workspace=workspace)
@@ -288,6 +291,7 @@ def event_create_view(request, slug):
         'form': form,
         'workspace_members': workspace_members,
         'today': today,
+        'auto_meet_code': auto_meet_code,
     }
     return render(request, 'calendars/event_create.html', context)
 
@@ -371,12 +375,22 @@ def event_edit_view(request, slug, event_id):
         status=MembershipStatus.ACTIVE
     ).select_related('user').order_by('user__first_name', 'user__username')
 
+    if event.linked_meeting:
+        auto_meet_code = event.linked_meeting.meeting_code
+    elif event.meeting_link and 'meet-' in event.meeting_link:
+        import re
+        m_code = re.search(r'meet-[a-z0-9]{4}-[a-z0-9]{4}', event.meeting_link)
+        auto_meet_code = m_code.group(0) if m_code else generate_unique_meeting_code()
+    else:
+        auto_meet_code = generate_unique_meeting_code()
+
     context = {
         'workspace': workspace,
         'membership': membership,
         'event': event,
         'form': form,
         'workspace_members': workspace_members,
+        'auto_meet_code': auto_meet_code,
     }
     return render(request, 'calendars/event_edit.html', context)
 

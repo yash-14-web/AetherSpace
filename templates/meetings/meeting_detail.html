@@ -291,32 +291,43 @@
             <!-- TAB 3: AGENDA (Screen 6) -->
             <div x-show="activeTab === 'agenda'" class="space-y-4" style="display: none;">
                 <div class="meet-card p-6 sm:p-7 shadow-xl space-y-4">
-                    <h3 class="text-sm font-bold meet-title">Meeting Agenda Items</h3>
-                    <div class="space-y-3 text-xs">
-                        <div class="meet-subcard p-3.5 flex items-start space-x-3">
-                            <span class="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center shrink-0">1</span>
-                            <div>
-                                <span class="font-bold meet-title block">Sprint Goals Review</span>
-                                <span class="meet-sub text-[11px]">Assess team progress against sprint commitments and milestones.</span>
-                            </div>
-                        </div>
-
-                        <div class="meet-subcard p-3.5 flex items-start space-x-3">
-                            <span class="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center shrink-0">2</span>
-                            <div>
-                                <span class="font-bold meet-title block">Architecture & Bug Triage</span>
-                                <span class="meet-sub text-[11px]">Identify blockers, resolve critical issues, and assign next actions.</span>
-                            </div>
-                        </div>
-
-                        <div class="meet-subcard p-3.5 flex items-start space-x-3">
-                            <span class="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center shrink-0">3</span>
-                            <div>
-                                <span class="font-bold meet-title block">Open Discussion & Q&A</span>
-                                <span class="meet-sub text-[11px]">Floor open for questions and coordination across workspaces.</span>
-                            </div>
-                        </div>
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-sm font-bold meet-title">Meeting Agenda Items</h3>
+                        {% if meeting.host == request.user or membership.can_manage_content %}
+                        <a href="{% url 'meetings:meeting_edit' slug=workspace.slug meeting_code=meeting.meeting_code %}"
+                           class="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline">
+                            Edit Agenda
+                        </a>
+                        {% endif %}
                     </div>
+
+                    {% if meeting.description %}
+                    <div class="space-y-3 text-xs">
+                        {% for line in meeting.description.splitlines %}
+                            {% if line.strip %}
+                            <div class="meet-subcard p-3.5 flex items-start space-x-3">
+                                <span class="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center shrink-0">{{ forloop.counter }}</span>
+                                <div class="min-w-0">
+                                    <span class="font-bold meet-title block">{{ line.strip }}</span>
+                                </div>
+                            </div>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="p-8 text-center border border-dashed border-slate-200 dark:border-zinc-800 rounded-2xl">
+                        <svg class="w-8 h-8 mx-auto text-slate-400 dark:text-zinc-600 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                        </svg>
+                        <p class="text-xs text-slate-500 dark:text-zinc-400">No specific agenda items added for this meeting yet.</p>
+                        {% if meeting.host == request.user or membership.can_manage_content %}
+                        <a href="{% url 'meetings:meeting_edit' slug=workspace.slug meeting_code=meeting.meeting_code %}"
+                           class="mt-2 inline-block text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline">
+                            + Add Agenda in Meeting Settings
+                        </a>
+                        {% endif %}
+                    </div>
+                    {% endif %}
                 </div>
             </div>
 
@@ -324,28 +335,11 @@
             <div x-show="activeTab === 'files'" class="space-y-4" style="display: none;">
                 <div class="meet-card p-6 sm:p-7 shadow-xl space-y-4">
                     <h3 class="text-sm font-bold meet-title">Meeting Attachments & Documents</h3>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div class="meet-subcard p-3.5 flex items-center justify-between text-xs">
-                            <div class="flex items-center space-x-3">
-                                <span class="text-xl">📄</span>
-                                <div>
-                                    <span class="font-bold meet-title block">Sprint_Backlog.pdf</span>
-                                    <span class="text-[10px] meet-sub">1.8 MB • PDF</span>
-                                </div>
-                            </div>
-                            <span class="text-blue-600 dark:text-blue-400 font-bold hover:underline cursor-pointer">View</span>
-                        </div>
-
-                        <div class="meet-subcard p-3.5 flex items-center justify-between text-xs">
-                            <div class="flex items-center space-x-3">
-                                <span class="text-xl">🖼️</span>
-                                <div>
-                                    <span class="font-bold meet-title block">Architecture_v2.png</span>
-                                    <span class="text-[10px] meet-sub">3.4 MB • PNG</span>
-                                </div>
-                            </div>
-                            <span class="text-blue-600 dark:text-blue-400 font-bold hover:underline cursor-pointer">View</span>
-                        </div>
+                    <div class="p-8 text-center border border-dashed border-slate-200 dark:border-zinc-800 rounded-2xl">
+                        <svg class="w-8 h-8 mx-auto text-slate-400 dark:text-zinc-600 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                        </svg>
+                        <p class="text-xs text-slate-500 dark:text-zinc-400">No documents or files attached to this meeting yet.</p>
                     </div>
                 </div>
             </div>

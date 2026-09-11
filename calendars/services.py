@@ -419,6 +419,39 @@ def create_calendar_event(workspace, user, data, invitees=None):
     """
     Creates a new CalendarEvent and registers attendee relationships.
     """
+    linked_meeting = data.get('linked_meeting')
+    meeting_link = data.get('meeting_link', '')
+
+    # Auto-link or create Meeting in Meet Hub if AetherSpace room is generated
+    if meeting_link and '/meetings/w/' in meeting_link and not linked_meeting:
+        import re
+        code_match = re.search(r'meet-[a-z0-9]{4}-[a-z0-9]{4}', meeting_link)
+        if code_match:
+            meet_code = code_match.group(0)
+            from meetings.models import Meeting, MeetingStatus, MeetingType, MeetingInvite
+            existing_m = Meeting.objects.filter(workspace=workspace, meeting_code=meet_code).first()
+            if not existing_m:
+                existing_m = Meeting.objects.create(
+                    workspace=workspace,
+                    meeting_code=meet_code,
+                    title=data['title'],
+                    description=data.get('description', ''),
+                    host=user,
+                    meeting_type=MeetingType.GENERAL,
+                    status=MeetingStatus.SCHEDULED,
+                    scheduled_start=data['computed_start_at'],
+                    scheduled_end=data['computed_end_at'],
+                )
+                if invitees:
+                    for inv_u in invitees:
+                        if inv_u != user:
+                            MeetingInvite.objects.get_or_create(
+                                meeting=existing_m,
+                                user=inv_u,
+                                defaults={'status': 'PENDING'}
+                            )
+            linked_meeting = existing_m
+
     event = CalendarEvent(
         workspace=workspace,
         title=data['title'],
@@ -430,10 +463,10 @@ def create_calendar_event(workspace, user, data, invitees=None):
         is_all_day=data.get('is_all_day', False),
         repeat=data.get('repeat') or 'NONE',
         location=data.get('location', ''),
-        meeting_link=data.get('meeting_link', ''),
+        meeting_link=meeting_link,
         linked_task=data.get('linked_task'),
         linked_bug=data.get('linked_bug'),
-        linked_meeting=data.get('linked_meeting'),
+        linked_meeting=linked_meeting,
         created_by=user
     )
     event.save()

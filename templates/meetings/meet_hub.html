@@ -152,20 +152,35 @@
                                 <span>Host: {{ m.host.get_full_name|default:m.host.username }}</span>
                             </div>
 
-                            <!-- Avatar Stack -->
+                            <!-- Dynamic Avatar Stack -->
                             <div class="flex items-center space-x-2 pt-1">
                                 <div class="flex -space-x-2 overflow-hidden">
-                                    <div class="inline-block h-6 w-6 rounded-full ring-2 ring-white dark:ring-zinc-900 bg-blue-600 text-white text-[10px] font-bold flex items-center justify-center">
+                                    <!-- Host Avatar -->
+                                    <div class="inline-block h-6 w-6 rounded-full ring-2 ring-white dark:ring-zinc-900 bg-blue-600 text-white text-[10px] font-bold flex items-center justify-center"
+                                         title="Host: {{ m.host.get_full_name|default:m.host.username }}">
                                         {{ m.host.username|slice:":1"|upper }}
                                     </div>
-                                    <div class="inline-block h-6 w-6 rounded-full ring-2 ring-white dark:ring-zinc-900 bg-indigo-600 text-white text-[10px] font-bold flex items-center justify-center">
-                                        {{ workspace.name|slice:":1"|upper }}
-                                    </div>
-                                    <div class="inline-block h-6 w-6 rounded-full ring-2 ring-white dark:ring-zinc-900 bg-purple-600 text-white text-[10px] font-bold flex items-center justify-center">
-                                        A
-                                    </div>
+                                    <!-- Dynamic Invitee Avatars -->
+                                    {% for inv in m.invites.all|slice:":3" %}
+                                        {% if inv.user != m.host %}
+                                        <div class="inline-block h-6 w-6 rounded-full ring-2 ring-white dark:ring-zinc-900 bg-indigo-600 text-white text-[10px] font-bold flex items-center justify-center"
+                                             title="{{ inv.user.get_full_name|default:inv.user.username }}">
+                                            {{ inv.user.username|slice:":1"|upper }}
+                                        </div>
+                                        {% endif %}
+                                    {% endfor %}
                                 </div>
-                                <span class="text-[11px] font-medium meet-sub">+{{ m.participants_count|default:3 }} attendees</span>
+                                {% with guest_count=m.invites.count %}
+                                    {% if guest_count > 0 %}
+                                    <span class="text-[11px] font-medium meet-sub">
+                                        {{ guest_count|add:1 }} attendee{{ guest_count|add:1|pluralize }}
+                                    </span>
+                                    {% else %}
+                                    <span class="text-[11px] font-medium meet-sub">
+                                        1 attendee (Host)
+                                    </span>
+                                    {% endif %}
+                                {% endwith %}
                             </div>
                         </div>
 
