@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     'chat.apps.ChatConfig',
     'meetings.apps.MeetingsConfig',
     'calendars.apps.CalendarsConfig',
+    'files.apps.FilesConfig',
 ]
 
 MIDDLEWARE = [

@@ -1,4 +1,4 @@
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponseBadRequest, HttpResponseForbidden, HttpResponseNotFound, HttpResponseServerError
 
@@ -19,21 +19,8 @@ def calendar_view(request):
 
 @login_required
 def files_view(request):
-    """Files & Supabase Storage assets navigation destination."""
-    return render(request, 'components/placeholder.html', {
-        'module_title': 'Files & Storage',
-        'phase_badge': 'Phase 8 — Files',
-        'module_icon': 'files',
-        'module_description': 'Centralized workspace asset storage powered by Supabase Cloud Object Storage.',
-        'empty_heading': 'Supabase Storage Hub',
-        'empty_text': 'Encrypted file uploading, folder organization, metadata indexing, and file attachments will arrive in Phase 8.',
-        'features': [
-            'Direct Supabase Storage bucket uploads',
-            'Role-scoped file access permissions',
-            'Task & bug attachment previewing',
-            'Document versioning & download links',
-        ],
-    })
+    """Files & Workspace Storage navigation destination - redirects to active workspace files."""
+    return redirect('files:files_router')
 
 
 @login_required

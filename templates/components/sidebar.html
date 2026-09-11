@@ -48,7 +48,7 @@
                     </a>
 
                     <!-- 4. Files -->
-                    <a href="{% url 'core:files' %}" 
+                    <a href="{% if current_workspace %}{% url 'files:files_home' slug=current_workspace.slug %}{% else %}{% url 'files:files_router' %}{% endif %}" 
                        class="p-2.5 rounded-xl text-slate-500 dark:text-zinc-400 hover:text-aether-blue dark:hover:text-zinc-100 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-all" 
                        title="Files">
                         <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -298,6 +298,31 @@
                         </div>
                     </div>
 
+                    <!-- Files & Storage -->
+                    <div>
+                        <a href="{% url 'files:files_home' slug=current_workspace.slug %}" 
+                           class="flex items-center space-x-2.5 px-3 py-2 text-xs font-semibold rounded-lg text-slate-700 dark:text-zinc-300 hover:bg-slate-200/60 dark:hover:bg-zinc-800/60 transition-colors">
+                            <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
+                            </svg>
+                            <span>Files</span>
+                        </a>
+                        <div class="pl-7 pr-2 space-y-0.5 pb-1">
+                            <a href="{% url 'files:files_home' slug=current_workspace.slug %}" 
+                               class="block py-1 text-[11px] font-medium text-slate-500 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-zinc-200 transition-colors">
+                                • Files Home
+                            </a>
+                            <a href="{% url 'files:recent_files' slug=current_workspace.slug %}" 
+                               class="block py-1 text-[11px] font-medium text-slate-500 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-zinc-200 transition-colors">
+                                • Recent Files
+                            </a>
+                            <a href="{% url 'files:shared_files' slug=current_workspace.slug %}" 
+                               class="block py-1 text-[11px] font-medium text-slate-500 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-zinc-200 transition-colors">
+                                • Shared Files
+                            </a>
+                        </div>
+                    </div>
+
                     <!-- Workspace Settings (RBAC: Admin / Manager only) -->
                     {% if current_membership.can_manage_workspace %}
                         <div class="pt-2 mt-2 border-t border-slate-200/60 dark:border-zinc-800/60">
@@ -311,6 +336,20 @@
                             </a>
                         </div>
                     {% endif %}
+
+                    <!-- Storage Widget (Mockup Screen 1) -->
+                    <div class="mt-4 p-3 rounded-xl bg-slate-100/80 dark:bg-zinc-800/40 border border-slate-200/60 dark:border-zinc-800/80 space-y-2">
+                        <div class="flex items-center justify-between text-[10px] font-bold tracking-wider text-slate-400 dark:text-zinc-500 uppercase">
+                            <span>STORAGE</span>
+                            <span class="text-aether-blue font-semibold">100 GB</span>
+                        </div>
+                        <div class="w-full h-1.5 bg-slate-200 dark:bg-zinc-700 rounded-full overflow-hidden">
+                            <div class="h-full bg-aether-blue rounded-full" style="width: 25%;"></div>
+                        </div>
+                        <a href="{% url 'files:files_home' slug=current_workspace.slug %}" class="block text-center py-1 text-[11px] font-semibold rounded-lg bg-white dark:bg-zinc-800 text-aether-blue dark:text-blue-400 border border-slate-200/80 dark:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-700/60 shadow-xs transition-colors">
+                            Storage Hub
+                        </a>
+                    </div>
                 </div>
             {% else %}
                 <!-- No Active Workspace / Master Dashboard Context -->

@@ -1,0 +1,620 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ file.name }} • File Details — AetherSpace{% endblock %}
+
+{% block content %}
+<div class="h-full flex flex-col -m-4 sm:-m-6 p-4 sm:p-6 bg-slate-50 dark:bg-obsidian-950 min-h-[calc(100vh-4rem)] space-y-5"
+     x-data="{
+         activeTab: 'overview',
+         shareModalOpen: false,
+         moveModalOpen: false,
+         renameModalOpen: false,
+         moveActionUrl: '{% url 'files:file_move' slug=workspace.slug file_id=file.id %}',
+         renameActionUrl: '{% url 'files:file_rename' slug=workspace.slug file_id=file.id %}',
+         renameTargetName: '{{ file.name|escapejs }}',
+         renameTargetDesc: '{{ file.description|escapejs }}',
+         renameTargetTags: '{{ file.tags|escapejs }}',
+         zoomLevel: 100,
+         zoomIn() { if (this.zoomLevel < 200) this.zoomLevel += 25; },
+         zoomOut() { if (this.zoomLevel > 50) this.zoomLevel -= 25; },
+         resetZoom() { this.zoomLevel = 100; },
+         fullscreen() {
+             const el = document.getElementById('file-preview-container');
+             if (el) {
+                 if (!document.fullscreenElement) {
+                     el.requestFullscreen().catch(err => alert(err.message));
+                 } else {
+                     document.exitFullscreen();
+                 }
+             }
+         }
+     }">
+
+    <!-- Back Navigation Link (Screen 3 Mockup) -->
+    <div>
+        {% if file.folder %}
+        <a href="{% url 'files:folder_view' slug=workspace.slug folder_id=file.folder.id %}" 
+           class="inline-flex items-center space-x-1.5 text-xs font-semibold text-slate-500 dark:text-zinc-400 hover:text-aether-blue dark:hover:text-zinc-200 transition-colors">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+            </svg>
+            <span>Back to {{ file.folder.name }}</span>
+        </a>
+        {% else %}
+        <a href="{% url 'files:files_home' slug=workspace.slug %}" 
+           class="inline-flex items-center space-x-1.5 text-xs font-semibold text-slate-500 dark:text-zinc-400 hover:text-aether-blue dark:hover:text-zinc-200 transition-colors">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+            </svg>
+            <span>Back to Files</span>
+        </a>
+        {% endif %}
+    </div>
+
+    <!-- File Header & Primary Actions (Screen 3) -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div class="flex items-center space-x-3.5">
+            <span class="w-12 h-12 rounded-2xl border flex items-center justify-center font-black text-xs shrink-0 {{ file.badge_theme.bg }} {{ file.badge_theme.text }} {{ file.badge_theme.border }}">
+                {{ file.badge_theme.label }}
+            </span>
+            <div>
+                <div class="flex items-center space-x-2">
+                    <h1 class="text-xl sm:text-2xl font-black tracking-tight text-slate-900 dark:text-zinc-100">{{ file.name }}</h1>
+                    <a href="{% url 'files:file_star_toggle' slug=workspace.slug file_id=file.id %}" 
+                       class="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
+                       title="Toggle Favorite">
+                        <svg class="w-4 h-4 {% if file.is_starred %}text-amber-400{% else %}text-slate-300 dark:text-zinc-600{% endif %}" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                        </svg>
+                    </a>
+                </div>
+                <p class="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
+                    Files / {{ workspace.name }} / {% if file.folder %}{{ file.folder.name }}{% else %}Root{% endif %}
+                </p>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex items-center space-x-2.5">
+            <button type="button" 
+                    @click="shareModalOpen = true"
+                    class="inline-flex items-center space-x-1.5 px-3.5 py-2 text-xs font-semibold rounded-xl border border-aether-blue/30 dark:border-blue-700/40 bg-blue-50/50 dark:bg-blue-950/40 text-aether-blue dark:text-blue-400 hover:bg-blue-100/60 dark:hover:bg-blue-900/50 shadow-sm transition-all">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/>
+                </svg>
+                <span>Share</span>
+            </button>
+
+            {% if file.is_external_link %}
+            <a href="{{ file.external_url }}" 
+               target="_blank" 
+               rel="noopener noreferrer"
+               class="inline-flex items-center space-x-1.5 px-4 py-2 text-xs font-bold rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm transition-all">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                </svg>
+                <span>Open Cloud Link</span>
+            </a>
+            {% else %}
+            <a href="{% url 'files:file_download' slug=workspace.slug file_id=file.id %}" 
+               class="inline-flex items-center space-x-1.5 px-4 py-2 text-xs font-bold rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-zinc-900 shadow-sm transition-all">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                </svg>
+                <span>Download</span>
+            </a>
+            {% endif %}
+
+            <!-- Dropdown More -->
+            <div class="relative" x-data="{ open: false }">
+                <button type="button" 
+                        @click="open = !open" 
+                        @click.away="open = false"
+                        class="p-2 text-xs rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-700 transition-colors shadow-sm">
+                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z"/>
+                    </svg>
+                </button>
+                <div x-show="open" 
+                     x-cloak
+                     class="absolute right-0 mt-2 w-44 rounded-xl bg-white dark:bg-[#121824] border border-slate-200 dark:border-zinc-800 shadow-xl py-1 z-30 divide-y divide-slate-100 dark:divide-zinc-800">
+                    <div class="py-1">
+                        <button type="button" 
+                                @click="open = false; moveModalOpen = true"
+                                class="w-full text-left px-3 py-1.5 text-xs text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 flex items-center space-x-2">
+                            <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                            </svg>
+                            <span>Move...</span>
+                        </button>
+                        <button type="button" 
+                                @click="open = false; renameModalOpen = true"
+                                class="w-full text-left px-3 py-1.5 text-xs text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 flex items-center space-x-2">
+                            <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                            </svg>
+                            <span>Edit Details</span>
+                        </button>
+                    </div>
+                    {% if can_manage %}
+                    <div class="py-1">
+                        <form method="POST" action="{% url 'files:file_delete' slug=workspace.slug file_id=file.id %}">
+                            {% csrf_token %}
+                            <button type="submit" 
+                                    class="w-full text-left px-3 py-1.5 text-xs text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 flex items-center space-x-2">
+                                <svg class="w-3.5 h-3.5 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                </svg>
+                                <span>Move to Trash</span>
+                            </button>
+                        </form>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Secondary Tabs Bar (Screen 3: Overview, Activity, Versions, Comments, Permissions) -->
+    <div class="border-b border-slate-200 dark:border-zinc-800">
+        <div class="flex items-center space-x-2 overflow-x-auto">
+            <button type="button" 
+                    @click="activeTab = 'overview'"
+                    :class="{'border-aether-blue text-aether-blue font-bold': activeTab === 'overview', 'border-transparent text-slate-500 dark:text-zinc-400 hover:text-slate-700': activeTab !== 'overview'}"
+                    class="py-2.5 px-3 text-xs border-b-2 transition-all whitespace-nowrap">
+                Overview
+            </button>
+            <button type="button" 
+                    @click="activeTab = 'activity'"
+                    :class="{'border-aether-blue text-aether-blue font-bold': activeTab === 'activity', 'border-transparent text-slate-500 dark:text-zinc-400 hover:text-slate-700': activeTab !== 'activity'}"
+                    class="py-2.5 px-3 text-xs border-b-2 transition-all whitespace-nowrap">
+                Activity
+            </button>
+            <button type="button" 
+                    @click="activeTab = 'versions'"
+                    :class="{'border-aether-blue text-aether-blue font-bold': activeTab === 'versions', 'border-transparent text-slate-500 dark:text-zinc-400 hover:text-slate-700': activeTab !== 'versions'}"
+                    class="py-2.5 px-3 text-xs border-b-2 transition-all whitespace-nowrap">
+                Versions ({{ versions.count }})
+            </button>
+            <button type="button" 
+                    @click="activeTab = 'comments'"
+                    :class="{'border-aether-blue text-aether-blue font-bold': activeTab === 'comments', 'border-transparent text-slate-500 dark:text-zinc-400 hover:text-slate-700': activeTab !== 'comments'}"
+                    class="py-2.5 px-3 text-xs border-b-2 transition-all whitespace-nowrap">
+                Comments ({{ comments.count }})
+            </button>
+            <button type="button" 
+                    @click="activeTab = 'permissions'"
+                    :class="{'border-aether-blue text-aether-blue font-bold': activeTab === 'permissions', 'border-transparent text-slate-500 dark:text-zinc-400 hover:text-slate-700': activeTab !== 'permissions'}"
+                    class="py-2.5 px-3 text-xs border-b-2 transition-all whitespace-nowrap">
+                Permissions
+            </button>
+        </div>
+    </div>
+
+    <!-- TAB 1: OVERVIEW (Screen 3 Mockup Layout) -->
+    <div x-show="activeTab === 'overview'" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- Left: Large Preview Card (2 cols) -->
+        <div class="lg:col-span-2 space-y-4">
+            <div id="file-preview-container" class="rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200/80 dark:border-zinc-800 shadow-sm overflow-hidden flex flex-col justify-between min-h-[500px]">
+                
+                <!-- Preview Canvas -->
+                <div class="flex-1 p-6 flex items-center justify-center bg-slate-50/50 dark:bg-black/30 overflow-auto">
+                    
+                    <!-- 1. External Cloud Link Preview -->
+                    {% if file.is_external_link %}
+                    <div class="text-center max-w-md p-8 space-y-4">
+                        <div class="w-16 h-16 rounded-2xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-500 mx-auto flex items-center justify-center border border-indigo-200/50 dark:border-indigo-900/40">
+                            <svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <span class="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200/60 dark:border-indigo-900/40">
+                                {{ external_provider|default:'Cloud Resource' }}
+                            </span>
+                            <h3 class="text-lg font-bold text-slate-900 dark:text-zinc-100 mt-2">{{ file.name }}</h3>
+                            <p class="text-xs text-slate-500 dark:text-zinc-400 mt-1 break-all">{{ file.external_url }}</p>
+                        </div>
+                        <div class="pt-2">
+                            <a href="{{ file.external_url }}" 
+                               target="_blank" 
+                               rel="noopener noreferrer"
+                               class="inline-flex items-center space-x-2 px-5 py-2.5 text-xs font-bold rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-md transition-all">
+                                <span>Launch External Asset</span>
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                                </svg>
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- 2. Image Preview -->
+                    {% elif file.is_image %}
+                    <div class="transition-transform duration-150 text-center" :style="'transform: scale(' + (zoomLevel / 100) + ');'">
+                        <img src="{% url 'files:file_download' slug=workspace.slug file_id=file.id %}" 
+                             alt="{{ file.name }}"
+                             class="max-h-[460px] max-w-full rounded-xl object-contain shadow-lg border border-slate-200 dark:border-zinc-800">
+                    </div>
+
+                    <!-- 3. PDF Preview -->
+                    {% elif file.is_pdf %}
+                    <div class="w-full h-full min-h-[500px]">
+                        <iframe src="{% url 'files:file_download' slug=workspace.slug file_id=file.id %}#toolbar=0" 
+                                class="w-full h-[520px] rounded-xl border border-slate-200 dark:border-zinc-800 bg-white" 
+                                title="{{ file.name }}">
+                        </iframe>
+                    </div>
+
+                    <!-- 4. Text / Code Preview -->
+                    {% elif text_preview_content %}
+                    <div class="w-full text-left bg-white dark:bg-zinc-950 p-4 rounded-xl border border-slate-200 dark:border-zinc-800 font-mono text-xs overflow-auto max-h-[500px] text-slate-800 dark:text-zinc-200">
+                        <pre class="whitespace-pre-wrap leading-relaxed">{{ text_preview_content }}</pre>
+                    </div>
+
+                    <!-- 5. Binary Document Fallback -->
+                    {% else %}
+                    <div class="text-center p-8 space-y-4 max-w-sm">
+                        <span class="w-16 h-16 rounded-2xl border flex items-center justify-center font-black text-sm mx-auto {{ file.badge_theme.bg }} {{ file.badge_theme.text }} {{ file.badge_theme.border }}">
+                            {{ file.badge_theme.label }}
+                        </span>
+                        <div>
+                            <h3 class="text-base font-bold text-slate-900 dark:text-zinc-100">{{ file.original_name }}</h3>
+                            <p class="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">{{ file.formatted_size }} • {{ file.mime_type }}</p>
+                        </div>
+                        <p class="text-xs text-slate-400">Direct online preview is not supported for this binary format.</p>
+                        <a href="{% url 'files:file_download' slug=workspace.slug file_id=file.id %}" 
+                           class="inline-flex items-center space-x-1.5 px-4 py-2 text-xs font-bold rounded-xl bg-aether-blue hover:bg-blue-600 text-white shadow-sm transition-all">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                            </svg>
+                            <span>Download File</span>
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Preview Bottom Toolbar (Screen 3 Mockup) -->
+                <div class="px-4 py-2.5 bg-slate-50 dark:bg-zinc-900 border-t border-slate-100 dark:border-zinc-800/80 flex items-center justify-between text-xs text-slate-500 dark:text-zinc-400">
+                    <div class="flex items-center space-x-2">
+                        <span class="font-medium text-slate-700 dark:text-zinc-300">{{ file.name }}</span>
+                    </div>
+
+                    <div class="flex items-center space-x-1 sm:space-x-2">
+                        <button type="button" @click="zoomOut()" class="p-1 rounded hover:bg-slate-200 dark:hover:bg-zinc-800" title="Zoom Out">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/>
+                            </svg>
+                        </button>
+                        <span class="text-[11px] font-mono w-10 text-center" x-text="zoomLevel + '%'">100%</span>
+                        <button type="button" @click="zoomIn()" class="p-1 rounded hover:bg-slate-200 dark:hover:bg-zinc-800" title="Zoom In">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                            </svg>
+                        </button>
+                        <button type="button" @click="resetZoom()" class="px-1.5 py-0.5 rounded text-[10px] hover:bg-slate-200 dark:hover:bg-zinc-800">
+                            Reset
+                        </button>
+                        <div class="h-3.5 w-px bg-slate-200 dark:bg-zinc-700 mx-1"></div>
+                        <button type="button" @click="fullscreen()" class="p-1 rounded hover:bg-slate-200 dark:hover:bg-zinc-800" title="Fullscreen Preview">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions Bar (Screen 3 Mockup) -->
+            <div class="p-4 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200/80 dark:border-zinc-800 shadow-sm space-y-2">
+                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Quick Actions</h3>
+                <div class="flex items-center flex-wrap gap-2 pt-1">
+                    <button type="button" @click="shareModalOpen = true" class="px-3.5 py-1.5 text-xs font-semibold rounded-xl border border-slate-200 dark:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-800 text-slate-700 dark:text-zinc-300 flex items-center space-x-1.5">
+                        <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/>
+                        </svg>
+                        <span>Share</span>
+                    </button>
+                    
+                    {% if file.is_external_link %}
+                    <a href="{{ file.external_url }}" target="_blank" rel="noopener noreferrer" class="px-3.5 py-1.5 text-xs font-semibold rounded-xl border border-slate-200 dark:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-800 text-slate-700 dark:text-zinc-300 flex items-center space-x-1.5">
+                        <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                        </svg>
+                        <span>Open Link</span>
+                    </a>
+                    {% else %}
+                    <a href="{% url 'files:file_download' slug=workspace.slug file_id=file.id %}" class="px-3.5 py-1.5 text-xs font-semibold rounded-xl border border-slate-200 dark:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-800 text-slate-700 dark:text-zinc-300 flex items-center space-x-1.5">
+                        <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                        </svg>
+                        <span>Download</span>
+                    </a>
+                    {% endif %}
+
+                    <button type="button" @click="moveModalOpen = true" class="px-3.5 py-1.5 text-xs font-semibold rounded-xl border border-slate-200 dark:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-800 text-slate-700 dark:text-zinc-300 flex items-center space-x-1.5">
+                        <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                        </svg>
+                        <span>Move</span>
+                    </button>
+
+                    <button type="button" @click="renameModalOpen = true" class="px-3.5 py-1.5 text-xs font-semibold rounded-xl border border-slate-200 dark:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-800 text-slate-700 dark:text-zinc-300 flex items-center space-x-1.5">
+                        <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                        </svg>
+                        <span>Rename</span>
+                    </button>
+
+                    {% if can_manage %}
+                    <form method="POST" action="{% url 'files:file_delete' slug=workspace.slug file_id=file.id %}">
+                        {% csrf_token %}
+                        <button type="submit" class="px-3.5 py-1.5 text-xs font-semibold rounded-xl border border-rose-200 dark:border-rose-900/50 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-rose-600 dark:text-rose-400 flex items-center space-x-1.5">
+                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                            </svg>
+                            <span>Delete</span>
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Right: Metadata Cards (Screen 3 Mockup) -->
+        <div class="space-y-4">
+            
+            <!-- File Information Card -->
+            <div class="p-5 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200/80 dark:border-zinc-800 shadow-sm space-y-3.5">
+                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">File Information</h3>
+                
+                <div class="space-y-2.5 text-xs">
+                    <div class="flex items-center justify-between">
+                        <span class="text-slate-400">Type</span>
+                        <span class="font-semibold text-slate-800 dark:text-zinc-200">{{ file.get_category_display }}</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-slate-400">Size</span>
+                        <span class="font-semibold text-slate-800 dark:text-zinc-200">{{ file.formatted_size }}</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-slate-400">Location</span>
+                        <span class="font-semibold text-amber-500">
+                            {% if file.folder %}
+                            <a href="{% url 'files:folder_view' slug=workspace.slug folder_id=file.folder.id %}" class="hover:underline">
+                                {{ file.folder.name }}
+                            </a>
+                            {% else %}
+                            Root
+                            {% endif %}
+                        </span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-slate-400">Owner</span>
+                        <div class="flex items-center space-x-1.5">
+                            <div class="w-5 h-5 rounded-full bg-slate-200 dark:bg-zinc-700 text-slate-700 dark:text-zinc-200 flex items-center justify-center font-bold text-[9px]">
+                                {{ file.uploaded_by.email|slice:":2"|upper }}
+                            </div>
+                            <span class="font-medium text-slate-800 dark:text-zinc-200">
+                                {{ file.uploaded_by.get_full_name|default:file.uploaded_by.username }}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-slate-400">Created</span>
+                        <span class="text-slate-600 dark:text-zinc-400">{{ file.created_at|date:"M d, Y H:i" }}</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-slate-400">Modified</span>
+                        <span class="text-slate-600 dark:text-zinc-400">{{ file.updated_at|date:"M d, Y H:i" }}</span>
+                    </div>
+                    {% if file.checksum %}
+                    <div class="pt-2 border-t border-slate-100 dark:border-zinc-800/80">
+                        <span class="text-[10px] text-slate-400 block font-mono">SHA-256</span>
+                        <span class="text-[10px] text-slate-500 font-mono break-all">{{ file.checksum }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Description Card -->
+            <div class="p-5 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200/80 dark:border-zinc-800 shadow-sm space-y-2">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Description</h3>
+                    <button type="button" @click="renameModalOpen = true" class="text-xs font-semibold text-aether-blue hover:underline">
+                        Edit
+                    </button>
+                </div>
+                {% if file.description %}
+                <p class="text-xs text-slate-700 dark:text-zinc-300 leading-relaxed whitespace-pre-wrap">{{ file.description }}</p>
+                {% else %}
+                <p class="text-xs text-slate-400 italic">No description provided yet. Click Edit to add context for your team.</p>
+                {% endif %}
+            </div>
+
+            <!-- Tags Card -->
+            <div class="p-5 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200/80 dark:border-zinc-800 shadow-sm space-y-2.5">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Tags</h3>
+                    <button type="button" @click="renameModalOpen = true" class="text-xs font-semibold text-aether-blue hover:underline">
+                        + Add Tag
+                    </button>
+                </div>
+                <div class="flex flex-wrap gap-1.5">
+                    {% for tag in file.tag_list %}
+                    <span class="px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 border border-slate-200/60 dark:border-zinc-700/60">
+                        #{{ tag }}
+                    </span>
+                    {% empty %}
+                    <span class="text-xs text-slate-400 italic">No tags attached</span>
+                    {% endfor %}
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- TAB 2: ACTIVITY -->
+    <div x-show="activeTab === 'activity'" class="rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200/80 dark:border-zinc-800 p-6 shadow-sm space-y-4 max-w-3xl">
+        <h3 class="text-sm font-bold text-slate-900 dark:text-zinc-100">Chronological Activity</h3>
+        <div class="relative pl-6 space-y-4 border-l-2 border-slate-200 dark:border-zinc-800">
+            {% for act in activities %}
+            <div class="relative group">
+                <div class="absolute -left-[31px] top-1 w-3.5 h-3.5 rounded-full border-2 border-white dark:border-[#0c1322] bg-aether-blue"></div>
+                <div class="text-xs">
+                    <span class="font-bold text-slate-900 dark:text-zinc-100">{{ act.actor.get_full_name|default:act.actor.username }}</span>
+                    <span class="text-slate-500 dark:text-zinc-400">{{ act.action|lower }} this file</span>
+                    {% if act.details %}<span class="text-slate-600 dark:text-zinc-300">({{ act.details }})</span>{% endif %}
+                    <span class="text-[10px] text-slate-400 block mt-0.5">{{ act.created_at|timesince }} ago</span>
+                </div>
+            </div>
+            {% empty %}
+            <p class="text-xs text-slate-400">No activity logged yet.</p>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- TAB 3: VERSIONS -->
+    <div x-show="activeTab === 'versions'" class="rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200/80 dark:border-zinc-800 p-6 shadow-sm space-y-6 max-w-3xl">
+        <div class="flex items-center justify-between">
+            <div>
+                <h3 class="text-sm font-bold text-slate-900 dark:text-zinc-100">Version History</h3>
+                <p class="text-xs text-slate-400">Track and revert previous uploads of this document.</p>
+            </div>
+        </div>
+
+        <!-- Upload New Version Form -->
+        <form method="POST" action="{% url 'files:file_version_upload' slug=workspace.slug file_id=file.id %}" enctype="multipart/form-data" class="p-4 rounded-xl bg-slate-50 dark:bg-zinc-800/40 border border-slate-200 dark:border-zinc-700 space-y-3">
+            {% csrf_token %}
+            <h4 class="text-xs font-bold text-slate-800 dark:text-zinc-200">Upload New Version</h4>
+            {% if file.is_external_link %}
+            <div>
+                <label class="block text-xs font-medium text-slate-600 dark:text-zinc-400 mb-1">New Asset URL</label>
+                <input type="url" name="external_url" required value="{{ file.external_url }}" class="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100">
+            </div>
+            {% else %}
+            <div>
+                <label class="block text-xs font-medium text-slate-600 dark:text-zinc-400 mb-1">Select Replacement File (Max 20 MB)</label>
+                <input type="file" name="file" required class="w-full text-xs text-slate-600 dark:text-zinc-400">
+            </div>
+            {% endif %}
+            <div>
+                <input type="text" name="note" placeholder="Version notes (e.g. Updated charts for Q3)" class="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100">
+            </div>
+            <button type="submit" class="px-4 py-1.5 text-xs font-semibold rounded-lg bg-aether-blue text-white hover:bg-blue-600 transition-colors">
+                Submit New Version
+            </button>
+        </form>
+
+        <!-- Versions List -->
+        <div class="space-y-3">
+            {% for v in versions %}
+            <div class="p-3.5 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <span class="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-950 text-aether-blue font-bold text-xs flex items-center justify-center">
+                        v{{ v.version_number }}
+                    </span>
+                    <div>
+                        <p class="text-xs font-bold text-slate-900 dark:text-zinc-100">
+                            Version {{ v.version_number }}
+                            {% if forloop.first %}<span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400 ml-1.5">Current</span>{% endif %}
+                        </p>
+                        <p class="text-[11px] text-slate-400">{{ v.uploaded_by.email }} • {{ v.created_at|date:"M d, Y h:i A" }} • {{ v.formatted_size }}</p>
+                        {% if v.note %}<p class="text-xs text-slate-600 dark:text-zinc-300 mt-1 italic">"{{ v.note }}"</p>{% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- TAB 4: COMMENTS -->
+    <div x-show="activeTab === 'comments'" class="rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200/80 dark:border-zinc-800 p-6 shadow-sm space-y-6 max-w-3xl">
+        <h3 class="text-sm font-bold text-slate-900 dark:text-zinc-100">Discussion & Feedback</h3>
+        
+        <!-- Add Comment Form -->
+        <form method="POST" action="{% url 'files:file_comment_create' slug=workspace.slug file_id=file.id %}" class="space-y-3">
+            {% csrf_token %}
+            <textarea name="comment" required rows="3" placeholder="Leave feedback or discuss revisions with your team..." class="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800/60 text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-aether-blue/30 focus:border-aether-blue resize-none"></textarea>
+            <div class="flex justify-end">
+                <button type="submit" class="px-4 py-1.5 text-xs font-semibold rounded-xl bg-aether-blue text-white hover:bg-blue-600 transition-colors">
+                    Post Comment
+                </button>
+            </div>
+        </form>
+
+        <!-- Comments List -->
+        <div class="space-y-3.5 divide-y divide-slate-100 dark:divide-zinc-800/60">
+            {% for c in comments %}
+            <div class="pt-3.5 first:pt-0 flex items-start space-x-3">
+                <div class="w-7 h-7 rounded-full bg-slate-200 dark:bg-zinc-700 text-slate-700 dark:text-zinc-200 flex items-center justify-center font-bold text-xs shrink-0">
+                    {{ c.author.email|slice:":2"|upper }}
+                </div>
+                <div class="space-y-1">
+                    <div class="flex items-center space-x-2">
+                        <span class="text-xs font-bold text-slate-900 dark:text-zinc-100">{{ c.author.get_full_name|default:c.author.username }}</span>
+                        <span class="text-[10px] text-slate-400">{{ c.created_at|timesince }} ago</span>
+                    </div>
+                    <p class="text-xs text-slate-700 dark:text-zinc-300 leading-relaxed whitespace-pre-wrap">{{ c.comment }}</p>
+                </div>
+            </div>
+            {% empty %}
+            <p class="text-xs text-slate-400 italic">No comments yet. Start a discussion above.</p>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- TAB 5: PERMISSIONS -->
+    <div x-show="activeTab === 'permissions'" class="rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200/80 dark:border-zinc-800 p-6 shadow-sm space-y-5 max-w-3xl">
+        <div class="flex items-center justify-between">
+            <div>
+                <h3 class="text-sm font-bold text-slate-900 dark:text-zinc-100">Access & Permissions</h3>
+                <p class="text-xs text-slate-400">Workspace RBAC controls access to this file.</p>
+            </div>
+            <button type="button" @click="shareModalOpen = true" class="px-3 py-1.5 text-xs font-semibold rounded-xl bg-aether-blue text-white hover:bg-blue-600 transition-colors">
+                Manage Shares
+            </button>
+        </div>
+
+        <div class="space-y-3">
+            <div class="p-3.5 rounded-xl border border-slate-100 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-800/40 flex items-center justify-between text-xs">
+                <div>
+                    <p class="font-bold text-slate-900 dark:text-zinc-100">Workspace Admins & Managers</p>
+                    <p class="text-[11px] text-slate-400">Full control (Upload, Edit, Move, Share, Delete)</p>
+                </div>
+                <span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-50 dark:bg-emerald-950 text-emerald-600">Full Access</span>
+            </div>
+
+            <div class="p-3.5 rounded-xl border border-slate-100 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-800/40 flex items-center justify-between text-xs">
+                <div>
+                    <p class="font-bold text-slate-900 dark:text-zinc-100">Workspace Contributors</p>
+                    <p class="text-[11px] text-slate-400">Can view & download workspace files; manage their own uploads.</p>
+                </div>
+                <span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-blue-50 dark:bg-blue-950 text-blue-600">View / Download</span>
+            </div>
+
+            {% if shares %}
+            <div class="pt-3 border-t border-slate-100 dark:border-zinc-800">
+                <h4 class="text-xs font-bold text-slate-900 dark:text-zinc-100 mb-2">Direct Member Shares</h4>
+                <div class="space-y-2">
+                    {% for s in shares %}
+                    <div class="p-2.5 rounded-xl border border-slate-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 flex items-center justify-between text-xs">
+                        <span class="font-medium text-slate-800 dark:text-zinc-200">{{ s.shared_with.email }}</span>
+                        <span class="font-bold text-[10px] px-2 py-0.5 rounded-full {% if s.access_level == 'EDIT' %}bg-amber-50 dark:bg-amber-950 text-amber-500{% else %}bg-blue-50 dark:bg-blue-950 text-blue-500{% endif %}">
+                            {{ s.get_access_level_display }}
+                        </span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Modals -->
+    {% include 'files/partials/share_modal.html' %}
+    {% include 'files/partials/move_modal.html' %}
+    {% include 'files/partials/rename_modal.html' %}
+
+</div>
+{% endblock %}

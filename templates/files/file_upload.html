@@ -1,0 +1,294 @@
+{% extends 'base.html' %}
+
+{% block title %}Upload Files • {{ workspace.name }} — AetherSpace{% endblock %}
+
+{% block content %}
+<div class="h-full flex flex-col -m-4 sm:-m-6 p-4 sm:p-6 bg-slate-50 dark:bg-obsidian-950 min-h-[calc(100vh-4rem)] space-y-6"
+     x-data="{
+         uploadMode: '{{ request.GET.mode|default:'file' }}',
+         dragOver: false,
+         selectedFileName: '',
+         selectedFileSize: '',
+         uploadProgress: 0,
+         isUploading: false,
+         isReady: false,
+         handleFiles(files) {
+             if (files && files.length > 0) {
+                 const f = files[0];
+                 this.selectedFileName = f.name;
+                 this.selectedFileSize = (f.size / (1024 * 1024)).toFixed(1) + ' MB';
+                 this.isReady = true;
+                 this.uploadProgress = 100;
+                 // Put into input
+                 const input = document.getElementById('file-input-field');
+                 input.files = files;
+             }
+         },
+         onDrop(e) {
+             this.dragOver = false;
+             this.handleFiles(e.dataTransfer.files);
+         },
+         onFileChange(e) {
+             this.handleFiles(e.target.files);
+         }
+     }">
+
+    <!-- Top Header (Screen 4 Mockup) -->
+    <div class="flex items-center justify-between">
+        <div>
+            <div class="flex items-center space-x-2">
+                <a href="{% url 'files:files_home' slug=workspace.slug %}" class="text-xs font-semibold text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200">
+                    Files /
+                </a>
+                <h1 class="text-xl sm:text-2xl font-black tracking-tight text-slate-900 dark:text-zinc-100">Upload Files</h1>
+            </div>
+            <p class="text-xs sm:text-sm text-slate-500 dark:text-zinc-400 mt-0.5">Upload files or connect cloud assets to {{ workspace.name }}</p>
+        </div>
+
+        <a href="{% url 'files:files_home' slug=workspace.slug %}" class="px-3.5 py-2 text-xs font-semibold rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-700 shadow-sm transition-all">
+            Cancel
+        </a>
+    </div>
+
+    <!-- Mode Selector: Direct Upload vs Save-Space Cloud Link -->
+    <div class="flex items-center space-x-2 border-b border-slate-200 dark:border-zinc-800 pb-3">
+        <button type="button" 
+                @click="uploadMode = 'file'" 
+                :class="{'bg-aether-blue text-white shadow-sm': uploadMode === 'file', 'bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 border border-slate-200 dark:border-zinc-700': uploadMode !== 'file'}"
+                class="px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-2">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+            </svg>
+            <span>Direct File Upload</span>
+        </button>
+
+        <button type="button" 
+                @click="uploadMode = 'link'" 
+                :class="{'bg-indigo-600 text-white shadow-sm': uploadMode === 'link', 'bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 border border-slate-200 dark:border-zinc-700': uploadMode !== 'link'}"
+                class="px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-2">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
+            </svg>
+            <span>Connect Cloud Link (Save Space)</span>
+        </button>
+    </div>
+
+    <!-- Validation Errors -->
+    {% if form.errors %}
+    <div class="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 text-xs text-rose-700 dark:text-rose-300 space-y-1">
+        <p class="font-bold flex items-center space-x-1.5">
+            <svg class="w-4 h-4 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <span>Please correct the errors below:</span>
+        </p>
+        <ul class="list-disc list-inside space-y-0.5 pl-5">
+            {% for field, errors in form.errors.items %}
+                {% for error in errors %}
+                    <li>{{ error }}</li>
+                {% endfor %}
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    <!-- Main Upload Form -->
+    <form method="POST" action="{% url 'files:file_upload' slug=workspace.slug %}" enctype="multipart/form-data" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {% csrf_token %}
+        <input type="hidden" name="upload_type" :value="uploadMode">
+
+        <!-- Left 2 Cols: Dropzone & Upload Progress (Screen 4) -->
+        <div class="lg:col-span-2 space-y-5">
+            
+            <!-- DIRECT FILE DROPZONE -->
+            <div x-show="uploadMode === 'file'" class="space-y-4">
+                <div class="p-8 sm:p-12 rounded-2xl border-2 border-dashed transition-all text-center flex flex-col items-center justify-center space-y-4"
+                     :class="{'border-aether-blue bg-blue-50/50 dark:bg-blue-950/20': dragOver, 'border-slate-300 dark:border-zinc-700 bg-white dark:bg-[#0c1322]': !dragOver}"
+                     @dragover.prevent="dragOver = true"
+                     @dragleave.prevent="dragOver = false"
+                     @drop.prevent="onDrop($event)">
+                    
+                    <div class="w-16 h-16 rounded-2xl bg-blue-50 dark:bg-blue-950/50 text-aether-blue flex items-center justify-center shadow-inner">
+                        <svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                        </svg>
+                    </div>
+
+                    <div class="space-y-1">
+                        <h3 class="text-base font-bold text-slate-900 dark:text-zinc-100">Drag and drop files here</h3>
+                        <p class="text-xs text-slate-500 dark:text-zinc-400">or browse files from your computer</p>
+                    </div>
+
+                    <input type="file" 
+                           id="file-input-field" 
+                           name="file" 
+                           class="hidden" 
+                           @change="onFileChange($event)">
+
+                    <button type="button" 
+                            onclick="document.getElementById('file-input-field').click()"
+                            class="px-5 py-2.5 text-xs font-bold rounded-xl bg-aether-blue hover:bg-blue-600 text-white shadow-md hover:shadow transition-all">
+                        Browse Files
+                    </button>
+
+                    <p class="text-[11px] text-slate-400">
+                        You can upload multiple files at once. Maximum file size: {{ max_size_mb }} MB
+                    </p>
+                </div>
+
+                <!-- Upload Progress Card (Screen 4 Mockup) -->
+                <template x-if="isReady">
+                    <div class="p-4 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200/80 dark:border-zinc-800 shadow-sm space-y-3">
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400">Upload Ready</h4>
+                        <div class="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-zinc-800/40 border border-slate-100 dark:border-zinc-700/50">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950/50 text-aether-blue flex items-center justify-center font-bold text-xs">
+                                    FILE
+                                </div>
+                                <div>
+                                    <p class="text-xs font-bold text-slate-900 dark:text-zinc-100 truncate max-w-xs" x-text="selectedFileName"></p>
+                                    <p class="text-[10px] text-slate-400" x-text="selectedFileSize"></p>
+                                </div>
+                            </div>
+                            <div class="flex items-center space-x-3">
+                                <div class="w-24 sm:w-32 h-1.5 bg-slate-200 dark:bg-zinc-700 rounded-full overflow-hidden">
+                                    <div class="h-full bg-emerald-500 rounded-full" style="width: 100%;"></div>
+                                </div>
+                                <span class="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center space-x-1">
+                                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                                    </svg>
+                                    <span>Ready</span>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </div>
+
+            <!-- CLOUD LINK / SAVE SPACE OPTION -->
+            <div x-show="uploadMode === 'link'" class="p-6 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200/80 dark:border-zinc-800 shadow-sm space-y-4">
+                <div class="flex items-center space-x-3 pb-3 border-b border-slate-100 dark:border-zinc-800">
+                    <div class="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-500 flex items-center justify-center">
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-bold text-slate-900 dark:text-zinc-100">Add External Cloud Link</h3>
+                        <p class="text-xs text-slate-500 dark:text-zinc-400">Connect Figma designs, Google Drive docs, GitHub repos, or Notion notes without using storage quota.</p>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-1.5">Asset URL *</label>
+                    <input type="url" 
+                           name="external_url" 
+                           placeholder="https://www.figma.com/file/... or https://docs.google.com/..."
+                           class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800/60 text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500">
+                </div>
+
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 text-center">
+                    <div class="p-2.5 rounded-xl border border-slate-100 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-800/40 text-[11px] font-semibold text-slate-600 dark:text-zinc-300">
+                        Figma Designs
+                    </div>
+                    <div class="p-2.5 rounded-xl border border-slate-100 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-800/40 text-[11px] font-semibold text-slate-600 dark:text-zinc-300">
+                        Google Drive
+                    </div>
+                    <div class="p-2.5 rounded-xl border border-slate-100 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-800/40 text-[11px] font-semibold text-slate-600 dark:text-zinc-300">
+                        GitHub Repos
+                    </div>
+                    <div class="p-2.5 rounded-xl border border-slate-100 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-800/40 text-[11px] font-semibold text-slate-600 dark:text-zinc-300">
+                        Notion Pages
+                    </div>
+                </div>
+            </div>
+
+            <!-- Supported File Types Box (Screen 4 Mockup) -->
+            <div class="p-5 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200/80 dark:border-zinc-800 shadow-sm space-y-2">
+                <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400">Supported file types</h4>
+                <p class="text-xs text-slate-600 dark:text-zinc-300">
+                    All document, image, video, audio, archive and code files are supported.
+                </p>
+                <div class="pt-2 flex flex-wrap gap-2 text-[10px] font-bold text-slate-500 dark:text-zinc-400">
+                    <span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-zinc-800">PDF</span>
+                    <span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-zinc-800">DOCX</span>
+                    <span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-zinc-800">XLSX</span>
+                    <span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-zinc-800">PPTX</span>
+                    <span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-zinc-800">PNG / JPG</span>
+                    <span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-zinc-800">ZIP</span>
+                    <span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-zinc-800">CODE / MD</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right 1 Col: Metadata & Destination Settings -->
+        <div class="space-y-5">
+            <div class="p-6 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200/80 dark:border-zinc-800 shadow-sm space-y-4">
+                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">File Settings</h3>
+
+                <!-- Title Override -->
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-1.5">Custom Title (Optional)</label>
+                    <input type="text" 
+                           name="name" 
+                           placeholder="Leave empty to use filename" 
+                           class="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800/60 text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-aether-blue/30 focus:border-aether-blue">
+                </div>
+
+                <!-- Destination Folder -->
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-1.5">Destination Folder</label>
+                    <select name="folder" class="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800/60 text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-aether-blue/30 focus:border-aether-blue">
+                        <option value="">Root (No Folder)</option>
+                        {% for f in form.fields.folder.queryset %}
+                        <option value="{{ f.id }}" {% if form.initial.folder and form.initial.folder.id == f.id %}selected{% endif %}>{{ f.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Description -->
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-1.5">Description</label>
+                    <textarea name="description" rows="3" placeholder="Add context for team members..." class="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800/60 text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-aether-blue/30 focus:border-aether-blue resize-none"></textarea>
+                </div>
+
+                <!-- Tags -->
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-1.5">Tags</label>
+                    <input type="text" 
+                           name="tags" 
+                           placeholder="e.g. design, sprint-02, specs" 
+                           class="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800/60 text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-aether-blue/30 focus:border-aether-blue">
+                </div>
+
+                <!-- Submit Button -->
+                <div class="pt-2">
+                    <button type="submit" 
+                            class="w-full py-2.5 text-xs font-bold rounded-xl bg-aether-blue hover:bg-blue-600 text-white shadow-md transition-all flex items-center justify-center space-x-2">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                        </svg>
+                        <span>Save and Add to Workspace</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Storage Info Widget -->
+            <div class="p-5 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200/80 dark:border-zinc-800 shadow-sm space-y-3">
+                <div class="flex items-center justify-between text-xs">
+                    <span class="font-bold text-slate-700 dark:text-zinc-300">Workspace Storage</span>
+                    <span class="text-slate-400">{{ metrics.formatted_used }} / {{ metrics.quota_label }}</span>
+                </div>
+                <div class="w-full h-2 bg-slate-100 dark:bg-zinc-800 rounded-full overflow-hidden">
+                    <div class="h-full bg-aether-blue rounded-full transition-all" style="width: {{ metrics.percentage }}%;"></div>
+                </div>
+                <p class="text-[11px] text-slate-400">
+                    Supabase Cloud Object Storage powers workspace asset storage.
+                </p>
+            </div>
+
+        </div>
+    </form>
+</div>
+{% endblock %}

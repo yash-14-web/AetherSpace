@@ -2918,5 +2918,120 @@ AetherSpace was audited across the entire codebase for every UI view, component,
 npx playwright test tests/e2e/chat/chat_people_search.spec.ts --project=chromium
 ```
 
+---
+
+# 16. PHASE 10 — FILES & WORKSPACE STORAGE
+
+### Implementation Summary
+Implemented Phase 10 — Files according to blueprint specifications and the approved reference designs in `AetherSpace_Designs/Dark File Management Dashboard Mockup.png` (Screens 46–51).
+Provides high-performance, workspace-isolated file management, folder hierarchies, file previews, versioning, secure sharing, activity audit logging, and dual-mode file storage:
+1. **Direct File Upload**: Upload local assets (PDF, DOCX, XLSX, images, ZIP, code) up to 20 MB with SHA-256 checksumming.
+2. **Connect Cloud Link (Zero Storage Mode)**: Link external cloud resources (Figma, Google Drive, GitHub, Notion, Loom, Miro, etc.) to organize project deliverables with **0 bytes** of local/workspace storage consumption, saving valuable storage space.
+
+### Architecture & Components
+1. **App Architecture (`files/`):**
+   - **`Folder` Model:** Self-referential hierarchical folder tree scoped to workspace with unique naming per parent, ancestor path resolution, and favorite starring.
+   - **`StoredFile` Model:** Represents files or external cloud links with category categorization (`PDF`, `DOC`, `XLS`, `PPT`, `ZIP`, `IMG`, `CODE`, `LINK`, `OTHER`), mime types, file size in bytes, SHA-256 checksum, trash/soft-delete lifecycle, and external cloud link provider detection (`FIGMA`, `GOOGLE_DRIVE`, `GITHUB`, `NOTION`, `OTHER_CLOUD`).
+   - **`FileVersion` Model:** Historical revision snapshots tracking changes, sizes, uploaded timestamps, and changelogs.
+   - **`FileShare` Model:** Workspace member sharing permission grants (`VIEW`, `EDIT`) with expiry timestamps.
+   - **`FileComment` Model:** Discussion threads on files for collaborative team feedback.
+   - **`FileActivity` Model:** Immutable audit log tracking file lifecycle events (`UPLOADED`, `EDITED`, `DOWNLOADED`, `SHARED`, `MOVED`, `RENAMED`, `DELETED`, `RESTORED`).
+   - **`services.py`:** Storage and metrics service:
+     - `SupabaseStorageService`: Upload, download, deletion, and signed URLs against Supabase Storage bucket.
+     - `is_supabase_configured`: Gracefully checks `SUPABASE_STORAGE_READY` environment flag and test mode (`'test' in sys.argv`). When bucket setup is pending on Supabase, the system automatically falls back to local Django media storage seamlessly without throwing errors. Once the bucket is created and `SUPABASE_STORAGE_READY=true` is added to `.env`, uploads automatically route to Supabase Storage.
+     - `get_workspace_storage_metrics`: Computes total files, total folders, shared files count, total bytes used, and storage quota percentage.
+     - `detect_file_category`: Categorizes extensions into UI badge types.
+     - `detect_cloud_provider`: Identifies cloud platforms for external links.
+
+2. **User Interface (`templates/files/`):**
+   - **Files Home (`files_home.html` — Screen 46):**
+     - Metric cards: Total Files, Folders, Shared with Me, Storage Used (with responsive storage progress bar).
+     - Quick Access folders grid with folder card icons, file counters, and quick navigation.
+     - Tab bar (All, Recent, Favorites, Shared with Me, Trash) with category filter pills (All, Documents, Spreadsheets, Presentations, Images, Code, Cloud Links).
+     - Search input, view switcher (List vs Grid), and files table with color-coded type badges, folder badges, size chips, modified dates, and kebab action menus.
+   - **Folder View (`folder_view.html` — Screen 47):**
+     - Breadcrumb navigation path (`Files / Root / Subfolder`).
+     - Folder action header with favorite star toggle, folder actions, New Folder button, and Upload button.
+     - Subfolders grid and folder files table with full selection and sorting.
+     - Empty folder illustration and drag-and-drop call-to-action.
+   - **File Details (`file_detail.html` — Screen 48):**
+     - Left Preview card: In-browser PDF embed viewer, responsive image preview, code/text snippet viewer with line numbers, cloud resource launcher card with direct external redirect, and fallback download card for binary executables/archives.
+     - Preview toolbar with Zoom controls, Fullscreen toggle, and Download button.
+     - Secondary tabs: Overview, Activity log timeline, Version history, Comments, and Sharing permissions.
+     - Right metadata sidebar: File info card (Type, Size, Location, Created, Modified, Checksum), description card, tags list, and quick actions (Share, Move, Rename, Delete).
+   - **Upload File (`file_upload.html` — Screen 49):**
+     - Dual-mode tab toggle: **Direct File Upload** vs **Connect Cloud Link (Save Space)**.
+     - Drag-and-drop dropzone with file picker, destination folder selector, title, description, and comma-separated tags.
+     - For Cloud Links: external URL input, auto-detected provider badge, and 0-byte storage notification.
+     - Supported file types visual guide and 20 MB size limit validation banner.
+   - **Recent Files (`recent_files.html` — Screen 50):**
+     - Filter tabs (All Recent, Opened by me, Modified by me).
+     - Chronological activity table with relative access timestamps.
+   - **Shared Files (`shared_files.html` — Screen 51):**
+     - Filter tabs (Shared with me, Shared by me).
+     - Table with owner/sharer avatars, permission level badges (`View`, `Edit`), and share dates.
+   - **Modals (`templates/files/modals/`):**
+     - `share_modal.html`: Strict **Search-First People Selector** (0 users shown when empty query, search prompt displayed, matches returned only on typed query).
+     - `new_folder_modal.html`, `move_modal.html`, `rename_modal.html`.
+
+3. **RBAC & Security:**
+   - Enforced server-side with `@workspace_member_required`.
+   - Contributor: View files, upload files, add cloud links, create folders, share own files, delete own files.
+   - Manager & Admin: Full management and deletion rights across all workspace files and folders.
+   - Cross-workspace file access attempts are blocked with HTTP 403 Forbidden.
+
+### Code Verification
+- Django system check: **PASS** (`python manage.py check` — 0 issues, 0 silenced)
+- Automated test suite: **PASS** (`python manage.py test files --keepdb` — 10 tests passed, OK)
+- Core test suite: **PASS** (`python manage.py test core --keepdb` — 5 tests passed, OK)
+- Migrations: **PASS** (`files.0001_initial` applied successfully)
+- Tailwind CSS build: **PASS** (`npm run build:css` completed in 2445ms)
+
+### Playwright
+- Script created: `tests/e2e/files/files_module.spec.ts`
+- Browser execution: **NOT RUN BY AGENT** (in strict adherence to safety rules)
+- Owner test command:
+  ```bash
+  npx playwright test tests/e2e/files/files_module.spec.ts --project=chromium
+  ```
+
+### Git
+- Branch: `main`
+- Remote: `https://github.com/yash-14-web/AetherSpace.git`
+
+### Owner Manual Verification Instructions
+1. Start the server:
+   ```bash
+   python manage.py runserver
+   ```
+2. Sign in at `http://127.0.0.1:8000/auth/login/`.
+3. Open Files Home:
+   - Click **Files** in the global left rail (or go to `http://127.0.0.1:8000/files/`).
+   - Verify the 4 metric cards (Total Files, Folders, Shared with me, Storage Used).
+   - Verify the Quick Access folders grid, category filter pills, and files table.
+4. Test Direct File Upload:
+   - Click **+ Upload File** in the top right.
+   - On the "Direct File Upload" tab, select or drag-and-drop a file (e.g. PDF or image).
+   - Choose a destination folder and click Upload.
+   - Verify the file appears in the table with its color-coded badge.
+5. Test Cloud Link (Zero Storage Space Mode):
+   - Click **+ Upload File** and select the "Connect Cloud Link" tab.
+   - Paste a link (e.g. `https://www.figma.com/design/...` or `https://github.com/...`).
+   - Notice the provider badge auto-updates to Figma/GitHub and the 0 MB note is displayed.
+   - Click Connect Link and verify it appears in the files table as a Cloud Link item.
+6. Test File Previews & Details:
+   - Click on the uploaded file in the table to open File Details (`/files/w/<slug>/file/<id>/`).
+   - For images or PDFs, verify the embedded preview card.
+   - For cloud links, verify the "Open Resource" external launcher button.
+   - Check the right sidebar with file metadata and tags.
+7. Test File Sharing (Search-First People Picker):
+   - In File Details or the files table, click **Share**.
+   - Verify the sharing modal starts with an empty prompt (ZERO users displayed initially).
+   - Type a query to find a team member and grant "Can View" or "Can Edit".
+8. Test Folders & Navigation:
+   - Click **New Folder** and name it e.g. "Sprint Deliverables".
+   - Click into the folder to verify the breadcrumb path and empty folder view.
+
+
 
 

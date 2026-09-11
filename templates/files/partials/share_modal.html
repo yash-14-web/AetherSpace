@@ -1,0 +1,214 @@
+<!-- File Sharing Modal (Strict Search-First People Selector) -->
+<div x-show="shareModalOpen" 
+     x-cloak
+     class="fixed inset-0 z-50 overflow-y-auto"
+     aria-labelledby="share-modal-title" 
+     role="dialog" 
+     aria-modal="true">
+    
+    <!-- Backdrop -->
+    <div x-show="shareModalOpen"
+         x-transition:enter="ease-out duration-200"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="ease-in duration-150"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         class="fixed inset-0 bg-slate-900/60 dark:bg-black/80 backdrop-blur-sm transition-opacity"
+         @click="shareModalOpen = false"></div>
+
+    <div class="flex min-h-full items-center justify-center p-4 text-center">
+        <div x-show="shareModalOpen"
+             x-transition:enter="ease-out duration-200"
+             x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+             x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100"
+             x-transition:leave="ease-in duration-150"
+             x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100"
+             x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+             class="relative transform overflow-hidden rounded-2xl bg-white dark:bg-[#121824] border border-slate-200 dark:border-zinc-800 text-left shadow-2xl transition-all w-full max-w-lg p-6 space-y-5"
+             x-data="{
+                 searchQuery: '',
+                 searchResults: [],
+                 selectedMember: null,
+                 accessLevel: 'VIEW',
+                 isLoading: false,
+                 hasSearched: false,
+                 searchMembers() {
+                     const q = this.searchQuery.trim();
+                     if (!q) {
+                         this.searchResults = [];
+                         this.hasSearched = false;
+                         return;
+                     }
+                     this.isLoading = true;
+                     this.hasSearched = true;
+                     fetch('{% url 'files:member_search_api' slug=workspace.slug %}?q=' + encodeURIComponent(q))
+                         .then(r => r.json())
+                         .then(data => {
+                             this.searchResults = data.results || [];
+                             this.isLoading = false;
+                         })
+                         .catch(() => {
+                             this.searchResults = [];
+                             this.isLoading = false;
+                         });
+                 },
+                 selectMember(m) {
+                     this.selectedMember = m;
+                     this.searchQuery = '';
+                     this.searchResults = [];
+                     this.hasSearched = false;
+                 },
+                 clearSelected() {
+                     this.selectedMember = null;
+                 }
+             }">
+
+            <!-- Modal Header -->
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-zinc-800/80">
+                <div class="flex items-center space-x-2.5">
+                    <div class="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-950/50 text-aether-blue flex items-center justify-center">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-bold text-slate-900 dark:text-zinc-100" id="share-modal-title">Share File</h3>
+                        <p class="text-xs text-slate-500 dark:text-zinc-400">Share with members of <span class="font-medium text-slate-700 dark:text-zinc-300">{{ workspace.name }}</span></p>
+                    </div>
+                </div>
+                <button type="button" @click="shareModalOpen = false" class="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Share Form -->
+            <form method="POST" :action="'{% url 'files:file_share' slug=workspace.slug file_id=file.id %}'" class="space-y-4">
+                {% csrf_token %}
+                <input type="hidden" name="user_id" :value="selectedMember ? selectedMember.id : ''">
+
+                <!-- People Search Field (Search-First) -->
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-1.5">Add Team Member</label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                            </svg>
+                        </div>
+                        <input type="text"
+                               x-model="searchQuery"
+                               @input.debounce.250ms="searchMembers()"
+                               placeholder="Search member by name or email..."
+                               class="w-full pl-9 pr-3.5 py-2 text-xs rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800/60 text-slate-900 dark:text-zinc-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-aether-blue/30 focus:border-aether-blue">
+                    </div>
+
+                    <!-- Selected Member Pill -->
+                    <template x-if="selectedMember">
+                        <div class="mt-2.5 flex items-center justify-between p-2.5 rounded-xl bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200/60 dark:border-blue-800/40">
+                            <div class="flex items-center space-x-2.5">
+                                <div class="w-7 h-7 rounded-full bg-aether-blue text-white flex items-center justify-center font-bold text-xs" x-text="selectedMember.initials"></div>
+                                <div class="text-left">
+                                    <p class="text-xs font-semibold text-slate-900 dark:text-zinc-100" x-text="selectedMember.full_name"></p>
+                                    <p class="text-[10px] text-slate-500 dark:text-zinc-400" x-text="selectedMember.email"></p>
+                                </div>
+                            </div>
+                            <button type="button" @click="clearSelected()" class="p-1 rounded-lg text-slate-400 hover:text-rose-500">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </template>
+
+                    <!-- Search Results Dropdown (Strict Search-First: empty if no query) -->
+                    <div x-show="hasSearched" class="mt-2 border border-slate-200 dark:border-zinc-800 rounded-xl max-h-48 overflow-y-auto divide-y divide-slate-100 dark:divide-zinc-800/60 bg-white dark:bg-zinc-900 shadow-lg">
+                        <template x-if="isLoading">
+                            <div class="p-3 text-center text-xs text-slate-400">
+                                Searching workspace members...
+                            </div>
+                        </template>
+                        <template x-if="!isLoading && searchResults.length === 0">
+                            <div class="p-3 text-center text-xs text-slate-400">
+                                No workspace members found matching "<span x-text="searchQuery"></span>"
+                            </div>
+                        </template>
+                        <template x-for="m in searchResults" :key="m.id">
+                            <button type="button" 
+                                    @click="selectMember(m)"
+                                    class="w-full flex items-center justify-between p-2.5 hover:bg-slate-50 dark:hover:bg-zinc-800/70 text-left transition-colors">
+                                <div class="flex items-center space-x-2.5">
+                                    <div class="w-6 h-6 rounded-full bg-slate-200 dark:bg-zinc-700 text-slate-700 dark:text-zinc-200 flex items-center justify-center font-bold text-[10px]" x-text="m.initials"></div>
+                                    <div>
+                                        <p class="text-xs font-medium text-slate-900 dark:text-zinc-100" x-text="m.full_name"></p>
+                                        <p class="text-[10px] text-slate-500 dark:text-zinc-400" x-text="m.email"></p>
+                                    </div>
+                                </div>
+                                <span class="text-[10px] font-medium px-2 py-0.5 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400" x-text="m.role"></span>
+                            </button>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Access Level -->
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-1.5">Permission Level</label>
+                    <select name="access_level" x-model="accessLevel" class="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800/60 text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-aether-blue/30 focus:border-aether-blue">
+                        <option value="VIEW">Can View (Download & Preview)</option>
+                        <option value="EDIT">Can Edit (Update, Rename, Version)</option>
+                    </select>
+                </div>
+
+                <!-- Actions -->
+                <div class="flex items-center justify-end space-x-2.5 pt-2">
+                    <button type="button" @click="shareModalOpen = false" class="px-3.5 py-2 text-xs font-medium rounded-xl border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors">
+                        Cancel
+                    </button>
+                    <button type="submit" 
+                            :disabled="!selectedMember"
+                            :class="{'opacity-50 cursor-not-allowed': !selectedMember}"
+                            class="px-4 py-2 text-xs font-semibold rounded-xl bg-aether-blue hover:bg-blue-600 text-white shadow-sm transition-all">
+                        Grant Access
+                    </button>
+                </div>
+            </form>
+
+            <!-- Current Shares List -->
+            {% if shares %}
+            <div class="pt-4 border-t border-slate-100 dark:border-zinc-800/80 space-y-2">
+                <h4 class="text-xs font-bold text-slate-900 dark:text-zinc-200">People with access</h4>
+                <div class="space-y-2 max-h-40 overflow-y-auto pr-1">
+                    {% for s in shares %}
+                    <div class="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-zinc-800/40 border border-slate-100 dark:border-zinc-800">
+                        <div class="flex items-center space-x-2">
+                            <div class="w-6 h-6 rounded-full bg-slate-200 dark:bg-zinc-700 text-slate-700 dark:text-zinc-200 flex items-center justify-center font-bold text-[10px]">
+                                {{ s.shared_with.email|slice:":2"|upper }}
+                            </div>
+                            <div>
+                                <p class="text-xs font-medium text-slate-800 dark:text-zinc-200">{{ s.shared_with.get_full_name|default:s.shared_with.username }}</p>
+                                <p class="text-[10px] text-slate-400">{{ s.shared_with.email }}</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full {% if s.access_level == 'EDIT' %}bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20{% else %}bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20{% endif %}">
+                                {{ s.get_access_level_display }}
+                            </span>
+                            <form method="POST" action="{% url 'files:file_unshare' slug=workspace.slug file_id=file.id share_id=s.id %}">
+                                {% csrf_token %}
+                                <button type="submit" title="Revoke access" class="text-slate-400 hover:text-rose-500 p-1">
+                                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                    </svg>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
