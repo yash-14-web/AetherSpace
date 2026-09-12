@@ -10,6 +10,8 @@ from workspaces.models import (
     InvitationStatus, MembershipStatus
 )
 from files.models import StoredFile
+from tasks.models import Task
+from bugs.models import Bug
 from admin_panel.models import AuditLog, AdminAlert, AlertSeverity, AlertCategory, AuditActionStatus
 from admin_panel.services import StorageSyncService, AuditLogService, SystemHealthService, DataExportService
 
@@ -229,6 +231,43 @@ class AdminUserManagementTests(TestCase):
 
         log = AuditLog.objects.filter(target_id=str(self.target_user.id), action='USER_ROLE_CHANGED').first()
         self.assertIsNotNone(log)
+
+    def test_user_details_view_with_tasks_and_bugs(self):
+        """User details view renders cleanly with memberships, assigned tasks, and bugs."""
+        workspace = Workspace.objects.create(
+            name='User Inspection WS',
+            slug='user-inspection-ws',
+            owner=self.admin,
+            status=WorkspaceStatus.ACTIVE
+        )
+        WorkspaceMembership.objects.create(
+            workspace=workspace,
+            user=self.target_user,
+            role=WorkspaceRole.CONTRIBUTOR,
+            status=MembershipStatus.ACTIVE,
+            functional_role='QA Engineer'
+        )
+        Task.objects.create(
+            workspace=workspace,
+            title='Test Assigned Task',
+            task_code='987654',
+            assignee=self.target_user,
+            reporter=self.admin
+        )
+        Bug.objects.create(
+            workspace=workspace,
+            title='Test Reported Bug',
+            bug_code='B-123456',
+            reporter=self.target_user
+        )
+
+        url = reverse('admin_panel:user_details', kwargs={'user_id': self.target_user.id})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Test Assigned Task')
+        self.assertContains(response, '987654')
+        self.assertContains(response, 'B-123456')
+        self.assertContains(response, 'QA Engineer')
 
 
 class AdminWorkspaceAndRequestsTests(TestCase):

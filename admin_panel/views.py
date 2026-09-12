@@ -105,7 +105,7 @@ def user_details(request, user_id):
         user=target_user
     ).select_related('workspace', 'reporting_to', 'reporting_to__user')
 
-    assigned_tasks = Task.objects.filter(assignees=target_user).select_related('workspace').order_by('-updated_at')[:8]
+    assigned_tasks = Task.objects.filter(assignee=target_user).select_related('workspace').order_by('-updated_at')[:8]
     reported_bugs = Bug.objects.filter(reporter=target_user).select_related('workspace').order_by('-created_at')[:8]
     user_audits = AuditLog.objects.filter(
         Q(actor=target_user) | Q(target_type='User', target_id=str(target_user.id))

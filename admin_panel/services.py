@@ -533,7 +533,7 @@ class DataExportService:
         for t in Task.objects.all()[:500]:
             export_data['tasks'].append({
                 'id': str(t.id),
-                'task_number': t.task_number,
+                'task_code': getattr(t, 'task_code', getattr(t, 'task_number', '')),
                 'title': t.title,
                 'status': t.status,
                 'priority': t.priority,
