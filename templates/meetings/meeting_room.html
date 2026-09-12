@@ -515,6 +515,12 @@ function nativeMeetingRoomState() {
 
             // Auto-leave on window unload
             window.addEventListener('beforeunload', () => {
+                if (this.localStream) {
+                    this.localStream.getTracks().forEach(t => t.stop());
+                }
+                if (this.screenStream) {
+                    this.screenStream.getTracks().forEach(t => t.stop());
+                }
                 this.sendLeaveBeacon();
             });
         },
@@ -548,12 +554,45 @@ function nativeMeetingRoomState() {
             }
         },
 
-        toggleCamera() {
-            this.isCameraOn = !this.isCameraOn;
-            if (this.localStream) {
-                this.localStream.getVideoTracks().forEach(track => {
-                    track.enabled = this.isCameraOn;
-                });
+        async toggleCamera() {
+            if (this.isCameraOn) {
+                // Turning Camera OFF:
+                // We MUST call track.stop() so the browser releases the webcam hardware
+                // and turns off the physical green LED indicator light.
+                if (this.localStream) {
+                    this.localStream.getVideoTracks().forEach(track => {
+                        track.stop();
+                        this.localStream.removeTrack(track);
+                    });
+                }
+                const videoEl = document.getElementById('local-video');
+                if (videoEl && this.localStream) {
+                    videoEl.srcObject = this.localStream;
+                }
+                this.isCameraOn = false;
+            } else {
+                // Turning Camera ON:
+                // Re-request video stream from hardware
+                try {
+                    const videoStream = await navigator.mediaDevices.getUserMedia({ video: true });
+                    const videoTrack = videoStream.getVideoTracks()[0];
+                    if (videoTrack) {
+                        if (this.localStream) {
+                            this.localStream.addTrack(videoTrack);
+                        } else {
+                            this.localStream = videoStream;
+                        }
+                        const videoEl = document.getElementById('local-video');
+                        if (videoEl) {
+                            videoEl.srcObject = this.localStream;
+                        }
+                        this.isCameraOn = true;
+                    }
+                } catch (err) {
+                    console.warn("Could not re-acquire webcam device:", err);
+                    alert("Could not access camera. Please check device permissions.");
+                    this.isCameraOn = false;
+                }
             }
         },
 
