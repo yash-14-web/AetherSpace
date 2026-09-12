@@ -66,6 +66,18 @@ class WorkspaceCreateForm(forms.ModelForm):
 
 
 class WorkspaceUpdateForm(forms.ModelForm):
+    storage_quota_mb = forms.IntegerField(
+        required=False,
+        min_value=5,
+        max_value=102400,
+        widget=forms.NumberInput(attrs={
+            'class': INPUT_CLASSES,
+            'min': 5,
+            'max': 102400,
+            'placeholder': '50',
+        })
+    )
+
     class Meta:
         model = Workspace
         fields = ['name', 'description', 'status', 'max_seats', 'storage_quota_mb']
@@ -86,19 +98,17 @@ class WorkspaceUpdateForm(forms.ModelForm):
                 'min': 1,
                 'max': 500,
             }),
-            'storage_quota_mb': forms.NumberInput(attrs={
-                'class': INPUT_CLASSES,
-                'min': 5,
-                'max': 102400,
-                'placeholder': '50',
-            }),
         }
 
     def clean_storage_quota_mb(self):
         quota = self.cleaned_data.get('storage_quota_mb')
         if quota is not None and quota < 5:
             raise ValidationError("Storage quota must be at least 5 MB.")
-        return quota or 50
+        if not quota:
+            if self.instance and self.instance.pk:
+                return self.instance.storage_quota_mb or 50
+            return 50
+        return quota
 
     def clean_max_seats(self):
         seats = self.cleaned_data.get('max_seats')
@@ -113,6 +123,38 @@ class WorkspaceUpdateForm(forms.ModelForm):
                         "Deactivate or remove members before reducing seats below this number."
                     )
         return seats
+
+
+ROLE_TAG_CHOICES = [
+    ('', '— No Tag —'),
+    ('Frontend', 'Frontend'),
+    ('Backend', 'Backend'),
+    ('Full Stack', 'Full Stack'),
+    ('Support', 'Support'),
+    ('Design', 'UI / UX Design'),
+    ('DevOps', 'DevOps & Infra'),
+    ('QA', 'QA & Testing'),
+    ('Product', 'Product Management'),
+    ('Management', 'Leadership & Management'),
+    ('Other', 'Other'),
+]
+
+COMMON_FUNCTIONAL_ROLES = [
+    'Frontend Developer',
+    'Backend Developer',
+    'Full Stack Developer',
+    'UI/UX Designer',
+    'DevOps Engineer',
+    'QA / Test Engineer',
+    'Support Engineer',
+    'Technical Support Specialist',
+    'Product Manager',
+    'Project Manager',
+    'Data Engineer',
+    'Mobile Developer',
+    'Engineering Lead',
+    'System Administrator',
+]
 
 
 class WorkspaceInviteForm(forms.Form):
@@ -131,6 +173,22 @@ class WorkspaceInviteForm(forms.Form):
             'class': INPUT_CLASSES,
         })
     )
+    functional_role = forms.CharField(
+        required=False,
+        max_length=100,
+        widget=forms.TextInput(attrs={
+            'placeholder': 'e.g. Frontend Developer, Backend, Support...',
+            'class': INPUT_CLASSES,
+            'list': 'functional-role-options',
+        })
+    )
+    role_tag = forms.ChoiceField(
+        choices=ROLE_TAG_CHOICES,
+        required=False,
+        widget=forms.Select(attrs={
+            'class': INPUT_CLASSES,
+        })
+    )
 
     def clean_email(self):
         return self.cleaned_data['email'].lower().strip()
@@ -143,10 +201,47 @@ class WorkspaceMemberRoleForm(forms.Form):
             'class': 'w-full px-2.5 py-1 text-xs rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-aether-blue',
         })
     )
+    functional_role = forms.CharField(
+        required=False,
+        max_length=100,
+        widget=forms.TextInput(attrs={
+            'placeholder': 'e.g. Frontend Developer, Backend, Support...',
+            'class': 'w-full px-2.5 py-1 text-xs rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-aether-blue',
+            'list': 'functional-role-options',
+        })
+    )
+    role_tag = forms.ChoiceField(
+        choices=ROLE_TAG_CHOICES,
+        required=False,
+        widget=forms.Select(attrs={
+            'class': 'w-full px-2.5 py-1 text-xs rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-aether-blue',
+        })
+    )
+    reporting_to = forms.ModelChoiceField(
+        queryset=WorkspaceMembership.objects.none(),
+        required=False,
+        empty_label="— Default (Workspace Owner / Lead Admin) —",
+        widget=forms.Select(attrs={
+            'class': 'w-full px-2.5 py-1 text-xs rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-aether-blue',
+        })
+    )
 
     def __init__(self, *args, member=None, **kwargs):
         self.member = member
         super().__init__(*args, **kwargs)
+        if member:
+            self.fields['role'].initial = member.role
+            self.fields['functional_role'].initial = member.functional_role
+            self.fields['role_tag'].initial = member.role_tag
+            self.fields['reporting_to'].initial = member.reporting_to
+            self.fields['reporting_to'].queryset = WorkspaceMembership.objects.filter(
+                workspace=member.workspace,
+                status=MembershipStatus.ACTIVE
+            ).exclude(pk=member.pk).select_related('user')
+            self.fields['reporting_to'].label_from_instance = lambda obj: (
+                f"{obj.user.full_name or obj.user.email} ({obj.get_role_display()}" +
+                (f" — {obj.functional_role}" if obj.functional_role else "") + ")"
+            )
 
     def clean_role(self):
         new_role = self.cleaned_data['role']
@@ -160,6 +255,19 @@ class WorkspaceMemberRoleForm(forms.Form):
             if admin_count <= 1:
                 raise ValidationError("Cannot demote the only administrator in this workspace.")
         return new_role
+
+    def clean_reporting_to(self):
+        rep = self.cleaned_data.get('reporting_to')
+        if rep and self.member:
+            if rep.pk == self.member.pk:
+                raise ValidationError("A member cannot report to themselves.")
+            if rep.reporting_to_id == self.member.pk:
+                raise ValidationError(f"Circular reporting: {rep.user.full_name or rep.user.email} already reports to this member.")
+        return rep
+
+
+WorkspaceMemberUpdateForm = WorkspaceMemberRoleForm
+
 
 
 class WorkspaceAccessRequestForm(forms.Form):

@@ -321,4 +321,88 @@ class WorkspaceRBACAndIsolationTest(TestCase):
         self.assertEqual(response_correct.status_code, 302)
         self.assertFalse(Workspace.objects.filter(id=self.workspace1.id).exists())
 
+    def test_admin_can_update_member_functional_role_and_reporting_to(self):
+        """Only workspace admin can assign functional role, role tag, and reporting manager."""
+        self.client.login(email=self.admin_user.email, password=self.password)
+        update_url = reverse('workspaces:update_member_role', kwargs={
+            'slug': self.workspace1.slug,
+            'member_id': self.membership_contributor.id
+        })
+
+        response = self.client.post(update_url, {
+            'role': WorkspaceRole.CONTRIBUTOR,
+            'functional_role': 'Frontend Developer',
+            'role_tag': 'Frontend',
+            'reporting_to': str(self.membership_manager.id),
+        })
+        self.assertEqual(response.status_code, 302)
+        self.membership_contributor.refresh_from_db()
+        self.assertEqual(self.membership_contributor.functional_role, 'Frontend Developer')
+        self.assertEqual(self.membership_contributor.role_tag, 'Frontend')
+        self.assertEqual(self.membership_contributor.reporting_to, self.membership_manager)
+        self.assertEqual(self.membership_contributor.effective_reporting_to, self.membership_manager)
+        self.assertEqual(self.membership_manager.direct_reports_count, 1)
+
+    def test_non_admin_cannot_update_member_roles_or_hierarchy(self):
+        """Managers or contributors cannot alter member roles, functional roles, or reporting hierarchy."""
+        self.client.login(email=self.manager_user.email, password=self.password)
+        update_url = reverse('workspaces:update_member_role', kwargs={
+            'slug': self.workspace1.slug,
+            'member_id': self.membership_contributor.id
+        })
+
+        response = self.client.post(update_url, {
+            'role': WorkspaceRole.MANAGER,
+            'functional_role': 'Backend Lead',
+            'role_tag': 'Backend',
+        })
+        # Should be denied (workspace_admin_required decorator returns 403)
+        self.assertEqual(response.status_code, 403)
+        self.membership_contributor.refresh_from_db()
+        self.assertEqual(self.membership_contributor.role, WorkspaceRole.CONTRIBUTOR)
+        self.assertNotEqual(self.membership_contributor.functional_role, 'Backend Lead')
+
+    def test_effective_reporting_to_defaults_to_owner(self):
+        """If reporting_to is unset, effective_reporting_to defaults to workspace owner."""
+        self.membership_contributor.reporting_to = None
+        self.membership_contributor.save()
+
+        # Contributor defaults to owner (Alice Admin)
+        self.assertEqual(self.membership_contributor.effective_reporting_to, self.membership_admin)
+
+        # The owner/admin themselves does not report to anyone
+        self.assertIsNone(self.membership_admin.effective_reporting_to)
+
+    def test_prevent_self_reporting_and_circular_reporting(self):
+        """A member cannot report to themselves, and circular reporting is rejected by the form."""
+        from workspaces.forms import WorkspaceMemberRoleForm
+
+        # Self-reporting test
+        form_self = WorkspaceMemberRoleForm(
+            member=self.membership_manager,
+            data={
+                'role': WorkspaceRole.MANAGER,
+                'functional_role': 'Manager',
+                'reporting_to': str(self.membership_manager.id),
+            }
+        )
+        self.assertFalse(form_self.is_valid())
+        self.assertIn('reporting_to', form_self.errors)
+
+        # Circular reporting: set Manager reports to Contributor, then try to have Contributor report to Manager
+        self.membership_manager.reporting_to = self.membership_contributor
+        self.membership_manager.save()
+
+        form_cycle = WorkspaceMemberRoleForm(
+            member=self.membership_contributor,
+            data={
+                'role': WorkspaceRole.CONTRIBUTOR,
+                'functional_role': 'Developer',
+                'reporting_to': str(self.membership_manager.id),
+            }
+        )
+        self.assertFalse(form_cycle.is_valid())
+        self.assertIn('reporting_to', form_cycle.errors)
+
+
 

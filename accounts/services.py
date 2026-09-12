@@ -99,6 +99,11 @@ def get_user_profile_metrics(user):
     file_act_count = FileActivity.objects.filter(actor=user).count()
     total_activities_count = task_act_count + bug_act_count + file_act_count
 
+    primary_membership = WorkspaceMembership.objects.filter(
+        user=user,
+        status='ACTIVE'
+    ).select_related('workspace', 'reporting_to', 'reporting_to__user').first()
+
     return {
         'total_assigned_tasks': assigned_tasks.count(),
         'active_tasks_count': active_tasks_count,
@@ -108,6 +113,7 @@ def get_user_profile_metrics(user):
         'reported_bugs_count': reported_bugs_count,
         'workspaces_count': workspaces_count,
         'activities_count': total_activities_count,
+        'primary_membership': primary_membership,
     }
 
 
@@ -243,11 +249,12 @@ def get_user_activities(user, category='ALL', limit=50):
 
 def get_user_workspace_roles(user):
     """
-    Retrieve all workspace memberships with role information.
+    Retrieve all workspace memberships with role information,
+    functional role designations, and reporting hierarchy.
     """
     memberships = WorkspaceMembership.objects.filter(
         user=user
-    ).select_related('workspace', 'workspace__owner').order_by('-joined_at')
+    ).select_related('workspace', 'workspace__owner', 'reporting_to', 'reporting_to__user').order_by('-joined_at')
 
     roles_data = []
     for m in memberships:
@@ -258,8 +265,12 @@ def get_user_workspace_roles(user):
             'workspace_slug': m.workspace.slug,
             'role': m.role,
             'role_display': m.get_role_display(),
+            'functional_role': m.functional_role,
+            'role_tag': m.role_tag,
+            'reporting_to': m.effective_reporting_to,
+            'direct_reports_count': m.direct_reports_count,
             'status': m.status,
-            'is_owner': m.workspace.owner == user,
+            'is_owner': m.workspace.owner_id == user.id,
             'joined_at': m.joined_at,
             'is_admin': m.role == WorkspaceRole.ADMIN,
             'is_manager': m.role == WorkspaceRole.MANAGER,

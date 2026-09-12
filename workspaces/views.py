@@ -23,7 +23,9 @@ from .forms import (
     WorkspaceInviteForm,
     WorkspaceMemberRoleForm,
     WorkspaceAccessRequestForm,
-    WorkspaceModuleForm
+    WorkspaceModuleForm,
+    ROLE_TAG_CHOICES,
+    COMMON_FUNCTIONAL_ROLES
 )
 from tasks.models import Task, TaskStatus
 
@@ -204,7 +206,22 @@ def workspace_team(request, slug):
     members = WorkspaceMembership.objects.filter(
         workspace=workspace,
         status=MembershipStatus.ACTIVE
-    ).select_related('user', 'user__profile').order_by('-role', 'joined_at')
+    ).select_related('user', 'user__profile', 'reporting_to', 'reporting_to__user').order_by('-role', 'joined_at')
+
+    # Build hierarchy tree for visual organization chart
+    children_map = {str(m.id): [] for m in members}
+    root_members = []
+    member_dict = {str(m.id): m for m in members}
+
+    for m in members:
+        mgr = m.effective_reporting_to
+        if mgr and str(mgr.id) in member_dict and str(mgr.id) != str(m.id):
+            children_map[str(mgr.id)].append(m)
+        else:
+            root_members.append(m)
+
+    for m in members:
+        m.hierarchy_reports = children_map.get(str(m.id), [])
 
     invitations = []
     invite_form = None
@@ -227,10 +244,13 @@ def workspace_team(request, slug):
         'workspace': workspace,
         'membership': membership,
         'members': members,
+        'root_members': root_members,
         'invitations': invitations,
         'invite_form': invite_form,
         'access_requests': access_requests,
         'roles': WorkspaceRole.choices,
+        'role_tags': ROLE_TAG_CHOICES,
+        'common_functional_roles': COMMON_FUNCTIONAL_ROLES,
     }
     return render(request, 'workspaces/team.html', context)
 
@@ -331,8 +351,9 @@ def accept_invitation(request, token):
 @workspace_admin_required
 def update_member_role(request, slug, member_id):
     """
-    Update a member's role (Admin, Manager, Contributor).
-    Guarded against demoting the sole administrator.
+    Update a member's role (Admin, Manager, Contributor), functional designation,
+    role tag, and reporting line. Guarded against demoting the sole administrator.
+    Only Workspace Admins can decide reporting person and roles.
     """
     workspace = request.workspace
     member = get_object_or_404(WorkspaceMembership, id=member_id, workspace=workspace)
@@ -340,12 +361,14 @@ def update_member_role(request, slug, member_id):
     if request.method == 'POST':
         form = WorkspaceMemberRoleForm(request.POST, member=member)
         if form.is_valid():
-            new_role = form.cleaned_data['role']
-            member.role = new_role
-            member.save(update_fields=['role'])
+            member.role = form.cleaned_data['role']
+            member.functional_role = form.cleaned_data.get('functional_role', '').strip()
+            member.role_tag = form.cleaned_data.get('role_tag', '').strip()
+            member.reporting_to = form.cleaned_data.get('reporting_to')
+            member.save(update_fields=['role', 'functional_role', 'role_tag', 'reporting_to'])
             messages.success(
                 request,
-                f"Updated {member.user.full_name or member.user.email}'s role to {member.get_role_display()}."
+                f"Updated {member.user.full_name or member.user.email}'s role & reporting line successfully."
             )
         else:
             for error in form.errors.values():

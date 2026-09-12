@@ -173,6 +173,26 @@ class WorkspaceMembership(models.Model):
         choices=MembershipStatus.choices,
         default=MembershipStatus.ACTIVE
     )
+    functional_role = models.CharField(
+        max_length=100,
+        blank=True,
+        default='',
+        help_text="Functional designation/job title, e.g. Frontend Developer, Backend Developer, Support Engineer"
+    )
+    role_tag = models.CharField(
+        max_length=50,
+        blank=True,
+        default='',
+        help_text="Role domain tag, e.g. Frontend, Backend, Support, Design, DevOps, QA, Product"
+    )
+    reporting_to = models.ForeignKey(
+        'self',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='direct_reports',
+        help_text="The person this member reports to within the workspace (defaults to Workspace Owner / Admin)."
+    )
     joined_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -207,6 +227,32 @@ class WorkspaceMembership(models.Model):
     def can_manage_content(self):
         """Admins and Managers can orchestrate workspace tasks, bugs, and schedules."""
         return self.role in [WorkspaceRole.ADMIN, WorkspaceRole.MANAGER]
+
+    @property
+    def effective_reporting_to(self):
+        """
+        Returns the assigned reporting member, or defaults to the workspace owner/lead admin
+        if this member is not the owner themselves.
+        """
+        if self.reporting_to_id:
+            return self.reporting_to
+        if self.user_id == self.workspace.owner_id:
+            return None
+        owner_membership = self.workspace.memberships.filter(
+            user=self.workspace.owner,
+            status=MembershipStatus.ACTIVE
+        ).first()
+        if owner_membership and owner_membership.pk != self.pk:
+            return owner_membership
+        admin_membership = self.workspace.memberships.filter(
+            role=WorkspaceRole.ADMIN,
+            status=MembershipStatus.ACTIVE
+        ).exclude(pk=self.pk).first()
+        return admin_membership
+
+    @property
+    def direct_reports_count(self):
+        return self.direct_reports.filter(status=MembershipStatus.ACTIVE).count()
 
 
 class WorkspaceInvitation(models.Model):

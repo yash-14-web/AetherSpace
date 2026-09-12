@@ -58,7 +58,23 @@
                             </p>
                         </div>
 
-                        <div class="mt-3 pt-3 border-t border-slate-100 dark:border-zinc-800/80 text-[11px] text-slate-500 dark:text-zinc-400 space-y-1">
+                        <!-- Functional Role & Role Tag -->
+                        {% if item.functional_role or item.role_tag %}
+                            <div class="mt-2.5 flex items-center flex-wrap gap-1.5">
+                                {% if item.functional_role %}
+                                    <span class="px-2 py-0.5 text-[10px] font-semibold rounded-md bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-900/50">
+                                        {{ item.functional_role }}
+                                    </span>
+                                {% endif %}
+                                {% if item.role_tag %}
+                                    <span class="px-1.5 py-0.5 text-[10px] font-bold rounded-md bg-cyan-50 dark:bg-cyan-950/60 text-cyan-700 dark:text-cyan-300 border border-cyan-200 dark:border-cyan-900/50">
+                                        {{ item.role_tag }}
+                                    </span>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+
+                        <div class="mt-3 pt-3 border-t border-slate-100 dark:border-zinc-800/80 text-[11px] text-slate-500 dark:text-zinc-400 space-y-1.5">
                             <div class="flex justify-between">
                                 <span>Status:</span>
                                 <span class="font-semibold text-emerald-600 dark:text-emerald-400 capitalize">{{ item.status|lower }}</span>
@@ -67,6 +83,14 @@
                                 <span>Joined:</span>
                                 <span class="font-medium text-slate-700 dark:text-zinc-300">{{ item.joined_at|date:"M d, Y" }}</span>
                             </div>
+                            {% if item.reporting_to %}
+                                <div class="flex justify-between items-center pt-0.5">
+                                    <span>Reports to:</span>
+                                    <span class="font-semibold text-blue-600 dark:text-blue-400">
+                                        {{ item.reporting_to.user.full_name|default:item.reporting_to.user.email }}
+                                    </span>
+                                </div>
+                            {% endif %}
                         </div>
                     </div>
 
