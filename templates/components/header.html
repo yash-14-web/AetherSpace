@@ -254,6 +254,9 @@
                         <a href="{% url 'core:profile' %}" class="block px-4 py-2 text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800/60 font-medium">
                             My Profile
                         </a>
+                        <a href="{% url 'user_settings:index' %}" class="block px-4 py-2 text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800/60 font-medium">
+                            Settings
+                        </a>
                         <a href="{% url 'workspaces:master_dashboard' %}" class="block px-4 py-2 text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800/60 font-medium">
                             My Workspaces
                         </a>
@@ -297,6 +300,33 @@
 
     <!-- Universal Search Modal (Cmd+K / Ctrl+K) -->
     <div x-show="searchModalOpen" 
+         x-data="{
+             searchQuery: '',
+             searchResults: [],
+             searchLoading: false,
+             searchTimeout: null,
+             onInput() {
+                 clearTimeout(this.searchTimeout);
+                 const q = this.searchQuery.trim();
+                 if (!q) {
+                     this.searchResults = [];
+                     this.searchLoading = false;
+                     return;
+                 }
+                 this.searchLoading = true;
+                 this.searchTimeout = setTimeout(() => {
+                     fetch('{% url 'core:global_search_api' %}?q=' + encodeURIComponent(q))
+                         .then(r => r.json())
+                         .then(d => {
+                             this.searchResults = d.results || [];
+                             this.searchLoading = false;
+                         })
+                         .catch(() => {
+                             this.searchLoading = false;
+                         });
+                 }, 200);
+             }
+         }"
          x-transition:enter="transition ease-out duration-150" 
          x-transition:enter-start="opacity-0" 
          x-transition:enter-end="opacity-100" 
@@ -305,24 +335,92 @@
          x-transition:leave-end="opacity-0" 
          class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-start justify-center p-4 sm:pt-20"
          style="display: none;"
-         @keydown.escape.window="searchModalOpen = false">
+         @keydown.escape.window="searchModalOpen = false; searchQuery = ''; searchResults = [];">
         
-        <div @click.outside="searchModalOpen = false" 
+        <div @click.outside="searchModalOpen = false; searchQuery = ''; searchResults = [];" 
              class="aether-card max-w-xl w-full p-4 space-y-4 shadow-2xl border border-slate-200 dark:border-zinc-800">
             
             <div class="relative flex items-center">
                 <svg class="h-4 w-4 text-slate-400 absolute left-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                 </svg>
-                <input type="text" placeholder="Type a task (#619347), bug (B-...), or workspace..." 
-                       class="w-full pl-9 pr-8 py-2.5 text-sm bg-slate-50 dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 rounded-lg text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-aether-blue"
+                <input type="text" 
+                       x-model="searchQuery" 
+                       @input="onInput()" 
+                       placeholder="Type a task ID (#619347), bug (B-882316), or workspace..." 
+                       class="w-full pl-9 pr-16 py-2.5 text-sm bg-slate-50 dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 rounded-lg text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-aether-blue"
                        autofocus>
-                <button type="button" @click="searchModalOpen = false" class="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 absolute right-3">
-                    <kbd class="text-[10px] font-mono px-1 py-0.5 rounded bg-slate-200 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400">ESC</kbd>
-                </button>
+                <div class="absolute right-3 flex items-center space-x-1.5">
+                    <template x-if="searchLoading">
+                        <svg class="animate-spin h-3.5 w-3.5 text-purple-600 dark:text-purple-400" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                    </template>
+                    <button type="button" @click="searchModalOpen = false; searchQuery = ''; searchResults = [];" class="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200">
+                        <kbd class="text-[10px] font-mono px-1 py-0.5 rounded bg-slate-200 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400">ESC</kbd>
+                    </button>
+                </div>
             </div>
 
-            <div class="space-y-2 text-xs">
+            <!-- Live Search Results -->
+            <div x-show="searchQuery.trim().length > 0" class="space-y-2 text-xs">
+                <div class="flex items-center justify-between px-1">
+                    <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500">
+                        Search Results (<span x-text="searchResults.length"></span>)
+                    </span>
+                    <span class="text-[10px] text-slate-400" x-text="searchLoading ? 'Searching...' : 'Press to navigate'"></span>
+                </div>
+
+                <div class="divide-y divide-slate-100 dark:divide-zinc-800/80 max-h-80 overflow-y-auto">
+                    <template x-for="item in searchResults" :key="item.type + '-' + item.id">
+                        <a :href="item.url" @click="searchModalOpen = false" class="flex items-center justify-between p-2.5 rounded-lg hover:bg-slate-50 dark:hover:bg-zinc-800/60 transition-colors group">
+                            <div class="flex items-center space-x-2.5 min-w-0 mr-3">
+                                <!-- Type Pill / Icon -->
+                                <template x-if="item.type === 'task'">
+                                    <span class="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-300 shrink-0" x-text="item.code"></span>
+                                </template>
+                                <template x-if="item.type === 'bug'">
+                                    <span class="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-300 shrink-0" x-text="item.code"></span>
+                                </template>
+                                <template x-if="item.type === 'workspace'">
+                                    <span class="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-300 shrink-0">WS</span>
+                                </template>
+                                <template x-if="item.type === 'file'">
+                                    <span class="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-300 shrink-0">FILE</span>
+                                </template>
+
+                                <div class="truncate">
+                                    <p class="font-medium text-slate-900 dark:text-zinc-100 group-hover:text-purple-600 dark:group-hover:text-purple-400 truncate" x-text="item.title"></p>
+                                    <p class="text-[10px] text-slate-400 dark:text-zinc-500 truncate" x-text="item.workspace"></p>
+                                </div>
+                            </div>
+
+                            <div class="flex items-center space-x-1.5 shrink-0 text-[10px]">
+                                <template x-if="item.status">
+                                    <span class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 font-medium" x-text="item.status"></span>
+                                </template>
+                                <template x-if="item.priority">
+                                    <span class="px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-300 font-medium" x-text="item.priority"></span>
+                                </template>
+                                <template x-if="item.severity">
+                                    <span class="px-1.5 py-0.5 rounded bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-300 font-medium" x-text="item.severity"></span>
+                                </template>
+                            </div>
+                        </a>
+                    </template>
+
+                    <template x-if="!searchLoading && searchResults.length === 0">
+                        <div class="py-8 text-center text-slate-400 dark:text-zinc-500 space-y-1">
+                            <p class="font-medium">No matching items found</p>
+                            <p class="text-[11px] text-slate-400">Search by 6-digit Task ID (#619347), Bug ID (B-882316), or keywords.</p>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <!-- Quick Navigation when search is empty -->
+            <div x-show="searchQuery.trim().length === 0" class="space-y-2 text-xs">
                 <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500 block px-1">Quick Navigation</span>
                 <div class="divide-y divide-slate-100 dark:divide-zinc-800/80">
                     <a href="{% url 'workspaces:master_dashboard' %}" @click="searchModalOpen = false" class="flex items-center justify-between p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-zinc-800/60 transition-colors">

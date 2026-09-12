@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ page_title|default:"Settings" }} — AetherSpace{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto space-y-6 pb-16">
+
+    <!-- Top Settings Header Bar -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200/80 dark:border-zinc-800 pb-4">
+        <div>
+            <!-- Breadcrumbs -->
+            <div class="flex items-center text-xs text-slate-500 dark:text-zinc-400 space-x-2">
+                <a href="{% url 'workspaces:master_dashboard' %}" class="hover:text-aether-blue transition-colors">AetherSpace</a>
+                <span>/</span>
+                <span class="text-slate-900 dark:text-zinc-100 font-semibold">Settings</span>
+                {% if active_tab %}
+                    <span>/</span>
+                    <span class="text-aether-blue dark:text-blue-400 font-bold capitalize">{{ active_tab }}</span>
+                {% endif %}
+            </div>
+            <h1 class="text-xl sm:text-2xl font-bold text-slate-900 dark:text-zinc-50 tracking-tight mt-1">
+                {{ page_title|default:"Settings & Preferences" }}
+            </h1>
+            <p class="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
+                Manage your profile, system appearance, notifications, security credentials, and workspace configuration.
+            </p>
+        </div>
+
+        <!-- Quick Status / Role Pill -->
+        <div class="flex items-center space-x-2">
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 dark:bg-zinc-800/80 text-slate-700 dark:text-zinc-300 border border-slate-200 dark:border-zinc-700">
+                <span class="w-2 h-2 rounded-full bg-emerald-500 mr-1.5"></span>
+                {{ user.get_role_display|default:"User" }}
+            </span>
+        </div>
+    </div>
+
+    <!-- Settings Navigation Tabs (Desktop & Mobile Scrollable) -->
+    <div class="border-b border-slate-200 dark:border-zinc-800/80 -mb-2">
+        <nav class="flex space-x-2 sm:space-x-4 overflow-x-auto pb-2 scrollbar-none" aria-label="Settings Tabs">
+            <!-- 1. Account -->
+            <a href="{% url 'user_settings:account' %}" 
+               class="px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center space-x-1.5 {% if active_tab == 'account' %}bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-300 border border-purple-200 dark:border-purple-800/60 shadow-sm{% else %}text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800/50{% endif %}">
+                <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                </svg>
+                <span>Account</span>
+            </a>
+
+            <!-- 2. Profile -->
+            <a href="{% url 'user_settings:profile' %}" 
+               class="px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center space-x-1.5 {% if active_tab == 'profile' %}bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-300 border border-purple-200 dark:border-purple-800/60 shadow-sm{% else %}text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800/50{% endif %}">
+                <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                <span>Profile</span>
+            </a>
+
+            <!-- 3. Appearance -->
+            <a href="{% url 'user_settings:appearance' %}" 
+               class="px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center space-x-1.5 {% if active_tab == 'appearance' %}bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-300 border border-purple-200 dark:border-purple-800/60 shadow-sm{% else %}text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800/50{% endif %}">
+                <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4 4 4 0 014-4c.38 0 .74.05 1.09.15A5.992 5.992 0 0113 7a6 6 0 016 6v1a3 3 0 01-3 3H7zm11-14a2 2 0 11-4 0 2 2 0 014 0z"/>
+                </svg>
+                <span>Appearance</span>
+            </a>
+
+            <!-- 4. Notifications -->
+            <a href="{% url 'user_settings:notifications' %}" 
+               class="px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center space-x-1.5 {% if active_tab == 'notifications' %}bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-300 border border-purple-200 dark:border-purple-800/60 shadow-sm{% else %}text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800/50{% endif %}">
+                <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                </svg>
+                <span>Notifications</span>
+            </a>
+
+            <!-- 5. Security -->
+            <a href="{% url 'user_settings:security' %}" 
+               class="px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center space-x-1.5 {% if active_tab == 'security' %}bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-300 border border-purple-200 dark:border-purple-800/60 shadow-sm{% else %}text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800/50{% endif %}">
+                <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                </svg>
+                <span>Security</span>
+            </a>
+
+            <!-- 6. Workspaces -->
+            <a href="{% url 'user_settings:workspaces' %}" 
+               class="px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center space-x-1.5 {% if active_tab == 'workspaces' %}bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-300 border border-purple-200 dark:border-purple-800/60 shadow-sm{% else %}text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800/50{% endif %}">
+                <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                </svg>
+                <span>Workspaces</span>
+            </a>
+
+            <!-- 7. Integrations -->
+            <a href="{% url 'user_settings:integrations' %}" 
+               class="px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center space-x-1.5 {% if active_tab == 'integrations' %}bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-300 border border-purple-200 dark:border-purple-800/60 shadow-sm{% else %}text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800/50{% endif %}">
+                <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
+                </svg>
+                <span>Integrations</span>
+            </a>
+        </nav>
+    </div>
+
+    <!-- Tab Content Slot -->
+    <div class="mt-6">
+        {% block settings_content %}{% endblock %}
+    </div>
+
+</div>
+{% endblock %}

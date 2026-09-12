@@ -1,6 +1,13 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
-from django.http import HttpResponseBadRequest, HttpResponseForbidden, HttpResponseNotFound, HttpResponseServerError
+from django.http import HttpResponseBadRequest, HttpResponseForbidden, HttpResponseNotFound, HttpResponseServerError, JsonResponse
+from django.db.models import Q
+from django.urls import reverse
+
+from workspaces.models import Workspace, MembershipStatus
+from tasks.models import Task
+from bugs.models import Bug
+from files.models import StoredFile
 
 
 def landing(request):
@@ -114,3 +121,106 @@ def error_500(request):
         'title': 'Internal Server Error',
         'message': 'Internal Server Error — Something went wrong on our end. Our engineering team has been notified.',
     }, status=500)
+
+
+@login_required
+def global_search_api(request):
+    """
+    Global omnibar search endpoint.
+    Searches tasks by 6-digit ID (#619347), bugs by code (B-882316), files, and workspaces.
+    Respects strict workspace isolation and RBAC.
+    """
+    q = request.GET.get('q', '').strip()
+    if not q:
+        return JsonResponse({'status': 'ok', 'results': []})
+
+    # Workspaces visible to user
+    if getattr(request.user, 'is_admin_role', False) or request.user.is_superuser:
+        workspaces_qs = Workspace.objects.all()
+    else:
+        workspaces_qs = Workspace.objects.filter(
+            memberships__user=request.user,
+            memberships__status=MembershipStatus.ACTIVE
+        )
+
+    ws_ids = list(workspaces_qs.values_list('id', flat=True))
+    results = []
+
+    # 1. Search Tasks by 6-digit task_code (#619347 / 619347) or title
+    clean_task_code = q.lstrip('#').replace('T-', '').replace('t-', '').strip()
+    task_filter = Q(workspace_id__in=ws_ids)
+    if clean_task_code and clean_task_code.isdigit():
+        task_filter &= (Q(task_code__icontains=clean_task_code) | Q(title__icontains=q))
+    else:
+        task_filter &= (Q(task_code__icontains=q) | Q(title__icontains=q))
+
+    tasks = Task.objects.filter(task_filter).select_related('workspace')[:8]
+    for t in tasks:
+        results.append({
+            'type': 'task',
+            'id': str(t.id),
+            'code': f"#{t.task_code}",
+            'title': t.title,
+            'workspace': t.workspace.name,
+            'status': t.get_status_display(),
+            'priority': t.get_priority_display(),
+            'url': reverse('tasks:task_detail', kwargs={'slug': t.workspace.slug, 'task_code': t.task_code}),
+            'icon': 'task',
+        })
+
+    # 2. Search Bugs by bug_code (B-882316 / 882316) or title
+    clean_bug = q.upper().replace('B-', '').strip()
+    bug_filter = Q(workspace_id__in=ws_ids)
+    if clean_bug and clean_bug.isdigit():
+        bug_filter &= (Q(bug_code__icontains=clean_bug) | Q(title__icontains=q))
+    else:
+        bug_filter &= (Q(bug_code__icontains=q) | Q(title__icontains=q))
+
+    bugs = Bug.objects.filter(bug_filter).select_related('workspace')[:8]
+    for b in bugs:
+        results.append({
+            'type': 'bug',
+            'id': str(b.id),
+            'code': b.bug_code,
+            'title': b.title,
+            'workspace': b.workspace.name,
+            'status': b.get_status_display(),
+            'severity': b.get_severity_display(),
+            'url': reverse('bugs:bug_detail', kwargs={'slug': b.workspace.slug, 'bug_code': b.bug_code}),
+            'icon': 'bug',
+        })
+
+    # 3. Search Workspaces by name or slug
+    workspaces = workspaces_qs.filter(Q(name__icontains=q) | Q(slug__icontains=q))[:5]
+    for ws in workspaces:
+        results.append({
+            'type': 'workspace',
+            'id': str(ws.id),
+            'code': f"/{ws.slug}/",
+            'title': ws.name,
+            'workspace': ws.name,
+            'status': ws.get_status_display(),
+            'url': reverse('workspaces:workspace_dashboard', kwargs={'slug': ws.slug}),
+            'icon': 'workspace',
+        })
+
+    # 4. Search Files by name
+    files = StoredFile.objects.filter(
+        workspace_id__in=ws_ids,
+        is_trashed=False,
+        name__icontains=q
+    ).select_related('workspace')[:5]
+    for f in files:
+        results.append({
+            'type': 'file',
+            'id': str(f.id),
+            'code': f.category,
+            'title': f.name,
+            'workspace': f.workspace.name,
+            'status': f.formatted_size,
+            'url': reverse('files:file_detail', kwargs={'slug': f.workspace.slug, 'file_id': f.id}),
+            'icon': 'file',
+        })
+
+    return JsonResponse({'status': 'ok', 'query': q, 'count': len(results), 'results': results})
+

@@ -3313,4 +3313,46 @@ npx playwright test tests/e2e/admin/admin_panel.spec.ts --project=chromium
 8. In **Integrations**, confirm that all credentials remain masked and protected.
 9. In **Backup & Restore**, click *Download JSON Snapshot* to download the sanitized metadata package.
 
+---
 
+## Phase 14 — Settings & Global ID Search
+
+### Architecture & Overview
+Phase 14 delivers comprehensive personal and workspace settings alongside a workspace-isolated Global Omnibar search by 6-digit Task ID and Bug Code.
+
+- **App Isolation**: Implemented cleanly under `user_settings` app registered at URL `/settings/`, preventing collision with Django project settings.
+- **Server-Side RBAC**: Strict permissions enforced server-side. Workspace configuration modification is restricted to Workspace Admins and Platform Administrators (Contributors attempting direct modifications receive HTTP 403 Forbidden).
+- **Zero Secret Disclosure**: Webhook secrets and storage credentials remain cryptographically masked (`whsec_••••••••••••••••`) with backend regeneration endpoints.
+- **Theme Integrity**: Full audit and persistence for Obsidian Dark (`#09090b` / `#0f172a`) and Slate Light (`#f8fafc` / `#ffffff`). Themes persist both in `localStorage` for zero FOUC and in `UserProfile.preferences['theme']` via an asynchronous live sync API (`/settings/api/theme/`).
+
+### Key Modules & Screens
+1. **Account Settings (`/settings/account/`)**: Authoritative name, email identifier, verification status, and primary timezone selector.
+2. **Public Profile (`/settings/profile/`)**: Avatar preview, professional headline, bio, and contact phone.
+3. **Appearance (`/settings/appearance/`)**: Visual selection cards for Obsidian Dark, Slate Light, and System Sync with instant live switching and density controls.
+4. **Notification Preferences (`/settings/notifications/`)**: Email digest frequency (Immediate, Daily Digest, Weekly Summary, Disabled) and channel toggle switches for Tasks, Bugs, Chat, and Meetings.
+5. **Security & Telemetry (`/settings/security/`)**: Password modification with active session retention (`update_session_auth_hash`), active session telemetry (IP, user agent, last login), and security audit history.
+6. **Workspaces Overview & Details (`/settings/workspaces/` & `/settings/workspaces/<slug>/`)**: Enrolled workspaces list with role badges and server-side RBAC enforced quota editing.
+7. **Platform Integrations (`/settings/integrations/`)**: WebRTC/Jitsi Meet hub, Supabase cloud storage, Google Drive sync, and Developer Webhooks.
+8. **Global Search by ID (`/api/search/` + ⌘K Header Modal)**: Immediate lookup for 6-digit Task IDs (`#619347`), Bug Codes (`B-882316` or numeric `882316`), workspace names, and stored files with direct navigation.
+
+### Code Verification
+- Django system check: **PASS** (`python manage.py check` — 0 issues, 0 silenced)
+- Automated Settings test suite: **PASS** (`python manage.py test user_settings --keepdb`)
+- Automated Core test suite: **PASS** (`python manage.py test core --keepdb`)
+- Tailwind CSS compilation: **PASS** (`npm run build:css` completed cleanly)
+
+### Playwright E2E Suite (`tests/e2e/settings/settings.spec.ts`)
+- Script created for manual owner execution covering:
+  1. Unauthenticated redirect from `/settings/` to `/auth/login/`.
+  2. Account details and timezone modification.
+  3. Public profile avatar and headline update.
+  4. Live interactive theme switching (Obsidian Dark vs Slate Light).
+  5. Notification channel toggle preferences.
+  6. Security credentials and active session display.
+  7. Workspace list and RBAC enforcement.
+  8. Global Omnibar search by 6-digit Task ID and Bug Code.
+
+**Owner execution command**:
+```bash
+npx playwright test tests/e2e/settings/settings.spec.ts --project=chromium
+```

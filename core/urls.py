@@ -14,6 +14,7 @@ urlpatterns = [
     path('time-tracking/', views.time_tracking_view, name='time_tracking'),
     path('notifications/', views.notifications_view, name='notifications'),
     path('profile/', views.profile_view, name='profile'),
+    path('api/search/', views.global_search_api, name='global_search_api'),
 
     # Test error endpoints
     path('test/400/', views.error_400, name='test_400'),

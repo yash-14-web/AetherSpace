@@ -22,6 +22,7 @@ urlpatterns = [
     path('calendars/', RedirectView.as_view(url='/calendar/', permanent=False)),
     path('files/', include('files.urls')),
     path('notifications/', include('notifications.urls')),
+    path('settings/', include('user_settings.urls')),
     path('dashboard/', RedirectView.as_view(url='/workspaces/dashboard/', permanent=False)),
     path('', include('core.urls')),
 ]

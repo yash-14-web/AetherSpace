@@ -1,0 +1,198 @@
+{% extends "settings/base_settings.html" %}
+
+{% block title %}Appearance & Theme — AetherSpace{% endblock %}
+
+{% block settings_content %}
+<div class="space-y-6" x-data="{
+    currentTheme: '{{ current_theme }}',
+    setTheme(newTheme) {
+        this.currentTheme = newTheme;
+        let isDark = false;
+        if (newTheme === 'obsidian' || newTheme === 'dark') {
+            isDark = true;
+            localStorage.setItem('color-theme', 'dark');
+        } else if (newTheme === 'slate' || newTheme === 'light') {
+            isDark = false;
+            localStorage.setItem('color-theme', 'light');
+        } else {
+            localStorage.removeItem('color-theme');
+            isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        }
+
+        if (isDark) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+
+        // Live API sync to user profile preferences
+        fetch('{% url 'user_settings:api_update_theme' %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({ theme: newTheme })
+        }).catch(err => console.error('Theme sync failed', err));
+    }
+}">
+
+    <div class="aether-card p-6 border border-slate-200 dark:border-zinc-800 space-y-6">
+        <div>
+            <h2 class="text-base font-bold text-slate-900 dark:text-zinc-100">Interface Theme</h2>
+            <p class="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
+                Choose how AetherSpace looks to you. Select an interface theme tailored for high contrast and readability.
+            </p>
+        </div>
+
+        <form method="POST" action="{% url 'user_settings:appearance' %}" class="space-y-6">
+            {% csrf_token %}
+
+            <!-- Theme Visual Cards -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                
+                <!-- Option 1: Obsidian Dark -->
+                <div @click="setTheme('obsidian')" 
+                     class="relative cursor-pointer rounded-2xl p-4 border-2 transition-all group overflow-hidden"
+                     :class="currentTheme === 'obsidian' || currentTheme === 'dark' ? 'border-purple-600 bg-purple-50/20 dark:bg-purple-950/30 ring-2 ring-purple-500/20' : 'border-slate-200 dark:border-zinc-800 hover:border-slate-300 dark:hover:border-zinc-700 bg-slate-50/50 dark:bg-zinc-900/30'">
+                    
+                    <div class="h-24 rounded-xl bg-[#09090b] border border-zinc-800 p-2.5 flex flex-col justify-between shadow-inner mb-3">
+                        <div class="flex items-center justify-between">
+                            <div class="w-12 h-2 rounded bg-zinc-700"></div>
+                            <div class="w-3 h-3 rounded-full bg-purple-500"></div>
+                        </div>
+                        <div class="space-y-1.5">
+                            <div class="w-full h-2 rounded bg-zinc-800"></div>
+                            <div class="w-3/4 h-2 rounded bg-zinc-800"></div>
+                        </div>
+                        <div class="flex space-x-1">
+                            <div class="w-4 h-4 rounded bg-zinc-800"></div>
+                            <div class="w-4 h-4 rounded bg-zinc-800"></div>
+                            <div class="w-4 h-4 rounded bg-purple-950 border border-purple-800"></div>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <span class="block text-xs font-bold text-slate-900 dark:text-zinc-100">Obsidian Dark</span>
+                            <span class="text-[11px] text-slate-400 dark:text-zinc-500">Tailored for low light</span>
+                        </div>
+                        <div class="w-4 h-4 rounded-full border flex items-center justify-center"
+                             :class="currentTheme === 'obsidian' || currentTheme === 'dark' ? 'border-purple-600 bg-purple-600' : 'border-slate-300 dark:border-zinc-700'">
+                            <template x-if="currentTheme === 'obsidian' || currentTheme === 'dark'">
+                                <div class="w-1.5 h-1.5 rounded-full bg-white"></div>
+                            </template>
+                        </div>
+                    </div>
+                    <input type="radio" name="theme" value="obsidian" class="sr-only" :checked="currentTheme === 'obsidian' || currentTheme === 'dark'">
+                </div>
+
+                <!-- Option 2: Slate Light -->
+                <div @click="setTheme('slate')" 
+                     class="relative cursor-pointer rounded-2xl p-4 border-2 transition-all group overflow-hidden"
+                     :class="currentTheme === 'slate' || currentTheme === 'light' ? 'border-purple-600 bg-purple-50/20 dark:bg-purple-950/30 ring-2 ring-purple-500/20' : 'border-slate-200 dark:border-zinc-800 hover:border-slate-300 dark:hover:border-zinc-700 bg-slate-50/50 dark:bg-zinc-900/30'">
+                    
+                    <div class="h-24 rounded-xl bg-[#f8fafc] border border-slate-200 p-2.5 flex flex-col justify-between shadow-inner mb-3">
+                        <div class="flex items-center justify-between">
+                            <div class="w-12 h-2 rounded bg-slate-300"></div>
+                            <div class="w-3 h-3 rounded-full bg-blue-600"></div>
+                        </div>
+                        <div class="space-y-1.5">
+                            <div class="w-full h-2 rounded bg-slate-200"></div>
+                            <div class="w-3/4 h-2 rounded bg-slate-200"></div>
+                        </div>
+                        <div class="flex space-x-1">
+                            <div class="w-4 h-4 rounded bg-slate-200"></div>
+                            <div class="w-4 h-4 rounded bg-slate-200"></div>
+                            <div class="w-4 h-4 rounded bg-blue-100 border border-blue-300"></div>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <span class="block text-xs font-bold text-slate-900 dark:text-zinc-100">Slate Light</span>
+                            <span class="text-[11px] text-slate-400 dark:text-zinc-500">Clean, daylight crisp</span>
+                        </div>
+                        <div class="w-4 h-4 rounded-full border flex items-center justify-center"
+                             :class="currentTheme === 'slate' || currentTheme === 'light' ? 'border-purple-600 bg-purple-600' : 'border-slate-300 dark:border-zinc-700'">
+                            <template x-if="currentTheme === 'slate' || currentTheme === 'light'">
+                                <div class="w-1.5 h-1.5 rounded-full bg-white"></div>
+                            </template>
+                        </div>
+                    </div>
+                    <input type="radio" name="theme" value="slate" class="sr-only" :checked="currentTheme === 'slate' || currentTheme === 'light'">
+                </div>
+
+                <!-- Option 3: System Default -->
+                <div @click="setTheme('system')" 
+                     class="relative cursor-pointer rounded-2xl p-4 border-2 transition-all group overflow-hidden"
+                     :class="currentTheme === 'system' ? 'border-purple-600 bg-purple-50/20 dark:bg-purple-950/30 ring-2 ring-purple-500/20' : 'border-slate-200 dark:border-zinc-800 hover:border-slate-300 dark:hover:border-zinc-700 bg-slate-50/50 dark:bg-zinc-900/30'">
+                    
+                    <div class="h-24 rounded-xl border border-slate-200 dark:border-zinc-800 flex overflow-hidden shadow-inner mb-3">
+                        <div class="w-1/2 bg-[#09090b] p-2 flex flex-col justify-between">
+                            <div class="w-8 h-1.5 rounded bg-zinc-700"></div>
+                            <div class="w-full h-1.5 rounded bg-zinc-800"></div>
+                            <div class="w-3 h-3 rounded bg-purple-600"></div>
+                        </div>
+                        <div class="w-1/2 bg-[#f8fafc] p-2 flex flex-col justify-between border-l border-slate-200">
+                            <div class="w-8 h-1.5 rounded bg-slate-300"></div>
+                            <div class="w-full h-1.5 rounded bg-slate-200"></div>
+                            <div class="w-3 h-3 rounded bg-blue-600"></div>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <span class="block text-xs font-bold text-slate-900 dark:text-zinc-100">System Sync</span>
+                            <span class="text-[11px] text-slate-400 dark:text-zinc-500">Matches OS theme</span>
+                        </div>
+                        <div class="w-4 h-4 rounded-full border flex items-center justify-center"
+                             :class="currentTheme === 'system' ? 'border-purple-600 bg-purple-600' : 'border-slate-300 dark:border-zinc-700'">
+                            <template x-if="currentTheme === 'system'">
+                                <div class="w-1.5 h-1.5 rounded-full bg-white"></div>
+                            </template>
+                        </div>
+                    </div>
+                    <input type="radio" name="theme" value="system" class="sr-only" :checked="currentTheme === 'system'">
+                </div>
+
+            </div>
+
+            <!-- UI Density & Sidebar Options -->
+            <div class="pt-4 border-t border-slate-100 dark:border-zinc-800/80 space-y-4">
+                <div class="space-y-1.5 max-w-md">
+                    <label class="block text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                        Information Density
+                    </label>
+                    {{ form.ui_density }}
+                    <p class="text-[11px] text-slate-400 dark:text-zinc-500">
+                        Compact density increases items visible per screen on Kanban boards and issue tables.
+                    </p>
+                </div>
+
+                <div class="flex items-center justify-between p-4 rounded-xl bg-slate-50 dark:bg-zinc-900/40 border border-slate-200/80 dark:border-zinc-800">
+                    <div>
+                        <label for="{{ form.sidebar_collapsed.id_for_label }}" class="text-xs font-semibold text-slate-900 dark:text-zinc-100 block cursor-pointer">
+                            Collapse Global Rail by Default
+                        </label>
+                        <span class="text-[11px] text-slate-500 dark:text-zinc-400">
+                            Shows icon-only navigation bar to maximize workspace canvas width.
+                        </span>
+                    </div>
+                    <div>
+                        {{ form.sidebar_collapsed }}
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-end pt-2 border-t border-slate-100 dark:border-zinc-800/80">
+                <button type="submit" 
+                        class="px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-purple-600 hover:bg-purple-700 dark:bg-purple-600 dark:hover:bg-purple-500 shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-purple-500">
+                    Save Appearance Settings
+                </button>
+            </div>
+        </form>
+    </div>
+
+</div>
+{% endblock %}
