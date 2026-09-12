@@ -8,6 +8,14 @@ from django.views.decorators.http import require_POST
 from django.utils import timezone
 
 from accounts.models import UserProfile
+from accounts.services import (
+    process_and_save_banner,
+    remove_user_banner,
+    PRESET_BANNER_THEMES,
+    process_and_save_avatar,
+    remove_user_avatar,
+    PRESET_AVATAR_THEMES,
+)
 from workspaces.models import Workspace, WorkspaceMembership, WorkspaceRole, MembershipStatus
 from admin_panel.models import AuditLog, AuditActionStatus
 from .forms import (
@@ -48,18 +56,59 @@ def account_settings(request):
 
 @login_required
 def profile_settings(request):
-    """User profile view (Headline, Bio, Phone, Avatar)."""
+    """User profile view (Headline, Bio, Phone, Avatar, and Profile Banner)."""
     profile, _ = UserProfile.objects.get_or_create(user=request.user)
 
     if request.method == 'POST':
+        action = request.POST.get('action', 'save_profile')
+
+        if action == 'remove_banner':
+            remove_user_banner(request.user)
+            messages.success(request, "Banner removed. Default theme gradient restored.")
+            return redirect('user_settings:profile')
+
+        elif action == 'remove_avatar':
+            remove_user_avatar(request.user)
+            messages.success(request, "Avatar removed. Default initials fallback restored.")
+            return redirect('user_settings:profile')
+
         form = ProfileDetailsForm(request.POST, instance=profile)
-        avatar_url = request.POST.get('avatar_url', '').strip()
         if form.is_valid():
             profile_obj = form.save()
-            if avatar_url != request.user.avatar:
-                request.user.avatar = avatar_url
-                request.user.save(update_fields=['avatar', 'updated_at'])
-            messages.success(request, "Your public profile has been updated.")
+
+            # Process Banner updates (upload file, URL, or preset)
+            banner_file = request.FILES.get('banner_file')
+            banner_url = request.POST.get('banner_url', '').strip()
+            banner_preset = request.POST.get('banner_preset', '').strip()
+
+            if banner_file:
+                success, msg = process_and_save_banner(request.user, file_obj=banner_file)
+                if not success:
+                    messages.error(request, msg)
+            elif banner_url:
+                success, msg = process_and_save_banner(request.user, banner_url=banner_url)
+                if not success:
+                    messages.error(request, msg)
+            elif banner_preset:
+                process_and_save_banner(request.user, preset_gradient=banner_preset)
+
+            # Process Avatar updates (upload file, URL, or preset)
+            avatar_file = request.FILES.get('avatar_file')
+            avatar_url = request.POST.get('avatar_url', '').strip()
+            avatar_preset = request.POST.get('avatar_preset', '').strip()
+
+            if avatar_file:
+                success, msg = process_and_save_avatar(request.user, file_obj=avatar_file)
+                if not success:
+                    messages.error(request, msg)
+            elif avatar_url and avatar_url != request.user.avatar:
+                success, msg = process_and_save_avatar(request.user, avatar_url=avatar_url)
+                if not success:
+                    messages.error(request, msg)
+            elif avatar_preset:
+                process_and_save_avatar(request.user, preset_color=avatar_preset)
+
+            messages.success(request, "Your public profile and banner have been updated.")
             return redirect('user_settings:profile')
     else:
         form = ProfileDetailsForm(
@@ -71,6 +120,8 @@ def profile_settings(request):
         'active_tab': 'profile',
         'form': form,
         'profile': profile,
+        'preset_banners': PRESET_BANNER_THEMES,
+        'preset_avatars': PRESET_AVATAR_THEMES,
     }
     return render(request, 'settings/profile.html', context)
 

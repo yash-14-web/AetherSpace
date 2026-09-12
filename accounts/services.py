@@ -376,3 +376,139 @@ def remove_user_avatar(user):
         user.save(update_fields=['avatar'])
         return True, "Avatar removed. Initials fallback restored."
     return True, "No avatar to remove."
+
+
+# Banner Configuration and Processors
+MAX_BANNER_SIZE_BYTES = 1024 * 1024  # 1 MB limit
+ALLOWED_BANNER_EXTENSIONS = {'jpg', 'jpeg', 'png', 'webp', 'gif'}
+
+PRESET_BANNER_THEMES = [
+    {
+        'id': 'cosmic',
+        'name': 'Cosmic Blue & Purple',
+        'gradient': 'from-blue-700 via-indigo-600 to-purple-800',
+    },
+    {
+        'id': 'cyberpunk',
+        'name': 'Cyberpunk Neon',
+        'gradient': 'from-fuchsia-600 via-pink-600 to-rose-700',
+    },
+    {
+        'id': 'emerald',
+        'name': 'Emerald Horizon',
+        'gradient': 'from-emerald-700 via-teal-700 to-cyan-800',
+    },
+    {
+        'id': 'sunset',
+        'name': 'Sunset Flame',
+        'gradient': 'from-amber-600 via-orange-600 to-rose-700',
+    },
+    {
+        'id': 'obsidian',
+        'name': 'Obsidian Titanium',
+        'gradient': 'from-zinc-900 via-zinc-800 to-slate-900',
+    },
+    {
+        'id': 'electric',
+        'name': 'Electric Violet',
+        'gradient': 'from-indigo-900 via-purple-800 to-pink-700',
+    },
+]
+
+
+def process_and_save_banner(user, file_obj=None, banner_url=None, preset_gradient=None):
+    """
+    Process and save profile banner with support for file upload, image link, and preset gradient.
+    """
+    profile = get_or_create_user_profile(user)
+
+    if preset_gradient:
+        valid_presets = {p['id'] for p in PRESET_BANNER_THEMES}
+        if preset_gradient in valid_presets:
+            profile.banner = f"preset:{preset_gradient}"
+            profile.save(update_fields=['banner', 'updated_at'])
+            return True, "Banner style preset applied successfully."
+        return False, "Invalid banner preset selection."
+
+    if banner_url:
+        clean_url = banner_url.strip()
+        parsed = urlparse(clean_url)
+        if parsed.scheme in ('http', 'https') and parsed.netloc:
+            profile.banner = clean_url
+            profile.save(update_fields=['banner', 'updated_at'])
+            return True, "External banner photo linked successfully (0 KB storage used)."
+        return False, "Please enter a valid HTTP/HTTPS image URL."
+
+    if file_obj:
+        if file_obj.size > MAX_BANNER_SIZE_BYTES:
+            size_kb = round(file_obj.size / 1024)
+            return False, f"File size ({size_kb} KB) exceeds the maximum allowed limit of 1 MB."
+
+        ext = os.path.splitext(file_obj.name)[1].lstrip('.').lower()
+        if ext not in ALLOWED_BANNER_EXTENSIONS:
+            return False, f"Unsupported file format '.{ext}'. Allowed formats: JPG, PNG, WEBP, GIF."
+
+        try:
+            image = Image.open(file_obj)
+            image = image.convert('RGB')
+
+            # Crop / resize to 1200x350
+            target_width, target_height = 1200, 350
+            orig_w, orig_h = image.size
+            orig_aspect = orig_w / orig_h
+            target_aspect = target_width / target_height
+
+            if orig_aspect > target_aspect:
+                new_w = int(orig_h * target_aspect)
+                left = (orig_w - new_w) // 2
+                image = image.crop((left, 0, left + new_w, orig_h))
+            else:
+                new_h = int(orig_w / target_aspect)
+                top = (orig_h - new_h) // 2
+                image = image.crop((0, top, orig_w, top + new_h))
+
+            image = image.resize((target_width, target_height), Image.Resampling.LANCZOS)
+
+            buffer = io.BytesIO()
+            image.save(buffer, format='JPEG', quality=85, optimize=True)
+            compressed_bytes = buffer.getvalue()
+            compressed_kb = round(len(compressed_bytes) / 1024, 1)
+
+            filename = f"banners/{user.id}/banner.jpg"
+            if default_storage.exists(filename):
+                default_storage.delete(filename)
+
+            saved_path = default_storage.save(filename, ContentFile(compressed_bytes))
+            file_url = default_storage.url(saved_path)
+
+            profile.banner = file_url
+            profile.save(update_fields=['banner', 'updated_at'])
+
+            logger.info(f"User {user.id} banner compressed to {compressed_kb} KB and saved.")
+            return True, f"Profile banner uploaded and compressed to {compressed_kb} KB."
+        except Exception as e:
+            logger.error(f"Banner processing error: {str(e)}")
+            return False, "Could not process banner image. Please ensure it is a valid image file."
+
+    return False, "No banner photo or URL provided."
+
+
+def remove_user_banner(user):
+    """
+    Remove user banner and restore default gradient.
+    """
+    profile = get_or_create_user_profile(user)
+    if profile.banner:
+        if profile.banner.startswith('/media/banners/') or 'banners/' in profile.banner:
+            filename = f"banners/{user.id}/banner.jpg"
+            try:
+                if default_storage.exists(filename):
+                    default_storage.delete(filename)
+            except Exception as e:
+                logger.warning(f"Failed to delete stored banner file: {e}")
+
+        profile.banner = ""
+        profile.save(update_fields=['banner', 'updated_at'])
+        return True, "Banner removed. Default theme gradient restored."
+    return True, "No custom banner to remove."
+

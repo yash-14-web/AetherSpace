@@ -209,6 +209,126 @@
             </div>
         </div>
 
+        <!-- Cover Banner Management Card -->
+        <div class="aether-card p-5 sm:p-6 rounded-2xl border border-slate-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm space-y-5"
+             x-data="{
+                 bannerMode: 'upload',
+                 bannerFileName: '',
+                 bannerFileSizeKB: null,
+                 bannerError: '',
+                 handleBannerFile(e) {
+                     const file = e.target.files[0];
+                     if (!file) return;
+                     this.bannerError = '';
+                     this.bannerFileName = file.name;
+                     this.bannerFileSizeKB = Math.round(file.size / 1024);
+                     if (file.size > 1024 * 1024) {
+                         this.bannerError = 'Selected file is ' + this.bannerFileSizeKB + ' KB. Maximum allowed size is 1 MB.';
+                     }
+                 }
+             }">
+            <div>
+                <h2 class="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-zinc-100 flex items-center space-x-2">
+                    <svg class="w-4 h-4 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <span>Cover Banner Photo</span>
+                </h2>
+                <p class="text-xs text-slate-500 dark:text-zinc-400 mt-1">
+                    Upload a custom banner image or link an external photo URL (1200 &times; 350 recommended).
+                </p>
+            </div>
+
+            <!-- Banner Preview -->
+            <div class="h-24 rounded-xl relative overflow-hidden bg-cover bg-center border border-slate-200 dark:border-zinc-800
+                {% if not profile.banner or profile.banner|slice:':7' == 'preset:' %}
+                    {% if profile.banner == 'preset:cyberpunk' %}bg-gradient-to-r from-fuchsia-600 via-pink-600 to-rose-700
+                    {% elif profile.banner == 'preset:emerald' %}bg-gradient-to-r from-emerald-700 via-teal-700 to-cyan-800
+                    {% elif profile.banner == 'preset:sunset' %}bg-gradient-to-r from-amber-600 via-orange-600 to-rose-700
+                    {% elif profile.banner == 'preset:obsidian' %}bg-gradient-to-r from-zinc-900 via-zinc-800 to-slate-900
+                    {% elif profile.banner == 'preset:electric' %}bg-gradient-to-r from-indigo-900 via-purple-800 to-pink-700
+                    {% else %}bg-gradient-to-r from-blue-700 via-indigo-600 to-purple-800{% endif %}
+                {% endif %}"
+                {% if profile.banner and profile.banner|slice:':7' != 'preset:' %}style="background-image: url('{{ profile.banner }}');"{% endif %}>
+                <div class="absolute inset-0 bg-black/25"></div>
+                <div class="absolute bottom-2 right-2 px-2 py-0.5 rounded text-[10px] font-semibold bg-black/40 text-white">
+                    {% if profile.banner %}Active Custom Banner{% else %}Default Theme Cover{% endif %}
+                </div>
+            </div>
+
+            {% if profile.banner %}
+                <form method="POST" action="{% url 'accounts:profile_banner_remove' %}" class="text-center">
+                    {% csrf_token %}
+                    <button type="submit" class="text-[11px] font-bold text-rose-600 dark:text-rose-400 hover:underline">
+                        Remove custom banner & restore default
+                    </button>
+                </form>
+            {% endif %}
+
+            <!-- Mode Tabs -->
+            <div class="grid grid-cols-3 gap-1 p-1 bg-slate-100 dark:bg-zinc-800 rounded-xl text-xs font-semibold">
+                <button type="button" @click="bannerMode = 'upload'" :class="bannerMode === 'upload' ? 'bg-white dark:bg-zinc-700 text-slate-900 dark:text-zinc-100 shadow-sm' : 'text-slate-600 dark:text-zinc-400'" class="py-1.5 rounded-lg transition-all text-center">
+                    Upload
+                </button>
+                <button type="button" @click="bannerMode = 'url'" :class="bannerMode === 'url' ? 'bg-white dark:bg-zinc-700 text-slate-900 dark:text-zinc-100 shadow-sm' : 'text-slate-600 dark:text-zinc-400'" class="py-1.5 rounded-lg transition-all text-center">
+                    Link URL
+                </button>
+                <button type="button" @click="bannerMode = 'presets'" :class="bannerMode === 'presets' ? 'bg-white dark:bg-zinc-700 text-slate-900 dark:text-zinc-100 shadow-sm' : 'text-slate-600 dark:text-zinc-400'" class="py-1.5 rounded-lg transition-all text-center">
+                    Presets
+                </button>
+            </div>
+
+            <!-- Upload Mode -->
+            <form method="POST" action="{% url 'accounts:profile_edit' %}" enctype="multipart/form-data" x-show="bannerMode === 'upload'" class="space-y-3">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="update_banner">
+                <label class="block border-2 border-dashed border-slate-300 dark:border-zinc-700 hover:border-purple-500 rounded-xl p-3 text-center cursor-pointer transition-colors bg-white/50 dark:bg-zinc-800/30">
+                    <input type="file" name="banner_file" accept="image/jpeg,image/png,image/webp,image/gif" @change="handleBannerFile" class="sr-only">
+                    <span class="text-xs font-bold text-slate-800 dark:text-zinc-200 block">Choose banner photo</span>
+                    <span class="text-[10px] text-slate-400 dark:text-zinc-500">JPG, PNG, WEBP &bull; Max 1 MB</span>
+                    <template x-if="bannerFileName">
+                        <span class="inline-block mt-1 px-2 py-0.5 rounded-full bg-purple-50 dark:bg-purple-950 text-purple-600 dark:text-purple-300 text-[10px] font-mono" x-text="bannerFileName + ' (' + bannerFileSizeKB + ' KB)'"></span>
+                    </template>
+                </label>
+                <template x-if="bannerError">
+                    <p class="text-[11px] text-rose-500 font-medium" x-text="bannerError"></p>
+                </template>
+                <button type="submit" :disabled="bannerError !== '' || !bannerFileName" class="w-full py-2 text-xs font-bold rounded-xl bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm">
+                    Upload & Compress Banner
+                </button>
+            </form>
+
+            <!-- URL Mode -->
+            <form method="POST" action="{% url 'accounts:profile_edit' %}" x-show="bannerMode === 'url'" class="space-y-3" style="display: none;">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="update_banner">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-1">
+                        Direct Banner Image URL (0 KB storage)
+                    </label>
+                    <input type="url" name="banner_url" placeholder="https://images.unsplash.com/..." class="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500">
+                </div>
+                <button type="submit" class="w-full py-2 text-xs font-bold rounded-xl bg-purple-600 text-white hover:bg-purple-700 transition-colors shadow-sm">
+                    Link Banner Photo
+                </button>
+            </form>
+
+            <!-- Presets Mode -->
+            <form method="POST" action="{% url 'accounts:profile_edit' %}" x-show="bannerMode === 'presets'" class="space-y-3" style="display: none;">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="update_banner">
+                <div class="grid grid-cols-2 gap-2">
+                    {% for p in preset_banners %}
+                        <button type="submit" name="preset_gradient" value="{{ p.id }}" class="p-2 rounded-xl border border-slate-200 dark:border-zinc-700 flex items-center space-x-2 bg-white dark:bg-zinc-800 hover:border-purple-500 transition-all text-left">
+                            <div class="w-6 h-6 rounded-lg bg-gradient-to-r {{ p.gradient }} shrink-0"></div>
+                            <span class="text-[11px] font-semibold text-slate-800 dark:text-zinc-200 truncate">{{ p.name }}</span>
+                        </button>
+                    {% endfor %}
+                </div>
+            </form>
+        </div>
+        </div>
+
         <!-- 2. Right Column: Personal Information & Preferences Form -->
         <div class="lg:col-span-2 aether-card p-5 sm:p-6 rounded-2xl border border-slate-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm space-y-6">
             <div>

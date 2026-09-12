@@ -38,6 +38,9 @@ from .services import (
     remove_user_avatar,
     PRESET_AVATAR_THEMES,
     MAX_AVATAR_SIZE_BYTES,
+    process_and_save_banner,
+    remove_user_banner,
+    PRESET_BANNER_THEMES,
 )
 
 logger = logging.getLogger(__name__)
@@ -315,6 +318,28 @@ def profile_edit_view(request):
                         messages.error(request, err)
                 return redirect('accounts:profile_edit')
 
+        elif action == 'update_banner':
+            file_obj = request.FILES.get('banner_file')
+            banner_url = request.POST.get('banner_url', '').strip()
+            preset_gradient = request.POST.get('preset_gradient', '').strip()
+
+            success, msg = process_and_save_banner(
+                user,
+                file_obj=file_obj,
+                banner_url=banner_url,
+                preset_gradient=preset_gradient
+            )
+            if success:
+                messages.success(request, msg)
+            else:
+                messages.error(request, msg)
+            return redirect('accounts:profile_edit')
+
+        elif action == 'remove_banner':
+            remove_user_banner(user)
+            messages.success(request, "Banner removed. Default theme gradient restored.")
+            return redirect('accounts:profile_edit')
+
         elif action == 'update_profile':
             profile_form = ProfileUpdateForm(request.POST)
             if profile_form.is_valid():
@@ -349,6 +374,7 @@ def profile_edit_view(request):
         'profile_form': profile_form,
         'avatar_form': avatar_form,
         'preset_themes': PRESET_AVATAR_THEMES,
+        'preset_banners': PRESET_BANNER_THEMES,
         'active_tab': 'edit',
         'is_own_profile': True,
         'title': 'Edit Profile — AetherSpace',
@@ -363,6 +389,17 @@ def profile_avatar_remove_view(request):
     """
     remove_user_avatar(request.user)
     messages.info(request, "Profile avatar removed. Default gradient initials restored.")
+    return redirect('accounts:profile_edit')
+
+
+@login_required
+@require_POST
+def profile_banner_remove_view(request):
+    """
+    Remove user banner and reclaim storage.
+    """
+    remove_user_banner(request.user)
+    messages.info(request, "Profile banner removed. Default gradient cover restored.")
     return redirect('accounts:profile_edit')
 
 

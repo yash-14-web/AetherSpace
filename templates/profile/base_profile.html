@@ -19,15 +19,42 @@
 
     <!-- 2. Profile Hero Card (Obsidian Dark & Slate Light) -->
     <div class="aether-card overflow-hidden rounded-2xl border border-slate-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm">
-        <!-- Banner Gradient Header (Clean Cover) -->
-        <div class="h-36 sm:h-44 bg-gradient-to-r from-blue-700 via-indigo-600 to-purple-800 relative overflow-hidden">
-            <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.18),transparent_50%)]"></div>
-            <div class="absolute inset-0 bg-[radial-gradient(circle_at_bottom_left,rgba(0,0,0,0.25),transparent_60%)]"></div>
+        <!-- Banner Gradient or Custom Photo Header -->
+        <div class="h-36 sm:h-48 relative overflow-hidden bg-cover bg-center
+            {% if not profile.banner or profile.banner|slice:':7' == 'preset:' %}
+                {% if profile.banner == 'preset:cyberpunk' %}bg-gradient-to-r from-fuchsia-600 via-pink-600 to-rose-700
+                {% elif profile.banner == 'preset:emerald' %}bg-gradient-to-r from-emerald-700 via-teal-700 to-cyan-800
+                {% elif profile.banner == 'preset:sunset' %}bg-gradient-to-r from-amber-600 via-orange-600 to-rose-700
+                {% elif profile.banner == 'preset:obsidian' %}bg-gradient-to-r from-zinc-900 via-zinc-800 to-slate-900
+                {% elif profile.banner == 'preset:electric' %}bg-gradient-to-r from-indigo-900 via-purple-800 to-pink-700
+                {% else %}bg-gradient-to-r from-blue-700 via-indigo-600 to-purple-800{% endif %}
+            {% endif %}"
+            {% if profile.banner and profile.banner|slice:':7' != 'preset:' %}style="background-image: url('{{ profile.banner }}');"{% endif %}>
             
-            <!-- Top Right Identity Pill -->
-            <div class="absolute top-3 right-4 sm:top-4 sm:right-6 px-3 py-1 rounded-full bg-black/30 backdrop-blur-md border border-white/15 text-[11px] font-semibold text-white/90 tracking-wide flex items-center space-x-1.5 shadow-sm">
-                <span class="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></span>
-                <span>AetherSpace Identity &bull; {{ profile_user.role|default:"Member" }}</span>
+            {% if not profile.banner or profile.banner|slice:':7' == 'preset:' %}
+                <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.18),transparent_50%)]"></div>
+                <div class="absolute inset-0 bg-[radial-gradient(circle_at_bottom_left,rgba(0,0,0,0.25),transparent_60%)]"></div>
+            {% else %}
+                <div class="absolute inset-0 bg-black/25"></div>
+            {% endif %}
+            
+            <!-- Top Right Identity Pill & Edit Shortcut -->
+            <div class="absolute top-3 right-4 sm:top-4 sm:right-6 flex items-center space-x-2">
+                {% if is_own_profile %}
+                    <a href="{% url 'user_settings:profile' %}" 
+                       class="px-2.5 py-1 rounded-full bg-black/40 hover:bg-black/60 backdrop-blur-md border border-white/20 text-[11px] font-semibold text-white tracking-wide flex items-center space-x-1.5 shadow-sm transition-all"
+                       title="Change Banner Photo">
+                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                        <span class="hidden sm:inline">Change Banner</span>
+                    </a>
+                {% endif %}
+                <div class="px-3 py-1 rounded-full bg-black/30 backdrop-blur-md border border-white/15 text-[11px] font-semibold text-white/90 tracking-wide flex items-center space-x-1.5 shadow-sm">
+                    <span class="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></span>
+                    <span>AetherSpace Identity &bull; {{ profile_user.role|default:"Member" }}</span>
+                </div>
             </div>
         </div>
 

@@ -21,6 +21,7 @@ urlpatterns = [
     path('profile/activity/', views.profile_activity_view, name='profile_activity'),
     path('profile/roles/', views.profile_roles_view, name='profile_roles'),
     path('profile/avatar/remove/', views.profile_avatar_remove_view, name='profile_avatar_remove'),
+    path('profile/banner/remove/', views.profile_banner_remove_view, name='profile_banner_remove'),
     path('profile/u/<uuid:user_id>/', views.public_profile_view, name='public_profile'),
 ]
 

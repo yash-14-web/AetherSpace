@@ -216,3 +216,44 @@ class UserSettingsTests(TestCase):
         self.assertEqual(res4.status_code, 200)
         data4 = res4.json()
         self.assertTrue(any(i['code'] == 'B-882316' for i in data4['results']))
+
+    def test_integrations_settings_renders_without_reverse_error(self):
+        """Settings Integrations view renders cleanly without NoReverseMatch errors."""
+        self.client.login(email=self.user.email, password=self.password)
+        response = self.client.get(reverse('user_settings:integrations'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Platform Integrations")
+        self.assertContains(response, "WebRTC / Jitsi Meet")
+        self.assertContains(response, "whsec_")
+
+    def test_profile_banner_url_preset_and_removal(self):
+        """User can link external banner photo, apply gradient preset, and remove banner."""
+        self.client.login(email=self.user.email, password=self.password)
+
+        # 1. Update banner with external URL
+        test_url = "https://images.unsplash.com/photo-1518770660439-4636190af475"
+        resp1 = self.client.post(reverse('user_settings:profile'), {
+            'headline': 'Full-Stack Developer',
+            'banner_url': test_url,
+        }, follow=True)
+        self.assertEqual(resp1.status_code, 200)
+        self.profile.refresh_from_db()
+        self.assertEqual(self.profile.banner, test_url)
+
+        # 2. Update banner with gradient preset
+        resp2 = self.client.post(reverse('user_settings:profile'), {
+            'headline': 'Full-Stack Developer',
+            'banner_preset': 'cyberpunk',
+        }, follow=True)
+        self.assertEqual(resp2.status_code, 200)
+        self.profile.refresh_from_db()
+        self.assertEqual(self.profile.banner, 'preset:cyberpunk')
+
+        # 3. Remove banner
+        resp3 = self.client.post(reverse('user_settings:profile'), {
+            'action': 'remove_banner'
+        }, follow=True)
+        self.assertEqual(resp3.status_code, 200)
+        self.profile.refresh_from_db()
+        self.assertEqual(self.profile.banner, '')
+

@@ -105,6 +105,7 @@ class UserProfile(models.Model):
     bio = models.TextField(blank=True)
     phone = models.CharField(max_length=32, blank=True)
     headline = models.CharField(max_length=255, blank=True)
+    banner = models.CharField(max_length=1024, blank=True, default='', help_text="Supabase storage path, image URL, or gradient preset")
     preferences = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
