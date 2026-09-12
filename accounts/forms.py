@@ -182,3 +182,119 @@ class ResendVerificationForm(forms.Form):
 
     def clean_email(self):
         return self.cleaned_data.get('email').lower().strip()
+
+
+TIMEZONE_CHOICES = [
+    ('UTC', 'UTC (Coordinated Universal Time)'),
+    ('America/New_York', 'Eastern Time (US & Canada) (UTC-5)'),
+    ('America/Chicago', 'Central Time (US & Canada) (UTC-6)'),
+    ('America/Denver', 'Mountain Time (US & Canada) (UTC-7)'),
+    ('America/Los_Angeles', 'Pacific Time (US & Canada) (UTC-8)'),
+    ('Europe/London', 'London, Dublin (UTC+0)'),
+    ('Europe/Paris', 'Paris, Berlin, Rome (UTC+1)'),
+    ('Asia/Dubai', 'Dubai, Abu Dhabi (UTC+4)'),
+    ('Asia/Kolkata', 'India Standard Time (IST) (UTC+5:30)'),
+    ('Asia/Singapore', 'Singapore, Hong Kong (UTC+8)'),
+    ('Asia/Tokyo', 'Tokyo, Seoul (UTC+9)'),
+    ('Australia/Sydney', 'Sydney, Melbourne (UTC+10)'),
+]
+
+
+class ProfileUpdateForm(forms.Form):
+    """Form to update primary user information and profile details."""
+    full_name = forms.CharField(
+        max_length=255,
+        required=True,
+        label=_("Full name"),
+        widget=forms.TextInput(attrs={
+            'id': 'profile-fullname',
+            'placeholder': 'Yaswanth M',
+            'class': 'w-full px-3.5 py-2.5 text-sm rounded-lg border transition-colors focus:outline-none focus:ring-2 focus:ring-aether-blue border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500',
+        })
+    )
+    headline = forms.CharField(
+        max_length=255,
+        required=False,
+        label=_("Professional headline"),
+        widget=forms.TextInput(attrs={
+            'id': 'profile-headline',
+            'placeholder': 'Senior Full-Stack Engineer & Agile Architect',
+            'class': 'w-full px-3.5 py-2.5 text-sm rounded-lg border transition-colors focus:outline-none focus:ring-2 focus:ring-aether-blue border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500',
+        })
+    )
+    bio = forms.CharField(
+        required=False,
+        label=_("About / Bio"),
+        widget=forms.Textarea(attrs={
+            'id': 'profile-bio',
+            'rows': 4,
+            'placeholder': 'Share a few words about your background, focus areas, and technical expertise...',
+            'class': 'w-full px-3.5 py-2.5 text-sm rounded-lg border transition-colors focus:outline-none focus:ring-2 focus:ring-aether-blue border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500',
+        })
+    )
+    phone = forms.CharField(
+        max_length=32,
+        required=False,
+        label=_("Phone number"),
+        widget=forms.TextInput(attrs={
+            'id': 'profile-phone',
+            'placeholder': '+1 (555) 000-0000',
+            'class': 'w-full px-3.5 py-2.5 text-sm rounded-lg border transition-colors focus:outline-none focus:ring-2 focus:ring-aether-blue border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500',
+        })
+    )
+    timezone = forms.ChoiceField(
+        choices=TIMEZONE_CHOICES,
+        required=False,
+        label=_("Timezone"),
+        widget=forms.Select(attrs={
+            'id': 'profile-timezone',
+            'class': 'w-full px-3.5 py-2.5 text-sm rounded-lg border transition-colors focus:outline-none focus:ring-2 focus:ring-aether-blue border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100',
+        })
+    )
+
+
+class AvatarUploadForm(forms.Form):
+    """
+    KB-only Avatar upload and linking form:
+    Enforces maximum 500 KB upload limit, image extensions, or external URL.
+    """
+    avatar_file = forms.FileField(
+        required=False,
+        label=_("Upload profile picture (Max 500 KB)"),
+        widget=forms.FileInput(attrs={
+            'id': 'avatar-file-input',
+            'accept': 'image/png,image/jpeg,image/webp,image/gif',
+            'class': 'hidden',
+        })
+    )
+    avatar_url = forms.URLField(
+        required=False,
+        label=_("Or link external image URL (0 KB storage)"),
+        widget=forms.URLInput(attrs={
+            'id': 'avatar-url-input',
+            'placeholder': 'https://avatars.githubusercontent.com/u/...',
+            'class': 'w-full px-3.5 py-2.5 text-sm rounded-lg border transition-colors focus:outline-none focus:ring-2 focus:ring-aether-blue border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500',
+        })
+    )
+    preset_color = forms.CharField(
+        required=False,
+        widget=forms.HiddenInput(attrs={'id': 'avatar-preset-input'})
+    )
+
+    def clean_avatar_file(self):
+        file_obj = self.cleaned_data.get('avatar_file')
+        if file_obj:
+            from .services import MAX_AVATAR_SIZE_BYTES, ALLOWED_AVATAR_EXTENSIONS
+            import os
+            if file_obj.size > MAX_AVATAR_SIZE_BYTES:
+                size_kb = round(file_obj.size / 1024)
+                raise forms.ValidationError(
+                    _(f"File size ({size_kb} KB) exceeds the 500 KB maximum limit. Please choose a smaller photo.")
+                )
+            ext = os.path.splitext(file_obj.name)[1].lstrip('.').lower()
+            if ext not in ALLOWED_AVATAR_EXTENSIONS:
+                raise forms.ValidationError(
+                    _(f"Unsupported format '.{ext}'. Allowed formats: JPG, PNG, WEBP, GIF.")
+                )
+        return file_obj
+

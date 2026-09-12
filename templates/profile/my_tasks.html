@@ -1,0 +1,211 @@
+{% extends "profile/base_profile.html" %}
+
+{% block profile_content %}
+<div class="space-y-6">
+
+    <!-- 1. Filter Bar (Status Pills + Search + Workspace Filter) -->
+    <div class="aether-card p-4 rounded-2xl border border-slate-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm space-y-3">
+        <!-- Status Filter Pills -->
+        <div class="flex items-center space-x-1 overflow-x-auto no-scrollbar pb-1">
+            <a href="?status=ALL&workspace={{ workspace_filter }}&q={{ query }}" 
+               class="px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors inline-flex items-center space-x-1.5
+                      {% if status_filter == 'ALL' %}bg-blue-600 text-white shadow-sm{% else %}bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-700{% endif %}">
+                <span>All Tasks</span>
+                <span class="px-1.5 py-0.2 rounded-full text-[10px] {% if status_filter == 'ALL' %}bg-blue-700 text-white{% else %}bg-slate-200 dark:bg-zinc-700 text-slate-700 dark:text-zinc-300{% endif %}">
+                    {{ status_counts.ALL }}
+                </span>
+            </a>
+
+            <a href="?status=TODO&workspace={{ workspace_filter }}&q={{ query }}" 
+               class="px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors inline-flex items-center space-x-1.5
+                      {% if status_filter == 'TODO' %}bg-blue-600 text-white shadow-sm{% else %}bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-700{% endif %}">
+                <span>To Do</span>
+                <span class="px-1.5 py-0.2 rounded-full text-[10px] {% if status_filter == 'TODO' %}bg-blue-700 text-white{% else %}bg-slate-200 dark:bg-zinc-700 text-slate-700 dark:text-zinc-300{% endif %}">
+                    {{ status_counts.TODO }}
+                </span>
+            </a>
+
+            <a href="?status=IN_PROGRESS&workspace={{ workspace_filter }}&q={{ query }}" 
+               class="px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors inline-flex items-center space-x-1.5
+                      {% if status_filter == 'IN_PROGRESS' %}bg-blue-600 text-white shadow-sm{% else %}bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-700{% endif %}">
+                <span>In Progress</span>
+                <span class="px-1.5 py-0.2 rounded-full text-[10px] {% if status_filter == 'IN_PROGRESS' %}bg-blue-700 text-white{% else %}bg-slate-200 dark:bg-zinc-700 text-slate-700 dark:text-zinc-300{% endif %}">
+                    {{ status_counts.IN_PROGRESS }}
+                </span>
+            </a>
+
+            <a href="?status=CODE_REVIEW&workspace={{ workspace_filter }}&q={{ query }}" 
+               class="px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors inline-flex items-center space-x-1.5
+                      {% if status_filter == 'CODE_REVIEW' %}bg-blue-600 text-white shadow-sm{% else %}bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-700{% endif %}">
+                <span>Code Review</span>
+                <span class="px-1.5 py-0.2 rounded-full text-[10px] {% if status_filter == 'CODE_REVIEW' %}bg-blue-700 text-white{% else %}bg-slate-200 dark:bg-zinc-700 text-slate-700 dark:text-zinc-300{% endif %}">
+                    {{ status_counts.CODE_REVIEW }}
+                </span>
+            </a>
+
+            <a href="?status=TESTING&workspace={{ workspace_filter }}&q={{ query }}" 
+               class="px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors inline-flex items-center space-x-1.5
+                      {% if status_filter == 'TESTING' %}bg-blue-600 text-white shadow-sm{% else %}bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-700{% endif %}">
+                <span>Testing</span>
+                <span class="px-1.5 py-0.2 rounded-full text-[10px] {% if status_filter == 'TESTING' %}bg-blue-700 text-white{% else %}bg-slate-200 dark:bg-zinc-700 text-slate-700 dark:text-zinc-300{% endif %}">
+                    {{ status_counts.TESTING }}
+                </span>
+            </a>
+
+            <a href="?status=DONE&workspace={{ workspace_filter }}&q={{ query }}" 
+               class="px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors inline-flex items-center space-x-1.5
+                      {% if status_filter == 'DONE' %}bg-blue-600 text-white shadow-sm{% else %}bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-700{% endif %}">
+                <span>Done</span>
+                <span class="px-1.5 py-0.2 rounded-full text-[10px] {% if status_filter == 'DONE' %}bg-blue-700 text-white{% else %}bg-slate-200 dark:bg-zinc-700 text-slate-700 dark:text-zinc-300{% endif %}">
+                    {{ status_counts.DONE }}
+                </span>
+            </a>
+        </div>
+
+        <!-- Search & Workspace Form -->
+        <form method="GET" action="" class="flex flex-col sm:flex-row items-center gap-3 pt-2 border-t border-slate-100 dark:border-zinc-800">
+            <input type="hidden" name="status" value="{{ status_filter }}">
+
+            <!-- Search box -->
+            <div class="relative flex-1 w-full">
+                <input type="text" 
+                       name="q" 
+                       value="{{ query }}" 
+                       placeholder="Search tasks by code, title, or keyword..." 
+                       class="w-full pl-9 pr-3.5 py-2 text-xs rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-800/40 text-slate-900 dark:text-zinc-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <svg class="w-4 h-4 absolute left-3 top-2.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+            </div>
+
+            <!-- Workspace filter dropdown -->
+            <div class="w-full sm:w-56 shrink-0">
+                <select name="workspace" 
+                        onchange="this.form.submit()" 
+                        class="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-800/40 text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="ALL">All Workspaces</option>
+                    {% for ws in workspaces %}
+                        <option value="{{ ws.slug }}" {% if workspace_filter == ws.slug %}selected{% endif %}>
+                            {{ ws.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <button type="submit" class="w-full sm:w-auto px-4 py-2 text-xs font-semibold rounded-xl bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors">
+                Filter
+            </button>
+        </form>
+    </div>
+
+    <!-- 2. Tasks Table / Card List -->
+    <div class="aether-card overflow-hidden rounded-2xl border border-slate-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm">
+        {% if tasks_page.object_list %}
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs">
+                    <thead class="bg-slate-50/80 dark:bg-zinc-800/60 border-b border-slate-200/80 dark:border-zinc-800 text-slate-500 dark:text-zinc-400 uppercase tracking-wider font-bold">
+                        <tr>
+                            <th class="px-5 py-3">Task ID</th>
+                            <th class="px-5 py-3">Title</th>
+                            <th class="px-5 py-3">Workspace</th>
+                            <th class="px-5 py-3">Priority</th>
+                            <th class="px-5 py-3">Status</th>
+                            <th class="px-5 py-3">Due Date</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 dark:divide-zinc-800/70">
+                        {% for task in tasks_page.object_list %}
+                            <tr class="hover:bg-slate-50/70 dark:hover:bg-zinc-800/40 transition-colors group">
+                                <td class="px-5 py-3 font-mono font-bold text-blue-600 dark:text-blue-400 whitespace-nowrap">
+                                    #{{ task.task_code }}
+                                </td>
+                                <td class="px-5 py-3 font-medium text-slate-900 dark:text-zinc-100 max-w-xs sm:max-w-md truncate">
+                                    <a href="/tasks/w/{{ task.workspace.slug }}/{{ task.id }}/" class="hover:text-blue-600 dark:hover:text-blue-400">
+                                        {{ task.title }}
+                                    </a>
+                                </td>
+                                <td class="px-5 py-3 whitespace-nowrap">
+                                    <span class="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300">
+                                        {{ task.workspace.name }}
+                                    </span>
+                                </td>
+                                <td class="px-5 py-3 whitespace-nowrap">
+                                    <span class="px-2 py-0.5 text-[10px] font-bold rounded-md uppercase
+                                        {% if task.priority == 'URGENT' %}bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-400 border border-rose-200 dark:border-rose-900/50
+                                        {% elif task.priority == 'HIGH' %}bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400 border border-amber-200 dark:border-amber-900/50
+                                        {% elif task.priority == 'MEDIUM' %}bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-400 border border-blue-200 dark:border-blue-900/50
+                                        {% else %}bg-slate-100 text-slate-700 dark:bg-zinc-800 dark:text-zinc-300{% endif %}">
+                                        {{ task.priority }}
+                                    </span>
+                                </td>
+                                <td class="px-5 py-3 whitespace-nowrap">
+                                    <span class="px-2 py-0.5 text-[10px] font-semibold rounded-md
+                                        {% if task.status == 'DONE' %}bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400
+                                        {% elif task.status == 'IN_PROGRESS' %}bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-400
+                                        {% else %}bg-slate-100 text-slate-700 dark:bg-zinc-800 dark:text-zinc-300{% endif %}">
+                                        {{ task.get_status_display }}
+                                    </span>
+                                </td>
+                                <td class="px-5 py-3 text-slate-500 dark:text-zinc-400 whitespace-nowrap text-[11px]">
+                                    {% if task.due_date %}
+                                        {{ task.due_date|date:"M d, Y" }}
+                                    {% else %}
+                                        <span class="text-slate-400 dark:text-zinc-600">None</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            {% if tasks_page.has_other_pages %}
+                <div class="px-5 py-3 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between text-xs text-slate-500 dark:text-zinc-400">
+                    <div>
+                        Showing page {{ tasks_page.number }} of {{ tasks_page.paginator.num_pages }}
+                    </div>
+                    <div class="flex items-center space-x-1">
+                        {% if tasks_page.has_previous %}
+                            <a href="?page={{ tasks_page.previous_page_number }}&status={{ status_filter }}&workspace={{ workspace_filter }}&q={{ query }}"
+                               class="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors">
+                                Previous
+                            </a>
+                        {% endif %}
+                        {% if tasks_page.has_next %}
+                            <a href="?page={{ tasks_page.next_page_number }}&status={{ status_filter }}&workspace={{ workspace_filter }}&q={{ query }}"
+                               class="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors">
+                                Next
+                            </a>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endif %}
+
+        {% else %}
+            <!-- High-Fidelity Empty State -->
+            <div class="py-16 px-4 text-center">
+                <div class="w-12 h-12 mx-auto rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center mb-3">
+                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    </svg>
+                </div>
+                <h3 class="text-sm font-bold text-slate-900 dark:text-zinc-100">No tasks found</h3>
+                <p class="text-xs text-slate-500 dark:text-zinc-400 max-w-sm mx-auto mt-1">
+                    {% if query or status_filter != 'ALL' or workspace_filter != 'ALL' %}
+                        No tasks match your active filter criteria. Try clearing search filters.
+                    {% else %}
+                        You do not have any tasks assigned to your account. When tasks are assigned to you in sprint boards, they will appear here.
+                    {% endif %}
+                </p>
+                {% if query or status_filter != 'ALL' or workspace_filter != 'ALL' %}
+                    <a href="{% url 'accounts:profile_tasks' %}" class="mt-3 inline-block text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline">
+                        Reset all filters
+                    </a>
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+
+</div>
+{% endblock %}

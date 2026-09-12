@@ -1,0 +1,304 @@
+{% extends "profile/base_profile.html" %}
+
+{% block profile_content %}
+<div class="space-y-6">
+
+    <!-- Top Section: Bio & Contact Overview -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Left: Bio & About Card -->
+        <div class="lg:col-span-2 aether-card p-5 sm:p-6 rounded-2xl border border-slate-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm">
+            <h2 class="text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 mb-3 flex items-center space-x-2">
+                <svg class="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>About & Professional Bio</span>
+            </h2>
+            {% if profile.bio %}
+                <p class="text-sm text-slate-700 dark:text-zinc-300 leading-relaxed whitespace-pre-line">
+                    {{ profile.bio }}
+                </p>
+            {% else %}
+                <div class="py-6 text-center text-xs text-slate-400 dark:text-zinc-500 border border-dashed border-slate-200 dark:border-zinc-800 rounded-xl">
+                    <p>No professional biography added yet.</p>
+                    {% if is_own_profile %}
+                        <a href="{% url 'accounts:profile_edit' %}" class="mt-2 inline-block font-semibold text-blue-600 dark:text-blue-400 hover:underline">
+                            + Add your bio & headline
+                        </a>
+                    {% endif %}
+                </div>
+            {% endif %}
+
+            <!-- Quick Skills / Focus Areas -->
+            <div class="mt-5 pt-4 border-t border-slate-100 dark:border-zinc-800/80 flex items-center justify-between flex-wrap gap-2 text-xs">
+                <div class="flex items-center space-x-2 text-slate-500 dark:text-zinc-400">
+                    <span class="font-semibold text-slate-700 dark:text-zinc-300">Focus Areas:</span>
+                    <span class="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300">Full-Stack</span>
+                    <span class="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300">Agile Workflows</span>
+                    <span class="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300">Team Collaboration</span>
+                </div>
+                {% if is_own_profile %}
+                    <a href="{% url 'accounts:profile_edit' %}" class="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline">
+                        Edit details &rarr;
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Right: Contact & Account Metadata -->
+        <div class="aether-card p-5 sm:p-6 rounded-2xl border border-slate-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm space-y-4">
+            <h2 class="text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 flex items-center space-x-2">
+                <svg class="w-4 h-4 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2" />
+                </svg>
+                <span>Account Information</span>
+            </h2>
+
+            <div class="space-y-3 text-xs">
+                <div class="flex justify-between py-1.5 border-b border-slate-100 dark:border-zinc-800/60">
+                    <span class="text-slate-500 dark:text-zinc-400">Email Address</span>
+                    <span class="font-semibold text-slate-800 dark:text-zinc-200">{{ profile_user.email }}</span>
+                </div>
+                <div class="flex justify-between py-1.5 border-b border-slate-100 dark:border-zinc-800/60">
+                    <span class="text-slate-500 dark:text-zinc-400">Timezone</span>
+                    <span class="font-semibold text-slate-800 dark:text-zinc-200">{{ profile_user.timezone|default:"UTC" }}</span>
+                </div>
+                <div class="flex justify-between py-1.5 border-b border-slate-100 dark:border-zinc-800/60">
+                    <span class="text-slate-500 dark:text-zinc-400">System Role</span>
+                    <span class="font-bold text-blue-600 dark:text-blue-400 uppercase">{{ profile_user.role|default:"CONTRIBUTOR" }}</span>
+                </div>
+                <div class="flex justify-between py-1.5 border-b border-slate-100 dark:border-zinc-800/60">
+                    <span class="text-slate-500 dark:text-zinc-400">Email Status</span>
+                    {% if profile_user.is_verified %}
+                        <span class="font-semibold text-emerald-600 dark:text-emerald-400">Verified</span>
+                    {% else %}
+                        <span class="font-semibold text-amber-500">Pending Verification</span>
+                    {% endif %}
+                </div>
+                <div class="flex justify-between py-1.5">
+                    <span class="text-slate-500 dark:text-zinc-400">Active Workspaces</span>
+                    <span class="font-semibold text-slate-800 dark:text-zinc-200">{{ metrics.workspaces_count }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Middle Section: Recent Tasks & Bugs Side by Side -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        <!-- 1. Active Assigned Tasks -->
+        <div class="aether-card p-5 sm:p-6 rounded-2xl border border-slate-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm space-y-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-2">
+                    <div class="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-xs">
+                        TSK
+                    </div>
+                    <div>
+                        <h2 class="text-sm font-bold text-slate-900 dark:text-zinc-100">Assigned Tasks</h2>
+                        <p class="text-[11px] text-slate-500 dark:text-zinc-400">Active sprint tasks requiring your focus</p>
+                    </div>
+                </div>
+                <a href="{% url 'accounts:profile_tasks' %}" class="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline">
+                    View all ({{ metrics.total_assigned_tasks }}) &rarr;
+                </a>
+            </div>
+
+            {% if recent_tasks %}
+                <div class="divide-y divide-slate-100 dark:divide-zinc-800/70">
+                    {% for task in recent_tasks %}
+                        <div class="py-3 flex items-center justify-between gap-3 group">
+                            <div class="min-w-0 flex-1">
+                                <div class="flex items-center space-x-2">
+                                    <span class="font-mono text-xs font-bold text-blue-600 dark:text-blue-400">#{{ task.task_code }}</span>
+                                    <span class="text-[10px] px-1.5 py-0.2 rounded bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 font-medium">
+                                        {{ task.workspace.name }}
+                                    </span>
+                                </div>
+                                <a href="/tasks/w/{{ task.workspace.slug }}/{{ task.id }}/" 
+                                   class="text-xs sm:text-sm font-semibold text-slate-900 dark:text-zinc-100 hover:text-blue-600 dark:hover:text-blue-400 truncate block mt-0.5">
+                                    {{ task.title }}
+                                </a>
+                            </div>
+
+                            <div class="flex items-center space-x-2 shrink-0">
+                                <!-- Priority pill -->
+                                <span class="px-2 py-0.5 text-[10px] font-bold rounded-md uppercase
+                                    {% if task.priority == 'URGENT' %}bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-400 border border-rose-200 dark:border-rose-900/50
+                                    {% elif task.priority == 'HIGH' %}bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400 border border-amber-200 dark:border-amber-900/50
+                                    {% elif task.priority == 'MEDIUM' %}bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-400 border border-blue-200 dark:border-blue-900/50
+                                    {% else %}bg-slate-100 text-slate-700 dark:bg-zinc-800 dark:text-zinc-300{% endif %}">
+                                    {{ task.priority }}
+                                </span>
+
+                                <!-- Status badge -->
+                                <span class="px-2 py-0.5 text-[10px] font-semibold rounded-md
+                                    {% if task.status == 'DONE' %}bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400
+                                    {% elif task.status == 'IN_PROGRESS' %}bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-400
+                                    {% else %}bg-slate-100 text-slate-700 dark:bg-zinc-800 dark:text-zinc-300{% endif %}">
+                                    {{ task.get_status_display }}
+                                </span>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="py-8 text-center text-xs text-slate-400 dark:text-zinc-500 border border-dashed border-slate-200 dark:border-zinc-800 rounded-xl">
+                    <p>No tasks currently assigned to you.</p>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- 2. Relevant Defects & Bugs -->
+        <div class="aether-card p-5 sm:p-6 rounded-2xl border border-slate-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm space-y-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-2">
+                    <div class="w-8 h-8 rounded-lg bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center font-bold text-xs">
+                        BUG
+                    </div>
+                    <div>
+                        <h2 class="text-sm font-bold text-slate-900 dark:text-zinc-100">Assigned Defects</h2>
+                        <p class="text-[11px] text-slate-500 dark:text-zinc-400">Defects and bugs requiring resolution</p>
+                    </div>
+                </div>
+                <a href="{% url 'accounts:profile_bugs' %}" class="text-xs font-semibold text-rose-600 dark:text-rose-400 hover:underline">
+                    View all ({{ metrics.assigned_bugs_count }}) &rarr;
+                </a>
+            </div>
+
+            {% if recent_bugs %}
+                <div class="divide-y divide-slate-100 dark:divide-zinc-800/70">
+                    {% for bug in recent_bugs %}
+                        <div class="py-3 flex items-center justify-between gap-3 group">
+                            <div class="min-w-0 flex-1">
+                                <div class="flex items-center space-x-2">
+                                    <span class="font-mono text-xs font-bold text-rose-600 dark:text-rose-400">{{ bug.bug_code }}</span>
+                                    <span class="text-[10px] px-1.5 py-0.2 rounded bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 font-medium">
+                                        {{ bug.workspace.name }}
+                                    </span>
+                                </div>
+                                <a href="/bugs/w/{{ bug.workspace.slug }}/{{ bug.id }}/" 
+                                   class="text-xs sm:text-sm font-semibold text-slate-900 dark:text-zinc-100 hover:text-rose-600 dark:hover:text-rose-400 truncate block mt-0.5">
+                                    {{ bug.title }}
+                                </a>
+                            </div>
+
+                            <div class="flex items-center space-x-2 shrink-0">
+                                <!-- Severity pill -->
+                                <span class="px-2 py-0.5 text-[10px] font-bold rounded-md
+                                    {% if bug.severity == 'SEV1' %}bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-400
+                                    {% elif bug.severity == 'SEV2' %}bg-orange-100 text-orange-800 dark:bg-orange-950/60 dark:text-orange-400
+                                    {% elif bug.severity == 'SEV3' %}bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-400
+                                    {% else %}bg-slate-100 text-slate-700 dark:bg-zinc-800 dark:text-zinc-300{% endif %}">
+                                    {{ bug.severity }}
+                                </span>
+
+                                <!-- Status badge -->
+                                <span class="px-2 py-0.5 text-[10px] font-semibold rounded-md
+                                    {% if bug.status == 'RESOLVED' or bug.status == 'CLOSED' %}bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400
+                                    {% elif bug.status == 'IN_PROGRESS' %}bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-400
+                                    {% else %}bg-slate-100 text-slate-700 dark:bg-zinc-800 dark:text-zinc-300{% endif %}">
+                                    {{ bug.get_status_display }}
+                                </span>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="py-8 text-center text-xs text-slate-400 dark:text-zinc-500 border border-dashed border-slate-200 dark:border-zinc-800 rounded-xl">
+                    <p>No defects currently assigned to you. All clean!</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Bottom Section: Workspace Memberships & Recent Activity -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        <!-- 1. Accessible Workspaces -->
+        <div class="aether-card p-5 sm:p-6 rounded-2xl border border-slate-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm space-y-4">
+            <div class="flex items-center justify-between">
+                <h2 class="text-sm font-bold text-slate-900 dark:text-zinc-100 flex items-center space-x-2">
+                    <svg class="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                    </svg>
+                    <span>Workspaces</span>
+                </h2>
+                <a href="{% url 'accounts:profile_roles' %}" class="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline">
+                    View roles &rarr;
+                </a>
+            </div>
+
+            {% if workspace_roles %}
+                <div class="space-y-2.5">
+                    {% for item in workspace_roles|slice:":4" %}
+                        <a href="/workspaces/w/{{ item.workspace_slug }}/" 
+                           class="flex items-center justify-between p-2.5 rounded-xl border border-slate-100 dark:border-zinc-800/80 hover:bg-slate-50 dark:hover:bg-zinc-800/50 transition-colors">
+                            <div class="min-w-0">
+                                <p class="text-xs font-bold text-slate-900 dark:text-zinc-100 truncate">{{ item.workspace_name }}</p>
+                                <p class="text-[10px] text-slate-500 dark:text-zinc-400">Joined {{ item.joined_at|date:"M Y" }}</p>
+                            </div>
+                            <span class="px-2 py-0.5 text-[10px] font-bold rounded-md uppercase
+                                {% if item.role == 'ADMIN' %}bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-400 border border-purple-200 dark:border-purple-900/60
+                                {% elif item.role == 'MANAGER' %}bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-400 border border-blue-200 dark:border-blue-900/60
+                                {% else %}bg-slate-100 text-slate-700 dark:bg-zinc-800 dark:text-zinc-300{% endif %}">
+                                {{ item.role_display }}
+                            </span>
+                        </a>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="py-6 text-center text-xs text-slate-400 dark:text-zinc-500 border border-dashed border-slate-200 dark:border-zinc-800 rounded-xl">
+                    <p>No active workspace memberships found.</p>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- 2. Recent Personal Activity Stream (Rule 57: Text-based; no radar/graph charts) -->
+        <div class="lg:col-span-2 aether-card p-5 sm:p-6 rounded-2xl border border-slate-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm space-y-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-2">
+                    <div class="w-8 h-8 rounded-lg bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center font-bold text-xs">
+                        ACT
+                    </div>
+                    <div>
+                        <h2 class="text-sm font-bold text-slate-900 dark:text-zinc-100">Recent Personal Activity</h2>
+                        <p class="text-[11px] text-slate-500 dark:text-zinc-400">Chronological stream of your actions and updates</p>
+                    </div>
+                </div>
+                <a href="{% url 'accounts:profile_activity' %}" class="text-xs font-semibold text-purple-600 dark:text-purple-400 hover:underline">
+                    View full log &rarr;
+                </a>
+            </div>
+
+            {% if recent_activities %}
+                <div class="space-y-3">
+                    {% for act in recent_activities %}
+                        <div class="flex items-start space-x-3 p-2.5 rounded-xl border border-slate-100 dark:border-zinc-800/60 hover:bg-slate-50/60 dark:hover:bg-zinc-800/40 transition-colors">
+                            <div class="w-7 h-7 rounded-lg shrink-0 flex items-center justify-center text-xs mt-0.5
+                                {% if act.category == 'TASKS' %}bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400
+                                {% elif act.category == 'BUGS' %}bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400
+                                {% else %}bg-slate-100 text-slate-600 dark:bg-zinc-800 dark:text-zinc-300{% endif %}">
+                                {% if act.category == 'TASKS' %}T{% elif act.category == 'BUGS' %}B{% else %}F{% endif %}
+                            </div>
+                            <div class="min-w-0 flex-1">
+                                <p class="text-xs text-slate-800 dark:text-zinc-200">
+                                    <span class="font-semibold">{{ act.action }}:</span> {{ act.description }}
+                                </p>
+                                <div class="flex items-center space-x-2 text-[10px] text-slate-400 dark:text-zinc-500 mt-1">
+                                    <span>{{ act.workspace }}</span>
+                                    <span>&bull;</span>
+                                    <span>{{ act.timestamp|timesince }} ago</span>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="py-8 text-center text-xs text-slate-400 dark:text-zinc-500 border border-dashed border-slate-200 dark:border-zinc-800 rounded-xl">
+                    <p>No activity logged yet. Start collaborating in tasks and chat to build your activity history.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+</div>
+{% endblock %}

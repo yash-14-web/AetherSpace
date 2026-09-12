@@ -1417,7 +1417,21 @@ A feature is done when:
 
 ## Profile
 
-**Status:** `NOT STARTED`
+**Status:** `IMPLEMENTED (Code Verified & 16 Automated Tests Passed)`
+
+- [x] My Profile (Screen 53)
+- [x] Edit Profile (Screen 54)
+- [x] Low-storage avatar upload (hard cap <= 500 KB, 200x200 square compression to ~15-30 KB)
+- [x] Zero-storage avatar modes (external URLs and signature gradient theme presets)
+- [x] Avatar removal with storage deletion
+- [x] My Tasks from Profile (Screen 55)
+- [x] My Bugs from Profile (Screen 56)
+- [x] My Activity Timeline (Screen 57)
+- [x] Workspace Roles (Screen 58)
+- [x] Teammate Public Profile view (`/profile/u/<uuid>/`)
+- [x] Server-side permissions & workspace isolation
+- [x] Playwright E2E spec (`tests/e2e/profile/profile_module.spec.ts`)
+- [ ] Owner verification
 
 ## Settings
 
@@ -3119,3 +3133,115 @@ npx playwright test tests/e2e/notifications/notifications_module.spec.ts --proje
    - Observe the `Storage quota (MB)` column in the workspace table.
    - Edit the quota directly in the table (e.g. change 50 to 100) and click **Save**.
    - Navigate to `http://127.0.0.1:8000/files/` and observe that the storage limit reflects the newly allocated quota.
+
+---
+
+# 18. PHASE 12 — PROFILE & AVATAR STORAGE OPTIMIZATION
+
+### Implementation Summary
+Implemented Phase 12 — Profile according to blueprint specifications and the approved reference designs (Screens 53–58):
+1. **Low-Storage & Avatar in KB Requirement (Optimized for Free-Tier Supabase 50 MB Cap):**
+   - **Strict 500 KB Upload Cap**: Client-side validation (`accept="image/png,image/jpeg,image/webp"`, file size inspection) and server-side Django Form validation rejecting any file larger than `500 * 1024` bytes with a clear, user-friendly error message.
+   - **Server-Side Pillow Square Thumbnail Compression**: Every uploaded image is automatically centered, square-cropped, downscaled to 200×200 pixels, and compressed into a lightweight JPEG buffer (~15–30 KB) before saving to storage.
+   - **Zero-Storage External Image URLs (0 KB)**: Users can supply external CDN / Gravatar / image links that consume zero bytes of local/Supabase storage.
+   - **Zero-Storage Signature Gradient Themes (0 KB)**: 6 curated vibrant gradient presets (`preset:blue`, `preset:teal`, `preset:indigo`, `preset:rose`, `preset:amber`, `preset:violet`) that render dynamic user initials over styled gradients with zero storage footprint.
+   - **Reclaimable Storage (Avatar Removal)**: One-click avatar deletion deletes the physical image file from storage, reclaiming storage quota immediately.
+2. **User Profile Suite (`templates/profile/`):**
+   - **Base Profile Shell (`base_profile.html`):**
+     - Hero banner with customizable accent gradient, avatar with status ring, full name, headline, location, and timezone pill.
+     - 4 Real-time Metric Cards: Assigned Tasks, Open Bugs, Active Workspaces, and Total Activities.
+     - 5 Sub-navigation Tabs: **Overview** (Screen 53), **My Tasks** (Screen 55), **My Bugs** (Screen 56), **Activity** (Screen 57), and **Workspace Roles** (Screen 58).
+   - **My Profile (`my_profile.html` — Screen 53):**
+     - Bio description card, personal details table (Email, Phone, Timezone, Member since).
+     - Recent tasks card with priority and status pills.
+     - Open bugs card with severity chips and quick links.
+     - Workspace membership summary and recent chronological activity feed.
+   - **Edit Profile (`edit_profile.html` — Screen 54):**
+     - Avatar management panel featuring live avatar preview, <= 500 KB file upload dropzone, external image URL input, and 6 one-click gradient theme buttons.
+     - Personal information form: Full Name, Professional Headline, Bio, Phone Number, and Timezone dropdown.
+     - Immediate validation feedback, error banners, and success flash notifications.
+   - **My Tasks (`my_tasks.html` — Screen 55):**
+     - Filter tabs by status (All, In Progress, Review, Done, Todo).
+     - Workspace selector dropdown and text search filter.
+     - 6-digit numeric task IDs (`#619347`), priority badges, due dates, workspace badges, and empty states.
+   - **My Bugs (`my_bugs.html` — Screen 56):**
+     - Relation tabs (All, Reported by me, Assigned to me).
+     - Severity and status dropdowns, search query box.
+     - B-prefix bug identifiers (`B-882316`), severity badges, workspace tags, and empty states.
+   - **My Activity (`my_activity.html` — Screen 57):**
+     - Strict text-based chronological timeline stream (no radar/graph charts per blueprint rule 57).
+     - Activity category filter pills (All, Tasks, Bugs, Files).
+     - Event icons, relative timestamps, and descriptive change logs.
+   - **Workspace Roles (`workspace_roles.html` — Screen 58):**
+     - Grid of all accessible workspaces with role pills (`Admin`, `Manager`, `Contributor`).
+     - Workspace descriptions, joined dates, and direct workspace launch buttons.
+     - Role permissions matrix explaining capabilities of each role.
+   - **Teammate Public Profile (`public_profile.html`):**
+     - Read-only profile view for collaborating teammates (`/profile/u/<uuid>/`).
+     - Enforces server-side privacy: only accessible by users who share at least one active workspace with the subject or platform administrators.
+3. **Architecture & Services (`accounts/`):**
+   - `accounts/services.py`:
+     - `get_or_create_user_profile(user)`
+     - `get_user_profile_metrics(user)`
+     - `get_user_assigned_tasks(user, status, workspace_slug, query)`
+     - `get_user_bugs(user, relation, severity, status, query)`
+     - `get_user_activities(user, category, limit)`
+     - `get_user_workspace_roles(user)`
+     - `process_and_save_avatar(user, file_obj, avatar_url, preset_color)`
+     - `remove_user_avatar(user)`
+   - `accounts/forms.py`: `ProfileUpdateForm`, `AvatarUploadForm` with 500 KB max limit.
+   - `accounts/views.py`: Complete suite of authenticated, permission-enforced views.
+   - `core/views.py`: Updated `profile_view` to route to `accounts:profile`.
+
+### Code Verification
+- Django system check: **PASS** (`python manage.py check` — 0 issues, 0 silenced)
+- Automated profile test suite: **PASS** (`python manage.py test accounts.tests.Phase12ProfileModuleTest --keepdb` — 16 tests passed, OK)
+- Full accounts test suite: **PASS** (`python manage.py test accounts --keepdb` — 32 tests passed, OK)
+- Core test suite: **PASS** (`python manage.py test core --keepdb` — 5 tests passed, OK)
+- Tailwind CSS build: **PASS** (`npm run build:css` completed cleanly)
+
+### Playwright E2E Suite (`tests/e2e/profile/profile_module.spec.ts`)
+- Script created for owner execution covering:
+  1. Unauthenticated redirect from `/profile/` to `/auth/login/`.
+  2. Loading My Profile (Screen 53) with hero banner, 4 metric cards, bio, and sub-navigation.
+  3. Navigating to Edit Profile (Screen 54) and verifying personal info & avatar controls.
+  4. Navigating to My Tasks (Screen 55) and verifying status pills, search, and tasks table.
+  5. Navigating to My Bugs (Screen 56) and verifying relation pills, severity filter, and bug IDs.
+  6. Navigating to Activity (Screen 57) and verifying chronological activity stream.
+  7. Navigating to Workspace Roles (Screen 58) and verifying workspace cards and role badges.
+  8. Teammate public profile access control (Screen 53 colleague view).
+
+**Execution**: **NOT RUN BY AGENT** (browser launch prohibited by safety rules).  
+**Owner execution command**:
+```bash
+npx playwright test tests/e2e/profile/profile_module.spec.ts --project=chromium
+```
+
+### Git Status
+- Branch: `main`
+- Remote: `https://github.com/yash-14-web/AetherSpace.git`
+
+### Owner Manual Verification Instructions
+1. Start the server:
+   ```bash
+   python manage.py runserver
+   ```
+2. Sign in at `http://127.0.0.1:8000/auth/login/`.
+3. Open Profile:
+   - Click **Profile** in the global left rail (or user dropdown in the universal header).
+   - Verify the Hero banner, 4 metric cards, Bio, Recent Tasks, Open Bugs, and Recent Activity.
+4. Test Low-Storage Avatar Management:
+   - Click **Edit Profile** (or go to `http://127.0.0.1:8000/profile/edit/`).
+   - Try uploading an image over 500 KB to verify the validation error banner.
+   - Upload a small valid image (<= 500 KB) and verify it is cropped to 200x200 and compressed.
+   - Alternatively, select one of the 6 **Signature Gradient Presets** (0 KB storage) and click Save.
+   - Notice the avatar immediately updates across the header, profile hero, and sidebar.
+   - Click **Remove** to delete the stored avatar and verify storage is reclaimed.
+5. Test Profile Sub-Views:
+   - Click **My Tasks** (`/profile/tasks/`) to view assigned tasks, filter by status, and search.
+   - Click **My Bugs** (`/profile/bugs/`) to view assigned/reported bugs and filter by severity.
+   - Click **Activity** (`/profile/activity/`) to view the chronological activity feed.
+   - Click **Workspace Roles** (`/profile/roles/`) to view all workspaces you belong to and your roles.
+6. Test Teammate Public Profile:
+   - Navigate to `/profile/u/<uuid>/` for another user in the same workspace to verify their read-only profile.
+

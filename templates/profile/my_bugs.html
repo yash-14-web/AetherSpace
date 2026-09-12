@@ -1,0 +1,201 @@
+{% extends "profile/base_profile.html" %}
+
+{% block profile_content %}
+<div class="space-y-6">
+
+    <!-- 1. Filter Bar (Relation Pills + Severity + Search) -->
+    <div class="aether-card p-4 rounded-2xl border border-slate-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm space-y-3">
+        <!-- Relation Filter Pills -->
+        <div class="flex items-center space-x-1 overflow-x-auto no-scrollbar pb-1">
+            <a href="?relation=ALL&severity={{ severity_filter }}&status={{ status_filter }}&q={{ query }}" 
+               class="px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors inline-flex items-center space-x-1.5
+                      {% if relation_filter == 'ALL' %}bg-rose-600 text-white shadow-sm{% else %}bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-700{% endif %}">
+                <span>All Bugs</span>
+                <span class="px-1.5 py-0.2 rounded-full text-[10px] {% if relation_filter == 'ALL' %}bg-rose-700 text-white{% else %}bg-slate-200 dark:bg-zinc-700 text-slate-700 dark:text-zinc-300{% endif %}">
+                    {{ relation_counts.ALL }}
+                </span>
+            </a>
+
+            <a href="?relation=ASSIGNED&severity={{ severity_filter }}&status={{ status_filter }}&q={{ query }}" 
+               class="px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors inline-flex items-center space-x-1.5
+                      {% if relation_filter == 'ASSIGNED' %}bg-rose-600 text-white shadow-sm{% else %}bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-700{% endif %}">
+                <span>Assigned to Me</span>
+                <span class="px-1.5 py-0.2 rounded-full text-[10px] {% if relation_filter == 'ASSIGNED' %}bg-rose-700 text-white{% else %}bg-slate-200 dark:bg-zinc-700 text-slate-700 dark:text-zinc-300{% endif %}">
+                    {{ relation_counts.ASSIGNED }}
+                </span>
+            </a>
+
+            <a href="?relation=REPORTED&severity={{ severity_filter }}&status={{ status_filter }}&q={{ query }}" 
+               class="px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors inline-flex items-center space-x-1.5
+                      {% if relation_filter == 'REPORTED' %}bg-rose-600 text-white shadow-sm{% else %}bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-700{% endif %}">
+                <span>Reported by Me</span>
+                <span class="px-1.5 py-0.2 rounded-full text-[10px] {% if relation_filter == 'REPORTED' %}bg-rose-700 text-white{% else %}bg-slate-200 dark:bg-zinc-700 text-slate-700 dark:text-zinc-300{% endif %}">
+                    {{ relation_counts.REPORTED }}
+                </span>
+            </a>
+
+            <a href="?relation=RESOLVED&severity={{ severity_filter }}&status={{ status_filter }}&q={{ query }}" 
+               class="px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors inline-flex items-center space-x-1.5
+                      {% if relation_filter == 'RESOLVED' %}bg-rose-600 text-white shadow-sm{% else %}bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-700{% endif %}">
+                <span>Resolved</span>
+                <span class="px-1.5 py-0.2 rounded-full text-[10px] {% if relation_filter == 'RESOLVED' %}bg-rose-700 text-white{% else %}bg-slate-200 dark:bg-zinc-700 text-slate-700 dark:text-zinc-300{% endif %}">
+                    {{ relation_counts.RESOLVED }}
+                </span>
+            </a>
+        </div>
+
+        <!-- Search & Severity Form -->
+        <form method="GET" action="" class="flex flex-col sm:flex-row items-center gap-3 pt-2 border-t border-slate-100 dark:border-zinc-800">
+            <input type="hidden" name="relation" value="{{ relation_filter }}">
+
+            <!-- Search box -->
+            <div class="relative flex-1 w-full">
+                <input type="text" 
+                       name="q" 
+                       value="{{ query }}" 
+                       placeholder="Search defects by code, title, or keywords..." 
+                       class="w-full pl-9 pr-3.5 py-2 text-xs rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-800/40 text-slate-900 dark:text-zinc-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500">
+                <svg class="w-4 h-4 absolute left-3 top-2.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+            </div>
+
+            <!-- Severity dropdown -->
+            <div class="w-full sm:w-48 shrink-0">
+                <select name="severity" 
+                        onchange="this.form.submit()" 
+                        class="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-800/40 text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-rose-500">
+                    <option value="ALL">All Severities</option>
+                    <option value="SEV1" {% if severity_filter == 'SEV1' %}selected{% endif %}>Sev 1 - Critical</option>
+                    <option value="SEV2" {% if severity_filter == 'SEV2' %}selected{% endif %}>Sev 2 - Major</option>
+                    <option value="SEV3" {% if severity_filter == 'SEV3' %}selected{% endif %}>Sev 3 - Moderate</option>
+                    <option value="SEV4" {% if severity_filter == 'SEV4' %}selected{% endif %}>Sev 4 - Minor</option>
+                </select>
+            </div>
+
+            <!-- Status dropdown -->
+            <div class="w-full sm:w-48 shrink-0">
+                <select name="status" 
+                        onchange="this.form.submit()" 
+                        class="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-800/40 text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-rose-500">
+                    <option value="ALL">All Statuses</option>
+                    <option value="OPEN" {% if status_filter == 'OPEN' %}selected{% endif %}>Open</option>
+                    <option value="IN_PROGRESS" {% if status_filter == 'IN_PROGRESS' %}selected{% endif %}>In Progress</option>
+                    <option value="RESOLVED" {% if status_filter == 'RESOLVED' %}selected{% endif %}>Resolved</option>
+                    <option value="CLOSED" {% if status_filter == 'CLOSED' %}selected{% endif %}>Closed</option>
+                </select>
+            </div>
+
+            <button type="submit" class="w-full sm:w-auto px-4 py-2 text-xs font-semibold rounded-xl bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors">
+                Filter
+            </button>
+        </form>
+    </div>
+
+    <!-- 2. Bugs Table / Card List -->
+    <div class="aether-card overflow-hidden rounded-2xl border border-slate-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm">
+        {% if bugs_page.object_list %}
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs">
+                    <thead class="bg-slate-50/80 dark:bg-zinc-800/60 border-b border-slate-200/80 dark:border-zinc-800 text-slate-500 dark:text-zinc-400 uppercase tracking-wider font-bold">
+                        <tr>
+                            <th class="px-5 py-3">Bug Code</th>
+                            <th class="px-5 py-3">Title</th>
+                            <th class="px-5 py-3">Workspace</th>
+                            <th class="px-5 py-3">Severity</th>
+                            <th class="px-5 py-3">Status</th>
+                            <th class="px-5 py-3">Environment</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 dark:divide-zinc-800/70">
+                        {% for bug in bugs_page.object_list %}
+                            <tr class="hover:bg-slate-50/70 dark:hover:bg-zinc-800/40 transition-colors group">
+                                <td class="px-5 py-3 font-mono font-bold text-rose-600 dark:text-rose-400 whitespace-nowrap">
+                                    {{ bug.bug_code }}
+                                </td>
+                                <td class="px-5 py-3 font-medium text-slate-900 dark:text-zinc-100 max-w-xs sm:max-w-md truncate">
+                                    <a href="/bugs/w/{{ bug.workspace.slug }}/{{ bug.id }}/" class="hover:text-rose-600 dark:hover:text-rose-400">
+                                        {{ bug.title }}
+                                    </a>
+                                </td>
+                                <td class="px-5 py-3 whitespace-nowrap">
+                                    <span class="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300">
+                                        {{ bug.workspace.name }}
+                                    </span>
+                                </td>
+                                <td class="px-5 py-3 whitespace-nowrap">
+                                    <span class="px-2 py-0.5 text-[10px] font-bold rounded-md
+                                        {% if bug.severity == 'SEV1' %}bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-400
+                                        {% elif bug.severity == 'SEV2' %}bg-orange-100 text-orange-800 dark:bg-orange-950/60 dark:text-orange-400
+                                        {% elif bug.severity == 'SEV3' %}bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-400
+                                        {% else %}bg-slate-100 text-slate-700 dark:bg-zinc-800 dark:text-zinc-300{% endif %}">
+                                        {{ bug.severity }}
+                                    </span>
+                                </td>
+                                <td class="px-5 py-3 whitespace-nowrap">
+                                    <span class="px-2 py-0.5 text-[10px] font-semibold rounded-md
+                                        {% if bug.status == 'RESOLVED' or bug.status == 'CLOSED' %}bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400
+                                        {% elif bug.status == 'IN_PROGRESS' %}bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-400
+                                        {% else %}bg-slate-100 text-slate-700 dark:bg-zinc-800 dark:text-zinc-300{% endif %}">
+                                        {{ bug.get_status_display }}
+                                    </span>
+                                </td>
+                                <td class="px-5 py-3 text-slate-500 dark:text-zinc-400 whitespace-nowrap text-[11px]">
+                                    {{ bug.get_environment_display|default:"Production" }}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            {% if bugs_page.has_other_pages %}
+                <div class="px-5 py-3 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between text-xs text-slate-500 dark:text-zinc-400">
+                    <div>
+                        Showing page {{ bugs_page.number }} of {{ bugs_page.paginator.num_pages }}
+                    </div>
+                    <div class="flex items-center space-x-1">
+                        {% if bugs_page.has_previous %}
+                            <a href="?page={{ bugs_page.previous_page_number }}&relation={{ relation_filter }}&severity={{ severity_filter }}&status={{ status_filter }}&q={{ query }}"
+                               class="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors">
+                                Previous
+                            </a>
+                        {% endif %}
+                        {% if bugs_page.has_next %}
+                            <a href="?page={{ bugs_page.next_page_number }}&relation={{ relation_filter }}&severity={{ severity_filter }}&status={{ status_filter }}&q={{ query }}"
+                               class="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors">
+                                Next
+                            </a>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endif %}
+
+        {% else %}
+            <!-- High-Fidelity Empty State -->
+            <div class="py-16 px-4 text-center">
+                <div class="w-12 h-12 mx-auto rounded-2xl bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center mb-3">
+                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                </div>
+                <h3 class="text-sm font-bold text-slate-900 dark:text-zinc-100">No defects found</h3>
+                <p class="text-xs text-slate-500 dark:text-zinc-400 max-w-sm mx-auto mt-1">
+                    {% if query or relation_filter != 'ALL' or severity_filter != 'ALL' %}
+                        No bug reports match your active filter criteria. Try clearing filters.
+                    {% else %}
+                        You do not have any defects assigned to you or reported by your account.
+                    {% endif %}
+                </p>
+                {% if query or relation_filter != 'ALL' or severity_filter != 'ALL' %}
+                    <a href="{% url 'accounts:profile_bugs' %}" class="mt-3 inline-block text-xs font-semibold text-rose-600 dark:text-rose-400 hover:underline">
+                        Reset all filters
+                    </a>
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+
+</div>
+{% endblock %}

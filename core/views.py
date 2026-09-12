@@ -75,21 +75,8 @@ def notifications_view(request):
 
 @login_required
 def profile_view(request):
-    """User Profile & Account settings."""
-    return render(request, 'components/placeholder.html', {
-        'module_title': 'User Profile & Preferences',
-        'phase_badge': 'Phase 9 — Accounts',
-        'module_icon': 'profile',
-        'module_description': 'Manage your personal profile, credentials, active workspace memberships, and display preferences.',
-        'empty_heading': f"{request.user.full_name or request.user.email}",
-        'empty_text': f"Account: {request.user.email} • Role: {request.user.get_role_display() if hasattr(request.user, 'get_role_display') else 'Member'}. Full profile editing and avatar customization will arrive in Phase 9.",
-        'features': [
-            'Profile name, title, and avatar editor',
-            'Password change & multi-factor verification',
-            'Active workspace memberships manager',
-            'Theme & accessibility display preferences',
-        ],
-    })
+    """User Profile & Account settings - redirects to accounts profile."""
+    return redirect('accounts:profile')
 
 
 def error_400(request, exception=None):

@@ -8,15 +8,37 @@ from django.utils.encoding import force_bytes, force_str
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.urls import reverse
 
+from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_POST
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+from django.core.exceptions import PermissionDenied
+from django.shortcuts import get_object_or_404
+
 from .forms import (
     LoginForm,
     RegisterForm,
     ForgotPasswordForm,
     ResetPasswordForm,
     ResendVerificationForm,
+    ProfileUpdateForm,
+    AvatarUploadForm,
+    TIMEZONE_CHOICES,
 )
 from .models import User, UserProfile
+from workspaces.models import WorkspaceMembership
 from .tokens import account_verification_token
+from .services import (
+    get_or_create_user_profile,
+    get_user_profile_metrics,
+    get_user_assigned_tasks,
+    get_user_bugs,
+    get_user_activities,
+    get_user_workspace_roles,
+    process_and_save_avatar,
+    remove_user_avatar,
+    PRESET_AVATAR_THEMES,
+    MAX_AVATAR_SIZE_BYTES,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -219,3 +241,340 @@ def verify_email_confirm_view(request, uidb64, token):
             'invalid_token': True,
             'title': 'Invalid Verification Link — AetherSpace',
         })
+
+
+# ==============================================================================
+# PHASE 12: PROFILE VIEWS (Screens 53 - 58)
+# ==============================================================================
+
+@login_required
+def profile_view(request):
+    """
+    Screen 53 — My Profile overview:
+    Professional profile banner, contact details, system roles, metrics,
+    assigned tasks, relevant bugs, and chronological activity stream.
+    """
+    user = request.user
+    profile = get_or_create_user_profile(user)
+    metrics = get_user_profile_metrics(user)
+
+    # Overview highlights
+    recent_tasks = get_user_assigned_tasks(user)[:5]
+    recent_bugs = get_user_bugs(user)[:5]
+    recent_activities = get_user_activities(user, limit=6)
+    workspace_roles = get_user_workspace_roles(user)
+
+    return render(request, 'profile/my_profile.html', {
+        'profile_user': user,
+        'profile': profile,
+        'metrics': metrics,
+        'recent_tasks': recent_tasks,
+        'recent_bugs': recent_bugs,
+        'recent_activities': recent_activities,
+        'workspace_roles': workspace_roles,
+        'active_tab': 'overview',
+        'is_own_profile': True,
+        'title': f"{user.full_name or user.email} — My Profile",
+    })
+
+
+@login_required
+def profile_edit_view(request):
+    """
+    Screen 54 — Edit Profile:
+    Update personal information, headline, bio, contact details, timezone,
+    and manage avatar with KB-only compression (max 500 KB) or 0 KB presets/URLs.
+    """
+    user = request.user
+    profile = get_or_create_user_profile(user)
+
+    if request.method == 'POST':
+        action = request.POST.get('action', 'update_profile')
+
+        if action == 'update_avatar':
+            avatar_form = AvatarUploadForm(request.POST, request.FILES)
+            if avatar_form.is_valid():
+                file_obj = avatar_form.cleaned_data.get('avatar_file')
+                avatar_url = avatar_form.cleaned_data.get('avatar_url')
+                preset_color = avatar_form.cleaned_data.get('preset_color')
+
+                success, msg = process_and_save_avatar(
+                    user,
+                    file_obj=file_obj,
+                    avatar_url=avatar_url,
+                    preset_color=preset_color
+                )
+                if success:
+                    messages.success(request, msg)
+                else:
+                    messages.error(request, msg)
+                return redirect('accounts:profile_edit')
+            else:
+                for error_list in avatar_form.errors.values():
+                    for err in error_list:
+                        messages.error(request, err)
+                return redirect('accounts:profile_edit')
+
+        elif action == 'update_profile':
+            profile_form = ProfileUpdateForm(request.POST)
+            if profile_form.is_valid():
+                user.full_name = profile_form.cleaned_data['full_name'].strip()
+                user.timezone = profile_form.cleaned_data.get('timezone') or 'UTC'
+                user.save(update_fields=['full_name', 'timezone', 'updated_at'])
+
+                profile.headline = profile_form.cleaned_data.get('headline', '').strip()
+                profile.bio = profile_form.cleaned_data.get('bio', '').strip()
+                profile.phone = profile_form.cleaned_data.get('phone', '').strip()
+                profile.save(update_fields=['headline', 'bio', 'phone', 'updated_at'])
+
+                messages.success(request, "Your profile details have been saved successfully.")
+                return redirect('accounts:profile')
+            else:
+                avatar_form = AvatarUploadForm()
+        else:
+            return redirect('accounts:profile_edit')
+    else:
+        profile_form = ProfileUpdateForm(initial={
+            'full_name': user.full_name,
+            'headline': profile.headline,
+            'bio': profile.bio,
+            'phone': profile.phone,
+            'timezone': user.timezone or 'UTC',
+        })
+        avatar_form = AvatarUploadForm()
+
+    return render(request, 'profile/edit_profile.html', {
+        'profile_user': user,
+        'profile': profile,
+        'profile_form': profile_form,
+        'avatar_form': avatar_form,
+        'preset_themes': PRESET_AVATAR_THEMES,
+        'active_tab': 'edit',
+        'is_own_profile': True,
+        'title': 'Edit Profile — AetherSpace',
+    })
+
+
+@login_required
+@require_POST
+def profile_avatar_remove_view(request):
+    """
+    Remove user avatar and reclaim storage.
+    """
+    remove_user_avatar(request.user)
+    messages.info(request, "Profile avatar removed. Default gradient initials restored.")
+    return redirect('accounts:profile_edit')
+
+
+@login_required
+def profile_tasks_view(request):
+    """
+    Screen 55 — My Tasks from Profile:
+    Assigned tasks viewer with status filter pills, workspace selector, and search.
+    """
+    user = request.user
+    profile = get_or_create_user_profile(user)
+    metrics = get_user_profile_metrics(user)
+
+    status_filter = request.GET.get('status', 'ALL')
+    workspace_filter = request.GET.get('workspace', 'ALL')
+    query = request.GET.get('q', '')
+
+    all_user_tasks = get_user_assigned_tasks(user, status=status_filter, workspace_slug=workspace_filter, query=query)
+
+    # Status counts for filter pills
+    raw_tasks = get_user_assigned_tasks(user)
+    status_counts = {
+        'ALL': raw_tasks.count(),
+        'TODO': raw_tasks.filter(status='TODO').count(),
+        'IN_PROGRESS': raw_tasks.filter(status='IN_PROGRESS').count(),
+        'CODE_REVIEW': raw_tasks.filter(status='CODE_REVIEW').count(),
+        'TESTING': raw_tasks.filter(status='TESTING').count(),
+        'DONE': raw_tasks.filter(status='DONE').count(),
+    }
+
+    # Accessible workspaces for dropdown
+    workspaces = [r['workspace'] for r in get_user_workspace_roles(user)]
+
+    paginator = Paginator(all_user_tasks, 12)
+    page_number = request.GET.get('page', 1)
+    try:
+        tasks_page = paginator.page(page_number)
+    except (PageNotAnInteger, EmptyPage):
+        tasks_page = paginator.page(1)
+
+    return render(request, 'profile/my_tasks.html', {
+        'profile_user': user,
+        'profile': profile,
+        'metrics': metrics,
+        'tasks_page': tasks_page,
+        'status_filter': status_filter,
+        'workspace_filter': workspace_filter,
+        'query': query,
+        'status_counts': status_counts,
+        'workspaces': workspaces,
+        'active_tab': 'tasks',
+        'is_own_profile': True,
+        'title': 'My Tasks — AetherSpace',
+    })
+
+
+@login_required
+def profile_bugs_view(request):
+    """
+    Screen 56 — My Bugs from Profile:
+    Assigned & reported defects with relation filter, severity pills, and search.
+    """
+    user = request.user
+    profile = get_or_create_user_profile(user)
+    metrics = get_user_profile_metrics(user)
+
+    relation_filter = request.GET.get('relation', 'ALL')
+    severity_filter = request.GET.get('severity', 'ALL')
+    status_filter = request.GET.get('status', 'ALL')
+    query = request.GET.get('q', '')
+
+    all_user_bugs = get_user_bugs(
+        user,
+        relation=relation_filter,
+        severity=severity_filter,
+        status=status_filter,
+        query=query
+    )
+
+    # Relation counts for filter pills
+    relation_counts = {
+        'ALL': get_user_bugs(user, relation='ALL').count(),
+        'ASSIGNED': get_user_bugs(user, relation='ASSIGNED').count(),
+        'REPORTED': get_user_bugs(user, relation='REPORTED').count(),
+        'RESOLVED': get_user_bugs(user, relation='RESOLVED').count(),
+    }
+
+    paginator = Paginator(all_user_bugs, 12)
+    page_number = request.GET.get('page', 1)
+    try:
+        bugs_page = paginator.page(page_number)
+    except (PageNotAnInteger, EmptyPage):
+        bugs_page = paginator.page(1)
+
+    return render(request, 'profile/my_bugs.html', {
+        'profile_user': user,
+        'profile': profile,
+        'metrics': metrics,
+        'bugs_page': bugs_page,
+        'relation_filter': relation_filter,
+        'severity_filter': severity_filter,
+        'status_filter': status_filter,
+        'query': query,
+        'relation_counts': relation_counts,
+        'active_tab': 'bugs',
+        'is_own_profile': True,
+        'title': 'My Bugs — AetherSpace',
+    })
+
+
+@login_required
+def profile_activity_view(request):
+    """
+    Screen 57 — Profile Activity:
+    Chronological text-based activity stream across tasks, defects, files, and meetings.
+    Rule 57: Text-based; no radar/graph charts.
+    """
+    user = request.user
+    profile = get_or_create_user_profile(user)
+    metrics = get_user_profile_metrics(user)
+
+    category_filter = request.GET.get('category', 'ALL')
+    activities = get_user_activities(user, category=category_filter, limit=60)
+
+    category_counts = {
+        'ALL': len(get_user_activities(user, category='ALL', limit=100)),
+        'TASKS': len(get_user_activities(user, category='TASKS', limit=100)),
+        'BUGS': len(get_user_activities(user, category='BUGS', limit=100)),
+        'FILES': len(get_user_activities(user, category='FILES', limit=100)),
+    }
+
+    return render(request, 'profile/my_activity.html', {
+        'profile_user': user,
+        'profile': profile,
+        'metrics': metrics,
+        'activities': activities,
+        'category_filter': category_filter,
+        'category_counts': category_counts,
+        'active_tab': 'activity',
+        'is_own_profile': True,
+        'title': 'My Activity — AetherSpace',
+    })
+
+
+@login_required
+def profile_roles_view(request):
+    """
+    Screen 58 — Workspace Roles:
+    Displays user's roles and permissions across all accessible workspaces.
+    """
+    user = request.user
+    profile = get_or_create_user_profile(user)
+    metrics = get_user_profile_metrics(user)
+    workspace_roles = get_user_workspace_roles(user)
+
+    return render(request, 'profile/workspace_roles.html', {
+        'profile_user': user,
+        'profile': profile,
+        'metrics': metrics,
+        'workspace_roles': workspace_roles,
+        'active_tab': 'roles',
+        'is_own_profile': True,
+        'title': 'Workspace Roles — AetherSpace',
+    })
+
+
+@login_required
+def public_profile_view(request, user_id):
+    """
+    Teammate profile view:
+    Enforces server-side permission isolation. Users can only view colleague profiles
+    if they share at least one active workspace membership or the viewer is platform admin.
+    """
+    target_user = get_object_or_404(User, id=user_id)
+
+    if target_user.id == request.user.id:
+        return redirect('accounts:profile')
+
+    # Security check: shared workspace or platform admin
+    shared_workspace = WorkspaceMembership.objects.filter(
+        user=request.user,
+        status='ACTIVE',
+        workspace__memberships__user=target_user,
+        workspace__memberships__status='ACTIVE'
+    ).exists()
+
+    if not shared_workspace and not request.user.is_admin_role and not request.user.is_superuser:
+        raise PermissionDenied("You do not have permission to view this user's profile.")
+
+    target_profile = get_or_create_user_profile(target_user)
+    target_metrics = get_user_profile_metrics(target_user)
+    shared_roles = [
+        r for r in get_user_workspace_roles(target_user)
+        if WorkspaceMembership.objects.filter(
+            workspace__slug=r['workspace_slug'],
+            user=request.user,
+            status='ACTIVE'
+        ).exists()
+    ]
+
+    recent_tasks = get_user_assigned_tasks(target_user)[:5]
+    recent_activities = get_user_activities(target_user, limit=6)
+
+    return render(request, 'profile/public_profile.html', {
+        'profile_user': target_user,
+        'profile': target_profile,
+        'metrics': target_metrics,
+        'shared_roles': shared_roles,
+        'recent_tasks': recent_tasks,
+        'recent_activities': recent_activities,
+        'is_own_profile': False,
+        'active_tab': 'overview',
+        'title': f"{target_user.full_name or target_user.email} — Profile",
+    })
+

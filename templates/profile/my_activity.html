@@ -1,0 +1,118 @@
+{% extends "profile/base_profile.html" %}
+
+{% block profile_content %}
+<div class="space-y-6">
+
+    <!-- 1. Category Filter Pills -->
+    <div class="aether-card p-4 rounded-2xl border border-slate-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm flex items-center justify-between flex-wrap gap-3">
+        <div class="flex items-center space-x-1.5 overflow-x-auto no-scrollbar">
+            <a href="?category=ALL" 
+               class="px-3.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors inline-flex items-center space-x-1.5
+                      {% if category_filter == 'ALL' %}bg-purple-600 text-white shadow-sm{% else %}bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-700{% endif %}">
+                <span>All Activities</span>
+                <span class="px-1.5 py-0.2 rounded-full text-[10px] {% if category_filter == 'ALL' %}bg-purple-700 text-white{% else %}bg-slate-200 dark:bg-zinc-700 text-slate-700 dark:text-zinc-300{% endif %}">
+                    {{ category_counts.ALL }}
+                </span>
+            </a>
+
+            <a href="?category=TASKS" 
+               class="px-3.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors inline-flex items-center space-x-1.5
+                      {% if category_filter == 'TASKS' %}bg-purple-600 text-white shadow-sm{% else %}bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-700{% endif %}">
+                <span>Tasks</span>
+                <span class="px-1.5 py-0.2 rounded-full text-[10px] {% if category_filter == 'TASKS' %}bg-purple-700 text-white{% else %}bg-slate-200 dark:bg-zinc-700 text-slate-700 dark:text-zinc-300{% endif %}">
+                    {{ category_counts.TASKS }}
+                </span>
+            </a>
+
+            <a href="?category=BUGS" 
+               class="px-3.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors inline-flex items-center space-x-1.5
+                      {% if category_filter == 'BUGS' %}bg-purple-600 text-white shadow-sm{% else %}bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-700{% endif %}">
+                <span>Defects</span>
+                <span class="px-1.5 py-0.2 rounded-full text-[10px] {% if category_filter == 'BUGS' %}bg-purple-700 text-white{% else %}bg-slate-200 dark:bg-zinc-700 text-slate-700 dark:text-zinc-300{% endif %}">
+                    {{ category_counts.BUGS }}
+                </span>
+            </a>
+
+            <a href="?category=FILES" 
+               class="px-3.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors inline-flex items-center space-x-1.5
+                      {% if category_filter == 'FILES' %}bg-purple-600 text-white shadow-sm{% else %}bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-700{% endif %}">
+                <span>Files</span>
+                <span class="px-1.5 py-0.2 rounded-full text-[10px] {% if category_filter == 'FILES' %}bg-purple-700 text-white{% else %}bg-slate-200 dark:bg-zinc-700 text-slate-700 dark:text-zinc-300{% endif %}">
+                    {{ category_counts.FILES }}
+                </span>
+            </a>
+        </div>
+
+        <span class="text-[11px] text-slate-400 dark:text-zinc-500 font-medium">
+            Rule 57 &bull; Text-based chronological audit
+        </span>
+    </div>
+
+    <!-- 2. Chronological Text-Based Activity Stream -->
+    <div class="aether-card p-5 sm:p-6 rounded-2xl border border-slate-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm space-y-4">
+        {% if activities %}
+            <div class="relative pl-6 space-y-6 before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200 dark:before:bg-zinc-800">
+                {% for act in activities %}
+                    <div class="relative group">
+                        <!-- Bullet icon -->
+                        <div class="absolute -left-6 top-1 w-4 h-4 rounded-full border-2 border-white dark:border-zinc-900 shadow-sm
+                            {% if act.category == 'TASKS' %}bg-blue-600
+                            {% elif act.category == 'BUGS' %}bg-rose-600
+                            {% else %}bg-emerald-600{% endif %}">
+                        </div>
+
+                        <!-- Card Content -->
+                        <div class="p-3.5 rounded-xl border border-slate-100 dark:border-zinc-800/80 bg-slate-50/50 dark:bg-zinc-800/40 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors">
+                            <div class="flex items-center justify-between gap-2 flex-wrap">
+                                <div class="flex items-center space-x-2">
+                                    <span class="px-2 py-0.5 text-[10px] font-bold rounded-md uppercase tracking-wider
+                                        {% if act.category == 'TASKS' %}bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-400
+                                        {% elif act.category == 'BUGS' %}bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-400
+                                        {% else %}bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400{% endif %}">
+                                        {{ act.category_label }}
+                                    </span>
+                                    <span class="text-xs font-bold text-slate-800 dark:text-zinc-200">{{ act.action }}</span>
+                                    {% if act.code %}
+                                        <span class="font-mono text-[11px] text-slate-500 dark:text-zinc-400 font-semibold">{{ act.code }}</span>
+                                    {% endif %}
+                                </div>
+                                <span class="text-[11px] text-slate-400 dark:text-zinc-500 whitespace-nowrap">
+                                    {{ act.timestamp|date:"M d, Y &bull; H:i" }}
+                                </span>
+                            </div>
+
+                            <p class="text-xs text-slate-700 dark:text-zinc-300 mt-1.5">
+                                {{ act.description }}
+                            </p>
+
+                            <div class="flex items-center justify-between mt-2 pt-2 border-t border-slate-100 dark:border-zinc-800/60 text-[11px]">
+                                <span class="text-slate-500 dark:text-zinc-400 font-medium">{{ act.workspace }}</span>
+                                {% if act.link and act.link != '#' %}
+                                    <a href="{{ act.link }}" class="font-semibold text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center space-x-1">
+                                        <span>View Item</span>
+                                        <span>&rarr;</span>
+                                    </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <!-- Empty State -->
+            <div class="py-16 px-4 text-center">
+                <div class="w-12 h-12 mx-auto rounded-2xl bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center mb-3">
+                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </div>
+                <h3 class="text-sm font-bold text-slate-900 dark:text-zinc-100">No activity records</h3>
+                <p class="text-xs text-slate-500 dark:text-zinc-400 max-w-sm mx-auto mt-1">
+                    No activity entries found for category "{{ category_filter|lower }}". When you update tasks, resolve bugs, or share files, your audit trail will be listed here.
+                </p>
+            </div>
+        {% endif %}
+    </div>
+
+</div>
+{% endblock %}
