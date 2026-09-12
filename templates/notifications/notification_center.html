@@ -1,0 +1,393 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Notification Center — {{ workspace.name|default:"AetherSpace" }}{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto space-y-6 pb-12"
+     x-data="{
+         searchQuery: '{{ search_query|escapejs }}',
+         activeTab: '{{ active_tab }}',
+         confirmDismissId: null
+     }">
+
+    <!-- 1. Header & Quick Actions -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+            <div class="flex items-center space-x-2">
+                <h1 class="text-xl sm:text-2xl font-black tracking-tight text-slate-900 dark:text-zinc-100">Notification Center</h1>
+                {% if workspace %}
+                    <span class="px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-blue-50 dark:bg-blue-950/50 text-aether-blue border border-blue-200/50 dark:border-blue-900/40">
+                        {{ workspace.name }}
+                    </span>
+                {% endif %}
+            </div>
+            <p class="text-xs sm:text-sm text-slate-500 dark:text-zinc-400 mt-0.5">
+                Stay updated with task assignments, bug reports, mentions, and meeting alerts.
+            </p>
+        </div>
+
+        <div class="flex items-center space-x-3">
+            <!-- Mark all as read form -->
+            {% if metrics.unread > 0 %}
+                <form method="POST" action="{% url 'notifications:mark_all_read' %}">
+                    {% csrf_token %}
+                    {% if workspace %}
+                        <input type="hidden" name="workspace_slug" value="{{ workspace.slug }}">
+                    {% endif %}
+                    {% if active_tab != 'all' and active_tab != 'unread' %}
+                        <input type="hidden" name="category" value="{{ active_tab|upper }}">
+                    {% endif %}
+                    <button type="submit" 
+                            class="inline-flex items-center space-x-1.5 px-3.5 py-2 text-xs font-semibold rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700/60 shadow-xs transition-all">
+                        <svg class="w-4 h-4 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                        </svg>
+                        <span>Mark all as read</span>
+                    </button>
+                </form>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- 2. Metrics Summary Cards (Screen 52) -->
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+        <!-- Metric 1: Total -->
+        <a href="?tab=all{% if search_query %}&q={{ search_query }}{% endif %}" 
+           class="p-4 rounded-2xl bg-white dark:bg-[#0c1322] border {% if active_tab == 'all' %}border-aether-blue ring-1 ring-aether-blue/30{% else %}border-slate-200/80 dark:border-zinc-800{% endif %} shadow-xs hover:border-slate-300 dark:hover:border-zinc-700 transition-all flex items-center space-x-3.5">
+            <div class="w-10 h-10 rounded-xl bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 flex items-center justify-center shrink-0">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                </svg>
+            </div>
+            <div>
+                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500">All</p>
+                <p class="text-xl font-black text-slate-900 dark:text-zinc-100">{{ metrics.total }}</p>
+            </div>
+        </a>
+
+        <!-- Metric 2: Unread -->
+        <a href="?tab=unread{% if search_query %}&q={{ search_query }}{% endif %}" 
+           class="p-4 rounded-2xl bg-white dark:bg-[#0c1322] border {% if active_tab == 'unread' %}border-aether-blue ring-1 ring-aether-blue/30{% else %}border-slate-200/80 dark:border-zinc-800{% endif %} shadow-xs hover:border-slate-300 dark:hover:border-zinc-700 transition-all flex items-center space-x-3.5">
+            <div class="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/50 text-aether-blue flex items-center justify-center shrink-0">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+            </div>
+            <div>
+                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500">Unread</p>
+                <div class="flex items-center space-x-1.5">
+                    <span class="text-xl font-black text-slate-900 dark:text-zinc-100">{{ metrics.unread }}</span>
+                    {% if metrics.unread > 0 %}
+                        <span class="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
+                    {% endif %}
+                </div>
+            </div>
+        </a>
+
+        <!-- Metric 3: Tasks -->
+        <a href="?tab=tasks{% if search_query %}&q={{ search_query }}{% endif %}" 
+           class="p-4 rounded-2xl bg-white dark:bg-[#0c1322] border {% if active_tab == 'tasks' %}border-aether-blue ring-1 ring-aether-blue/30{% else %}border-slate-200/80 dark:border-zinc-800{% endif %} shadow-xs hover:border-slate-300 dark:hover:border-zinc-700 transition-all flex items-center space-x-3.5">
+            <div class="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/50 text-blue-500 flex items-center justify-center shrink-0">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+                </svg>
+            </div>
+            <div>
+                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500">Tasks</p>
+                <p class="text-xl font-black text-slate-900 dark:text-zinc-100">{{ metrics.tasks }}</p>
+            </div>
+        </a>
+
+        <!-- Metric 4: Bugs -->
+        <a href="?tab=bugs{% if search_query %}&q={{ search_query }}{% endif %}" 
+           class="p-4 rounded-2xl bg-white dark:bg-[#0c1322] border {% if active_tab == 'bugs' %}border-aether-blue ring-1 ring-aether-blue/30{% else %}border-slate-200/80 dark:border-zinc-800{% endif %} shadow-xs hover:border-slate-300 dark:hover:border-zinc-700 transition-all flex items-center space-x-3.5">
+            <div class="w-10 h-10 rounded-xl bg-rose-50 dark:bg-rose-950/50 text-rose-500 flex items-center justify-center shrink-0">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                </svg>
+            </div>
+            <div>
+                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500">Bugs</p>
+                <p class="text-xl font-black text-slate-900 dark:text-zinc-100">{{ metrics.bugs }}</p>
+            </div>
+        </a>
+
+        <!-- Metric 5: Mentions -->
+        <a href="?tab=mentions{% if search_query %}&q={{ search_query }}{% endif %}" 
+           class="col-span-2 sm:col-span-1 p-4 rounded-2xl bg-white dark:bg-[#0c1322] border {% if active_tab == 'mentions' %}border-aether-blue ring-1 ring-aether-blue/30{% else %}border-slate-200/80 dark:border-zinc-800{% endif %} shadow-xs hover:border-slate-300 dark:hover:border-zinc-700 transition-all flex items-center space-x-3.5">
+            <div class="w-10 h-10 rounded-xl bg-purple-50 dark:bg-purple-950/50 text-purple-500 flex items-center justify-center shrink-0">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207"/>
+                </svg>
+            </div>
+            <div>
+                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500">Mentions</p>
+                <p class="text-xl font-black text-slate-900 dark:text-zinc-100">{{ metrics.mentions }}</p>
+            </div>
+        </a>
+    </div>
+
+    <!-- 3. Filter Bar: Tabs & Search -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200/80 dark:border-zinc-800 pb-3">
+        <!-- Category Tabs -->
+        <div class="flex items-center space-x-1 overflow-x-auto no-scrollbar py-0.5">
+            <a href="?tab=all{% if search_query %}&q={{ search_query }}{% endif %}" 
+               class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center space-x-1.5 {% if active_tab == 'all' %}bg-slate-900 text-white dark:bg-zinc-100 dark:text-zinc-900 shadow-xs{% else %}text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800/60{% endif %}">
+                <span>All</span>
+                <span class="px-1.5 py-0.2 rounded-full text-[10px] font-semibold {% if active_tab == 'all' %}bg-white/20 dark:bg-black/20{% else %}bg-slate-200/60 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400{% endif %}">{{ metrics.total }}</span>
+            </a>
+
+            <a href="?tab=unread{% if search_query %}&q={{ search_query }}{% endif %}" 
+               class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center space-x-1.5 {% if active_tab == 'unread' %}bg-aether-blue text-white shadow-xs{% else %}text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800/60{% endif %}">
+                <span>Unread</span>
+                <span class="px-1.5 py-0.2 rounded-full text-[10px] font-semibold {% if active_tab == 'unread' %}bg-white/20{% else %}bg-blue-100/60 dark:bg-blue-950/60 text-aether-blue{% endif %}">{{ metrics.unread }}</span>
+            </a>
+
+            <a href="?tab=tasks{% if search_query %}&q={{ search_query }}{% endif %}" 
+               class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center space-x-1.5 {% if active_tab == 'tasks' %}bg-slate-900 text-white dark:bg-zinc-100 dark:text-zinc-900 shadow-xs{% else %}text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800/60{% endif %}">
+                <span>Tasks</span>
+                <span class="px-1.5 py-0.2 rounded-full text-[10px] font-semibold {% if active_tab == 'tasks' %}bg-white/20 dark:bg-black/20{% else %}bg-slate-200/60 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400{% endif %}">{{ metrics.tasks }}</span>
+            </a>
+
+            <a href="?tab=bugs{% if search_query %}&q={{ search_query }}{% endif %}" 
+               class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center space-x-1.5 {% if active_tab == 'bugs' %}bg-slate-900 text-white dark:bg-zinc-100 dark:text-zinc-900 shadow-xs{% else %}text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800/60{% endif %}">
+                <span>Bugs</span>
+                <span class="px-1.5 py-0.2 rounded-full text-[10px] font-semibold {% if active_tab == 'bugs' %}bg-white/20 dark:bg-black/20{% else %}bg-slate-200/60 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400{% endif %}">{{ metrics.bugs }}</span>
+            </a>
+
+            <a href="?tab=mentions{% if search_query %}&q={{ search_query }}{% endif %}" 
+               class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center space-x-1.5 {% if active_tab == 'mentions' %}bg-slate-900 text-white dark:bg-zinc-100 dark:text-zinc-900 shadow-xs{% else %}text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800/60{% endif %}">
+                <span>Mentions</span>
+                <span class="px-1.5 py-0.2 rounded-full text-[10px] font-semibold {% if active_tab == 'mentions' %}bg-white/20 dark:bg-black/20{% else %}bg-slate-200/60 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400{% endif %}">{{ metrics.mentions }}</span>
+            </a>
+        </div>
+
+        <!-- Search Form -->
+        <form method="GET" class="relative w-full sm:w-64">
+            <input type="hidden" name="tab" value="{{ active_tab }}">
+            <svg class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+            </svg>
+            <input type="text" 
+                   name="q" 
+                   value="{{ search_query }}"
+                   placeholder="Search notifications..." 
+                   class="w-full pl-9 pr-8 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-[#0c1322] text-slate-800 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-aether-blue/30 focus:border-aether-blue transition-all">
+            {% if search_query %}
+                <a href="?tab={{ active_tab }}" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 text-xs">✕</a>
+            {% endif %}
+        </form>
+    </div>
+
+    <!-- 4. Notifications Stream -->
+    <div class="space-y-2.5">
+        {% for n in notifications %}
+            <div class="group p-4 rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 {% if not n.is_read %}bg-blue-50/30 dark:bg-blue-950/20 border-blue-200/60 dark:border-blue-900/40{% else %}bg-white dark:bg-[#0c1322] border-slate-200/80 dark:border-zinc-800{% endif %}">
+                <div class="flex items-start space-x-3.5 min-w-0">
+                    <!-- Category Icon Badge -->
+                    <div class="w-9 h-9 rounded-xl {{ n.category_color_classes.bg }} {{ n.category_color_classes.text }} border {{ n.category_color_classes.border }} flex items-center justify-center shrink-0 mt-0.5">
+                        {% if n.category == 'TASK' %}
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                            </svg>
+                        {% elif n.category == 'BUG' %}
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                            </svg>
+                        {% elif n.category == 'MENTION' %}
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207"/>
+                            </svg>
+                        {% elif n.category == 'MEETING' %}
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                            </svg>
+                        {% elif n.category == 'FILE' %}
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                            </svg>
+                        {% else %}
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                        {% endif %}
+                    </div>
+
+                    <!-- Details -->
+                    <div class="min-w-0 flex-1">
+                        <div class="flex items-center space-x-2">
+                            {% if not n.is_read %}
+                                <span class="w-2 h-2 rounded-full bg-aether-blue shrink-0"></span>
+                            {% endif %}
+                            <h2 class="text-xs sm:text-sm font-bold text-slate-900 dark:text-zinc-100 truncate">
+                                {{ n.title }}
+                            </h2>
+                            <span class="text-[10px] px-2 py-0.5 rounded-md font-semibold {{ n.category_color_classes.bg }} {{ n.category_color_classes.text }} border {{ n.category_color_classes.border }} hidden sm:inline-block">
+                                {{ n.get_category_display }}
+                            </span>
+                        </div>
+
+                        {% if n.body %}
+                            <p class="text-xs text-slate-600 dark:text-zinc-300 mt-1 line-clamp-2">
+                                {{ n.body }}
+                            </p>
+                        {% endif %}
+
+                        <div class="flex items-center space-x-3 text-[11px] text-slate-400 dark:text-zinc-500 mt-2">
+                            {% if n.actor %}
+                                <div class="flex items-center space-x-1.5">
+                                    <div class="w-4 h-4 rounded-full bg-slate-200 dark:bg-zinc-700 text-slate-700 dark:text-zinc-300 font-bold text-[9px] flex items-center justify-center">
+                                        {{ n.actor.first_name|default:n.actor.email|slice:":1"|upper }}
+                                    </div>
+                                    <span>{{ n.actor.full_name|default:n.actor.email }}</span>
+                                </div>
+                                <span>•</span>
+                            {% endif %}
+                            <span>{{ n.created_at|timesince }} ago</span>
+                            {% if n.workspace and not workspace %}
+                                <span>•</span>
+                                <span class="text-slate-500 dark:text-zinc-400 font-semibold">{{ n.workspace.name }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Controls -->
+                <div class="flex items-center space-x-2 shrink-0 self-end sm:self-center pl-12 sm:pl-0">
+                    {% if n.action_url %}
+                        <a href="{{ n.action_url }}" 
+                           class="inline-flex items-center space-x-1 px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-800 dark:text-zinc-200 transition-colors">
+                            <span>Open</span>
+                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                            </svg>
+                        </a>
+                    {% endif %}
+
+                    <!-- Toggle Read/Unread Form -->
+                    {% if not n.is_read %}
+                        <form method="POST" action="{% url 'notifications:mark_read' notification_id=n.id %}">
+                            {% csrf_token %}
+                            <button type="submit" 
+                                    title="Mark as read"
+                                    class="p-1.5 rounded-lg text-slate-400 hover:text-emerald-500 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                </svg>
+                            </button>
+                        </form>
+                    {% else %}
+                        <form method="POST" action="{% url 'notifications:mark_unread' notification_id=n.id %}">
+                            {% csrf_token %}
+                            <button type="submit" 
+                                    title="Mark as unread"
+                                    class="p-1.5 rounded-lg text-slate-400 hover:text-blue-500 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 19v-8.93a2 2 0 01.89-1.664l7-4.666a2 2 0 012.22 0l7 4.666A2 2 0 0121 10.07V19M3 19a2 2 0 002 2h14a2 2 0 002-2M3 19l6.75-4.5M21 19l-6.75-4.5M3 10l6.75 4.5M21 10l-6.75 4.5m0 0l-1.14.76a2 2 0 01-2.22 0l-1.14-.76"/>
+                                </svg>
+                            </button>
+                        </form>
+                    {% endif %}
+
+                    <!-- Dismiss / Delete -->
+                    <form method="POST" action="{% url 'notifications:delete' notification_id=n.id %}">
+                        {% csrf_token %}
+                        <button type="submit" 
+                                title="Dismiss notification"
+                                class="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        {% empty %}
+            <!-- 5. Empty States -->
+            <div class="py-16 text-center rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200/80 dark:border-zinc-800 p-8 space-y-3">
+                <div class="w-14 h-14 mx-auto rounded-2xl bg-slate-100 dark:bg-zinc-800/80 text-slate-400 dark:text-zinc-500 flex items-center justify-center shadow-inner">
+                    {% if active_tab == 'unread' %}
+                        <svg class="w-7 h-7 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                    {% elif active_tab == 'tasks' %}
+                        <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                        </svg>
+                    {% elif active_tab == 'bugs' %}
+                        <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                        </svg>
+                    {% elif active_tab == 'mentions' %}
+                        <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207"/>
+                        </svg>
+                    {% else %}
+                        <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                        </svg>
+                    {% endif %}
+                </div>
+
+                <div class="max-w-sm mx-auto">
+                    <h3 class="text-sm font-bold text-slate-800 dark:text-zinc-200">
+                        {% if search_query %}
+                            No matching notifications
+                        {% elif active_tab == 'unread' %}
+                            All caught up!
+                        {% elif active_tab == 'tasks' %}
+                            No task alerts
+                        {% elif active_tab == 'bugs' %}
+                            No bug alerts
+                        {% elif active_tab == 'mentions' %}
+                            No mentions found
+                        {% else %}
+                            No notifications yet
+                        {% endif %}
+                    </h3>
+                    <p class="text-xs text-slate-500 dark:text-zinc-400 mt-1">
+                        {% if search_query %}
+                            No notifications matched your query "{{ search_query }}". Try searching for different keywords.
+                        {% elif active_tab == 'unread' %}
+                            You have zero unread notifications. New task updates, mentions, or invites will appear here.
+                        {% elif active_tab == 'tasks' %}
+                            You don't have any task assignments or deadline alerts for this workspace yet.
+                        {% elif active_tab == 'bugs' %}
+                            No open bug tickets or triage notifications requiring your attention.
+                        {% elif active_tab == 'mentions' %}
+                            No one has mentioned you in channels or direct messages recently.
+                        {% else %}
+                            When you receive task assignments, bug reports, or chat mentions, they will appear here.
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+
+    <!-- 6. Pagination -->
+    {% if notifications.has_other_pages %}
+        <div class="flex items-center justify-between pt-4 border-t border-slate-200/80 dark:border-zinc-800 text-xs">
+            <div class="text-slate-500 dark:text-zinc-400">
+                Showing {{ notifications.start_index }}–{{ notifications.end_index }} of {{ notifications.paginator.count }}
+            </div>
+            <div class="flex items-center space-x-2">
+                {% if notifications.has_previous %}
+                    <a href="?page={{ notifications.previous_page_number }}&tab={{ active_tab }}{% if search_query %}&q={{ search_query }}{% endif %}" 
+                       class="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-700 transition-colors">
+                        &larr; Previous
+                    </a>
+                {% endif %}
+                {% if notifications.has_next %}
+                    <a href="?page={{ notifications.next_page_number }}&tab={{ active_tab }}{% if search_query %}&q={{ search_query }}{% endif %}" 
+                       class="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-700 transition-colors">
+                        Next &rarr;
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+    {% endif %}
+
+</div>
+{% endblock %}

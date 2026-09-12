@@ -4,7 +4,8 @@ from .models import Workspace, WorkspaceMembership, WorkspaceInvitation, Workspa
 
 @admin.register(Workspace)
 class WorkspaceAdmin(admin.ModelAdmin):
-    list_display = ('name', 'slug', 'owner', 'status', 'member_count', 'created_at')
+    list_display = ('name', 'slug', 'owner', 'status', 'storage_quota_mb', 'member_count', 'created_at')
+    list_editable = ('storage_quota_mb',)
     search_fields = ('name', 'slug', 'owner__email')
     list_filter = ('status', 'created_at')
     prepopulated_fields = {'slug': ('name',)}

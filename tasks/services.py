@@ -68,6 +68,22 @@ def create_task(workspace, reporter, title, description='', status=TaskStatus.TO
             new_value=assignee_name,
             message=f"Assigned task to {assignee_name}"
         )
+        # Notify assignee
+        try:
+            from notifications.services import create_notification
+            from notifications.models import NotificationCategory, NotificationType
+            create_notification(
+                recipient=assignee,
+                category=NotificationCategory.TASK,
+                notification_type=NotificationType.TASK_ASSIGNED,
+                title=f"Task #{task.task_code} Assigned",
+                body=f"You were assigned to '{task.title}' by {reporter.full_name or reporter.email}",
+                workspace=workspace,
+                actor=reporter,
+                action_url=task.get_absolute_url()
+            )
+        except Exception:
+            pass
 
     return task
 
@@ -94,6 +110,23 @@ def update_task(task: Task, actor, **kwargs) -> Task:
             new_value=new_status,
             message=f"Changed status from '{old_status}' to '{new_status}'"
         )
+        # Notify reporter of status update
+        try:
+            from notifications.services import create_notification
+            from notifications.models import NotificationCategory, NotificationType
+            if task.reporter and actor and task.reporter.id != actor.id:
+                create_notification(
+                    recipient=task.reporter,
+                    category=NotificationCategory.TASK,
+                    notification_type=NotificationType.TASK_STATUS_CHANGED,
+                    title=f"Task #{task.task_code} Status: {new_status}",
+                    body=f"Task '{task.title}' was moved to {new_status} by {actor.full_name or actor.email}",
+                    workspace=task.workspace,
+                    actor=actor,
+                    action_url=task.get_absolute_url()
+                )
+        except Exception:
+            pass
 
     # Check priority change
     if 'priority' in kwargs and kwargs['priority'] != task.priority:
@@ -124,6 +157,23 @@ def update_task(task: Task, actor, **kwargs) -> Task:
             new_value=new_assignee_name,
             message=f"Reassigned from {old_assignee_name} to {new_assignee_name}"
         )
+        # Notify new assignee
+        try:
+            from notifications.services import create_notification
+            from notifications.models import NotificationCategory, NotificationType
+            if task.assignee and actor and task.assignee.id != actor.id:
+                create_notification(
+                    recipient=task.assignee,
+                    category=NotificationCategory.TASK,
+                    notification_type=NotificationType.TASK_ASSIGNED,
+                    title=f"Task #{task.task_code} Assigned",
+                    body=f"You were assigned to '{task.title}' by {actor.full_name or actor.email}",
+                    workspace=task.workspace,
+                    actor=actor,
+                    action_url=task.get_absolute_url()
+                )
+        except Exception:
+            pass
 
     # Check due date change
     if 'due_date' in kwargs and kwargs['due_date'] != task.due_date:

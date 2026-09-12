@@ -16,7 +16,8 @@ logger = logging.getLogger(__name__)
 
 # Max upload limits per free-tier architecture (docs/05_FREE_TIER_ARCHITECTURE.md)
 MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024  # 20 MB max general limit
-MAX_STORAGE_QUOTA_BYTES = 100 * 1024 * 1024 * 1024  # 100 GB standard quota
+DEFAULT_STORAGE_QUOTA_MB = 50  # 50 MB default quota for Supabase Free Tier
+DEFAULT_STORAGE_QUOTA_BYTES = DEFAULT_STORAGE_QUOTA_MB * 1024 * 1024
 
 DANGEROUS_EXTENSIONS = {
     'exe', 'bat', 'cmd', 'com', 'msi', 'scr', 'vbs', 'vbe', 'wsf', 'wsh', 'ps1'
@@ -276,14 +277,21 @@ def get_workspace_storage_metrics(workspace, user=None):
             break
         used_size /= 1024.0
 
-    percentage = min(100.0, (total_bytes / MAX_STORAGE_QUOTA_BYTES) * 100) if MAX_STORAGE_QUOTA_BYTES else 0
+    # Storage quota calculation based on workspace allocation (defaults to 50 MB)
+    quota_mb = getattr(workspace, 'storage_quota_mb', DEFAULT_STORAGE_QUOTA_MB) or DEFAULT_STORAGE_QUOTA_MB
+    quota_bytes = quota_mb * 1024 * 1024
+    percentage = min(100.0, (total_bytes / quota_bytes) * 100) if quota_bytes else 0
+    quota_label = f"{quota_mb} MB" if quota_mb < 1024 else f"{quota_mb / 1024:.1f} GB"
+    remaining_bytes = max(0, quota_bytes - total_bytes)
 
     return {
         'total_files': total_files,
         'total_folders': total_folders,
         'shared_with_me': shared_with_me,
         'total_bytes': total_bytes,
+        'quota_bytes': quota_bytes,
+        'remaining_bytes': remaining_bytes,
         'formatted_used': formatted_used,
-        'quota_label': '100 GB',
+        'quota_label': quota_label,
         'percentage': round(percentage, 1),
     }

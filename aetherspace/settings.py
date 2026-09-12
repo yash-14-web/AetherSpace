@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     'meetings.apps.MeetingsConfig',
     'calendars.apps.CalendarsConfig',
     'files.apps.FilesConfig',
+    'notifications.apps.NotificationsConfig',
 ]
 
 MIDDLEWARE = [
@@ -75,6 +76,7 @@ TEMPLATES = [
                 'django.contrib.messages.context_processors.messages',
                 'core.context_processors.aetherspace_global_context',
                 'workspaces.context_processors.workspace_context',
+                'notifications.context_processors.notifications_context',
             ],
         },
     },

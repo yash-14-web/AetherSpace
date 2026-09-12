@@ -69,21 +69,8 @@ def time_tracking_view(request):
 
 @login_required
 def notifications_view(request):
-    """Notification Center navigation destination."""
-    return render(request, 'components/placeholder.html', {
-        'module_title': 'Notifications Center',
-        'phase_badge': 'Phase 9 — Notifications',
-        'module_icon': 'notifications',
-        'module_description': 'Centralized inbox for task assignments, bug updates, workspace invitations, and system alerts.',
-        'empty_heading': 'All Notifications Caught Up',
-        'empty_text': 'You have zero unread notifications. Real-time notification dispatch will arrive with Phase 9.',
-        'features': [
-            'Task & bug assignment mentions (@username)',
-            'Workspace role update notifications',
-            'Meeting reminder pings before start time',
-            'Digest preferences & email alerts',
-        ],
-    })
+    """Notification Center navigation destination - redirects to active workspace notifications."""
+    return redirect('notifications:notifications_router')
 
 
 @login_required

@@ -143,6 +143,24 @@ def schedule_meeting(workspace, host, title, scheduled_start, duration_minutes=3
     if invitees:
         for user in invitees:
             MeetingInvite.objects.get_or_create(meeting=meeting, user=user)
+            # Notify invitee
+            try:
+                from notifications.services import create_notification
+                from notifications.models import NotificationCategory, NotificationType
+                host_name = host.full_name or host.email if host else "Someone"
+                start_str = scheduled_start.strftime('%b %d at %I:%M %p')
+                create_notification(
+                    recipient=user,
+                    category=NotificationCategory.MEETING,
+                    notification_type=NotificationType.MEETING_INVITE,
+                    title=f"Meeting Invite: {meeting.title}",
+                    body=f"{host_name} invited you to '{meeting.title}' scheduled for {start_str}",
+                    workspace=workspace,
+                    actor=host,
+                    action_url=f"/meetings/w/{workspace.slug}/room/{meeting.meeting_code}/"
+                )
+            except Exception:
+                pass
 
     return meeting
 

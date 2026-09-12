@@ -68,7 +68,7 @@ class WorkspaceCreateForm(forms.ModelForm):
 class WorkspaceUpdateForm(forms.ModelForm):
     class Meta:
         model = Workspace
-        fields = ['name', 'description', 'status', 'max_seats']
+        fields = ['name', 'description', 'status', 'max_seats', 'storage_quota_mb']
         widgets = {
             'name': forms.TextInput(attrs={
                 'class': INPUT_CLASSES,
@@ -86,7 +86,19 @@ class WorkspaceUpdateForm(forms.ModelForm):
                 'min': 1,
                 'max': 500,
             }),
+            'storage_quota_mb': forms.NumberInput(attrs={
+                'class': INPUT_CLASSES,
+                'min': 5,
+                'max': 102400,
+                'placeholder': '50',
+            }),
         }
+
+    def clean_storage_quota_mb(self):
+        quota = self.cleaned_data.get('storage_quota_mb')
+        if quota is not None and quota < 5:
+            raise ValidationError("Storage quota must be at least 5 MB.")
+        return quota or 50
 
     def clean_max_seats(self):
         seats = self.cleaned_data.get('max_seats')

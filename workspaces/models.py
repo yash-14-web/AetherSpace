@@ -61,8 +61,25 @@ class Workspace(models.Model):
         default=15,
         help_text="Maximum member seats allocated to this workspace (teams of 5-15, expandable)."
     )
+    storage_quota_mb = models.PositiveIntegerField(
+        default=50,
+        help_text="Allocated storage quota in megabytes (MB) for Supabase Free Tier (default 50 MB)."
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    @property
+    def storage_quota_bytes(self):
+        """Allocated storage quota in bytes."""
+        return (self.storage_quota_mb or 50) * 1024 * 1024
+
+    @property
+    def storage_quota_formatted(self):
+        """Human-readable formatted storage quota (e.g. 50 MB or 1.0 GB)."""
+        mb = self.storage_quota_mb or 50
+        if mb >= 1024:
+            return f"{mb / 1024:.1f} GB"
+        return f"{mb} MB"
 
     @property
     def seats_assigned(self):

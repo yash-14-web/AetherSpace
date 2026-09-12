@@ -75,12 +75,15 @@
                     </a>
 
                     <!-- 7. Notifications -->
-                    <a href="{% url 'core:notifications' %}" 
+                    <a href="{% if current_workspace %}{% url 'notifications:workspace_notifications' slug=current_workspace.slug %}{% else %}{% url 'notifications:notifications_router' %}{% endif %}" 
                        class="p-2.5 rounded-xl text-slate-500 dark:text-zinc-400 hover:text-aether-blue dark:hover:text-zinc-100 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-all relative" 
                        title="Notifications">
                         <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
                         </svg>
+                        {% if unread_notifications_count > 0 %}
+                            <span class="absolute top-2 right-2 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-white dark:ring-[#0c1322] animate-pulse"></span>
+                        {% endif %}
                     </a>
 
                     <!-- 8. Profile -->
@@ -323,6 +326,24 @@
                         </div>
                     </div>
 
+                    <!-- Workspace Notifications -->
+                    <div>
+                        <a href="{% url 'notifications:workspace_notifications' slug=current_workspace.slug %}" 
+                           class="flex items-center justify-between px-3 py-2 text-xs font-semibold rounded-lg text-slate-700 dark:text-zinc-300 hover:bg-slate-200/60 dark:hover:bg-zinc-800/60 transition-colors">
+                            <div class="flex items-center space-x-2.5">
+                                <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                                </svg>
+                                <span>Notifications</span>
+                            </div>
+                            {% if unread_notifications_count > 0 %}
+                                <span class="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 dark:bg-blue-950/60 text-aether-blue">
+                                    {{ unread_notifications_count }}
+                                </span>
+                            {% endif %}
+                        </a>
+                    </div>
+
                     <!-- Workspace Settings (RBAC: Admin / Manager only) -->
                     {% if current_membership.can_manage_workspace %}
                         <div class="pt-2 mt-2 border-t border-slate-200/60 dark:border-zinc-800/60">
@@ -337,14 +358,18 @@
                         </div>
                     {% endif %}
 
-                    <!-- Storage Widget (Mockup Screen 1) -->
+                    <!-- Storage Widget (Dynamic Workspace Quota) -->
                     <div class="mt-4 p-3 rounded-xl bg-slate-100/80 dark:bg-zinc-800/40 border border-slate-200/60 dark:border-zinc-800/80 space-y-2">
                         <div class="flex items-center justify-between text-[10px] font-bold tracking-wider text-slate-400 dark:text-zinc-500 uppercase">
                             <span>STORAGE</span>
-                            <span class="text-aether-blue font-semibold">100 GB</span>
+                            <span class="text-aether-blue font-semibold">{{ current_workspace.storage_quota_formatted|default:"50 MB" }}</span>
                         </div>
                         <div class="w-full h-1.5 bg-slate-200 dark:bg-zinc-700 rounded-full overflow-hidden">
-                            <div class="h-full bg-aether-blue rounded-full" style="width: 25%;"></div>
+                            <div class="h-full bg-aether-blue rounded-full" style="width: {% if storage_metrics %}{{ storage_metrics.percentage }}{% else %}5{% endif %}%;"></div>
+                        </div>
+                        <div class="flex items-center justify-between text-[10px] text-slate-500 dark:text-zinc-400 font-medium px-0.5">
+                            <span>{% if storage_metrics %}{{ storage_metrics.formatted_used }}{% else %}0 B{% endif %} used</span>
+                            <span class="text-[9px] text-slate-400">Free Tier</span>
                         </div>
                         <a href="{% url 'files:files_home' slug=current_workspace.slug %}" class="block text-center py-1 text-[11px] font-semibold rounded-lg bg-white dark:bg-zinc-800 text-aether-blue dark:text-blue-400 border border-slate-200/80 dark:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-700/60 shadow-xs transition-colors">
                             Storage Hub

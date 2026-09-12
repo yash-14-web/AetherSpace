@@ -106,6 +106,38 @@ def post_channel_message(channel, sender, content='', files=None):
     # Update sender's last_read_at in channel
     ChannelMembership.objects.filter(channel=channel, user=sender).update(last_read_at=timezone.now())
 
+    # Detect mentions in message content
+    try:
+        import re
+        from django.contrib.auth import get_user_model
+        from notifications.services import create_notification
+        from notifications.models import NotificationCategory, NotificationType
+        User = get_user_model()
+
+        mentions = re.findall(r'@([a-zA-Z0-9_.+-]+)', clean_content)
+        if mentions:
+            sender_name = sender.full_name or sender.get_full_name() or sender.username or sender.email
+            for m in set(mentions):
+                user_match = User.objects.filter(
+                    Q(username__iexact=m) | Q(email__iexact=m) | Q(first_name__iexact=m),
+                    workspace_memberships__workspace=channel.workspace,
+                    workspace_memberships__status='ACTIVE'
+                ).exclude(id=sender.id).first()
+
+                if user_match:
+                    create_notification(
+                        recipient=user_match,
+                        category=NotificationCategory.MENTION,
+                        notification_type=NotificationType.CHAT_MENTION,
+                        title=f"{sender_name} mentioned you in #{channel.name}",
+                        body=clean_content[:120],
+                        workspace=channel.workspace,
+                        actor=sender,
+                        action_url=f"/chat/w/{channel.workspace.slug}/c/{channel.slug}/"
+                    )
+    except Exception:
+        pass
+
     return message
 
 
@@ -146,6 +178,24 @@ def post_direct_message(conversation, sender, content='', files=None):
     # Touch conversation updated_at for ordering
     conversation.updated_at = timezone.now()
     conversation.save(update_fields=['updated_at'])
+
+    # Notify DM recipient
+    try:
+        from notifications.services import create_notification
+        from notifications.models import NotificationCategory, NotificationType
+        sender_name = sender.full_name or sender.get_full_name() or sender.username or sender.email
+        create_notification(
+            recipient=recipient,
+            category=NotificationCategory.MENTION,
+            notification_type=NotificationType.CHAT_DM,
+            title=f"New message from {sender_name}",
+            body=clean_content[:120] if clean_content else "Sent an attachment",
+            workspace=conversation.workspace,
+            actor=sender,
+            action_url=f"/chat/w/{conversation.workspace.slug}/dm/{sender.id}/"
+        )
+    except Exception:
+        pass
 
     return message
 

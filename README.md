@@ -3032,6 +3032,90 @@ Provides high-performance, workspace-isolated file management, folder hierarchie
    - Click **New Folder** and name it e.g. "Sprint Deliverables".
    - Click into the folder to verify the breadcrumb path and empty folder view.
 
+---
 
+# 17. PHASE 11 — NOTIFICATIONS & WORKSPACE STORAGE QUOTA ALLOCATION
 
+### Implementation Summary
+Implemented Phase 11 — Notifications and Workspace Storage Quota Allocation according to blueprint specifications and the approved reference designs (Screen 52 — Notification Center):
+1. **Dynamic Workspace Storage Quota Management (Free Tier 50 MB + Platform Admin Allocation):**
+   - In response to Supabase Free Tier limitations (50 MB total storage), default storage quotas have been updated to **50 MB** per workspace across all calculations, services, forms, templates, and UI storage bars.
+   - Added `storage_quota_mb` (`PositiveIntegerField(default=50)`) to the `Workspace` model with convenient `@property storage_quota_bytes` and `@property storage_quota_formatted`.
+   - Exposed `storage_quota_mb` in Django Admin (`workspaces/admin.py`) within `list_display` and `list_editable`, enabling platform administrators to reallocate storage quotas per workspace with a single click.
+   - Dynamic storage usage progress bar in the global sidebar and File Upload view updates live based on each workspace's allocated quota.
+2. **Phase 11 — Notification Center (`notifications/`):**
+   - **Central Notification Center (`notification_center.html` — Screen 52):**
+     - Obsidian Dark & Slate Light responsive design with standard breadcrumbs and workspace context.
+     - 5 Realtime Metric Cards: Total Notifications, Unread, Tasks & Bugs, Mentions, and Read.
+     - 5 Filter Tabs with live count badges: **All**, **Unread**, **Tasks**, **Bugs**, and **Mentions**.
+     - Realtime query search filter box and **Mark all as read** action button.
+     - Notification cards with category-themed icon badges, priority chips, actor avatars, relative timestamps, direct action links, and individual Mark Read / Unread toggle buttons.
+     - Standard empty states for each tab and paginated navigation.
+   - **Universal Header Indicator & Quick Dropdown (`templates/components/header.html`):**
+     - Bell icon with reactive amber unread badge indicator.
+     - Interactive dropdown showing the latest 5 notifications with 1-click "mark as read" buttons and "View All Notifications →" link.
+     - Preserved exact accessible selectors (`button[aria-label="Notifications"]`) and copy for seamless E2E integration.
+   - **Automated Workflow Notification Triggers:**
+     - **Tasks (`tasks/services.py`):** Automatically creates notifications when tasks are assigned (`TASK_ASSIGNED`) or statuses change (`TASK_STATUS_CHANGED`).
+     - **Bugs (`bugs/services.py`):** Automatically creates notifications when bugs are assigned (`BUG_ASSIGNED`) or statuses change (`BUG_STATUS_CHANGED`).
+     - **Chat (`chat/services.py`):** Automatically generates direct message alerts (`CHAT_DM`) for private messages and channel mention alerts (`CHAT_MENTION`) when users are tagged with `@username` / `@email` / `@name`.
+     - **Meetings (`meetings/services.py`):** Generates meeting invitations (`MEETING_INVITE`) when scheduling team meetings.
+     - **Files (`files/views.py`):** Dispatches file share notifications (`FILE_SHARED`) when files are shared with team members.
+     - **Self-Notification Suppression:** Built-in suppression prevents notification spam when a user updates their own task or sends their own message.
+   - **Server-Side Security & RBAC:**
+     - Strict workspace scoping and recipient verification: users can only view, mark, or delete notifications where `recipient == request.user`.
+     - Cross-workspace isolation enforced with `@workspace_member_required`.
+     - CSRF protection across all state-changing endpoints.
 
+### Code Verification
+- Django system check: **PASS** (`python manage.py check` — 0 issues, 0 silenced)
+- Automated notifications test suite: **PASS** (`python manage.py test notifications --keepdb` — 12 tests passed, OK)
+- Core test suite: **PASS** (`python manage.py test core --keepdb` — 5 tests passed, OK)
+- Migrations: **PASS** (`workspaces.0004_workspace_storage_quota_mb` and `notifications.0001_initial` applied successfully)
+- Tailwind CSS build: **PASS** (`npm run build:css` completed cleanly)
+
+### Playwright E2E Suite (`tests/e2e/notifications/notifications_module.spec.ts`)
+- Script created for owner execution covering:
+  1. Redirect unauthenticated users from `/notifications/` to `/auth/login/`.
+  2. Load Notification Center with 5 metric cards, 5 filter tabs, search filter, and Mark all read button.
+  3. Filter navigation between All, Unread, Tasks, Bugs, and Mentions tabs.
+  4. Header bell button toggle, dropdown unread indicators, and navigation link.
+  5. Search box notification filtering.
+  6. Mark all as read state mutation.
+
+**Execution**: **NOT RUN BY AGENT** (browser launch prohibited by safety rules).  
+**Owner execution command**:
+```bash
+npx playwright test tests/e2e/notifications/notifications_module.spec.ts --project=chromium
+```
+
+### Git Status
+- Branch: `main`
+- Remote: `https://github.com/yash-14-web/AetherSpace.git`
+
+### Owner Manual Verification Instructions
+1. Start the server:
+   ```bash
+   python manage.py runserver
+   ```
+2. Sign in at `http://127.0.0.1:8000/auth/login/`.
+3. Open Notification Center:
+   - Click the **Bell icon** in the universal header or click **Notifications** in the global left rail.
+   - Verify the 5 metric cards (Total Notifications, Unread, Tasks & Bugs, Mentions, Read).
+   - Click each tab (**All**, **Unread**, **Tasks**, **Bugs**, **Mentions**) and verify filtering.
+4. Test Individual Mark Read / Unread:
+   - Click the checkmark icon on an unread notification card to mark it as read.
+   - Verify the card styling updates and unread count decrements.
+   - Click Mark Unread to toggle it back.
+5. Test Mark All as Read:
+   - Click **Mark all read** in the top right header.
+   - Verify all notification cards transition to read status and the header bell badge disappears.
+6. Test Header Bell Dropdown:
+   - Click the Bell icon in the top header.
+   - Verify the dropdown displays recent notifications with clickable links.
+   - Click "View All Notifications →" to navigate back to the center.
+7. Test Storage Quota Allocation in Admin:
+   - Navigate to `http://127.0.0.1:8000/admin/workspaces/workspace/`.
+   - Observe the `Storage quota (MB)` column in the workspace table.
+   - Edit the quota directly in the table (e.g. change 50 to 100) and click **Save**.
+   - Navigate to `http://127.0.0.1:8000/files/` and observe that the storage limit reflects the newly allocated quota.

@@ -150,7 +150,9 @@
                     <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
                     </svg>
-                    <span class="absolute top-1.5 right-1.5 block h-2 w-2 rounded-full bg-rose-500 ring-2 ring-white dark:ring-obsidian-900"></span>
+                    {% if unread_notifications_count > 0 %}
+                        <span class="absolute top-1.5 right-1.5 block h-2 w-2 rounded-full bg-rose-500 ring-2 ring-white dark:ring-obsidian-900 animate-pulse"></span>
+                    {% endif %}
                 </button>
 
                 <!-- Notifications Panel -->
@@ -161,32 +163,63 @@
                      x-transition:leave="transition ease-in duration-75" 
                      x-transition:leave-start="transform opacity-100 scale-100" 
                      x-transition:leave-end="transform opacity-0 scale-95" 
-                     class="absolute right-0 mt-2 w-80 rounded-xl aether-card py-2 z-50 divide-y divide-slate-100 dark:divide-zinc-800 shadow-2xl" 
+                     class="absolute right-0 mt-2 w-80 sm:w-96 rounded-2xl aether-card py-2 z-50 divide-y divide-slate-100 dark:divide-zinc-800 shadow-2xl" 
                      style="display: none;">
                     
                     <div class="px-4 py-2 flex items-center justify-between">
                         <span class="text-xs font-bold text-slate-900 dark:text-zinc-100">Notifications</span>
-                        <span class="text-[10px] px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-950/60 text-aether-blue font-bold">3 new</span>
+                        {% if unread_notifications_count > 0 %}
+                            <span class="text-[10px] px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/60 text-aether-blue font-bold">
+                                {{ unread_notifications_count }} new
+                            </span>
+                        {% else %}
+                            <span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 font-semibold">
+                                Caught up
+                            </span>
+                        {% endif %}
                     </div>
 
-                    <div class="py-1 text-xs divide-y divide-slate-100 dark:divide-zinc-800/80 max-h-64 overflow-y-auto">
-                        <div class="p-3 hover:bg-slate-50 dark:hover:bg-zinc-800/50 transition-colors">
-                            <span class="font-semibold text-slate-800 dark:text-zinc-200 block">Sprint 4 Launched</span>
-                            <span class="text-[11px] text-slate-400 dark:text-zinc-500">Active tasks and bug triage milestones are live.</span>
-                        </div>
-                        <div class="p-3 hover:bg-slate-50 dark:hover:bg-zinc-800/50 transition-colors">
-                            <span class="font-semibold text-slate-800 dark:text-zinc-200 block">Bug B-882316 Assigned</span>
-                            <span class="text-[11px] text-slate-400 dark:text-zinc-500">Assigned for priority triage review.</span>
-                        </div>
-                        <div class="p-3 hover:bg-slate-50 dark:hover:bg-zinc-800/50 transition-colors">
-                            <span class="font-semibold text-slate-800 dark:text-zinc-200 block">Workspace Connected</span>
-                            <span class="text-[11px] text-slate-400 dark:text-zinc-500">Supabase Storage and RBAC permissions synced.</span>
-                        </div>
+                    <div class="py-1 text-xs divide-y divide-slate-100 dark:divide-zinc-800/80 max-h-72 overflow-y-auto">
+                        {% for n in header_recent_notifications %}
+                            <div class="p-3 hover:bg-slate-50 dark:hover:bg-zinc-800/50 transition-colors flex items-start space-x-2.5 {% if not n.is_read %}bg-blue-50/20 dark:bg-blue-950/10{% endif %}">
+                                <span class="w-1.5 h-1.5 rounded-full {% if not n.is_read %}bg-aether-blue{% else %}bg-transparent{% endif %} mt-1.5 shrink-0"></span>
+                                <div class="min-w-0 flex-1">
+                                    <a href="{{ n.action_url|default:'/notifications/' }}" class="block font-semibold text-slate-800 dark:text-zinc-200 hover:text-aether-blue transition-colors truncate">
+                                        {{ n.title }}
+                                    </a>
+                                    {% if n.body %}
+                                        <p class="text-[11px] text-slate-500 dark:text-zinc-400 line-clamp-1 mt-0.5">
+                                            {{ n.body }}
+                                        </p>
+                                    {% endif %}
+                                    <div class="flex items-center space-x-2 text-[10px] text-slate-400 dark:text-zinc-500 mt-1">
+                                        <span class="uppercase font-semibold tracking-wider text-[9px]">{{ n.get_category_display }}</span>
+                                        <span>•</span>
+                                        <span>{{ n.created_at|timesince }} ago</span>
+                                    </div>
+                                </div>
+                                {% if not n.is_read %}
+                                    <form method="POST" action="{% url 'notifications:mark_read' notification_id=n.id %}" class="shrink-0">
+                                        {% csrf_token %}
+                                        <button type="submit" title="Mark as read" class="p-1 rounded text-slate-400 hover:text-emerald-500 hover:bg-slate-100 dark:hover:bg-zinc-700">
+                                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                            </svg>
+                                        </button>
+                                    </form>
+                                {% endif %}
+                            </div>
+                        {% empty %}
+                            <div class="p-6 text-center text-slate-400 dark:text-zinc-500">
+                                <p class="text-xs font-semibold">No notifications</p>
+                                <p class="text-[11px] mt-0.5">You're all caught up!</p>
+                            </div>
+                        {% endfor %}
                     </div>
 
-                    <div class="p-2 text-center">
-                        <a href="{% url 'core:notifications' %}" class="text-xs font-semibold text-aether-blue hover:underline">
-                            View All Notifications &rarr;
+                    <div class="p-2 text-center bg-slate-50/50 dark:bg-zinc-900/30 rounded-b-2xl">
+                        <a href="{% url 'notifications:notifications_router' %}" class="text-xs font-semibold text-aether-blue hover:underline inline-flex items-center space-x-1">
+                            <span>View All Notifications &rarr;</span>
                         </a>
                     </div>
                 </div>

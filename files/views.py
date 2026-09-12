@@ -706,6 +706,24 @@ def file_share(request, slug, file_id):
         log_file_activity(stored_file, request.user, 'SHARED', f"Shared with {target_user.email} ({access_level})")
         messages.success(request, f"Shared '{stored_file.name}' with {target_user.get_full_name() or target_user.email}.")
 
+        # Notify shared_with recipient
+        try:
+            from notifications.services import create_notification
+            from notifications.models import NotificationCategory, NotificationType
+            sharer_name = request.user.full_name or request.user.email
+            create_notification(
+                recipient=target_user,
+                category=NotificationCategory.FILE,
+                notification_type=NotificationType.FILE_SHARED,
+                title=f"File Shared: {stored_file.name}",
+                body=f"{sharer_name} shared '{stored_file.name}' with you ({access_level.title()} access).",
+                workspace=workspace,
+                actor=request.user,
+                action_url=f"/files/w/{workspace.slug}/file/{stored_file.id}/"
+            )
+        except Exception:
+            pass
+
     return redirect('files:file_detail', slug=workspace.slug, file_id=stored_file.id)
 
 

@@ -96,6 +96,22 @@ def create_bug(
             new_value=str(assignee.id),
             message=f"Assigned bug to {assignee_name}.",
         )
+        # Notify assignee
+        try:
+            from notifications.services import create_notification
+            from notifications.models import NotificationCategory, NotificationType
+            create_notification(
+                recipient=assignee,
+                category=NotificationCategory.BUG,
+                notification_type=NotificationType.BUG_ASSIGNED,
+                title=f"Bug {bug.bug_code} Assigned",
+                body=f"You were assigned to bug '{bug.title}' by {reporter.full_name or reporter.email}",
+                workspace=workspace,
+                actor=reporter,
+                action_url=bug.get_absolute_url()
+            )
+        except Exception:
+            pass
 
     return bug
 
@@ -118,6 +134,23 @@ def update_bug(bug, actor, **kwargs):
             'new': new_status,
             'msg': f"Changed status from '{old_status}' to '{new_status}'."
         })
+        # Notify reporter if someone else updated status
+        try:
+            from notifications.services import create_notification
+            from notifications.models import NotificationCategory, NotificationType
+            if bug.reporter and actor and bug.reporter.id != actor.id:
+                create_notification(
+                    recipient=bug.reporter,
+                    category=NotificationCategory.BUG,
+                    notification_type=NotificationType.BUG_STATUS_CHANGED,
+                    title=f"Bug {bug.bug_code} Status: {new_status}",
+                    body=f"Bug '{bug.title}' was updated to {new_status} by {actor.full_name or actor.email}",
+                    workspace=bug.workspace,
+                    actor=actor,
+                    action_url=bug.get_absolute_url()
+                )
+        except Exception:
+            pass
 
     # Check priority change
     if 'priority' in kwargs and kwargs['priority'] and kwargs['priority'] != bug.priority:
@@ -154,6 +187,23 @@ def update_bug(bug, actor, **kwargs):
             'new': new_assignee,
             'msg': f"Reassigned bug from {old_assignee} to {new_assignee}."
         })
+        # Notify new assignee
+        try:
+            from notifications.services import create_notification
+            from notifications.models import NotificationCategory, NotificationType
+            if bug.assignee and actor and bug.assignee.id != actor.id:
+                create_notification(
+                    recipient=bug.assignee,
+                    category=NotificationCategory.BUG,
+                    notification_type=NotificationType.BUG_ASSIGNED,
+                    title=f"Bug {bug.bug_code} Assigned",
+                    body=f"You were assigned to bug '{bug.title}' by {actor.full_name or actor.email}",
+                    workspace=bug.workspace,
+                    actor=actor,
+                    action_url=bug.get_absolute_url()
+                )
+        except Exception:
+            pass
 
     # Check reporter change
     if 'reporter' in kwargs and kwargs['reporter'] and kwargs['reporter'] != bug.reporter:
