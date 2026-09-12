@@ -1,0 +1,3 @@
+"""
+AetherSpace Administration Panel Module
+"""

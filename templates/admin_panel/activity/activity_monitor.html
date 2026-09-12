@@ -1,0 +1,121 @@
+{% extends "admin_panel/base_admin.html" %}
+{% load static %}
+
+{% block admin_content %}
+<div class="space-y-6">
+
+    <!-- Header Description Card -->
+    <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl p-6 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+            <div class="flex items-center space-x-3">
+                <h2 class="text-xl font-bold text-slate-900 dark:text-zinc-50">Cross-Platform Activity Monitor</h2>
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800/60">
+                    <span class="w-2 h-2 rounded-full bg-purple-500 mr-1.5 animate-pulse"></span>
+                    Live Stream
+                </span>
+            </div>
+            <p class="text-xs text-slate-500 dark:text-zinc-400 mt-1">
+                Real-time chronological log of member actions, system events, workspace transitions, and security checks.
+            </p>
+        </div>
+
+        <div class="flex items-center space-x-2">
+            <a href="{% url 'admin_panel:activity_monitor' %}"
+               class="inline-flex items-center px-3.5 py-2 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700 transition-colors shadow-sm">
+                <svg class="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                Refresh Feed
+            </a>
+            <a href="{% url 'admin_panel:audit_logs' %}"
+               class="inline-flex items-center px-3.5 py-2 text-xs font-semibold rounded-lg bg-white dark:bg-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-700 text-slate-600 dark:text-zinc-300 border border-slate-200 dark:border-zinc-700 transition-colors shadow-sm">
+                Advanced Audit Search
+            </a>
+        </div>
+    </div>
+
+    <!-- Activity Stream Card -->
+    <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl overflow-hidden shadow-sm">
+        <div class="divide-y divide-slate-200/70 dark:divide-zinc-800/70 text-xs">
+            {% for act in activities_page %}
+            <div class="p-4 sm:px-6 hover:bg-slate-50/50 dark:hover:bg-zinc-800/30 transition-colors flex items-start justify-between gap-4">
+                <div class="flex items-start space-x-3.5">
+                    <!-- Avatar or System Icon -->
+                    <div class="w-9 h-9 rounded-full bg-purple-100 dark:bg-purple-950/70 text-purple-700 dark:text-purple-300 font-bold flex items-center justify-center shrink-0 text-xs">
+                        {% if act.actor %}
+                            {{ act.actor.email|slice:":1"|upper }}
+                        {% else %}
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                        {% endif %}
+                    </div>
+
+                    <div class="space-y-1">
+                        <div class="flex items-center space-x-2 flex-wrap">
+                            {% if act.actor %}
+                            <a href="{% url 'admin_panel:user_details' user_id=act.actor.id %}" class="font-bold text-slate-900 dark:text-zinc-100 hover:text-purple-600 transition-colors">
+                                {{ act.actor.full_name|default:act.actor.email }}
+                            </a>
+                            {% else %}
+                            <span class="font-bold text-slate-900 dark:text-zinc-100">{{ act.actor_email|default:"System Daemon" }}</span>
+                            {% endif %}
+
+                            <span class="px-2 py-0.5 rounded text-[11px] font-mono font-medium bg-slate-100 dark:bg-zinc-800 text-purple-600 dark:text-purple-400 border border-slate-200 dark:border-zinc-700">
+                                {{ act.action }}
+                            </span>
+
+                            {% if act.workspace %}
+                            <a href="{% url 'admin_panel:workspace_details' slug=act.workspace.slug %}" class="px-2 py-0.5 rounded text-[11px] font-medium bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 hover:underline">
+                                {{ act.workspace.name }}
+                            </a>
+                            {% endif %}
+                        </div>
+
+                        {% if act.target_repr %}
+                        <p class="text-slate-600 dark:text-zinc-300 text-xs">
+                            Target: <span class="font-medium text-slate-800 dark:text-zinc-200">{{ act.target_repr }}</span>
+                            {% if act.target_type %}<span class="text-slate-400 dark:text-zinc-500 text-[10px]">({{ act.target_type }})</span>{% endif %}
+                        </p>
+                        {% endif %}
+
+                        <div class="flex items-center space-x-3 text-[11px] text-slate-400 dark:text-zinc-500 font-mono">
+                            <span>IP: {{ act.ip_address|default:"127.0.0.1" }}</span>
+                            <span>•</span>
+                            <span>Status: {{ act.status }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="text-right shrink-0">
+                    <span class="text-[11px] text-slate-400 dark:text-zinc-500 font-mono">
+                        {{ act.created_at|date:"M d, H:i:s" }}
+                    </span>
+                </div>
+            </div>
+            {% empty %}
+            <div class="px-6 py-12 text-center text-slate-400 dark:text-zinc-500">
+                No recent platform activities recorded.
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Pagination -->
+        {% if activities_page.has_other_pages %}
+        <div class="px-6 py-4 border-t border-slate-200 dark:border-zinc-800 flex items-center justify-between text-xs text-slate-500 dark:text-zinc-400">
+            <span>Showing {{ activities_page.start_index }} to {{ activities_page.end_index }} of {{ activities_page.paginator.count }} events</span>
+            <div class="flex items-center space-x-1">
+                {% if activities_page.has_previous %}
+                <a href="?page={{ activities_page.previous_page_number }}" class="px-2.5 py-1 rounded bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-700 font-semibold">Previous</a>
+                {% endif %}
+                {% if activities_page.has_next %}
+                <a href="?page={{ activities_page.next_page_number }}" class="px-2.5 py-1 rounded bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-700 font-semibold">Next</a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+</div>
+{% endblock %}

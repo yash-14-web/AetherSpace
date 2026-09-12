@@ -1,0 +1,98 @@
+{% extends "admin_panel/base_admin.html" %}
+{% load static %}
+
+{% block admin_content %}
+<div class="space-y-6">
+
+    <!-- Header Description Card -->
+    <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl p-6 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+            <h2 class="text-xl font-bold text-slate-900 dark:text-zinc-50">Platform Integrations & External Services</h2>
+            <p class="text-xs text-slate-500 dark:text-zinc-400 mt-1">
+                Operational status of external services powering persistence, media storage, video meetings, and alerts.
+            </p>
+        </div>
+        <div class="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800/60">
+            <svg class="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+            Zero Secret Disclosure Enforced
+        </div>
+    </div>
+
+    <!-- Integrations Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {% for item in integrations %}
+        <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl p-6 shadow-sm flex flex-col justify-between space-y-4">
+            <div>
+                <div class="flex items-start justify-between">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 rounded-lg bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center font-bold">
+                            {% if item.icon == 'database' %}
+                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
+                            </svg>
+                            {% elif item.icon == 'cloud' %}
+                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 00-9.78 2.096A4.001 4.001 0 003 15z" />
+                            </svg>
+                            {% elif item.icon == 'video' %}
+                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                            </svg>
+                            {% else %}
+                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                            </svg>
+                            {% endif %}
+                        </div>
+                        <div>
+                            <h3 class="text-base font-bold text-slate-900 dark:text-zinc-100">{{ item.name }}</h3>
+                            <span class="text-xs text-slate-400 dark:text-zinc-500 font-medium">{{ item.category }}</span>
+                        </div>
+                    </div>
+
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold
+                        {% if item.is_active %}bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60
+                        {% else %}bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60{% endif %}">
+                        <span class="w-2 h-2 rounded-full {% if item.is_active %}bg-emerald-500{% else %}bg-amber-500{% endif %} mr-1.5"></span>
+                        {{ item.status }}
+                    </span>
+                </div>
+
+                <div class="mt-4 bg-slate-50 dark:bg-zinc-950/60 rounded-lg p-3 border border-slate-200/70 dark:border-zinc-800">
+                    <p class="text-xs text-slate-600 dark:text-zinc-300 font-mono break-all">{{ item.details }}</p>
+                </div>
+            </div>
+
+            <div class="pt-3 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between text-xs text-slate-500 dark:text-zinc-400">
+                <span>Free-tier optimized architecture</span>
+                {% if item.icon == 'cloud' %}
+                <a href="{% url 'admin_panel:storage_files' %}" class="font-semibold text-purple-600 dark:text-purple-400 hover:underline">
+                    Inspect Storage →
+                </a>
+                {% elif item.icon == 'database' %}
+                <a href="{% url 'admin_panel:performance_overview' %}" class="font-semibold text-purple-600 dark:text-purple-400 hover:underline">
+                    View Latency →
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Environment Security Note -->
+    <div class="bg-purple-50/50 dark:bg-purple-950/20 border border-purple-200/70 dark:border-purple-900/40 rounded-xl p-5 text-xs text-slate-600 dark:text-zinc-400 space-y-2">
+        <div class="flex items-center space-x-2 text-purple-700 dark:text-purple-300 font-bold">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span>Security Note on API Keys & Tokens</span>
+        </div>
+        <p>
+            In compliance with the AetherSpace Security Architecture and Antigravity Master Rules, all service-role secret keys, Supabase credentials, and database connection strings are read strictly from environment variables on the backend. No credentials are transmitted in API payloads or rendered into browser DOM.
+        </p>
+    </div>
+
+</div>
+{% endblock %}

@@ -1,0 +1,153 @@
+{% extends "admin_panel/base_admin.html" %}
+{% load static %}
+
+{% block admin_content %}
+<div class="space-y-6">
+
+    <!-- Header Description Card -->
+    <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+            <h2 class="text-xl font-bold text-slate-900 dark:text-zinc-50">System & Resource Alerts</h2>
+            <p class="text-xs text-slate-500 dark:text-zinc-400 mt-1">
+                Actionable notifications for storage quotas, Sev-1 critical bugs, security anomalies, and platform health.
+            </p>
+        </div>
+
+        <!-- Filter Status & Severity Tabs -->
+        <div class="flex items-center space-x-2">
+            <a href="?status=active"
+               class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors border
+               {% if status_filter == 'active' %}bg-purple-600 text-white border-purple-600 shadow-sm
+               {% else %}bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 border-slate-200 dark:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-700{% endif %}">
+                Active Alerts
+            </a>
+            <a href="?status=resolved"
+               class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors border
+               {% if status_filter == 'resolved' %}bg-purple-600 text-white border-purple-600 shadow-sm
+               {% else %}bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 border-slate-200 dark:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-700{% endif %}">
+                Resolved History
+            </a>
+        </div>
+    </div>
+
+    <!-- Severity Filter Bar -->
+    <div class="flex items-center space-x-2 text-xs">
+        <span class="text-slate-500 dark:text-zinc-400 font-semibold">Severity Filter:</span>
+        <a href="?status={{ status_filter }}"
+           class="px-2.5 py-1 rounded-md border text-[11px] font-medium
+           {% if not severity_filter %}bg-slate-900 text-white dark:bg-zinc-100 dark:text-zinc-900 border-transparent
+           {% else %}bg-white dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 border-slate-200 dark:border-zinc-700{% endif %}">
+            All
+        </a>
+        {% for sev, label in severities %}
+        {% if sev != 'RESOLVED' %}
+        <a href="?status={{ status_filter }}&severity={{ sev }}"
+           class="px-2.5 py-1 rounded-md border text-[11px] font-medium
+           {% if severity_filter == sev %}bg-purple-600 text-white border-purple-600
+           {% else %}bg-white dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 border-slate-200 dark:border-zinc-700{% endif %}">
+            {{ label }}
+        </a>
+        {% endif %}
+        {% endfor %}
+    </div>
+
+    <!-- Alerts Card Stream -->
+    <div class="space-y-3">
+        {% for alert in alerts_page %}
+        <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl p-5 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div class="flex items-start space-x-3.5">
+                <!-- Severity Icon Badge -->
+                <div class="w-9 h-9 rounded-lg flex items-center justify-center font-bold shrink-0
+                    {% if alert.severity == 'CRITICAL' %}bg-rose-100 dark:bg-rose-950/70 text-rose-600 dark:text-rose-400
+                    {% elif alert.severity == 'WARNING' %}bg-amber-100 dark:bg-amber-950/70 text-amber-600 dark:text-amber-400
+                    {% else %}bg-blue-100 dark:bg-blue-950/70 text-blue-600 dark:text-blue-400{% endif %}">
+                    {% if alert.severity == 'CRITICAL' %}
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    {% else %}
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    {% endif %}
+                </div>
+
+                <div class="space-y-1">
+                    <div class="flex items-center space-x-2 flex-wrap">
+                        <h3 class="text-sm font-bold text-slate-900 dark:text-zinc-50">{{ alert.title }}</h3>
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider
+                            {% if alert.severity == 'CRITICAL' %}bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300
+                            {% elif alert.severity == 'WARNING' %}bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300
+                            {% else %}bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300{% endif %}">
+                            {{ alert.get_severity_display }}
+                        </span>
+                        <span class="px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 border border-slate-200 dark:border-zinc-700">
+                            {{ alert.get_category_display }}
+                        </span>
+                        {% if alert.workspace %}
+                        <a href="{% url 'admin_panel:workspace_details' slug=alert.workspace.slug %}" class="text-[11px] font-medium text-purple-600 dark:text-purple-400 hover:underline">
+                            {{ alert.workspace.name }}
+                        </a>
+                        {% endif %}
+                    </div>
+
+                    <p class="text-xs text-slate-600 dark:text-zinc-300 leading-relaxed max-w-3xl">
+                        {{ alert.message }}
+                    </p>
+
+                    <div class="text-[11px] text-slate-400 dark:text-zinc-500 font-mono">
+                        Reported {{ alert.created_at|date:"M d, Y H:i" }}
+                        {% if alert.is_resolved %}
+                        • <span class="text-emerald-600 dark:text-emerald-400 font-semibold">Resolved by {{ alert.resolved_by.email|default:"Admin" }} on {{ alert.resolved_at|date:"M d, H:i" }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Resolution Button -->
+            <div class="shrink-0 flex items-center justify-end">
+                {% if not alert.is_resolved %}
+                <form method="post" action="{% url 'admin_panel:resolve_alert' alert_id=alert.id %}">
+                    {% csrf_token %}
+                    <button type="submit" class="px-3 py-1.5 bg-slate-100 hover:bg-emerald-50 dark:bg-zinc-800 dark:hover:bg-emerald-950/50 text-slate-700 hover:text-emerald-700 dark:text-zinc-300 dark:hover:text-emerald-300 border border-slate-200 dark:border-zinc-700 rounded-lg text-xs font-semibold shadow-sm transition-colors">
+                        Mark Resolved
+                    </button>
+                </form>
+                {% else %}
+                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60">
+                    <svg class="w-3.5 h-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                    Resolved
+                </span>
+                {% endif %}
+            </div>
+        </div>
+        {% empty %}
+        <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl p-12 text-center text-slate-400 dark:text-zinc-500 shadow-sm">
+            <svg class="w-12 h-12 mx-auto text-slate-300 dark:text-zinc-700 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <p class="font-bold text-slate-800 dark:text-zinc-200 text-sm">All clear! No alerts matching criteria.</p>
+            <p class="text-xs text-slate-400 dark:text-zinc-500 mt-1">System is operating normally within allocated quota parameters.</p>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Pagination -->
+    {% if alerts_page.has_other_pages %}
+    <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl px-6 py-4 flex items-center justify-between text-xs text-slate-500 dark:text-zinc-400 shadow-sm">
+        <span>Showing {{ alerts_page.start_index }} to {{ alerts_page.end_index }} of {{ alerts_page.paginator.count }} alerts</span>
+        <div class="flex items-center space-x-1">
+            {% if alerts_page.has_previous %}
+            <a href="?page={{ alerts_page.previous_page_number }}&status={{ status_filter }}&severity={{ severity_filter }}" class="px-2.5 py-1 rounded bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-700 font-semibold">Previous</a>
+            {% endif %}
+            {% if alerts_page.has_next %}
+            <a href="?page={{ alerts_page.next_page_number }}&status={{ status_filter }}&severity={{ severity_filter }}" class="px-2.5 py-1 rounded bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-700 font-semibold">Next</a>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

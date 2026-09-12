@@ -1,0 +1,154 @@
+{% extends "admin_panel/base_admin.html" %}
+{% load static %}
+
+{% block admin_content %}
+<div class="space-y-6">
+
+    <!-- Search & Filter Controls -->
+    <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl p-5 shadow-sm">
+        <form method="get" class="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
+            <div>
+                <label class="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-1">Search Members / Roles</label>
+                <div class="relative">
+                    <input type="text" name="q" value="{{ user_query }}" placeholder="Search by name, email, or functional role..."
+                           class="w-full pl-9 pr-3 py-2 text-xs rounded-lg border border-slate-300 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800 text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-purple-500">
+                    <svg class="w-4 h-4 text-slate-400 absolute left-3 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-1">Filter by Workspace</label>
+                <select name="workspace"
+                        class="w-full py-2 px-3 text-xs rounded-lg border border-slate-300 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800 text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-purple-500">
+                    <option value="">All Workspaces</option>
+                    {% for ws in all_workspaces %}
+                    <option value="{{ ws.slug }}" {% if workspace_slug == ws.slug %}selected{% endif %}>{{ ws.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="flex items-center space-x-2">
+                <button type="submit" class="w-full py-2 px-4 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-semibold shadow-sm transition-colors">
+                    Apply Filter
+                </button>
+                {% if user_query or workspace_slug %}
+                <a href="{% url 'admin_panel:member_management' %}" class="py-2 px-3 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 rounded-lg text-xs font-semibold hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors">
+                    Reset
+                </a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+
+    <!-- Memberships Table -->
+    <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl overflow-hidden shadow-sm">
+        <div class="px-6 py-4 border-b border-slate-200 dark:border-zinc-800 flex items-center justify-between">
+            <h3 class="text-base font-bold text-slate-900 dark:text-zinc-100">Cross-Workspace Members ({{ memberships_page.paginator.count }})</h3>
+            <span class="text-xs text-slate-500 dark:text-zinc-400">Platform-wide membership records with functional tags & reporting lines</span>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="border-b border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-950/50 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">
+                        <th class="px-6 py-3">Member</th>
+                        <th class="px-6 py-3">Workspace</th>
+                        <th class="px-6 py-3">Workspace Role</th>
+                        <th class="px-6 py-3">Functional Role Tag</th>
+                        <th class="px-6 py-3">Reports To (Hierarchy)</th>
+                        <th class="px-6 py-3">Status</th>
+                        <th class="px-6 py-3 text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-200/70 dark:divide-zinc-800/70 text-xs">
+                    {% for m in memberships_page %}
+                    <tr class="hover:bg-slate-50/50 dark:hover:bg-zinc-800/30 transition-colors">
+                        <td class="px-6 py-3.5 flex items-center space-x-3">
+                            <div class="w-8 h-8 rounded-full bg-slate-200 dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 font-bold flex items-center justify-center shrink-0">
+                                {{ m.user.email|slice:":1"|upper }}
+                            </div>
+                            <div>
+                                <a href="{% url 'admin_panel:user_details' user_id=m.user.id %}" class="font-semibold text-slate-900 dark:text-zinc-100 hover:text-purple-600 transition-colors">
+                                    {{ m.user.full_name|default:m.user.email }}
+                                </a>
+                                <p class="text-[11px] text-slate-400 dark:text-zinc-500">{{ m.user.email }}</p>
+                            </div>
+                        </td>
+                        <td class="px-6 py-3.5 font-medium">
+                            <a href="{% url 'admin_panel:workspace_details' slug=m.workspace.slug %}" class="hover:text-purple-600 dark:hover:text-purple-400 text-slate-800 dark:text-zinc-200">
+                                {{ m.workspace.name }}
+                            </a>
+                            <p class="text-[11px] text-slate-400 dark:text-zinc-500 font-mono">/{{ m.workspace.slug }}/</p>
+                        </td>
+                        <td class="px-6 py-3.5">
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold
+                                {% if m.role == 'ADMIN' %}bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300
+                                {% elif m.role == 'MANAGER' %}bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300
+                                {% else %}bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400{% endif %}">
+                                {{ m.get_role_display }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-3.5">
+                            {% if m.functional_role or m.role_tag %}
+                                <span class="inline-flex items-center px-2 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/60 font-medium">
+                                    {{ m.functional_role|default:m.role_tag }}
+                                </span>
+                            {% else %}
+                                <span class="text-slate-400 dark:text-zinc-600 italic">No tag</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-3.5">
+                            {% if m.reporting_to %}
+                                <div class="flex items-center space-x-1.5 text-slate-700 dark:text-zinc-300">
+                                    <svg class="w-3.5 h-3.5 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 11l5-5m0 0l5 5m-5-5v12" />
+                                    </svg>
+                                    <span>{{ m.reporting_to.user.full_name|default:m.reporting_to.user.email }}</span>
+                                </div>
+                            {% else %}
+                                <span class="text-slate-400 dark:text-zinc-600 italic">None (Independent)</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-3.5">
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold
+                                {% if m.status == 'ACTIVE' %}bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300
+                                {% else %}bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300{% endif %}">
+                                {{ m.get_status_display }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-3.5 text-right">
+                            <a href="{% url 'admin_panel:user_details' user_id=m.user.id %}" class="text-purple-600 dark:text-purple-400 hover:underline font-semibold">
+                                Inspect User
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="px-6 py-10 text-center text-slate-400 dark:text-zinc-500">
+                            No memberships found matching the given criteria.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if memberships_page.has_other_pages %}
+        <div class="px-6 py-4 border-t border-slate-200 dark:border-zinc-800 flex items-center justify-between text-xs text-slate-500 dark:text-zinc-400">
+            <span>Showing {{ memberships_page.start_index }} to {{ memberships_page.end_index }} of {{ memberships_page.paginator.count }} memberships</span>
+            <div class="flex items-center space-x-1">
+                {% if memberships_page.has_previous %}
+                <a href="?page={{ memberships_page.previous_page_number }}&q={{ user_query }}&workspace={{ workspace_slug }}" class="px-2.5 py-1 rounded bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-700 font-semibold">Previous</a>
+                {% endif %}
+                {% if memberships_page.has_next %}
+                <a href="?page={{ memberships_page.next_page_number }}&q={{ user_query }}&workspace={{ workspace_slug }}" class="px-2.5 py-1 rounded bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-700 font-semibold">Next</a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+</div>
+{% endblock %}

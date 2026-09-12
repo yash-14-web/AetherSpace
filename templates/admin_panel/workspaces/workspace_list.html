@@ -1,0 +1,122 @@
+{% extends "admin_panel/base_admin.html" %}
+
+{% block admin_content %}
+<div class="space-y-6">
+
+    <!-- Search and Status Filter Bar -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 aether-card p-4">
+        <form method="GET" class="flex items-center space-x-2 w-full sm:max-w-md">
+            <input type="text" name="q" value="{{ query }}" placeholder="Search workspaces by name or slug..." 
+                   class="w-full px-3.5 py-2 text-xs rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] text-slate-900 dark:text-zinc-100 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-purple-500">
+            <button type="submit" class="aether-button-primary text-xs px-3 py-2 shrink-0">Search</button>
+        </form>
+
+        <form method="GET" class="flex items-center space-x-2 shrink-0">
+            <input type="hidden" name="q" value="{{ query }}">
+            <select name="status" onchange="this.form.submit()" class="text-xs px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] text-slate-700 dark:text-zinc-300 focus:outline-none focus:ring-1 focus:ring-purple-500">
+                <option value="">All Statuses</option>
+                {% for code, label in statuses %}
+                    <option value="{{ code }}" {% if status_filter == code %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </form>
+    </div>
+
+    <!-- Workspace Table -->
+    <div class="aether-card overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+                <thead class="bg-slate-50/75 dark:bg-zinc-900/60 border-b border-slate-200 dark:border-zinc-800 text-slate-400 dark:text-zinc-500 font-bold uppercase tracking-wider text-[10px]">
+                    <tr>
+                        <th class="px-5 py-3">Workspace</th>
+                        <th class="px-4 py-3">Owner</th>
+                        <th class="px-4 py-3">Seats Allocation</th>
+                        <th class="px-4 py-3">Storage Used</th>
+                        <th class="px-4 py-3">Status</th>
+                        <th class="px-4 py-3">Created</th>
+                        <th class="px-4 py-3 text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 dark:divide-zinc-800/70">
+                    {% for ws in workspaces_page %}
+                        <tr class="hover:bg-slate-50/50 dark:hover:bg-zinc-900/30 transition-colors">
+                            <!-- Name & Slug -->
+                            <td class="px-5 py-3.5">
+                                <div class="font-bold text-slate-900 dark:text-zinc-100">
+                                    <a href="{% url 'admin_panel:workspace_details' slug=ws.slug %}" class="hover:text-purple-600 dark:hover:text-purple-400">
+                                        {{ ws.name }}
+                                    </a>
+                                </div>
+                                <div class="text-[11px] text-slate-400">slug: {{ ws.slug }}</div>
+                            </td>
+
+                            <!-- Owner -->
+                            <td class="px-4 py-3.5 text-slate-600 dark:text-zinc-300">
+                                {{ ws.owner.email|default:"No Owner" }}
+                            </td>
+
+                            <!-- Seats Allocation -->
+                            <td class="px-4 py-3.5">
+                                <span class="font-bold text-slate-800 dark:text-zinc-200">{{ ws.active_members_count }}</span>
+                                <span class="text-slate-400">/ {{ ws.max_seats }} seats</span>
+                            </td>
+
+                            <!-- Storage -->
+                            <td class="px-4 py-3.5">
+                                <span class="font-bold text-slate-800 dark:text-zinc-200">{{ ws.storage_quota_mb }} MB</span>
+                                <span class="text-slate-400 text-[11px]">quota</span>
+                            </td>
+
+                            <!-- Status -->
+                            <td class="px-4 py-3.5">
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold {% if ws.status == 'ACTIVE' %}bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 border border-emerald-200 dark:border-emerald-800/60{% elif ws.status == 'SUSPENDED' %}bg-amber-50 dark:bg-amber-950/60 text-amber-600 border border-amber-200 dark:border-amber-800/60{% else %}bg-slate-100 dark:bg-zinc-800 text-slate-500 border border-slate-200 dark:border-zinc-700{% endif %}">
+                                    {{ ws.get_status_display }}
+                                </span>
+                            </td>
+
+                            <!-- Created -->
+                            <td class="px-4 py-3.5 text-slate-400 text-[11px]">
+                                {{ ws.created_at|date:"M d, Y" }}
+                            </td>
+
+                            <!-- Actions -->
+                            <td class="px-4 py-3.5 text-right space-x-1.5">
+                                <a href="{% url 'admin_panel:workspace_details' slug=ws.slug %}" class="aether-button-secondary text-[11px] px-2.5 py-1">
+                                    Manage
+                                </a>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="7" class="py-12 text-center text-slate-400 dark:text-zinc-500 text-xs">
+                                No workspaces found matching your query.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination Bar -->
+        {% if workspaces_page.has_other_pages %}
+            <div class="px-5 py-3 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between text-xs text-slate-500">
+                <span>Showing page {{ workspaces_page.number }} of {{ workspaces_page.paginator.num_pages }}</span>
+                <div class="flex items-center space-x-1">
+                    {% if workspaces_page.has_previous %}
+                        <a href="?page={{ workspaces_page.previous_page_number }}&q={{ query }}&status={{ status_filter }}" class="px-2.5 py-1 rounded bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 font-semibold hover:bg-slate-200">
+                            &larr; Prev
+                        </a>
+                    {% endif %}
+                    <span class="px-3 py-1 font-bold">{{ workspaces_page.number }}</span>
+                    {% if workspaces_page.has_next %}
+                        <a href="?page={{ workspaces_page.next_page_number }}&q={{ query }}&status={{ status_filter }}" class="px-2.5 py-1 rounded bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 font-semibold hover:bg-slate-200">
+                            Next &rarr;
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+        {% endif %}
+    </div>
+
+</div>
+{% endblock %}

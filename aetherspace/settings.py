@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     'calendars.apps.CalendarsConfig',
     'files.apps.FilesConfig',
     'notifications.apps.NotificationsConfig',
+    'admin_panel.apps.AdminPanelConfig',
 ]
 
 MIDDLEWARE = [

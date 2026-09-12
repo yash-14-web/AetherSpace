@@ -94,6 +94,17 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
                         </svg>
                     </a>
+
+                    <!-- Admin Panel (For Platform Administrators) -->
+                    {% if user.is_admin_role %}
+                        <a href="{% url 'admin_panel:dashboard' %}" 
+                           class="p-2.5 rounded-xl transition-all {% if request.resolver_match.app_name == 'admin_panel' %}text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/60 shadow-sm{% else %}text-slate-500 dark:text-zinc-400 hover:text-purple-600 dark:hover:text-purple-300 hover:bg-purple-50/50 dark:hover:bg-purple-950/30{% endif %}" 
+                           title="Admin Panel">
+                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                            </svg>
+                        </a>
+                    {% endif %}
                 </nav>
             </div>
 
@@ -127,10 +138,13 @@
             </div>
         </aside>
 
-        <!-- 2. Workspace Navigation Tree (240px wide) -->
+        <!-- 2. Workspace / Admin Navigation Tree (240px wide) -->
         <div class="w-60 bg-slate-50 dark:bg-obsidian-900 border-r border-slate-200 dark:border-zinc-800 flex flex-col py-4 px-3 overflow-y-auto shrink-0 z-20">
             
-            {% if current_workspace %}
+            {% if request.resolver_match.app_name == 'admin_panel' %}
+                <!-- Admin Panel Navigation Tree -->
+                {% include 'admin_panel/partials/admin_tree.html' %}
+            {% elif current_workspace %}
                 <!-- Active Workspace Header Card -->
                 <div class="p-2.5 rounded-xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 shadow-sm mb-3">
                     <div class="flex items-center justify-between">

@@ -1,0 +1,192 @@
+{% extends "admin_panel/base_admin.html" %}
+{% load static %}
+
+{% block admin_content %}
+<div class="space-y-6" x-data="{ activeModalMeta: null, openModal(meta) { this.activeModalMeta = meta; } }">
+
+    <!-- Filter Bar Card -->
+    <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl p-5 shadow-sm">
+        <form method="get" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-end">
+            <!-- Search Query -->
+            <div class="lg:col-span-2">
+                <label class="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-1">Search Audit Events</label>
+                <div class="relative">
+                    <input type="text" name="q" value="{{ query }}" placeholder="Search actor, target, IP, action..."
+                           class="w-full pl-9 pr-3 py-2 text-xs rounded-lg border border-slate-300 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800 text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-purple-500">
+                    <svg class="w-4 h-4 text-slate-400 absolute left-3 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                </div>
+            </div>
+
+            <!-- Action Filter -->
+            <div>
+                <label class="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-1">Action Type</label>
+                <select name="action" class="w-full py-2 px-3 text-xs rounded-lg border border-slate-300 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800 text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-purple-500">
+                    <option value="">All Actions</option>
+                    {% for a in distinct_actions %}
+                    <option value="{{ a }}" {% if action_filter == a %}selected{% endif %}>{{ a }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Status Filter -->
+            <div>
+                <label class="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-1">Status</label>
+                <select name="status" class="w-full py-2 px-3 text-xs rounded-lg border border-slate-300 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800 text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-purple-500">
+                    <option value="">All Statuses</option>
+                    {% for st, label in statuses %}
+                    <option value="{{ st }}" {% if status_filter == st %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Submit / Reset -->
+            <div class="flex items-center space-x-2">
+                <button type="submit" class="w-full py-2 px-4 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-semibold shadow-sm transition-colors">
+                    Filter
+                </button>
+                {% if query or action_filter or status_filter or workspace_slug %}
+                <a href="{% url 'admin_panel:audit_logs' %}" class="py-2 px-3 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 rounded-lg text-xs font-semibold hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors">
+                    Reset
+                </a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+
+    <!-- Audit Logs Table -->
+    <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl overflow-hidden shadow-sm">
+        <div class="px-6 py-4 border-b border-slate-200 dark:border-zinc-800 flex items-center justify-between">
+            <div>
+                <h3 class="text-base font-bold text-slate-900 dark:text-zinc-100">Audit Trail ({{ logs_page.paginator.count }})</h3>
+                <p class="text-xs text-slate-500 dark:text-zinc-400">Tamper-evident system activity and administrative operation history</p>
+            </div>
+            <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 border border-slate-200 dark:border-zinc-700">
+                Redacted Secrets Enforced
+            </span>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="border-b border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-950/50 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">
+                        <th class="px-6 py-3">Timestamp</th>
+                        <th class="px-6 py-3">Actor</th>
+                        <th class="px-6 py-3">Action</th>
+                        <th class="px-6 py-3">Target / Resource</th>
+                        <th class="px-6 py-3">Workspace</th>
+                        <th class="px-6 py-3">IP Address</th>
+                        <th class="px-6 py-3">Status</th>
+                        <th class="px-6 py-3 text-right">Details</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-200/70 dark:divide-zinc-800/70 text-xs">
+                    {% for log in logs_page %}
+                    <tr class="hover:bg-slate-50/50 dark:hover:bg-zinc-800/30 transition-colors">
+                        <td class="px-6 py-3.5 whitespace-nowrap text-slate-500 dark:text-zinc-400 font-mono text-[11px]">
+                            {{ log.created_at|date:"Y-m-d H:i:s" }}
+                        </td>
+                        <td class="px-6 py-3.5">
+                            {% if log.actor %}
+                            <a href="{% url 'admin_panel:user_details' user_id=log.actor.id %}" class="font-semibold text-slate-900 dark:text-zinc-100 hover:text-purple-600 transition-colors">
+                                {{ log.actor.email }}
+                            </a>
+                            {% else %}
+                            <span class="text-slate-500 dark:text-zinc-400 italic">{{ log.actor_email|default:"System" }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-3.5">
+                            <span class="font-mono text-purple-600 dark:text-purple-400 font-medium text-[11px]">
+                                {{ log.action }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-3.5 text-slate-700 dark:text-zinc-300">
+                            {% if log.target_repr %}
+                            <span class="font-medium text-slate-900 dark:text-zinc-100">{{ log.target_repr }}</span>
+                            {% if log.target_type %}
+                            <span class="text-[10px] text-slate-400 dark:text-zinc-500">({{ log.target_type }})</span>
+                            {% endif %}
+                            {% else %}
+                            <span class="text-slate-400 dark:text-zinc-600 italic">—</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-3.5 text-slate-600 dark:text-zinc-300">
+                            {% if log.workspace %}
+                            <a href="{% url 'admin_panel:workspace_details' slug=log.workspace.slug %}" class="hover:text-purple-600">
+                                {{ log.workspace.name }}
+                            </a>
+                            {% else %}
+                            <span class="text-slate-400 dark:text-zinc-600 italic">Global / System</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-3.5 font-mono text-[11px] text-slate-500 dark:text-zinc-400">
+                            {{ log.ip_address|default:"127.0.0.1" }}
+                        </td>
+                        <td class="px-6 py-3.5">
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold
+                                {% if log.status == 'SUCCESS' %}bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300
+                                {% elif log.status == 'DENIED' %}bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300
+                                {% else %}bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300{% endif %}">
+                                {{ log.get_status_display }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-3.5 text-right">
+                            {% if log.metadata %}
+                            <button type="button"
+                                    @click="openModal('{{ log.metadata|escapejs }}')"
+                                    class="text-purple-600 dark:text-purple-400 hover:underline font-semibold text-xs">
+                                Meta JSON
+                            </button>
+                            {% else %}
+                            <span class="text-slate-400 dark:text-zinc-600 text-[11px] italic">None</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="px-6 py-12 text-center text-slate-400 dark:text-zinc-500">
+                            No audit log records found matching your filters.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if logs_page.has_other_pages %}
+        <div class="px-6 py-4 border-t border-slate-200 dark:border-zinc-800 flex items-center justify-between text-xs text-slate-500 dark:text-zinc-400">
+            <span>Showing {{ logs_page.start_index }} to {{ logs_page.end_index }} of {{ logs_page.paginator.count }} logs</span>
+            <div class="flex items-center space-x-1">
+                {% if logs_page.has_previous %}
+                <a href="?page={{ logs_page.previous_page_number }}&q={{ query }}&action={{ action_filter }}&status={{ status_filter }}&workspace={{ workspace_slug }}" class="px-2.5 py-1 rounded bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-700 font-semibold">Previous</a>
+                {% endif %}
+                {% if logs_page.has_next %}
+                <a href="?page={{ logs_page.next_page_number }}&q={{ query }}&action={{ action_filter }}&status={{ status_filter }}&workspace={{ workspace_slug }}" class="px-2.5 py-1 rounded bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-700 font-semibold">Next</a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Metadata Modal -->
+    <div x-show="activeModalMeta" x-cloak
+         class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+         @keydown.escape.window="activeModalMeta = null">
+        <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl max-w-lg w-full p-6 shadow-2xl space-y-4"
+             @click.away="activeModalMeta = null">
+            <div class="flex items-center justify-between border-b border-slate-200 dark:border-zinc-800 pb-3">
+                <h4 class="text-sm font-bold text-slate-900 dark:text-zinc-100">Audit Metadata Payload</h4>
+                <button @click="activeModalMeta = null" class="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 text-lg font-bold">&times;</button>
+            </div>
+            <pre class="bg-slate-900 text-purple-300 p-4 rounded-lg text-xs font-mono overflow-x-auto max-h-72" x-text="activeModalMeta"></pre>
+            <div class="flex justify-end pt-2">
+                <button @click="activeModalMeta = null" class="px-4 py-1.5 bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-200 dark:hover:bg-zinc-700 rounded-lg text-xs font-semibold">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

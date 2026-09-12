@@ -1,0 +1,116 @@
+{% extends "admin_panel/base_admin.html" %}
+
+{% block admin_content %}
+<div class="space-y-6">
+
+    <!-- Status Tabs & Workspace Filter Toolbar -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 aether-card p-4">
+        <!-- Status Tabs -->
+        <div class="flex items-center space-x-1.5 overflow-x-auto text-xs font-semibold">
+            <a href="?status=PENDING&workspace={{ workspace_filter }}" 
+               class="px-3 py-1.5 rounded-lg transition-colors {% if status_filter == 'PENDING' %}bg-purple-100 dark:bg-purple-950/80 text-purple-700 dark:text-purple-300 font-bold{% else %}text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800{% endif %}">
+                Pending
+            </a>
+            <a href="?status=ACCEPTED&workspace={{ workspace_filter }}" 
+               class="px-3 py-1.5 rounded-lg transition-colors {% if status_filter == 'ACCEPTED' %}bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 font-bold{% else %}text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800{% endif %}">
+                Accepted
+            </a>
+            <a href="?status=EXPIRED&workspace={{ workspace_filter }}" 
+               class="px-3 py-1.5 rounded-lg transition-colors {% if status_filter == 'EXPIRED' %}bg-amber-100 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300 font-bold{% else %}text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800{% endif %}">
+                Expired
+            </a>
+            <a href="?status=REVOKED&workspace={{ workspace_filter }}" 
+               class="px-3 py-1.5 rounded-lg transition-colors {% if status_filter == 'REVOKED' %}bg-rose-100 dark:bg-rose-950/80 text-rose-700 dark:text-rose-300 font-bold{% else %}text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800{% endif %}">
+                Revoked
+            </a>
+            <a href="?status=ALL&workspace={{ workspace_filter }}" 
+               class="px-3 py-1.5 rounded-lg transition-colors {% if status_filter == 'ALL' %}bg-slate-200 dark:bg-zinc-700 text-slate-900 dark:text-zinc-100 font-bold{% else %}text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800{% endif %}">
+                All
+            </a>
+        </div>
+
+        <!-- Workspace Dropdown Filter -->
+        <form method="GET" class="flex items-center space-x-2 shrink-0">
+            <input type="hidden" name="status" value="{{ status_filter }}">
+            <select name="workspace" onchange="this.form.submit()" class="text-xs px-3 py-1.5 rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] text-slate-700 dark:text-zinc-300 focus:outline-none focus:ring-1 focus:ring-purple-500">
+                <option value="">All Workspaces</option>
+                {% for ws in all_workspaces %}
+                    <option value="{{ ws.slug }}" {% if workspace_filter == ws.slug %}selected{% endif %}>{{ ws.name }}</option>
+                {% endfor %}
+            </select>
+        </form>
+    </div>
+
+    <!-- Invitations Table -->
+    <div class="aether-card overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+                <thead class="bg-slate-50/75 dark:bg-zinc-900/60 border-b border-slate-200 dark:border-zinc-800 text-slate-400 dark:text-zinc-500 font-bold uppercase tracking-wider text-[10px]">
+                    <tr>
+                        <th class="px-5 py-3">Invited Email</th>
+                        <th class="px-4 py-3">Workspace</th>
+                        <th class="px-4 py-3">Assigned Role</th>
+                        <th class="px-4 py-3">Invited By</th>
+                        <th class="px-4 py-3">Status</th>
+                        <th class="px-4 py-3">Expires</th>
+                        <th class="px-4 py-3 text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 dark:divide-zinc-800/70">
+                    {% for inv in invites_page %}
+                        <tr class="hover:bg-slate-50/50 dark:hover:bg-zinc-900/30 transition-colors">
+                            <td class="px-5 py-3.5 font-bold text-slate-900 dark:text-zinc-100">
+                                {{ inv.email }}
+                            </td>
+                            <td class="px-4 py-3.5 font-medium text-slate-700 dark:text-zinc-300">
+                                {{ inv.workspace.name }}
+                            </td>
+                            <td class="px-4 py-3.5">
+                                <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-purple-50 dark:bg-purple-950/60 text-purple-600">
+                                    {{ inv.get_role_display }}
+                                </span>
+                            </td>
+                            <td class="px-4 py-3.5 text-slate-500 dark:text-zinc-400 text-[11px]">
+                                {{ inv.invited_by.full_name|default:inv.invited_by.email }}
+                            </td>
+                            <td class="px-4 py-3.5">
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold {% if inv.status == 'PENDING' %}bg-amber-100 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300{% elif inv.status == 'ACCEPTED' %}bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300{% elif inv.status == 'EXPIRED' %}bg-slate-100 dark:bg-zinc-800 text-slate-500{% else %}bg-rose-100 dark:bg-rose-950/80 text-rose-700 dark:text-rose-300{% endif %}">
+                                    {{ inv.get_status_display }}
+                                </span>
+                            </td>
+                            <td class="px-4 py-3.5 text-slate-400 text-[11px]">
+                                {{ inv.expires_at|date:"M d, H:i" }}
+                            </td>
+                            <td class="px-4 py-3.5 text-right space-x-1.5">
+                                {% if inv.status == 'PENDING' or inv.status == 'EXPIRED' %}
+                                    <form method="POST" action="{% url 'admin_panel:resend_invitation' invite_id=inv.id %}" class="inline">
+                                        {% csrf_token %}
+                                        <button type="submit" class="aether-button-secondary text-[11px] px-2.5 py-1" title="Refresh token and extend validity">
+                                            Resend
+                                        </button>
+                                    </form>
+                                {% endif %}
+                                {% if inv.status == 'PENDING' %}
+                                    <form method="POST" action="{% url 'admin_panel:revoke_invitation' invite_id=inv.id %}" class="inline">
+                                        {% csrf_token %}
+                                        <button type="submit" class="text-[11px] px-2.5 py-1 rounded-lg border border-rose-200 dark:border-rose-800 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 font-semibold" title="Revoke invitation">
+                                            Revoke
+                                        </button>
+                                    </form>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="7" class="py-12 text-center text-slate-400 dark:text-zinc-500 text-xs">
+                                No invitations found matching this filter.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

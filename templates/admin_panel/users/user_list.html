@@ -1,0 +1,279 @@
+{% extends "admin_panel/base_admin.html" %}
+
+{% block admin_content %}
+<div class="space-y-6" x-data="{
+    peopleModalOpen: false,
+    searchQuery: '',
+    searchResults: [],
+    loading: false,
+    async performSearch() {
+        const q = this.searchQuery.trim();
+        if (!q) {
+            this.searchResults = [];
+            return;
+        }
+        this.loading = true;
+        try {
+            const resp = await fetch(`{% url 'admin_panel:api_people_search' %}?q=${encodeURIComponent(q)}`);
+            const data = await resp.json();
+            if (data.status === 'ok') {
+                this.searchResults = data.users;
+            }
+        } catch (e) {
+            console.error('People search failed:', e);
+        } finally {
+            this.loading = false;
+        }
+    }
+}">
+
+    <!-- Filter & Search Toolbar -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 aether-card p-4">
+        <!-- Search-first Trigger Button -->
+        <div class="flex items-center space-x-3 w-full sm:max-w-md">
+            <button type="button" @click="peopleModalOpen = true" 
+                    class="w-full pl-3.5 pr-3 py-2 text-xs bg-slate-50 dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 rounded-lg text-slate-400 dark:text-zinc-500 hover:border-purple-400 focus:outline-none flex items-center justify-between transition-colors shadow-inner text-left">
+                <div class="flex items-center space-x-2 truncate">
+                    <svg class="h-4 w-4 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                    </svg>
+                    <span>Search users by name, email, or role...</span>
+                </div>
+                <kbd class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-200 dark:bg-zinc-800 text-slate-500 border border-slate-300 dark:border-zinc-700">Find</kbd>
+            </button>
+        </div>
+
+        <!-- Filter Pills Form -->
+        <form method="GET" class="flex items-center space-x-2 shrink-0">
+            <select name="role" onchange="this.form.submit()" class="text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] text-slate-700 dark:text-zinc-300 focus:outline-none focus:ring-1 focus:ring-purple-500">
+                <option value="">All Roles</option>
+                {% for code, label in roles %}
+                    <option value="{{ code }}" {% if role_filter == code %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+
+            <select name="status" onchange="this.form.submit()" class="text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] text-slate-700 dark:text-zinc-300 focus:outline-none focus:ring-1 focus:ring-purple-500">
+                <option value="">All Statuses</option>
+                <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
+                <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Deactivated</option>
+            </select>
+
+            {% if role_filter or status_filter or query %}
+                <a href="{% url 'admin_panel:user_list' %}" class="text-xs text-rose-500 font-semibold hover:underline px-2">
+                    Reset
+                </a>
+            {% endif %}
+        </form>
+    </div>
+
+    <!-- Users Table -->
+    <div class="aether-card overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+                <thead class="bg-slate-50/75 dark:bg-zinc-900/60 border-b border-slate-200 dark:border-zinc-800 text-slate-400 dark:text-zinc-500 font-bold uppercase tracking-wider text-[10px]">
+                    <tr>
+                        <th class="px-5 py-3">User</th>
+                        <th class="px-4 py-3">Platform Role</th>
+                        <th class="px-4 py-3">Workspaces</th>
+                        <th class="px-4 py-3">Status</th>
+                        <th class="px-4 py-3">Verification</th>
+                        <th class="px-4 py-3">Joined</th>
+                        <th class="px-4 py-3 text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 dark:divide-zinc-800/70">
+                    {% for u in users_page %}
+                        <tr class="hover:bg-slate-50/50 dark:hover:bg-zinc-900/30 transition-colors">
+                            <!-- User Name & Avatar -->
+                            <td class="px-5 py-3.5 flex items-center space-x-3">
+                                <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-purple-600 to-indigo-700 text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-sm">
+                                    {{ u.full_name|default:u.email|slice:":2"|upper }}
+                                </div>
+                                <div class="truncate">
+                                    <div class="font-bold text-slate-900 dark:text-zinc-100 truncate">
+                                        <a href="{% url 'admin_panel:user_details' user_id=u.id %}" class="hover:text-purple-600 dark:hover:text-purple-400">
+                                            {{ u.full_name|default:"—" }}
+                                        </a>
+                                    </div>
+                                    <div class="text-[11px] text-slate-500 dark:text-zinc-400 truncate">{{ u.email }}</div>
+                                </div>
+                            </td>
+
+                            <!-- Role -->
+                            <td class="px-4 py-3.5">
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold {% if u.role == 'ADMIN' or u.is_superuser %}bg-purple-100 dark:bg-purple-950/80 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800/60{% elif u.role == 'MANAGER' %}bg-blue-100 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800/60{% else %}bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 border border-slate-200 dark:border-zinc-700{% endif %}">
+                                    {{ u.get_role_display }}
+                                </span>
+                            </td>
+
+                            <!-- Workspaces -->
+                            <td class="px-4 py-3.5">
+                                <span class="font-semibold text-slate-700 dark:text-zinc-300">{{ u.workspaces_count }}</span>
+                                <span class="text-slate-400 text-[11px]">active</span>
+                            </td>
+
+                            <!-- Active Status -->
+                            <td class="px-4 py-3.5">
+                                {% if u.is_active %}
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 border border-emerald-200 dark:border-emerald-800/60">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1"></span>
+                                        Active
+                                    </span>
+                                {% else %}
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-rose-50 dark:bg-rose-950/60 text-rose-600 border border-rose-200 dark:border-rose-800/60">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-rose-500 mr-1"></span>
+                                        Deactivated
+                                    </span>
+                                {% endif %}
+                            </td>
+
+                            <!-- Verification -->
+                            <td class="px-4 py-3.5">
+                                {% if u.is_verified %}
+                                    <span class="text-emerald-500 font-semibold flex items-center text-[11px]">
+                                        <svg class="w-3.5 h-3.5 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                                        </svg>
+                                        Verified
+                                    </span>
+                                {% else %}
+                                    <span class="text-slate-400 text-[11px]">Unverified</span>
+                                {% endif %}
+                            </td>
+
+                            <!-- Joined -->
+                            <td class="px-4 py-3.5 text-slate-500 dark:text-zinc-400 text-[11px]">
+                                {{ u.created_at|date:"M d, Y" }}
+                            </td>
+
+                            <!-- Actions -->
+                            <td class="px-4 py-3.5 text-right space-x-2">
+                                <a href="{% url 'admin_panel:user_details' user_id=u.id %}" class="aether-button-secondary text-[11px] px-2.5 py-1">
+                                    Details
+                                </a>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="7" class="py-12 text-center text-slate-400 dark:text-zinc-500">
+                                No users matched your search criteria.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination Bar -->
+        {% if users_page.has_other_pages %}
+            <div class="px-5 py-3 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between text-xs text-slate-500">
+                <span>Showing {{ users_page.start_index }}–{{ users_page.end_index }} of {{ total_count }} users</span>
+                <div class="flex items-center space-x-1">
+                    {% if users_page.has_previous %}
+                        <a href="?page={{ users_page.previous_page_number }}&role={{ role_filter }}&status={{ status_filter }}&q={{ query }}" class="px-2.5 py-1 rounded bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 font-semibold hover:bg-slate-200">
+                            &larr; Prev
+                        </a>
+                    {% endif %}
+                    <span class="px-3 py-1 font-bold">{{ users_page.number }}</span>
+                    {% if users_page.has_next %}
+                        <a href="?page={{ users_page.next_page_number }}&role={{ role_filter }}&status={{ status_filter }}&q={{ query }}" class="px-2.5 py-1 rounded bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 font-semibold hover:bg-slate-200">
+                            Next &rarr;
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Mandatory Search-First People Modal -->
+    <div x-show="peopleModalOpen" 
+         x-transition:enter="transition ease-out duration-150"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-100"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+         style="display: none;"
+         @keydown.escape.window="peopleModalOpen = false">
+        
+        <div class="aether-card w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] space-y-4 p-5"
+             @click.outside="peopleModalOpen = false">
+            
+            <div class="flex items-center justify-between border-b border-slate-100 dark:border-zinc-800 pb-3">
+                <div class="flex items-center space-x-2">
+                    <svg class="w-5 h-5 text-purple-600 dark:text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                    </svg>
+                    <h3 class="text-sm font-bold text-slate-900 dark:text-zinc-100">Find Platform User</h3>
+                </div>
+                <button type="button" @click="peopleModalOpen = false" class="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Search-First Input -->
+            <div>
+                <input type="text" 
+                       x-model="searchQuery" 
+                       @input.debounce.250ms="performSearch()"
+                       placeholder="Start typing name or email..."
+                       class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-purple-500 shadow-sm"
+                       autofocus>
+            </div>
+
+            <!-- Results Container -->
+            <div class="max-h-64 overflow-y-auto">
+                <!-- State 1: Empty Query -> Prompt (Strict Rule: Zero Users Shown) -->
+                <template x-if="!searchQuery.trim()">
+                    {% include 'components/people_search_prompt.html' with title="Search-First User Lookup" subtitle="Type characters above to search platform users. Unsearched directories remain hidden." %}
+                </template>
+
+                <!-- State 2: Loading -->
+                <template x-if="loading">
+                    <div class="py-8 text-center text-xs text-slate-400">
+                        Searching platform records...
+                    </div>
+                </template>
+
+                <!-- State 3: Results Found -->
+                <template x-if="searchQuery.trim() && !loading && searchResults.length > 0">
+                    <div class="divide-y divide-slate-100 dark:divide-zinc-800/80">
+                        <template x-for="person in searchResults" :key="person.id">
+                            <a :href="`/admin-panel/users/${person.id}/`" 
+                               class="py-2.5 px-3 flex items-center justify-between rounded-lg hover:bg-slate-50 dark:hover:bg-zinc-900/60 transition-colors">
+                                <div class="flex items-center space-x-2.5 truncate">
+                                    <div class="w-7 h-7 rounded-full bg-gradient-to-tr from-purple-600 to-indigo-700 text-white font-bold text-xs flex items-center justify-center shrink-0"
+                                         x-text="person.full_name.slice(0, 2).toUpperCase()">
+                                    </div>
+                                    <div class="truncate">
+                                        <div class="text-xs font-bold text-slate-900 dark:text-zinc-100 truncate" x-text="person.full_name"></div>
+                                        <div class="text-[11px] text-slate-400 truncate" x-text="person.email"></div>
+                                    </div>
+                                </div>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-purple-50 dark:bg-purple-950/60 text-purple-600" x-text="person.role_display"></span>
+                            </a>
+                        </template>
+                    </div>
+                </template>
+
+                <!-- State 4: No Results Found -->
+                <template x-if="searchQuery.trim() && !loading && searchResults.length === 0">
+                    <div class="py-8 text-center text-slate-400 text-xs">
+                        No users found matching "<span x-text="searchQuery"></span>"
+                    </div>
+                </template>
+            </div>
+
+            <div class="pt-2 flex justify-end border-t border-slate-100 dark:border-zinc-800">
+                <button type="button" @click="peopleModalOpen = false" class="aether-button-secondary text-xs px-3 py-1.5">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

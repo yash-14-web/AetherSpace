@@ -1,0 +1,170 @@
+<!-- Admin Panel Secondary Sidebar Navigation Tree (240px) -->
+<div class="space-y-4">
+    <!-- Platform Admin Header Card -->
+    <div class="p-2.5 rounded-xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 shadow-sm">
+        <div class="flex items-center justify-between">
+            <span class="text-[10px] font-bold uppercase tracking-wider text-purple-600 dark:text-purple-400">Platform Admin</span>
+            <span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-purple-100 dark:bg-purple-950/80 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800/60">
+                Root Access
+            </span>
+        </div>
+        <div class="flex items-center space-x-2 mt-2">
+            <div class="w-7 h-7 rounded-lg bg-gradient-to-tr from-purple-600 to-indigo-700 text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-sm">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                </svg>
+            </div>
+            <div class="truncate">
+                <h4 class="text-xs font-bold text-slate-900 dark:text-zinc-100 truncate">Admin Console</h4>
+                <p class="text-[10px] text-slate-400 dark:text-zinc-500 truncate">Global Operations</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Group 1: Overview -->
+    <div class="space-y-1">
+        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500 px-2.5 py-0.5 block">
+            Overview
+        </span>
+        <a href="{% url 'admin_panel:dashboard' %}" 
+           class="flex items-center space-x-2 px-2.5 py-1.5 text-xs font-semibold rounded-lg transition-colors {% if active_section == 'dashboard' %}bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 font-bold{% else %}text-slate-700 dark:text-zinc-300 hover:bg-slate-200/60 dark:hover:bg-zinc-800/60{% endif %}">
+            <svg class="w-4 h-4 text-slate-400 {% if active_section == 'dashboard' %}text-purple-500{% endif %}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/>
+            </svg>
+            <span>Dashboard</span>
+        </a>
+        <a href="{% url 'admin_panel:system_overview' %}" 
+           class="flex items-center space-x-2 px-2.5 py-1.5 text-xs font-semibold rounded-lg transition-colors {% if active_section == 'system' %}bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 font-bold{% else %}text-slate-700 dark:text-zinc-300 hover:bg-slate-200/60 dark:hover:bg-zinc-800/60{% endif %}">
+            <svg class="w-4 h-4 text-slate-400 {% if active_section == 'system' %}text-purple-500{% endif %}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+            </svg>
+            <span>System Overview</span>
+        </a>
+    </div>
+
+    <!-- Group 2: Access & Identity -->
+    <div class="space-y-1">
+        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500 px-2.5 py-0.5 block">
+            Access & Identity
+        </span>
+        <a href="{% url 'admin_panel:user_list' %}" 
+           class="flex items-center space-x-2 px-2.5 py-1.5 text-xs font-semibold rounded-lg transition-colors {% if active_section == 'users' %}bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 font-bold{% else %}text-slate-700 dark:text-zinc-300 hover:bg-slate-200/60 dark:hover:bg-zinc-800/60{% endif %}">
+            <svg class="w-4 h-4 text-slate-400 {% if active_section == 'users' %}text-purple-500{% endif %}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
+            </svg>
+            <span>User Management</span>
+        </a>
+        <a href="{% url 'admin_panel:roles_permissions' %}" 
+           class="flex items-center space-x-2 px-2.5 py-1.5 text-xs font-semibold rounded-lg transition-colors {% if active_section == 'roles' %}bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 font-bold{% else %}text-slate-700 dark:text-zinc-300 hover:bg-slate-200/60 dark:hover:bg-zinc-800/60{% endif %}">
+            <svg class="w-4 h-4 text-slate-400 {% if active_section == 'roles' %}text-purple-500{% endif %}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
+            </svg>
+            <span>Roles & Permissions</span>
+        </a>
+        <a href="{% url 'admin_panel:invitations_list' %}" 
+           class="flex items-center space-x-2 px-2.5 py-1.5 text-xs font-semibold rounded-lg transition-colors {% if active_section == 'invitations' %}bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 font-bold{% else %}text-slate-700 dark:text-zinc-300 hover:bg-slate-200/60 dark:hover:bg-zinc-800/60{% endif %}">
+            <svg class="w-4 h-4 text-slate-400 {% if active_section == 'invitations' %}text-purple-500{% endif %}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+            </svg>
+            <span>Invitations</span>
+        </a>
+    </div>
+
+    <!-- Group 3: Workspaces & Members -->
+    <div class="space-y-1">
+        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500 px-2.5 py-0.5 block">
+            Workspaces & Members
+        </span>
+        <a href="{% url 'admin_panel:workspace_list' %}" 
+           class="flex items-center space-x-2 px-2.5 py-1.5 text-xs font-semibold rounded-lg transition-colors {% if active_section == 'workspaces' %}bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 font-bold{% else %}text-slate-700 dark:text-zinc-300 hover:bg-slate-200/60 dark:hover:bg-zinc-800/60{% endif %}">
+            <svg class="w-4 h-4 text-slate-400 {% if active_section == 'workspaces' %}text-purple-500{% endif %}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+            </svg>
+            <span>Workspace List</span>
+        </a>
+        <a href="{% url 'admin_panel:workspace_requests' %}" 
+           class="flex items-center space-x-2 px-2.5 py-1.5 text-xs font-semibold rounded-lg transition-colors {% if active_section == 'requests' %}bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 font-bold{% else %}text-slate-700 dark:text-zinc-300 hover:bg-slate-200/60 dark:hover:bg-zinc-800/60{% endif %}">
+            <svg class="w-4 h-4 text-slate-400 {% if active_section == 'requests' %}text-purple-500{% endif %}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+            </svg>
+            <span>Access Requests</span>
+        </a>
+        <a href="{% url 'admin_panel:member_management' %}" 
+           class="flex items-center space-x-2 px-2.5 py-1.5 text-xs font-semibold rounded-lg transition-colors {% if active_section == 'members' %}bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 font-bold{% else %}text-slate-700 dark:text-zinc-300 hover:bg-slate-200/60 dark:hover:bg-zinc-800/60{% endif %}">
+            <svg class="w-4 h-4 text-slate-400 {% if active_section == 'members' %}text-purple-500{% endif %}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+            </svg>
+            <span>Member Roles</span>
+        </a>
+    </div>
+
+    <!-- Group 4: Storage & Infrastructure -->
+    <div class="space-y-1">
+        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500 px-2.5 py-0.5 block">
+            Storage & Infra
+        </span>
+        <a href="{% url 'admin_panel:storage_files' %}" 
+           class="flex items-center space-x-2 px-2.5 py-1.5 text-xs font-semibold rounded-lg transition-colors {% if active_section == 'storage' %}bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 font-bold{% else %}text-slate-700 dark:text-zinc-300 hover:bg-slate-200/60 dark:hover:bg-zinc-800/60{% endif %}">
+            <svg class="w-4 h-4 text-slate-400 {% if active_section == 'storage' %}text-purple-500{% endif %}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
+            </svg>
+            <span>Storage & Files (Sync)</span>
+        </a>
+        <a href="{% url 'admin_panel:integrations' %}" 
+           class="flex items-center space-x-2 px-2.5 py-1.5 text-xs font-semibold rounded-lg transition-colors {% if active_section == 'integrations' %}bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 font-bold{% else %}text-slate-700 dark:text-zinc-300 hover:bg-slate-200/60 dark:hover:bg-zinc-800/60{% endif %}">
+            <svg class="w-4 h-4 text-slate-400 {% if active_section == 'integrations' %}text-purple-500{% endif %}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z"/>
+            </svg>
+            <span>Integrations</span>
+        </a>
+        <a href="{% url 'admin_panel:security_overview' %}" 
+           class="flex items-center space-x-2 px-2.5 py-1.5 text-xs font-semibold rounded-lg transition-colors {% if active_section == 'security' %}bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 font-bold{% else %}text-slate-700 dark:text-zinc-300 hover:bg-slate-200/60 dark:hover:bg-zinc-800/60{% endif %}">
+            <svg class="w-4 h-4 text-slate-400 {% if active_section == 'security' %}text-purple-500{% endif %}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+            </svg>
+            <span>Security Controls</span>
+        </a>
+        <a href="{% url 'admin_panel:backup_restore' %}" 
+           class="flex items-center space-x-2 px-2.5 py-1.5 text-xs font-semibold rounded-lg transition-colors {% if active_section == 'backup' %}bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 font-bold{% else %}text-slate-700 dark:text-zinc-300 hover:bg-slate-200/60 dark:hover:bg-zinc-800/60{% endif %}">
+            <svg class="w-4 h-4 text-slate-400 {% if active_section == 'backup' %}text-purple-500{% endif %}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+            </svg>
+            <span>Backup & Restore</span>
+        </a>
+    </div>
+
+    <!-- Group 5: Operations & Monitoring -->
+    <div class="space-y-1">
+        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500 px-2.5 py-0.5 block">
+            Operations & Logs
+        </span>
+        <a href="{% url 'admin_panel:audit_logs' %}" 
+           class="flex items-center space-x-2 px-2.5 py-1.5 text-xs font-semibold rounded-lg transition-colors {% if active_section == 'audit' %}bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 font-bold{% else %}text-slate-700 dark:text-zinc-300 hover:bg-slate-200/60 dark:hover:bg-zinc-800/60{% endif %}">
+            <svg class="w-4 h-4 text-slate-400 {% if active_section == 'audit' %}text-purple-500{% endif %}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+            </svg>
+            <span>Audit Logs</span>
+        </a>
+        <a href="{% url 'admin_panel:activity_monitor' %}" 
+           class="flex items-center space-x-2 px-2.5 py-1.5 text-xs font-semibold rounded-lg transition-colors {% if active_section == 'activity' %}bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 font-bold{% else %}text-slate-700 dark:text-zinc-300 hover:bg-slate-200/60 dark:hover:bg-zinc-800/60{% endif %}">
+            <svg class="w-4 h-4 text-slate-400 {% if active_section == 'activity' %}text-purple-500{% endif %}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+            </svg>
+            <span>Activity Monitor</span>
+        </a>
+        <a href="{% url 'admin_panel:performance_overview' %}" 
+           class="flex items-center space-x-2 px-2.5 py-1.5 text-xs font-semibold rounded-lg transition-colors {% if active_section == 'performance' %}bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 font-bold{% else %}text-slate-700 dark:text-zinc-300 hover:bg-slate-200/60 dark:hover:bg-zinc-800/60{% endif %}">
+            <svg class="w-4 h-4 text-slate-400 {% if active_section == 'performance' %}text-purple-500{% endif %}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
+            </svg>
+            <span>Performance</span>
+        </a>
+        <a href="{% url 'admin_panel:alerts_list' %}" 
+           class="flex items-center space-x-2 px-2.5 py-1.5 text-xs font-semibold rounded-lg transition-colors {% if active_section == 'alerts' %}bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 font-bold{% else %}text-slate-700 dark:text-zinc-300 hover:bg-slate-200/60 dark:hover:bg-zinc-800/60{% endif %}">
+            <svg class="w-4 h-4 text-slate-400 {% if active_section == 'alerts' %}text-purple-500{% endif %}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+            </svg>
+            <span>System Alerts</span>
+        </a>
+    </div>
+</div>

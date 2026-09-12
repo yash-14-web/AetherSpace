@@ -1,0 +1,227 @@
+{% extends "admin_panel/base_admin.html" %}
+
+{% block admin_content %}
+<div class="space-y-6">
+
+    <!-- 4 Key Administrative KPI Cards -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- Card 1: Users -->
+        <div class="aether-card p-5 space-y-2 relative overflow-hidden group hover:border-purple-500/40 transition-all">
+            <div class="flex items-center justify-between text-xs text-slate-500 dark:text-zinc-400">
+                <span class="font-medium">Total Platform Users</span>
+                <span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 font-semibold border border-emerald-200 dark:border-emerald-800/60">
+                    {{ overview.active_users }} Active
+                </span>
+            </div>
+            <div class="flex items-baseline space-x-2">
+                <span class="text-3xl font-extrabold text-slate-900 dark:text-zinc-50">{{ overview.total_users }}</span>
+                <span class="text-xs text-slate-400 font-medium">registered</span>
+            </div>
+            <div class="text-[11px] text-slate-500 dark:text-zinc-400 pt-1 flex items-center justify-between">
+                <span>{{ overview.admins_count }} Admins &bull; {{ overview.managers_count }} Mgrs</span>
+                <a href="{% url 'admin_panel:user_list' %}" class="text-purple-600 dark:text-purple-400 font-bold hover:underline">Manage &rarr;</a>
+            </div>
+        </div>
+
+        <!-- Card 2: Workspaces -->
+        <div class="aether-card p-5 space-y-2 relative overflow-hidden group hover:border-purple-500/40 transition-all">
+            <div class="flex items-center justify-between text-xs text-slate-500 dark:text-zinc-400">
+                <span class="font-medium">Total Workspaces</span>
+                <span class="text-[10px] px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-600 font-semibold border border-blue-200 dark:border-blue-800/60">
+                    {{ overview.active_workspaces }} Active
+                </span>
+            </div>
+            <div class="flex items-baseline space-x-2">
+                <span class="text-3xl font-extrabold text-slate-900 dark:text-zinc-50">{{ overview.total_workspaces }}</span>
+                <span class="text-xs text-slate-400 font-medium">teams</span>
+            </div>
+            <div class="text-[11px] text-slate-500 dark:text-zinc-400 pt-1 flex items-center justify-between">
+                <span>{{ overview.pending_requests }} Access Requests</span>
+                <a href="{% url 'admin_panel:workspace_list' %}" class="text-purple-600 dark:text-purple-400 font-bold hover:underline">View All &rarr;</a>
+            </div>
+        </div>
+
+        <!-- Card 3: Storage & Files -->
+        <div class="aether-card p-5 space-y-2 relative overflow-hidden group hover:border-purple-500/40 transition-all">
+            <div class="flex items-center justify-between text-xs text-slate-500 dark:text-zinc-400">
+                <span class="font-medium">Storage Consumed</span>
+                <span class="text-[10px] px-2 py-0.5 rounded-full bg-purple-50 dark:bg-purple-950/60 text-purple-600 font-semibold border border-purple-200 dark:border-purple-800/60">
+                    {{ overview.total_files }} Files
+                </span>
+            </div>
+            <div class="flex items-baseline space-x-2">
+                <span class="text-3xl font-extrabold text-slate-900 dark:text-zinc-50">{{ overview.formatted_storage }}</span>
+                <span class="text-xs text-slate-400 font-medium">used</span>
+            </div>
+            <div class="text-[11px] text-slate-500 dark:text-zinc-400 pt-1 flex items-center justify-between">
+                <span>Supabase PostgreSQL + Storage</span>
+                <a href="{% url 'admin_panel:storage_files' %}" class="text-purple-600 dark:text-purple-400 font-bold hover:underline">Sync &rarr;</a>
+            </div>
+        </div>
+
+        <!-- Card 4: Database & Health -->
+        <div class="aether-card p-5 space-y-2 relative overflow-hidden group hover:border-purple-500/40 transition-all">
+            <div class="flex items-center justify-between text-xs text-slate-500 dark:text-zinc-400">
+                <span class="font-medium">Database Response</span>
+                <span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 font-semibold border border-emerald-200 dark:border-emerald-800/60">
+                    {{ overview.db_status }}
+                </span>
+            </div>
+            <div class="flex items-baseline space-x-2">
+                <span class="text-3xl font-extrabold text-slate-900 dark:text-zinc-50">{{ overview.db_latency_ms|default:"—" }}</span>
+                <span class="text-xs text-slate-400 font-medium">ms latency</span>
+            </div>
+            <div class="text-[11px] text-slate-500 dark:text-zinc-400 pt-1 flex items-center justify-between">
+                <span>{{ overview.environment }}</span>
+                <a href="{% url 'admin_panel:system_overview' %}" class="text-purple-600 dark:text-purple-400 font-bold hover:underline">Health &rarr;</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Operations Shortcuts -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <a href="{% url 'admin_panel:user_list' %}" class="aether-card p-3.5 flex items-center space-x-3 hover:border-purple-500/50 hover:bg-purple-50/20 dark:hover:bg-purple-950/20 transition-all">
+            <div class="w-9 h-9 rounded-xl bg-purple-100 dark:bg-purple-950/80 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/>
+                </svg>
+            </div>
+            <div class="truncate">
+                <div class="text-xs font-bold text-slate-900 dark:text-zinc-100 truncate">Manage Users</div>
+                <div class="text-[10px] text-slate-400 truncate">Search & roles</div>
+            </div>
+        </a>
+
+        <a href="{% url 'admin_panel:workspace_requests' %}" class="aether-card p-3.5 flex items-center space-x-3 hover:border-purple-500/50 hover:bg-purple-50/20 dark:hover:bg-purple-950/20 transition-all">
+            <div class="w-9 h-9 rounded-xl bg-blue-100 dark:bg-blue-950/80 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+            </div>
+            <div class="truncate">
+                <div class="text-xs font-bold text-slate-900 dark:text-zinc-100 truncate">Access Requests</div>
+                <div class="text-[10px] text-slate-400 truncate">{{ overview.pending_requests }} pending</div>
+            </div>
+        </a>
+
+        <a href="{% url 'admin_panel:storage_sync_audit' %}" class="aether-card p-3.5 flex items-center space-x-3 hover:border-purple-500/50 hover:bg-purple-50/20 dark:hover:bg-purple-950/20 transition-all">
+            <div class="w-9 h-9 rounded-xl bg-emerald-100 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                </svg>
+            </div>
+            <div class="truncate">
+                <div class="text-xs font-bold text-slate-900 dark:text-zinc-100 truncate">Audit Storage Sync</div>
+                <div class="text-[10px] text-slate-400 truncate">Postgres &harr; Supabase</div>
+            </div>
+        </a>
+
+        <a href="{% url 'admin_panel:alerts_list' %}" class="aether-card p-3.5 flex items-center space-x-3 hover:border-purple-500/50 hover:bg-purple-50/20 dark:hover:bg-purple-950/20 transition-all">
+            <div class="w-9 h-9 rounded-xl {% if active_alerts %}bg-amber-100 dark:bg-amber-950/80 text-amber-600 dark:text-amber-400{% else %}bg-slate-100 dark:bg-zinc-800 text-slate-500{% endif %} flex items-center justify-center shrink-0">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                </svg>
+            </div>
+            <div class="truncate">
+                <div class="text-xs font-bold text-slate-900 dark:text-zinc-100 truncate">System Alerts</div>
+                <div class="text-[10px] text-slate-400 truncate">{{ active_alerts|length }} active</div>
+            </div>
+        </a>
+    </div>
+
+    <!-- Middle Split: Active Alerts & Recent Audit Events -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        <!-- Active Alerts Panel -->
+        <div class="aether-card p-5 space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-100 dark:border-zinc-800 pb-3">
+                <div class="flex items-center space-x-2">
+                    <h3 class="text-sm font-bold text-slate-900 dark:text-zinc-100">Active System Alerts</h3>
+                    {% if active_alerts %}
+                        <span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-amber-100 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300">
+                            {{ active_alerts|length }}
+                        </span>
+                    {% endif %}
+                </div>
+                <a href="{% url 'admin_panel:alerts_list' %}" class="text-xs text-purple-600 dark:text-purple-400 font-semibold hover:underline">
+                    View All &rarr;
+                </a>
+            </div>
+
+            <div class="space-y-3">
+                {% for alert in active_alerts %}
+                    <div class="p-3.5 rounded-xl border {% if alert.severity == 'CRITICAL' %}border-rose-200 dark:border-rose-900/60 bg-rose-50/50 dark:bg-rose-950/30{% elif alert.severity == 'WARNING' %}border-amber-200 dark:border-amber-900/60 bg-amber-50/50 dark:bg-amber-950/30{% else %}border-blue-200 dark:border-blue-900/60 bg-blue-50/50 dark:bg-blue-950/30{% endif %} space-y-1.5">
+                        <div class="flex items-center justify-between">
+                            <span class="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded {% if alert.severity == 'CRITICAL' %}bg-rose-100 dark:bg-rose-900 text-rose-700 dark:text-rose-200{% elif alert.severity == 'WARNING' %}bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-200{% else %}bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200{% endif %}">
+                                {{ alert.severity }}
+                            </span>
+                            <span class="text-[10px] text-slate-400">{{ alert.created_at|timesince }} ago</span>
+                        </div>
+                        <h4 class="text-xs font-bold text-slate-900 dark:text-zinc-100">{{ alert.title }}</h4>
+                        <p class="text-[11px] text-slate-500 dark:text-zinc-400">{{ alert.message }}</p>
+                        <div class="flex items-center justify-end pt-1">
+                            <form method="POST" action="{% url 'admin_panel:resolve_alert' alert_id=alert.id %}">
+                                {% csrf_token %}
+                                <button type="submit" class="text-[11px] font-semibold text-purple-600 dark:text-purple-400 hover:underline">
+                                    Mark Resolved &check;
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                {% empty %}
+                    <div class="py-10 text-center text-slate-400 dark:text-zinc-500">
+                        <svg class="w-8 h-8 mx-auto mb-2 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        <p class="text-xs font-semibold">All Systems Operational</p>
+                        <p class="text-[11px] mt-0.5">No unresolved administrative alerts.</p>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Recent Audit Log Stream -->
+        <div class="aether-card p-5 space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-100 dark:border-zinc-800 pb-3">
+                <h3 class="text-sm font-bold text-slate-900 dark:text-zinc-100">Recent Audit Events</h3>
+                <a href="{% url 'admin_panel:audit_logs' %}" class="text-xs text-purple-600 dark:text-purple-400 font-semibold hover:underline">
+                    View Log &rarr;
+                </a>
+            </div>
+
+            <div class="divide-y divide-slate-100 dark:divide-zinc-800/80 max-h-80 overflow-y-auto">
+                {% for log in recent_audits %}
+                    <div class="py-2.5 flex items-center justify-between text-xs">
+                        <div class="space-y-0.5 truncate mr-3">
+                            <div class="flex items-center space-x-2">
+                                <span class="font-bold text-slate-800 dark:text-zinc-200 truncate">
+                                    {{ log.actor_email|default:"System" }}
+                                </span>
+                                <span class="text-[10px] font-mono px-1.5 py-0.2 rounded bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 border border-slate-200 dark:border-zinc-700">
+                                    {{ log.action }}
+                                </span>
+                            </div>
+                            <p class="text-[11px] text-slate-400 dark:text-zinc-500 truncate">
+                                {% if log.target_repr %}Target: {{ log.target_repr }}{% endif %}
+                                {% if log.workspace %} &bull; Workspace: {{ log.workspace.name }}{% endif %}
+                            </p>
+                        </div>
+                        <div class="text-right shrink-0">
+                            <span class="text-[10px] text-slate-400 block">{{ log.created_at|timesince }} ago</span>
+                            <span class="text-[10px] font-semibold {% if log.status == 'SUCCESS' %}text-emerald-500{% else %}text-amber-500{% endif %}">
+                                {{ log.status }}
+                            </span>
+                        </div>
+                    </div>
+                {% empty %}
+                    <div class="py-10 text-center text-slate-400 dark:text-zinc-500 text-xs">
+                        No audit events recorded yet.
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+
+    </div>
+
+</div>
+{% endblock %}

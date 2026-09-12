@@ -3245,3 +3245,72 @@ npx playwright test tests/e2e/profile/profile_module.spec.ts --project=chromium
 6. Test Teammate Public Profile:
    - Navigate to `/profile/u/<uuid>/` for another user in the same workspace to verify their read-only profile.
 
+---
+
+## Phase 13 — Admin Panel (COMPLETED)
+
+### Overview
+Implementation of Phase 13 — Admin Panel providing complete administrative authority across 16 core operational areas with strict server-side RBAC, tamper-evident audit logging, real Supabase Storage + PostgreSQL sync, search-first people selectors, and zero fabricated telemetry.
+
+### Implemented Administrative Areas & Screens
+1. **Admin Dashboard / System Overview (Screens 04, 67)**: High-level metric gauges, active alerts, recent audits, storage allocation summary.
+2. **User Management (Screen 59)**: Search-first people selector, role-based filtering, status filtering, pagination, user role updates, deactivation safeguards.
+3. **User Details (Screen 60)**: Deep user inspection, enrolled workspaces, assigned tasks, reported bugs, recent audit trails, role and account status toggles.
+4. **Roles & Permissions (Screen 61)**: System and workspace capability matrix comparing Admin, Manager, and Contributor permissions.
+5. **Invitations (Screen 62)**: Cross-workspace invitation monitoring, status filtering, 7-day token refresh/resend, and revocation.
+6. **Workspace Management (Screen 63)**: Platform-wide workspace roster, seat limits, storage quotas, and status management (Active, Suspended, Archived).
+7. **Workspace Details (Screen 63 Deep Dive)**: Quota management form, status toggle form, member roster with functional tags and reporting lines, workspace audit history.
+8. **Workspace Requests (Screen 64)**: Review and decision workflow (Approve / Reject with role assignment) for access requests originating from 403 forbidden states.
+9. **Member Management (Screen 65)**: Cross-workspace membership table with functional role tags and reporting hierarchy visualization.
+10. **Audit Logs (Screen 66)**: Tamper-evident audit trail with action filtering, status filtering, workspace filtering, search query, and sanitized metadata JSON inspector modal.
+11. **System Overview (Screen 67)**: Platform health, Python/Django runtime versions, real database latency, workspace and user aggregates.
+12. **Integrations (Screen 68)**: External service status (Supabase PostgreSQL, Supabase Object Storage, WebRTC/Jitsi, Email) with zero secret leakage.
+13. **Storage & Files (Screen 69)**: Real PostgreSQL metadata and Supabase storage synchronization, workspace quota breakdown, largest files table, storage sync audit diagnostics, and atomic file purge.
+14. **Security (Screen 70)**: Security posture indicators (CSRF protection, session cookie HTTPOnly, password hasher, failed login counter, active sessions).
+15. **Backup & Restore (Screen 71)**: JSON application metadata export download, authoritative PostgreSQL restoration runbook (pg_dump/psql).
+16. **Activity Monitor (Screen 72)**: Chronological cross-platform activity stream with actor avatars, workspace tags, action pills, and timestamps.
+17. **Performance (Screen 73)**: Measured roundtrip database query ping (SELECT 1), connection pool mode, and honest "Not Configured" APM indicator.
+18. **Alerts (Screen 74)**: System and resource alerts with Critical/Warning/Info severity filters, active/resolved tabs, and resolution workflow.
+
+### Key Architectural Safeguards
+- **Strict Server-Side RBAC (`@platform_admin_required`)**: Only users with platform Admin role or superusers can access `/admin-panel/`. Managers and Contributors receive HTTP 403 Forbidden.
+- **Search-First People Selector**: Empty query returns zero records and displays `people_search_prompt.html`. Results are fetched only after characters are typed.
+- **Sole Platform Admin Protection**: The last active platform administrator cannot be demoted or deactivated, preventing lockout.
+- **Real Storage Sync**: Accurate physical storage checks via Supabase Storage API / local storage without simulated cloud figures.
+- **Zero Secret Exposure**: All Supabase service keys and database credentials remain secured on the backend.
+
+### Code Verification
+- Django system check: **PASS** (`python manage.py check` — 0 issues, 0 silenced)
+- Automated Admin Panel test suite: **PASS** (`python manage.py test admin_panel --keepdb` — 16 tests passed, OK)
+- Tailwind CSS compilation: **PASS** (`npm run build:css` completed cleanly)
+
+### Playwright E2E Suite (`tests/e2e/admin/admin_panel.spec.ts`)
+- Script created for owner execution covering:
+  1. Unauthenticated redirect from `/admin-panel/` to `/auth/login/`.
+  2. Rendering Platform Admin Dashboard (Screen 04) with Root Administrator badge.
+  3. Search-First people lookup interaction modal on `/admin-panel/users/`.
+  4. Real PostgreSQL + Supabase Storage inspection and audit sync trigger on `/admin-panel/storage/`.
+  5. Zero secret disclosure verification on `/admin-panel/integrations/`.
+  6. System runtime status and honest "Not Configured" APM telemetry on `/admin-panel/system/` and `/admin-panel/performance/`.
+
+**Execution**: **NOT RUN BY AGENT** (browser launch prohibited by safety rules).  
+**Owner execution command**:
+```bash
+npx playwright test tests/e2e/admin/admin_panel.spec.ts --project=chromium
+```
+
+### Owner Manual Verification Instructions
+1. Start the Django development server:
+   ```bash
+   python manage.py runserver
+   ```
+2. Log in with a Platform Administrator account (`role='ADMIN'`).
+3. Click **Admin Console** in the user dropdown or the purple shield in the left sidebar rail (`http://127.0.0.1:8000/admin-panel/`).
+4. Inspect the Admin Dashboard gauges and operational summary.
+5. In **User Management**, click *Search People* and verify that the modal starts completely blank with the search prompt until you type characters.
+6. In **Workspace Management**, open a workspace detail page and test adjusting seats/storage quotas.
+7. In **Storage & Files**, review the workspace quota utilization and click *Run Storage Sync Audit*.
+8. In **Integrations**, confirm that all credentials remain masked and protected.
+9. In **Backup & Restore**, click *Download JSON Snapshot* to download the sanitized metadata package.
+
+

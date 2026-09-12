@@ -1,0 +1,127 @@
+{% extends "admin_panel/base_admin.html" %}
+{% load static %}
+
+{% block admin_content %}
+<div class="space-y-6">
+
+    <!-- Header Card -->
+    <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+            <div class="flex items-center space-x-3">
+                <h2 class="text-xl font-bold text-slate-900 dark:text-zinc-50">Security Controls & Posture</h2>
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold
+                    {% if not security_info.debug_mode %}bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60
+                    {% else %}bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60{% endif %}">
+                    {% if not security_info.debug_mode %}Hardened Mode{% else %}Debug Mode Active{% endif %}
+                </span>
+            </div>
+            <p class="text-xs text-slate-500 dark:text-zinc-400 mt-1">
+                Server-side RBAC enforcement, session security configurations, and authentication safeguards.
+            </p>
+        </div>
+        <div class="flex items-center space-x-2">
+            <span class="text-xs text-slate-500 dark:text-zinc-400">Hasher:</span>
+            <code class="px-2.5 py-1 rounded bg-slate-100 dark:bg-zinc-800 text-purple-600 dark:text-purple-400 font-mono text-xs font-semibold border border-slate-200 dark:border-zinc-700">
+                {{ security_info.password_hasher }}
+            </code>
+        </div>
+    </div>
+
+    <!-- Security Posture Checklist -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <!-- CSRF Protection -->
+        <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl p-5 shadow-sm space-y-2">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-slate-700 dark:text-zinc-300">CSRF Defense</span>
+                <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+            </div>
+            <p class="text-sm font-semibold text-slate-900 dark:text-zinc-100">CSRF Tokens Mandatory</p>
+            <p class="text-[11px] text-slate-500 dark:text-zinc-400">All state-changing POST/PUT requests protected via Django CSRF middleware.</p>
+        </div>
+
+        <!-- Session Security -->
+        <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl p-5 shadow-sm space-y-2">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-slate-700 dark:text-zinc-300">Session Cookie HTTPOnly</span>
+                <span class="w-2.5 h-2.5 rounded-full {% if security_info.session_cookie_httponly %}bg-emerald-500{% else %}bg-amber-500{% endif %}"></span>
+            </div>
+            <p class="text-sm font-semibold text-slate-900 dark:text-zinc-100">
+                {% if security_info.session_cookie_httponly %}Protected Against XSS Exfiltration{% else %}Standard Mode{% endif %}
+            </p>
+            <p class="text-[11px] text-slate-500 dark:text-zinc-400">HTTPOnly cookies cannot be read by browser JavaScript document.cookie.</p>
+        </div>
+
+        <!-- Server-Side RBAC -->
+        <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl p-5 shadow-sm space-y-2">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-slate-700 dark:text-zinc-300">Server-Side RBAC</span>
+                <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+            </div>
+            <p class="text-sm font-semibold text-slate-900 dark:text-zinc-100">Zero UI-Only Hiding</p>
+            <p class="text-[11px] text-slate-500 dark:text-zinc-400">Platform Admin decorator raises HTTP 403 Forbidden for Managers and Contributors.</p>
+        </div>
+    </div>
+
+    <!-- Security Statistics -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl p-5 shadow-sm flex items-center justify-between">
+            <div>
+                <span class="text-xs font-medium text-slate-500 dark:text-zinc-400">Active Sessions (Past 24h)</span>
+                <div class="text-2xl font-bold text-slate-900 dark:text-zinc-100 mt-1">{{ security_info.total_active_sessions }} users</div>
+            </div>
+            <div class="p-3 bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 rounded-xl">
+                <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+            </div>
+        </div>
+
+        <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl p-5 shadow-sm flex items-center justify-between">
+            <div>
+                <span class="text-xs font-medium text-slate-500 dark:text-zinc-400">Recorded Failed Login Attempts</span>
+                <div class="text-2xl font-bold {% if security_info.failed_logins_recorded > 0 %}text-amber-600 dark:text-amber-400{% else %}text-emerald-600 dark:text-emerald-400{% endif %} mt-1">
+                    {{ security_info.failed_logins_recorded }} events
+                </div>
+            </div>
+            <div class="p-3 bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 rounded-xl">
+                <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Critical Security Events -->
+    <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl overflow-hidden shadow-sm">
+        <div class="px-6 py-4 border-b border-slate-200 dark:border-zinc-800 flex items-center justify-between">
+            <h3 class="text-base font-bold text-slate-900 dark:text-zinc-100">Security Audit Events</h3>
+            <a href="{% url 'admin_panel:audit_logs' %}" class="text-xs font-semibold text-purple-600 dark:text-purple-400 hover:underline">
+                View Full Audit Trail →
+            </a>
+        </div>
+        <div class="divide-y divide-slate-200/70 dark:divide-zinc-800/70 text-xs">
+            {% for evt in security_info.recent_security_events %}
+            <div class="px-6 py-3.5 flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <span class="font-mono text-purple-600 dark:text-purple-400 font-medium">{{ evt.action }}</span>
+                    <span class="text-slate-700 dark:text-zinc-300">
+                        by {{ evt.actor_email|default:"System" }}
+                        {% if evt.target_repr %} • target: <strong class="text-slate-900 dark:text-zinc-100">{{ evt.target_repr }}</strong>{% endif %}
+                    </span>
+                </div>
+                <div class="flex items-center space-x-3 text-slate-500 dark:text-zinc-400 text-[11px]">
+                    <span class="font-mono">IP: {{ evt.ip_address|default:"127.0.0.1" }}</span>
+                    <span>•</span>
+                    <span>{{ evt.created_at|date:"M d, H:i:s" }}</span>
+                </div>
+            </div>
+            {% empty %}
+            <div class="px-6 py-8 text-center text-slate-400 dark:text-zinc-500">
+                No high-priority security audit events recorded.
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+</div>
+{% endblock %}

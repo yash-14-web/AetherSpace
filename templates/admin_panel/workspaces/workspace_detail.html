@@ -1,0 +1,268 @@
+{% extends "admin_panel/base_admin.html" %}
+{% load static %}
+
+{% block admin_content %}
+<div class="space-y-6">
+
+    <!-- Workspace Header Card -->
+    <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl p-6 shadow-sm">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div class="flex items-start space-x-4">
+                <div class="w-14 h-14 rounded-xl bg-purple-100 dark:bg-purple-950/70 border border-purple-200 dark:border-purple-800/60 flex items-center justify-center text-purple-700 dark:text-purple-300 font-bold text-2xl shadow-inner shrink-0">
+                    {{ workspace.name|slice:":1"|upper }}
+                </div>
+                <div>
+                    <div class="flex items-center space-x-3 flex-wrap">
+                        <h2 class="text-2xl font-bold text-slate-900 dark:text-zinc-50">{{ workspace.name }}</h2>
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold
+                            {% if workspace.status == 'ACTIVE' %}bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60
+                            {% elif workspace.status == 'SUSPENDED' %}bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60
+                            {% else %}bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700{% endif %}">
+                            {{ workspace.get_status_display }}
+                        </span>
+                        {% if workspace.is_personal %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 border border-slate-200 dark:border-zinc-700">
+                                Personal
+                            </span>
+                        {% endif %}
+                    </div>
+                    <p class="text-sm text-slate-500 dark:text-zinc-400 mt-1">
+                        Slug: <code class="font-mono text-xs text-purple-600 dark:text-purple-400 font-medium">/{{ workspace.slug }}/</code> • Owned by <span class="font-medium text-slate-700 dark:text-zinc-300">{{ workspace.owner.email }}</span> • Created {{ workspace.created_at|date:"M d, Y" }}
+                    </p>
+                </div>
+            </div>
+
+            <div class="flex items-center space-x-3">
+                <a href="{% url 'workspaces:workspace_root' slug=workspace.slug %}" target="_blank"
+                   class="inline-flex items-center px-3.5 py-2 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700 transition-colors shadow-sm">
+                    <svg class="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                    Open Workspace
+                </a>
+                <a href="{% url 'admin_panel:workspace_list' %}"
+                   class="inline-flex items-center px-3.5 py-2 text-xs font-semibold rounded-lg bg-white dark:bg-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-700 text-slate-600 dark:text-zinc-300 border border-slate-200 dark:border-zinc-700 transition-colors shadow-sm">
+                    Back to List
+                </a>
+            </div>
+        </div>
+
+        <!-- Metric Gauges -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6 pt-6 border-t border-slate-200/80 dark:border-zinc-800">
+            <!-- Members Quota -->
+            <div class="bg-slate-50 dark:bg-zinc-950/60 rounded-lg p-4 border border-slate-200/60 dark:border-zinc-800">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-medium text-slate-500 dark:text-zinc-400">Seat Capacity</span>
+                    <span class="text-xs font-bold text-slate-700 dark:text-zinc-300">{{ members.count }} / {{ workspace.max_seats }} seats</span>
+                </div>
+                <div class="w-full bg-slate-200 dark:bg-zinc-800 h-2 rounded-full mt-2 overflow-hidden">
+                    <div class="bg-blue-600 dark:bg-blue-500 h-full rounded-full transition-all"
+                         style="width: {% widthratio members.count workspace.max_seats 100 %}%;"></div>
+                </div>
+                <p class="text-[11px] text-slate-500 dark:text-zinc-500 mt-1.5">Free-tier max recommend: 15 seats</p>
+            </div>
+
+            <!-- Storage Quota -->
+            <div class="bg-slate-50 dark:bg-zinc-950/60 rounded-lg p-4 border border-slate-200/60 dark:border-zinc-800">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-medium text-slate-500 dark:text-zinc-400">Storage Used</span>
+                    <span class="text-xs font-bold text-slate-700 dark:text-zinc-300">{{ formatted_storage }} / {{ workspace.storage_quota_mb }} MB</span>
+                </div>
+                <div class="w-full bg-slate-200 dark:bg-zinc-800 h-2 rounded-full mt-2 overflow-hidden">
+                    <div class="{% if storage_pct > 90 %}bg-rose-500{% elif storage_pct > 75 %}bg-amber-500{% else %}bg-emerald-500{% endif %} h-full rounded-full transition-all"
+                         style="width: {{ storage_pct }}%;"></div>
+                </div>
+                <p class="text-[11px] text-slate-500 dark:text-zinc-500 mt-1.5">{{ storage_pct }}% of quota allocated</p>
+            </div>
+
+            <!-- Operational Status -->
+            <div class="bg-slate-50 dark:bg-zinc-950/60 rounded-lg p-4 border border-slate-200/60 dark:border-zinc-800 flex items-center justify-between">
+                <div>
+                    <span class="text-xs font-medium text-slate-500 dark:text-zinc-400">Status Governance</span>
+                    <p class="text-sm font-bold text-slate-900 dark:text-zinc-100 mt-1">{{ workspace.get_status_display }}</p>
+                </div>
+                <span class="w-3 h-3 rounded-full {% if workspace.status == 'ACTIVE' %}bg-emerald-500{% elif workspace.status == 'SUSPENDED' %}bg-amber-500{% else %}bg-zinc-500{% endif %} shadow-sm"></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Administrative Controls (Quotas & Status) -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Update Quotas Card -->
+        <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl p-6 shadow-sm">
+            <h3 class="text-base font-bold text-slate-900 dark:text-zinc-100 mb-2 flex items-center">
+                <svg class="w-5 h-5 text-purple-600 dark:text-purple-400 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                </svg>
+                Workspace Limits & Quotas
+            </h3>
+            <p class="text-xs text-slate-500 dark:text-zinc-400 mb-4">
+                Adjust maximum allowable seats and storage quota for this workspace.
+            </p>
+            <form method="post" action="{% url 'admin_panel:update_workspace_quota' slug=workspace.slug %}" class="space-y-4">
+                {% csrf_token %}
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-1">Max Seats</label>
+                        {{ quota_form.max_seats }}
+                        <span class="text-[11px] text-slate-400 dark:text-zinc-500">Current active: {{ members.count }}</span>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-1">Storage Quota (MB)</label>
+                        {{ quota_form.storage_quota_mb }}
+                        <span class="text-[11px] text-slate-400 dark:text-zinc-500">Default: 50 MB</span>
+                    </div>
+                </div>
+                <div class="pt-2 flex justify-end">
+                    <button type="submit" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-semibold shadow-sm transition-colors">
+                        Save Quotas
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Status Management Card -->
+        <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl p-6 shadow-sm">
+            <h3 class="text-base font-bold text-slate-900 dark:text-zinc-100 mb-2 flex items-center">
+                <svg class="w-5 h-5 text-purple-600 dark:text-purple-400 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                </svg>
+                Workspace Status Governance
+            </h3>
+            <p class="text-xs text-slate-500 dark:text-zinc-400 mb-4">
+                Suspend access or archive this workspace. Suspended workspaces block login and non-admin interaction.
+            </p>
+            <form method="post" action="{% url 'admin_panel:toggle_workspace_status' slug=workspace.slug %}" class="space-y-4">
+                {% csrf_token %}
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-1">Operational State</label>
+                    {{ status_form.status }}
+                </div>
+                <div class="pt-2 flex justify-end">
+                    <button type="submit" onclick="return confirm('Are you sure you want to change the status of this workspace?');"
+                            class="px-4 py-2 bg-slate-900 hover:bg-black dark:bg-zinc-800 dark:hover:bg-zinc-700 text-white rounded-lg text-xs font-semibold shadow-sm transition-colors">
+                        Apply Status Change
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Member Roster Table -->
+    <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl overflow-hidden shadow-sm">
+        <div class="px-6 py-4 border-b border-slate-200 dark:border-zinc-800 flex items-center justify-between">
+            <div>
+                <h3 class="text-base font-bold text-slate-900 dark:text-zinc-100">Enrolled Members ({{ members.count }})</h3>
+                <p class="text-xs text-slate-500 dark:text-zinc-400">Team members, workspace roles, and functional hierarchy</p>
+            </div>
+            <a href="{% url 'admin_panel:member_management' %}?workspace={{ workspace.slug }}"
+               class="text-xs font-semibold text-purple-600 dark:text-purple-400 hover:underline">
+                Manage in Member Hub →
+            </a>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="border-b border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-950/50 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">
+                        <th class="px-6 py-3">Member</th>
+                        <th class="px-6 py-3">Workspace Role</th>
+                        <th class="px-6 py-3">Functional Tag</th>
+                        <th class="px-6 py-3">Reports To</th>
+                        <th class="px-6 py-3">Status</th>
+                        <th class="px-6 py-3 text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-200/70 dark:divide-zinc-800/70 text-xs">
+                    {% for m in members %}
+                    <tr class="hover:bg-slate-50/50 dark:hover:bg-zinc-800/30 transition-colors">
+                        <td class="px-6 py-3.5 flex items-center space-x-3">
+                            <div class="w-8 h-8 rounded-full bg-slate-200 dark:bg-zinc-800 flex items-center justify-center font-bold text-slate-700 dark:text-zinc-200 shrink-0">
+                                {{ m.user.email|slice:":1"|upper }}
+                            </div>
+                            <div>
+                                <a href="{% url 'admin_panel:user_details' user_id=m.user.id %}" class="font-semibold text-slate-900 dark:text-zinc-100 hover:text-purple-600 transition-colors">
+                                    {{ m.user.full_name|default:m.user.email }}
+                                </a>
+                                <p class="text-[11px] text-slate-400 dark:text-zinc-500">{{ m.user.email }}</p>
+                            </div>
+                        </td>
+                        <td class="px-6 py-3.5 font-medium">
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold
+                                {% if m.role == 'ADMIN' %}bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300
+                                {% elif m.role == 'MANAGER' %}bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300
+                                {% else %}bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400{% endif %}">
+                                {{ m.get_role_display }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-3.5 text-slate-600 dark:text-zinc-300">
+                            {% if m.functional_role or m.role_tag %}
+                                <span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-xs font-medium">
+                                    {{ m.functional_role|default:m.role_tag }}
+                                </span>
+                            {% else %}
+                                <span class="text-slate-400 dark:text-zinc-600 italic">None</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-3.5 text-slate-600 dark:text-zinc-300">
+                            {% if m.reporting_to %}
+                                <span class="text-xs">{{ m.reporting_to.user.full_name|default:m.reporting_to.user.email }}</span>
+                            {% else %}
+                                <span class="text-slate-400 dark:text-zinc-600 italic">—</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-3.5">
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold
+                                {% if m.status == 'ACTIVE' %}bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300
+                                {% else %}bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300{% endif %}">
+                                {{ m.get_status_display }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-3.5 text-right">
+                            <a href="{% url 'admin_panel:user_details' user_id=m.user.id %}" class="text-purple-600 dark:text-purple-400 hover:underline font-semibold">
+                                Inspect User
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="px-6 py-8 text-center text-slate-400 dark:text-zinc-500">
+                            No enrolled members found in this workspace.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Recent Workspace Activity / Audit Logs -->
+    <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl overflow-hidden shadow-sm">
+        <div class="px-6 py-4 border-b border-slate-200 dark:border-zinc-800 flex items-center justify-between">
+            <h3 class="text-base font-bold text-slate-900 dark:text-zinc-100">Audit History for Workspace</h3>
+            <a href="{% url 'admin_panel:audit_logs' %}?workspace={{ workspace.slug }}" class="text-xs font-semibold text-purple-600 dark:text-purple-400 hover:underline">
+                View All Logs →
+            </a>
+        </div>
+        <div class="divide-y divide-slate-200/70 dark:divide-zinc-800/70 text-xs">
+            {% for a in ws_audits %}
+            <div class="px-6 py-3 flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <span class="font-mono text-purple-600 dark:text-purple-400 font-medium">{{ a.action }}</span>
+                    <span class="text-slate-600 dark:text-zinc-300">by {{ a.actor_email|default:"System" }}</span>
+                </div>
+                <div class="flex items-center space-x-3 text-slate-400 dark:text-zinc-500 text-[11px]">
+                    <span>IP: {{ a.ip_address|default:"—" }}</span>
+                    <span>•</span>
+                    <span>{{ a.created_at|date:"M d, H:i" }}</span>
+                </div>
+            </div>
+            {% empty %}
+            <div class="px-6 py-8 text-center text-slate-400 dark:text-zinc-500 text-xs">
+                No recent audit events recorded for this workspace.
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+</div>
+{% endblock %}

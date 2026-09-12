@@ -1,0 +1,99 @@
+{% extends "admin_panel/base_admin.html" %}
+{% load static %}
+
+{% block admin_content %}
+<div class="space-y-6">
+
+    <!-- Header Description Card -->
+    <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+            <h2 class="text-xl font-bold text-slate-900 dark:text-zinc-50">Disaster Recovery & Data Export</h2>
+            <p class="text-xs text-slate-500 dark:text-zinc-400 mt-1">
+                Download structured JSON snapshots of workspace metadata and review authoritative PostgreSQL restoration procedures.
+            </p>
+        </div>
+
+        <a href="{% url 'admin_panel:export_data' %}"
+           class="inline-flex items-center px-4 py-2 text-xs font-semibold rounded-lg bg-purple-600 hover:bg-purple-700 text-white transition-colors shadow-sm">
+            <svg class="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            Download JSON Snapshot (.json)
+        </a>
+    </div>
+
+    <!-- Backup Capabilities Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+        <!-- Application Metadata Export -->
+        <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl p-6 shadow-sm space-y-4">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-lg bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center font-bold">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                </div>
+                <div>
+                    <h3 class="text-base font-bold text-slate-900 dark:text-zinc-100">Metadata JSON Export</h3>
+                    <span class="text-xs text-slate-400 dark:text-zinc-500">Live serialized application snapshot</span>
+                </div>
+            </div>
+            <p class="text-xs text-slate-600 dark:text-zinc-300 leading-relaxed">
+                Produces a sanitized JSON package containing active users, workspaces, membership trees, 6-digit tasks (#619347), bug reports (B-882316), and stored file metadata. Sensitive password hashes and secret tokens are stripped automatically.
+            </p>
+            <div class="pt-2">
+                <a href="{% url 'admin_panel:export_data' %}" class="text-xs font-semibold text-purple-600 dark:text-purple-400 hover:underline">
+                    Trigger Export Download →
+                </a>
+            </div>
+        </div>
+
+        <!-- PostgreSQL Database Dump -->
+        <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl p-6 shadow-sm space-y-4">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
+                    </svg>
+                </div>
+                <div>
+                    <h3 class="text-base font-bold text-slate-900 dark:text-zinc-100">PostgreSQL Live Backups</h3>
+                    <span class="text-xs text-slate-400 dark:text-zinc-500">Supabase Managed Physical Backups</span>
+                </div>
+            </div>
+            <p class="text-xs text-slate-600 dark:text-zinc-300 leading-relaxed">
+                Supabase automatically maintains point-in-time recovery (PITR) and daily write-ahead log (WAL) archives on the hosted PostgreSQL cluster. For local development dumps, execute standard CLI operations.
+            </p>
+            <div class="pt-2 text-xs font-mono text-slate-500 dark:text-zinc-400 bg-slate-50 dark:bg-zinc-950 p-2.5 rounded border border-slate-200 dark:border-zinc-800">
+                pg_dump -h db.supabase.co -U postgres -d postgres > backup.sql
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Authoritative Restoration Runbook Card -->
+    <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl p-6 shadow-sm space-y-4">
+        <h3 class="text-base font-bold text-slate-900 dark:text-zinc-100 flex items-center">
+            <svg class="w-5 h-5 text-purple-600 dark:text-purple-400 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+            Restoration Runbook & Step-by-Step Recovery
+        </h3>
+        <div class="space-y-3 text-xs text-slate-600 dark:text-zinc-300">
+            <div class="p-3 rounded-lg bg-slate-50 dark:bg-zinc-950/60 border border-slate-200/80 dark:border-zinc-800">
+                <strong class="text-slate-900 dark:text-zinc-100 block mb-1">Step 1: Database Migration & Schema Prep</strong>
+                <p>Run standard migrations to construct schemas: <code class="font-mono text-purple-600">python manage.py migrate</code></p>
+            </div>
+            <div class="p-3 rounded-lg bg-slate-50 dark:bg-zinc-950/60 border border-slate-200/80 dark:border-zinc-800">
+                <strong class="text-slate-900 dark:text-zinc-100 block mb-1">Step 2: Database Restoration</strong>
+                <p>Restore SQL dump into target database: <code class="font-mono text-purple-600">psql -h db.supabase.co -U postgres -d postgres &lt; backup.sql</code></p>
+            </div>
+            <div class="p-3 rounded-lg bg-slate-50 dark:bg-zinc-950/60 border border-slate-200/80 dark:border-zinc-800">
+                <strong class="text-slate-900 dark:text-zinc-100 block mb-1">Step 3: Storage Object Verification</strong>
+                <p>After database recovery, navigate to <a href="{% url 'admin_panel:storage_files' %}" class="text-purple-600 hover:underline font-semibold">Storage & Files</a> and click <em>Run Storage Sync Audit</em> to ensure all records match physical objects.</p>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

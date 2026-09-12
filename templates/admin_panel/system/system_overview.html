@@ -1,0 +1,195 @@
+{% extends "admin_panel/base_admin.html" %}
+{% load static %}
+
+{% block admin_content %}
+<div class="space-y-6">
+
+    <!-- Runtime & Environment Card -->
+    <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl p-6 shadow-sm">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+                <div class="flex items-center space-x-3">
+                    <h2 class="text-xl font-bold text-slate-900 dark:text-zinc-50">System Runtime & Infrastructure</h2>
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold
+                        {% if overview.db_status == 'Connected' %}bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60
+                        {% else %}bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800/60{% endif %}">
+                        <span class="w-2 h-2 rounded-full {% if overview.db_status == 'Connected' %}bg-emerald-500 animate-pulse{% else %}bg-rose-500{% endif %} mr-1.5"></span>
+                        DB: {{ overview.db_status }}
+                    </span>
+                </div>
+                <p class="text-xs text-slate-500 dark:text-zinc-400 mt-1">
+                    Environment: <strong class="text-slate-700 dark:text-zinc-300">{{ overview.environment }}</strong> • Latency: <strong class="text-purple-600 dark:text-purple-400 font-mono">{{ overview.db_latency_ms|default:"—" }} ms</strong>
+                </p>
+            </div>
+            <div class="flex items-center space-x-2 text-xs font-mono text-slate-600 dark:text-zinc-400 bg-slate-50 dark:bg-zinc-800 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-zinc-700">
+                <span>Django {{ overview.django_version }}</span>
+                <span>•</span>
+                <span>Python {{ overview.python_version }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Metric Breakdown Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+
+        <!-- User Accounts -->
+        <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl p-5 shadow-sm space-y-3">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">Total Users</span>
+                <span class="p-2 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                    </svg>
+                </span>
+            </div>
+            <div class="text-2xl font-black text-slate-900 dark:text-zinc-50">{{ overview.total_users }}</div>
+            <div class="pt-2 border-t border-slate-100 dark:border-zinc-800 text-[11px] text-slate-500 dark:text-zinc-400 space-y-1">
+                <div class="flex justify-between">
+                    <span>Admins:</span>
+                    <span class="font-semibold text-purple-600 dark:text-purple-400">{{ overview.admins_count }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span>Managers:</span>
+                    <span class="font-semibold text-slate-700 dark:text-zinc-300">{{ overview.managers_count }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span>Contributors:</span>
+                    <span class="font-semibold text-slate-700 dark:text-zinc-300">{{ overview.contributors_count }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span>Active / Verified:</span>
+                    <span class="font-semibold text-emerald-600 dark:text-emerald-400">{{ overview.active_users }} / {{ overview.verified_users }}</span>
+                </div>
+            </div>
+            <a href="{% url 'admin_panel:user_list' %}" class="block text-right text-xs font-semibold text-purple-600 dark:text-purple-400 hover:underline pt-1">
+                User Directory →
+            </a>
+        </div>
+
+        <!-- Workspaces -->
+        <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl p-5 shadow-sm space-y-3">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">Workspaces</span>
+                <span class="p-2 rounded-lg bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                    </svg>
+                </span>
+            </div>
+            <div class="text-2xl font-black text-slate-900 dark:text-zinc-50">{{ overview.total_workspaces }}</div>
+            <div class="pt-2 border-t border-slate-100 dark:border-zinc-800 text-[11px] text-slate-500 dark:text-zinc-400 space-y-1">
+                <div class="flex justify-between">
+                    <span>Active:</span>
+                    <span class="font-semibold text-emerald-600 dark:text-emerald-400">{{ overview.active_workspaces }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span>Suspended:</span>
+                    <span class="font-semibold text-amber-600 dark:text-amber-400">{{ overview.suspended_workspaces }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span>Archived:</span>
+                    <span class="font-semibold text-slate-500 dark:text-zinc-500">{{ overview.archived_workspaces }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span>Pending Requests:</span>
+                    <span class="font-semibold text-purple-600 dark:text-purple-400">{{ overview.pending_requests }}</span>
+                </div>
+            </div>
+            <a href="{% url 'admin_panel:workspace_list' %}" class="block text-right text-xs font-semibold text-purple-600 dark:text-purple-400 hover:underline pt-1">
+                Manage Workspaces →
+            </a>
+        </div>
+
+        <!-- Tasks & Agile Delivery -->
+        <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl p-5 shadow-sm space-y-3">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">Tasks & Backlog</span>
+                <span class="p-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                    </svg>
+                </span>
+            </div>
+            <div class="text-2xl font-black text-slate-900 dark:text-zinc-50">{{ overview.total_tasks }}</div>
+            <div class="pt-2 border-t border-slate-100 dark:border-zinc-800 text-[11px] text-slate-500 dark:text-zinc-400 space-y-1">
+                <div class="flex justify-between">
+                    <span>Open / Active:</span>
+                    <span class="font-semibold text-blue-600 dark:text-blue-400">{{ overview.open_tasks }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span>Completed (Done):</span>
+                    <span class="font-semibold text-emerald-600 dark:text-emerald-400">{{ overview.done_tasks }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span>Total Bugs:</span>
+                    <span class="font-semibold text-rose-600 dark:text-rose-400">{{ overview.total_bugs }} ({{ overview.critical_bugs }} critical)</span>
+                </div>
+                <div class="flex justify-between">
+                    <span>Resolved Bugs:</span>
+                    <span class="font-semibold text-slate-700 dark:text-zinc-300">{{ overview.resolved_bugs }}</span>
+                </div>
+            </div>
+            <a href="{% url 'admin_panel:dashboard' %}" class="block text-right text-xs font-semibold text-purple-600 dark:text-purple-400 hover:underline pt-1">
+                View Agile Health →
+            </a>
+        </div>
+
+        <!-- Storage & System Alerts -->
+        <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl p-5 shadow-sm space-y-3">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">Storage & Alerts</span>
+                <span class="p-2 rounded-lg bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                    </svg>
+                </span>
+            </div>
+            <div class="text-2xl font-black text-slate-900 dark:text-zinc-50">{{ overview.formatted_storage }}</div>
+            <div class="pt-2 border-t border-slate-100 dark:border-zinc-800 text-[11px] text-slate-500 dark:text-zinc-400 space-y-1">
+                <div class="flex justify-between">
+                    <span>Physical Files:</span>
+                    <span class="font-semibold text-slate-700 dark:text-zinc-300">{{ overview.total_files }} files</span>
+                </div>
+                <div class="flex justify-between">
+                    <span>Unresolved Alerts:</span>
+                    <span class="font-semibold {% if overview.unresolved_alerts > 0 %}text-rose-600 dark:text-rose-400{% else %}text-emerald-600 dark:text-emerald-400{% endif %}">
+                        {{ overview.unresolved_alerts }}
+                    </span>
+                </div>
+                <div class="flex justify-between">
+                    <span>Pending Invitations:</span>
+                    <span class="font-semibold text-slate-700 dark:text-zinc-300">{{ overview.pending_invitations }}</span>
+                </div>
+            </div>
+            <a href="{% url 'admin_panel:storage_files' %}" class="block text-right text-xs font-semibold text-purple-600 dark:text-purple-400 hover:underline pt-1">
+                Storage Audit & Sync →
+            </a>
+        </div>
+
+    </div>
+
+    <!-- Administrative Quick Links -->
+    <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl p-6 shadow-sm">
+        <h3 class="text-base font-bold text-slate-900 dark:text-zinc-100 mb-4">Core Administration Panels</h3>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <a href="{% url 'admin_panel:user_list' %}" class="p-3 rounded-lg border border-slate-200 dark:border-zinc-800 hover:border-purple-300 dark:hover:border-purple-800 bg-slate-50/50 dark:bg-zinc-950/50 hover:bg-white dark:hover:bg-zinc-800 transition-all text-left">
+                <span class="block text-xs font-bold text-slate-900 dark:text-zinc-100">User Management</span>
+                <span class="text-[11px] text-slate-500 dark:text-zinc-400">Search, roles, activations</span>
+            </a>
+            <a href="{% url 'admin_panel:workspace_list' %}" class="p-3 rounded-lg border border-slate-200 dark:border-zinc-800 hover:border-purple-300 dark:hover:border-purple-800 bg-slate-50/50 dark:bg-zinc-950/50 hover:bg-white dark:hover:bg-zinc-800 transition-all text-left">
+                <span class="block text-xs font-bold text-slate-900 dark:text-zinc-100">Workspaces</span>
+                <span class="text-[11px] text-slate-500 dark:text-zinc-400">Quotas, seats, status</span>
+            </a>
+            <a href="{% url 'admin_panel:audit_logs' %}" class="p-3 rounded-lg border border-slate-200 dark:border-zinc-800 hover:border-purple-300 dark:hover:border-purple-800 bg-slate-50/50 dark:bg-zinc-950/50 hover:bg-white dark:hover:bg-zinc-800 transition-all text-left">
+                <span class="block text-xs font-bold text-slate-900 dark:text-zinc-100">Audit Logs</span>
+                <span class="text-[11px] text-slate-500 dark:text-zinc-400">Tamper-evident logs</span>
+            </a>
+            <a href="{% url 'admin_panel:storage_files' %}" class="p-3 rounded-lg border border-slate-200 dark:border-zinc-800 hover:border-purple-300 dark:hover:border-purple-800 bg-slate-50/50 dark:bg-zinc-950/50 hover:bg-white dark:hover:bg-zinc-800 transition-all text-left">
+                <span class="block text-xs font-bold text-slate-900 dark:text-zinc-100">Storage & Files</span>
+                <span class="text-[11px] text-slate-500 dark:text-zinc-400">Supabase sync & purge</span>
+            </a>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

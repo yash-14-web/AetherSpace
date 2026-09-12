@@ -1,0 +1,108 @@
+{% extends "admin_panel/base_admin.html" %}
+{% load static %}
+
+{% block admin_content %}
+<div class="space-y-6">
+
+    <!-- Header Description Card -->
+    <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl p-6 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+            <div class="flex items-center space-x-3">
+                <h2 class="text-xl font-bold text-slate-900 dark:text-zinc-50">Performance Indicators & Telemetry</h2>
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold
+                    {% if db_status == 'Connected' %}bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60
+                    {% else %}bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800/60{% endif %}">
+                    <span class="w-2 h-2 rounded-full {% if db_status == 'Connected' %}bg-emerald-500 animate-pulse{% else %}bg-rose-500{% endif %} mr-1.5"></span>
+                    {{ db_status }}
+                </span>
+            </div>
+            <p class="text-xs text-slate-500 dark:text-zinc-400 mt-1">
+                Real-time measured query latency against hosted Supabase PostgreSQL. No fabricated APM telemetry.
+            </p>
+        </div>
+
+        <a href="{% url 'admin_panel:performance_overview' %}"
+           class="inline-flex items-center px-3.5 py-2 text-xs font-semibold rounded-lg bg-purple-600 hover:bg-purple-700 text-white transition-colors shadow-sm">
+            <svg class="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+            Re-measure Ping Latency
+        </a>
+    </div>
+
+    <!-- Latency & Database Metrics -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+        <!-- Measured DB Query Latency -->
+        <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl p-6 shadow-sm space-y-3">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">Database Roundtrip</span>
+                <span class="p-2 rounded-lg bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </span>
+            </div>
+            <div class="flex items-baseline space-x-2">
+                <span class="text-3xl font-black text-slate-900 dark:text-zinc-50">{{ db_latency|default:"—" }}</span>
+                <span class="text-sm font-semibold text-slate-500 dark:text-zinc-400">ms</span>
+            </div>
+            <p class="text-xs text-slate-500 dark:text-zinc-400">
+                Executed live: <code class="font-mono text-purple-600 dark:text-purple-400">SELECT 1;</code> via Django connection cursor.
+            </p>
+        </div>
+
+        <!-- Connection Pool Posture -->
+        <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl p-6 shadow-sm space-y-3">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">Connection Mode</span>
+                <span class="p-2 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                    </svg>
+                </span>
+            </div>
+            <div class="text-2xl font-bold text-slate-900 dark:text-zinc-100">Direct / Session Pool</div>
+            <p class="text-xs text-slate-500 dark:text-zinc-400">
+                PostgreSQL pool connection via Supabase transaction bouncer (port 6543 / 5432).
+            </p>
+        </div>
+
+        <!-- External APM Status -->
+        <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl p-6 shadow-sm space-y-3">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">External APM</span>
+                <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 border border-slate-200 dark:border-zinc-700">
+                    Not Configured
+                </span>
+            </div>
+            <div class="text-2xl font-bold text-slate-500 dark:text-zinc-400">Honest Metric</div>
+            <p class="text-xs text-slate-500 dark:text-zinc-400">
+                Datadog / New Relic APM agent is not provisioned on free tier. Zero synthetic data injected.
+            </p>
+        </div>
+
+    </div>
+
+    <!-- Optimization Guidelines Card -->
+    <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl p-6 shadow-sm space-y-4">
+        <h3 class="text-base font-bold text-slate-900 dark:text-zinc-100 flex items-center">
+            <svg class="w-5 h-5 text-purple-600 dark:text-purple-400 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+            </svg>
+            Django ORM Query Discipline & Anti-N+1 Strategy
+        </h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-slate-600 dark:text-zinc-300">
+            <div class="p-3.5 rounded-lg bg-slate-50 dark:bg-zinc-950/60 border border-slate-200/80 dark:border-zinc-800 space-y-1.5">
+                <strong class="text-slate-900 dark:text-zinc-100 block">Single-Query Foreign Key Joins</strong>
+                <p>Views leverage <code class="text-purple-600 font-mono">select_related('workspace', 'owner', 'actor')</code> to prevent excessive roundtrips over foreign key lookups.</p>
+            </div>
+            <div class="p-3.5 rounded-lg bg-slate-50 dark:bg-zinc-950/60 border border-slate-200/80 dark:border-zinc-800 space-y-1.5">
+                <strong class="text-slate-900 dark:text-zinc-100 block">Many-to-Many Batch Fetching</strong>
+                <p>Assignee lists and channel memberships use <code class="text-purple-600 font-mono">prefetch_related('assignees')</code> to avoid N+1 query loops across tables.</p>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

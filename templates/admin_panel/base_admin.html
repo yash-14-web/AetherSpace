@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ page_title|default:"Admin Console" }} — AetherSpace{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto space-y-6 pb-16">
+
+    <!-- Top Admin Header Bar -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200/80 dark:border-zinc-800 pb-4">
+        <div>
+            <!-- Breadcrumbs -->
+            <div class="flex items-center text-xs text-slate-500 dark:text-zinc-400 space-x-2">
+                <a href="{% url 'workspaces:dashboard' %}" class="hover:text-aether-blue transition-colors">Workspace</a>
+                <span>/</span>
+                <a href="{% url 'admin_panel:dashboard' %}" class="text-purple-600 dark:text-purple-400 font-bold hover:underline">Admin Console</a>
+                {% if active_section != 'dashboard' %}
+                    <span>/</span>
+                    <span class="text-slate-900 dark:text-zinc-100 font-semibold capitalize">{{ active_section|title }}</span>
+                {% endif %}
+            </div>
+            <h1 class="text-xl sm:text-2xl font-bold text-slate-900 dark:text-zinc-50 tracking-tight mt-1">
+                {{ page_title|default:"Platform Administration" }}
+            </h1>
+        </div>
+
+        <!-- Right Header Status Pill -->
+        <div class="flex items-center space-x-2.5">
+            <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-purple-50 dark:bg-purple-950/70 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800/60 shadow-sm">
+                <span class="w-2 h-2 rounded-full bg-purple-500 mr-1.5 animate-pulse"></span>
+                Root Administrator
+            </span>
+            <a href="{% url 'admin_panel:dashboard' %}" 
+               class="p-2 rounded-lg text-slate-500 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-zinc-100 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 transition-colors shadow-sm"
+               title="Admin Dashboard">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+                </svg>
+            </a>
+        </div>
+    </div>
+
+    <!-- Admin Main Body Canvas -->
+    {% block admin_content %}{% endblock %}
+
+</div>
+{% endblock %}
