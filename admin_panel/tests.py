@@ -339,6 +339,15 @@ class AdminWorkspaceAndRequestsTests(TestCase):
         self.assertIsNotNone(membership)
         self.assertEqual(membership.status, MembershipStatus.ACTIVE)
 
+    def test_workspace_details_view_renders(self):
+        """Workspace details view renders cleanly with quota forms, member roster, and actions."""
+        url = reverse('admin_panel:workspace_details', kwargs={'slug': self.workspace.slug})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self.workspace.name)
+        self.assertContains(response, 'Workspace Limits & Quotas')
+        self.assertContains(response, 'Workspace Status Governance')
+
 
 class AdminStorageAndAlertsTests(TestCase):
     """Test real storage sync, atomic purge, and alert resolution."""
