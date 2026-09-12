@@ -358,45 +358,64 @@ def meeting_room_view(request, slug, meeting_code):
     active_participants_qs = meeting.participants.filter(left_at__isnull=True).select_related('user').order_by('joined_at')
     active_participants_list = []
     has_self = False
+
+    user_name = request.user.full_name or request.user.get_full_name() or request.user.username or request.user.email.split('@')[0]
+    user_initials = ''.join([part[0].upper() for part in user_name.split()[:2]]) or user_name[:1].upper()
+    user_role_label = 'Meeting host' if is_host else ('Manager' if getattr(membership, 'role', '') == 'manager' else 'Contributor')
+    user_avatar_url = request.user.avatar if getattr(request.user, 'avatar', None) and not request.user.avatar.startswith('preset:') else ''
+
     for p in active_participants_qs:
-        p_name = p.user.get_full_name() or p.user.username or p.user.email.split('@')[0]
+        p_name = p.user.full_name or p.user.get_full_name() or p.user.username or p.user.email.split('@')[0]
         initials = ''.join([part[0].upper() for part in p_name.split()[:2]]) or p_name[:1].upper()
         is_self = (p.user == request.user)
         if is_self:
             has_self = True
+        p_is_host = (p.role == ParticipantRole.HOST or p.user == meeting.host)
+        p_role_label = 'Meeting host' if p_is_host else 'Contributor'
+        p_avatar = p.user.avatar if getattr(p.user, 'avatar', None) and not p.user.avatar.startswith('preset:') else ''
         active_participants_list.append({
             'id': str(p.user.id),
             'name': p_name,
             'initials': initials,
             'email': p.user.email,
-            'role': p.role,
+            'avatar': p_avatar,
+            'role': p_role_label,
             'is_self': is_self,
         })
 
     if not has_self:
-        user_name = request.user.get_full_name() or request.user.username or request.user.email.split('@')[0]
-        initials = ''.join([part[0].upper() for part in user_name.split()[:2]]) or user_name[:1].upper()
         active_participants_list.insert(0, {
             'id': str(request.user.id),
             'name': user_name,
-            'initials': initials,
+            'initials': user_initials,
             'email': request.user.email,
-            'role': ParticipantRole.HOST if is_host else ParticipantRole.ATTENDEE,
+            'avatar': user_avatar_url,
+            'role': user_role_label,
             'is_self': True,
         })
 
     participants_json = json.dumps(active_participants_list)
+
+    # Format meeting code like abc-defg-hij if matching 9+ alpha characters
+    code_raw = meeting.meeting_code
+    if len(code_raw) >= 9 and '-' not in code_raw:
+        meeting_code_formatted = f"{code_raw[:3]}-{code_raw[3:7]}-{code_raw[7:]}".lower()
+    else:
+        meeting_code_formatted = code_raw.lower()
 
     context = {
         'workspace': workspace,
         'membership': membership,
         'meeting': meeting,
         'is_host': is_host,
+        'user_role_label': user_role_label,
         'jitsi_domain': jitsi_domain,
         'jitsi_room_name': meeting.jitsi_room_name,
-        'user_display_name': request.user.full_name or request.user.email.split('@')[0],
+        'user_display_name': user_name,
+        'user_initials': user_initials,
         'user_email': request.user.email,
-        'user_avatar': request.user.avatar if hasattr(request.user, 'avatar') and request.user.avatar else '',
+        'user_avatar': user_avatar_url,
+        'meeting_code_formatted': meeting_code_formatted,
         'participants': participants,
         'participants_json': participants_json,
         'workspace_members': workspace_members,
@@ -676,14 +695,18 @@ def meeting_ping_api(request, slug, meeting_code):
 
     active_participants = []
     for p in meeting.participants.filter(left_at__isnull=True).select_related('user').order_by('joined_at'):
-        p_name = p.user.get_full_name() or p.user.username or p.user.email.split('@')[0]
+        p_name = p.user.full_name or p.user.get_full_name() or p.user.username or p.user.email.split('@')[0]
         initials = ''.join([part[0].upper() for part in p_name.split()[:2]]) or p_name[:1].upper()
+        p_is_host = (p.role == ParticipantRole.HOST or p.user == meeting.host)
+        p_role_label = 'Meeting host' if p_is_host else 'Contributor'
+        p_avatar = p.user.avatar if getattr(p.user, 'avatar', None) and not p.user.avatar.startswith('preset:') else ''
         active_participants.append({
             'id': str(p.user.id),
             'name': p_name,
             'initials': initials,
             'email': p.user.email,
-            'role': p.role,
+            'avatar': p_avatar,
+            'role': p_role_label,
             'is_self': (p.user == request.user),
         })
 
