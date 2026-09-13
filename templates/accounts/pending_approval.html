@@ -8,83 +8,146 @@
 {% block content %}
 <div class="min-h-[85vh] flex flex-col items-center justify-center py-10 px-4 sm:px-6 lg:px-8">
     <div class="max-w-xl w-full aether-card p-6 sm:p-10 shadow-2xl border border-slate-200 dark:border-zinc-800 text-center space-y-8 relative overflow-hidden">
-        <!-- Ambient decorative blur -->
-        <div class="absolute -top-20 -left-20 w-48 h-48 bg-amber-500/10 rounded-full blur-3xl pointer-events-none"></div>
-        <div class="absolute -bottom-20 -right-20 w-48 h-48 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
+        <!-- Ambient decorative blur halos -->
+        <div class="absolute -top-24 -left-24 w-60 h-60 bg-amber-500/15 rounded-full blur-3xl pointer-events-none"></div>
+        <div class="absolute -bottom-24 -right-24 w-60 h-60 bg-blue-500/15 rounded-full blur-3xl pointer-events-none"></div>
 
-        <!-- Header / Logo -->
-        <div class="space-y-3 relative z-10">
-            <div class="w-16 h-16 mx-auto rounded-3xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 flex items-center justify-center text-amber-500 shadow-md">
-                <svg class="w-8 h-8 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                </svg>
+        <!-- Futuristic Pulsing Radar Status Header -->
+        <div class="space-y-4 relative z-10">
+            <div class="relative w-24 h-24 mx-auto flex items-center justify-center">
+                <!-- Expanding Radar Rings -->
+                <div class="absolute inset-0 rounded-full border border-amber-500/40 animate-radar-ring"></div>
+                <div class="absolute inset-2 rounded-full border border-amber-400/30 animate-radar-ring [animation-delay:0.8s]"></div>
+                <div class="absolute -inset-2 rounded-full bg-amber-500/15 blur-xl"></div>
+                
+                <!-- Rotating Orbiting Node -->
+                <div class="absolute inset-0 animate-slow-spin pointer-events-none">
+                    <span class="absolute -top-1 left-1/2 -translate-x-1/2 w-2.5 h-2.5 rounded-full bg-amber-400 shadow-[0_0_10px_#f59e0b]"></span>
+                </div>
+
+                <!-- Center Hub -->
+                <div class="relative z-10 w-16 h-16 rounded-2xl bg-gradient-to-tr from-amber-500/20 via-slate-900 to-amber-950/40 border-2 border-amber-500/60 flex items-center justify-center text-amber-400 shadow-xl backdrop-blur-md">
+                    <svg class="w-8 h-8 animate-pulse text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                </div>
             </div>
-            <div class="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-700/50">
-                <span class="w-2 h-2 rounded-full bg-amber-500 animate-ping"></span>
+
+            <div class="inline-flex items-center space-x-2 px-3.5 py-1 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/30">
+                <span class="relative flex h-2 w-2">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                </span>
                 <span>Registration Successful — Awaiting Approval</span>
             </div>
+
             <h1 class="text-2xl sm:text-3xl font-black tracking-tight text-slate-900 dark:text-zinc-50">
                 Welcome{% if user_name %}, {{ user_name }}{% endif %}!
             </h1>
             <p class="text-xs sm:text-sm text-slate-600 dark:text-zinc-400 max-w-md mx-auto leading-relaxed">
-                Your AetherSpace account has been created. A platform Administrator or Workspace Manager is reviewing your request.
+                Your AetherSpace account has been provisioned. A platform Administrator or Workspace Manager is actively reviewing your request.
             </p>
         </div>
 
-        <!-- Dynamic Contributor ID Display Box -->
-        <div class="relative z-10 p-5 rounded-2xl bg-slate-50 dark:bg-zinc-950/80 border border-slate-200 dark:border-zinc-800 space-y-3">
-            <span class="text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-zinc-400">
-                Your Contributor ID
-            </span>
+        <!-- Dynamic Contributor ID Showcase Card (Animated Gradient Border + Laser Scan) -->
+        <div class="relative z-10 p-[1.5px] rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-500 to-cyan-400 animate-gradient-border shadow-xl shadow-blue-500/10">
+            <div class="p-6 rounded-2xl bg-slate-900 dark:bg-[#0c1322] border border-blue-500/20 text-center space-y-4 relative overflow-hidden">
+                <!-- Laser scan line animation effect -->
+                <div class="absolute inset-x-0 h-0.5 bg-gradient-to-r from-transparent via-cyan-400/80 to-transparent animate-scanline pointer-events-none"></div>
 
-            <div class="flex items-center justify-center space-x-3" x-data="{ copied: false }">
-                <span class="font-mono text-3xl sm:text-4xl font-extrabold tracking-wider text-aether-blue dark:text-blue-400 bg-white dark:bg-zinc-900 px-6 py-2.5 rounded-xl border border-blue-200 dark:border-blue-900/60 shadow-sm select-all">
-                    {{ contributor_id|default:"PENDING" }}
-                </span>
-                {% if contributor_id %}
-                <button type="button" 
-                        @click="navigator.clipboard.writeText('{{ contributor_id }}'); copied = true; setTimeout(() => copied = false, 2500)"
-                        class="p-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-slate-600 dark:text-zinc-300 hover:text-aether-blue dark:hover:text-blue-400 hover:border-aether-blue transition shadow-sm"
-                        title="Copy Contributor ID">
-                    <svg x-show="!copied" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
-                    </svg>
-                    <svg x-show="copied" class="w-5 h-5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
-                    </svg>
-                </button>
-                {% endif %}
-            </div>
-
-            <!-- Mandatory Explanation Note -->
-            <div class="p-3 rounded-xl bg-blue-50/70 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900/50 text-left space-y-1">
-                <div class="text-xs font-bold text-slate-900 dark:text-zinc-100 flex items-center space-x-1.5">
-                    <svg class="w-4 h-4 text-aether-blue shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                    </svg>
-                    <span>Important Note</span>
+                <div class="flex items-center justify-between text-xs font-bold uppercase tracking-widest text-cyan-400">
+                    <span class="flex items-center space-x-1.5">
+                        <svg class="w-4 h-4 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2"/>
+                        </svg>
+                        <span>Your Contributor ID</span>
+                    </span>
+                    <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-950/80 text-cyan-300 border border-cyan-800/60">
+                        Format: #####C
+                    </span>
                 </div>
-                <p class="text-xs text-slate-600 dark:text-zinc-300 leading-relaxed">
-                    Please save your Contributor ID. After your account is approved, you can log in using this ID and your password. <span class="font-semibold text-slate-800 dark:text-zinc-100">C represents Contributor.</span>
-                </p>
+
+                <div class="flex items-center justify-center space-x-3 py-1" x-data="{ copied: false }">
+                    <div class="relative group">
+                        <div class="absolute -inset-1 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-400 opacity-40 group-hover:opacity-75 blur transition duration-200"></div>
+                        <span class="relative block font-mono text-3xl sm:text-5xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-cyan-300 to-indigo-300 px-6 py-2.5 rounded-xl bg-slate-950/90 border border-cyan-500/40 select-all shadow-inner">
+                            {{ contributor_id|default:"PENDING" }}
+                        </span>
+                    </div>
+
+                    {% if contributor_id %}
+                    <button type="button" 
+                            @click="navigator.clipboard.writeText('{{ contributor_id }}'); copied = true; setTimeout(() => copied = false, 2500)"
+                            class="relative p-3.5 rounded-xl border border-cyan-500/40 bg-slate-950 text-cyan-400 hover:text-cyan-200 hover:border-cyan-400 transition-all shadow-md active:scale-95 group focus:outline-none"
+                            title="Copy Contributor ID">
+                        <svg x-show="!copied" class="w-5 h-5 group-hover:scale-110 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                        </svg>
+                        <svg x-show="copied" class="w-5 h-5 text-emerald-400 scale-110 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                        </svg>
+                        <span x-show="copied" x-transition class="absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-0.5 text-[10px] font-bold text-white bg-emerald-600 rounded shadow-md pointer-events-none whitespace-nowrap">
+                            Copied!
+                        </span>
+                    </button>
+                    {% endif %}
+                </div>
+
+                <!-- Guidance Note -->
+                <div class="p-3.5 rounded-xl bg-blue-950/40 border border-blue-900/60 text-left space-y-1">
+                    <div class="text-xs font-bold text-cyan-300 flex items-center space-x-1.5">
+                        <svg class="w-4 h-4 text-cyan-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        <span>Save This Contributor ID</span>
+                    </div>
+                    <p class="text-xs text-slate-300 leading-relaxed">
+                        After your account is approved, you will sign in using this ID and your password. <span class="font-bold text-white">"C" designates verified Contributor status.</span>
+                    </p>
+                </div>
             </div>
         </div>
 
-        <!-- Workflow Step Indicator -->
-        <div class="relative z-10 text-left space-y-2">
-            <span class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">Account Status</span>
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
-                <div class="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/40 text-emerald-700 dark:text-emerald-300 flex items-center space-x-2">
-                    <span class="w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[10px] font-bold shrink-0">✓</span>
-                    <span class="font-semibold">1. Registered</span>
+        <!-- Workflow Step Indicator with Live Beacons -->
+        <div class="relative z-10 text-left space-y-2.5">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">Account Lifecycle</span>
+                <span class="text-[11px] font-semibold text-amber-500 flex items-center space-x-1.5">
+                    <span class="relative flex h-2 w-2">
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                    </span>
+                    <span>Step 2 in progress</span>
+                </span>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+                <!-- Step 1: Registered -->
+                <div class="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 flex items-center space-x-2.5">
+                    <span class="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xs font-black shadow-sm shrink-0">✓</span>
+                    <div>
+                        <span class="font-bold block text-slate-900 dark:text-zinc-100">1. Registered</span>
+                        <span class="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">Completed</span>
+                    </div>
                 </div>
-                <div class="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-700/60 text-amber-800 dark:text-amber-200 flex items-center space-x-2">
-                    <span class="w-5 h-5 rounded-full bg-amber-500 text-white flex items-center justify-center text-[10px] font-bold shrink-0">⏳</span>
-                    <span class="font-bold">2. Awaiting Approval</span>
+
+                <!-- Step 2: Awaiting Approval (Active Pulsing State) -->
+                <div class="p-3.5 rounded-xl bg-amber-500/10 border-2 border-amber-500 text-amber-500 flex items-center space-x-2.5 shadow-[0_0_15px_rgba(245,158,11,0.15)] relative overflow-hidden">
+                    <div class="absolute top-1 right-1 w-2 h-2 rounded-full bg-amber-500 animate-ping"></div>
+                    <span class="w-6 h-6 rounded-full bg-amber-500 text-white flex items-center justify-center text-xs font-bold shadow-sm shrink-0 animate-bounce">⏳</span>
+                    <div>
+                        <span class="font-black block text-slate-900 dark:text-white">2. In Review</span>
+                        <span class="text-[10px] text-amber-600 dark:text-amber-400 font-bold uppercase tracking-wider">Awaiting Approval</span>
+                    </div>
                 </div>
-                <div class="p-3 rounded-xl bg-slate-100 dark:bg-zinc-800/50 border border-slate-200 dark:border-zinc-700 text-slate-500 dark:text-zinc-400 flex items-center space-x-2">
-                    <span class="w-5 h-5 rounded-full bg-slate-300 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 flex items-center justify-center text-[10px] font-bold shrink-0">3</span>
-                    <span>3. Login Enabled</span>
+
+                <!-- Step 3: Login Enabled -->
+                <div class="p-3.5 rounded-xl bg-slate-100/60 dark:bg-zinc-900/60 border border-slate-200 dark:border-zinc-800 text-slate-400 dark:text-zinc-500 flex items-center space-x-2.5">
+                    <span class="w-6 h-6 rounded-full bg-slate-200 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400 flex items-center justify-center text-xs font-bold shrink-0">3</span>
+                    <div>
+                        <span class="font-semibold block text-slate-600 dark:text-zinc-400">3. Login Enabled</span>
+                        <span class="text-[10px] text-slate-400 dark:text-zinc-500">Upcoming</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -92,13 +155,13 @@
         <!-- Action / Return to Sign In -->
         <div class="relative z-10 pt-2 space-y-3">
             <a href="{% url 'accounts:login' %}" 
-               class="w-full aether-button-primary py-3 text-sm font-semibold flex items-center justify-center space-x-2 shadow-lg shadow-blue-500/20">
+               class="w-full aether-button-primary py-3 text-sm font-semibold flex items-center justify-center space-x-2 shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 transition-all">
                 <span>Go to Sign In</span>
                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
                 </svg>
             </a>
-            <p class="text-[11px] text-slate-500 dark:text-zinc-500">
+            <p class="text-[11px] text-slate-500 dark:text-zinc-400">
                 You will receive full workspace access as soon as an administrator confirms your role.
             </p>
         </div>

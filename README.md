@@ -3431,3 +3431,24 @@ npx playwright test tests/e2e/phase15_corrections.spec.ts --project=chromium
 8. Navigate to a workspace Team page (`/workspaces/<slug>/team/`) as Admin/Manager and click **Direct Add Member**; verify that the search starts blank with the search-first prompt until you type characters.
 9. Open `http://127.0.0.1:8000/about/` and verify the full platform guide and Contributor ID workflow diagram.
 10. Open `http://127.0.0.1:8000/` and move your cursor over the hero showcase card to experience 3D perspective tilt and interactive module tabs.
+
+---
+
+### Phase 15.1: UI Polish, Auto-Redirect & Contributor ID Visibility Enhancements
+1. **Landing Page Auto-Redirect**:
+   - Authenticated users visiting `/` (root URL) are automatically routed directly to `workspaces:dashboard` (or `accounts:pending_approval` if awaiting review), preventing inadvertent landing page returns if they forget to log out.
+2. **About Page Architecture Cards & Theme Alignment**:
+   - Replaced fixed 4-column cards on `/about/` with responsive `aether-card` grid (`grid-cols-1 sm:grid-cols-2 lg:grid-cols-4`) with distinct colored left accents (blue, indigo, amber, emerald), eliminating text overlapping and bright white cards in dark mode.
+3. **Futuristic Pending Approval Animations**:
+   - Multi-ring pulsating radar ripple (`animate-radar-ring`) with rotating orbital node and luminous amber core.
+   - Dynamic shifting iridescent gradient border (`animate-gradient-border`) enclosing the Contributor ID showcase card.
+   - Soft cyan laser scanning line sweep (`animate-scanline`).
+   - Live pulsating progress beacon on Step 2 with animated ping dot and active glowing border.
+   - Interactive one-click copy button with tooltip and checkmark transition.
+   - Bulletproof obsidian dark glassmorphic card styling matching the dark theme seamlessly.
+4. **Contributor ID Visibility for Existing Admins & Users**:
+   - **Header Dropdown**: Added Contributor ID chip with one-click copy button right inside the user profile menu for all authenticated users.
+   - **Login Page**: Updated input label to `Contributor ID or Email` with guidance note for existing administrators.
+   - **Profile Pages**: Displayed authoritative Contributor ID chip beside user name in `base_profile.html` and under Account Information in `my_profile.html`.
+   - **Team Directory**: Displayed Contributor ID badges beside member email addresses in `team.html`.
+

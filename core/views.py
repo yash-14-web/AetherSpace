@@ -12,6 +12,10 @@ from files.models import StoredFile
 
 def landing(request):
     """Public landing page introducing AetherSpace."""
+    if request.user.is_authenticated:
+        if getattr(request.user, 'approval_status', None) == 'PENDING':
+            return redirect('accounts:pending_approval')
+        return redirect('workspaces:dashboard')
     return render(request, 'core/landing.html', {
         'title': 'AetherSpace — Next-Gen Agile Collaboration Platform',
     })

@@ -85,54 +85,90 @@
     </section>
 
     <!-- 3. Contributor ID & Onboarding Architecture (Phase 15 Highlight) -->
-    <section class="rounded-3xl border border-blue-500/30 dark:border-blue-500/20 bg-gradient-to-br from-blue-900/10 via-slate-900/40 to-slate-950 p-8 sm:p-10 space-y-8 shadow-xl">
+    <section class="rounded-3xl border border-blue-500/20 dark:border-blue-500/30 bg-blue-50/50 dark:bg-gradient-to-br dark:from-blue-950/20 dark:via-zinc-900/60 dark:to-obsidian-950 p-6 sm:p-8 lg:p-10 space-y-8 shadow-sm">
         <div class="max-w-3xl space-y-2">
-            <div class="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-blue-500/20 text-blue-400 border border-blue-500/30 uppercase tracking-wider">
+            <div class="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-blue-500/10 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 border border-blue-500/30 uppercase tracking-wider">
                 <span>Account Lifecycle & Governance</span>
             </div>
             <h2 class="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white">
-                The Contributor ID Architecture (<span class="font-mono text-blue-500 dark:text-blue-400">#####C</span>)
+                The Contributor ID Architecture (<span class="font-mono text-blue-600 dark:text-blue-400">#####C</span>)
             </h2>
             <p class="text-xs sm:text-sm text-slate-600 dark:text-zinc-400 leading-relaxed">
                 AetherSpace uses an authoritative ID convention and human verification protocol to guarantee workspace integrity.
             </p>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             <!-- Step 1 -->
-            <div class="p-5 rounded-2xl bg-white dark:bg-zinc-900/70 border border-slate-200 dark:border-zinc-800 space-y-2 relative">
-                <div class="w-8 h-8 rounded-lg bg-blue-600 text-white font-bold text-xs flex items-center justify-center">1</div>
-                <h4 class="text-sm font-bold text-slate-900 dark:text-zinc-100">Registration</h4>
-                <p class="text-xs text-slate-500 dark:text-zinc-400">
-                    The user registers with name, username, email, and password. System assigns default role <code class="text-blue-500 font-mono">CONTRIBUTOR</code>.
-                </p>
+            <div class="aether-card p-6 space-y-3 relative overflow-hidden flex flex-col justify-between transition-all duration-200 hover:-translate-y-1 hover:shadow-md border-l-4 border-l-blue-500">
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between">
+                        <span class="w-8 h-8 rounded-xl bg-blue-600 text-white font-black text-xs flex items-center justify-center shadow-sm">1</span>
+                        <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400">Step 1</span>
+                    </div>
+                    <h4 class="text-base font-bold text-slate-900 dark:text-zinc-100">Registration</h4>
+                    <p class="text-xs text-slate-600 dark:text-zinc-400 leading-relaxed">
+                        The user registers with name, username, email, and password. System assigns default role <code class="text-blue-500 font-mono font-semibold">CONTRIBUTOR</code>.
+                    </p>
+                </div>
+                <div class="pt-2 text-[11px] font-semibold text-blue-600 dark:text-blue-400 flex items-center space-x-1">
+                    <span>Instant creation</span>
+                    <span>&rarr;</span>
+                </div>
             </div>
 
             <!-- Step 2 -->
-            <div class="p-5 rounded-2xl bg-white dark:bg-zinc-900/70 border border-slate-200 dark:border-zinc-800 space-y-2 relative">
-                <div class="w-8 h-8 rounded-lg bg-blue-600 text-white font-bold text-xs flex items-center justify-center">2</div>
-                <h4 class="text-sm font-bold text-slate-900 dark:text-zinc-100">ID Generation</h4>
-                <p class="text-xs text-slate-500 dark:text-zinc-400">
-                    A unique 5-digit Contributor ID is automatically generated (e.g. <span class="font-mono font-bold text-blue-600 dark:text-blue-400">26457C</span>).
-                </p>
+            <div class="aether-card p-6 space-y-3 relative overflow-hidden flex flex-col justify-between transition-all duration-200 hover:-translate-y-1 hover:shadow-md border-l-4 border-l-indigo-500">
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between">
+                        <span class="w-8 h-8 rounded-xl bg-indigo-600 text-white font-black text-xs flex items-center justify-center shadow-sm">2</span>
+                        <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400">Step 2</span>
+                    </div>
+                    <h4 class="text-base font-bold text-slate-900 dark:text-zinc-100">ID Generation</h4>
+                    <p class="text-xs text-slate-600 dark:text-zinc-400 leading-relaxed">
+                        A unique 5-digit Contributor ID is automatically generated (e.g. <span class="font-mono font-extrabold text-indigo-600 dark:text-indigo-400">26457C</span>) with collision handling.
+                    </p>
+                </div>
+                <div class="pt-2 text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 flex items-center space-x-1">
+                    <span>Authoritative ID</span>
+                    <span>&rarr;</span>
+                </div>
             </div>
 
             <!-- Step 3 -->
-            <div class="p-5 rounded-2xl bg-white dark:bg-zinc-900/70 border border-slate-200 dark:border-zinc-800 space-y-2 relative">
-                <div class="w-8 h-8 rounded-lg bg-amber-500 text-white font-bold text-xs flex items-center justify-center">3</div>
-                <h4 class="text-sm font-bold text-slate-900 dark:text-zinc-100">Pending Review</h4>
-                <p class="text-xs text-slate-500 dark:text-zinc-400">
-                    The user sees a dedicated Pending Approval screen. Account status is set to <span class="text-amber-500 font-semibold">PENDING</span> until reviewed.
-                </p>
+            <div class="aether-card p-6 space-y-3 relative overflow-hidden flex flex-col justify-between transition-all duration-200 hover:-translate-y-1 hover:shadow-md border-l-4 border-l-amber-500">
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between">
+                        <span class="w-8 h-8 rounded-xl bg-amber-500 text-white font-black text-xs flex items-center justify-center shadow-sm">3</span>
+                        <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 animate-pulse">In Review</span>
+                    </div>
+                    <h4 class="text-base font-bold text-slate-900 dark:text-zinc-100">Pending Review</h4>
+                    <p class="text-xs text-slate-600 dark:text-zinc-400 leading-relaxed">
+                        The user sees a dedicated Pending Approval screen. Account status is set to <span class="text-amber-500 font-bold">PENDING</span> until vetted by management.
+                    </p>
+                </div>
+                <div class="pt-2 text-[11px] font-semibold text-amber-600 dark:text-amber-400 flex items-center space-x-1">
+                    <span>Security check</span>
+                    <span>&rarr;</span>
+                </div>
             </div>
 
             <!-- Step 4 -->
-            <div class="p-5 rounded-2xl bg-white dark:bg-zinc-900/70 border border-slate-200 dark:border-zinc-800 space-y-2 relative">
-                <div class="w-8 h-8 rounded-lg bg-emerald-600 text-white font-bold text-xs flex items-center justify-center">4</div>
-                <h4 class="text-sm font-bold text-slate-900 dark:text-zinc-100">Admin Approval</h4>
-                <p class="text-xs text-slate-500 dark:text-zinc-400">
-                    Managers or Admins approve the account via the Admin Panel. User can now sign in using their Contributor ID + Password.
-                </p>
+            <div class="aether-card p-6 space-y-3 relative overflow-hidden flex flex-col justify-between transition-all duration-200 hover:-translate-y-1 hover:shadow-md border-l-4 border-l-emerald-500">
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between">
+                        <span class="w-8 h-8 rounded-xl bg-emerald-600 text-white font-black text-xs flex items-center justify-center shadow-sm">4</span>
+                        <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400">Step 4</span>
+                    </div>
+                    <h4 class="text-base font-bold text-slate-900 dark:text-zinc-100">Admin Approval</h4>
+                    <p class="text-xs text-slate-600 dark:text-zinc-400 leading-relaxed">
+                        Admins or Managers approve the user via Admin Panel. Contributor can now sign in using their Contributor ID + Password.
+                    </p>
+                </div>
+                <div class="pt-2 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center space-x-1">
+                    <span>Login activated</span>
+                    <span>&check;</span>
+                </div>
             </div>
         </div>
     </section>

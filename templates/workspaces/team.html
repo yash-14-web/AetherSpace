@@ -296,9 +296,14 @@
                                                 <span class="text-[10px] px-1.5 py-0.2 rounded font-bold bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400 border border-amber-200 dark:border-amber-900/60">★ Owner</span>
                                             {% endif %}
                                         </div>
-                                        <span class="text-[11px] text-slate-400 dark:text-zinc-500 block truncate">
-                                            {{ m.user.email }}
-                                        </span>
+                                        <div class="flex items-center space-x-2 text-[11px] text-slate-400 dark:text-zinc-500">
+                                            <span class="truncate">{{ m.user.email }}</span>
+                                            {% if m.user.contributor_id %}
+                                                <span class="font-mono text-[10px] font-bold text-aether-blue dark:text-blue-400 bg-blue-50 dark:bg-blue-950/50 px-1.5 py-0.5 rounded border border-blue-200 dark:border-blue-900/50 shrink-0">
+                                                    ID: {{ m.user.contributor_id }}
+                                                </span>
+                                            {% endif %}
+                                        </div>
                                     </div>
                                 </div>
                             </td>

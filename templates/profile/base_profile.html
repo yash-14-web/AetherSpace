@@ -127,6 +127,14 @@
                     <h1 class="text-2xl sm:text-3xl font-black tracking-tight text-slate-900 dark:text-zinc-50">
                         {{ profile_user.full_name|default:profile_user.email }}
                     </h1>
+
+                    <!-- Contributor ID Badge -->
+                    {% if profile_user.contributor_id %}
+                        <span class="px-2.5 py-0.5 text-[11px] font-mono font-bold rounded-lg bg-slate-100 dark:bg-zinc-800 text-slate-800 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700 inline-flex items-center space-x-1.5 shadow-sm" title="Contributor ID">
+                            <span class="text-slate-400 dark:text-zinc-500 font-sans font-semibold text-[10px] uppercase">ID</span>
+                            <span class="text-aether-blue dark:text-blue-400 font-extrabold">{{ profile_user.contributor_id }}</span>
+                        </span>
+                    {% endif %}
                     
                     <!-- System Role -->
                     <span class="px-2.5 py-0.5 text-[11px] font-bold rounded-lg bg-blue-50 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-900/60 uppercase tracking-wider">

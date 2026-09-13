@@ -59,6 +59,10 @@
                     <span class="font-semibold text-slate-800 dark:text-zinc-200">{{ profile_user.email }}</span>
                 </div>
                 <div class="flex justify-between py-1.5 border-b border-slate-100 dark:border-zinc-800/60">
+                    <span class="text-slate-500 dark:text-zinc-400">Contributor ID</span>
+                    <span class="font-mono font-bold text-aether-blue dark:text-blue-400 select-all">{{ profile_user.contributor_id|default:"—" }}</span>
+                </div>
+                <div class="flex justify-between py-1.5 border-b border-slate-100 dark:border-zinc-800/60">
                     <span class="text-slate-500 dark:text-zinc-400">Timezone</span>
                     <span class="font-semibold text-slate-800 dark:text-zinc-200">{{ profile_user.timezone|default:"UTC" }}</span>
                 </div>
