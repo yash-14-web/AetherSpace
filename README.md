@@ -3347,12 +3347,87 @@ Phase 14 delivers comprehensive personal and workspace settings alongside a work
   2. Account details and timezone modification.
   3. Public profile avatar and headline update.
   4. Live interactive theme switching (Obsidian Dark vs Slate Light).
-  5. Notification channel toggle preferences.
-  6. Security credentials and active session display.
-  7. Workspace list and RBAC enforcement.
-  8. Global Omnibar search by 6-digit Task ID and Bug Code.
+     - Workspace list and RBAC enforcement.
+     - Global Omnibar search by 6-digit Task ID and Bug Code.
 
 **Owner execution command**:
 ```bash
 npx playwright test tests/e2e/settings/settings.spec.ts --project=chromium
 ```
+
+---
+
+## Phase 15 — Core Workflow & Product Corrections (COMPLETED)
+
+### Overview
+Implementation of Phase 15 — Core Workflow & Product Corrections across AetherSpace. This phase establishes an authoritative account lifecycle, strict role separation, single-identity authentication by Contributor ID, global search-first people queries, direct workspace member additions, real-time meeting room controls with live speech captions, complete removal of pricing, interactive 3D perspective showcase, and a dedicated public About guide.
+
+### Key Corrections & Architectural Enhancements
+1. **User Registration → Contributor ID (`#####C`) Workflow**:
+   - Every registered user is assigned default role `CONTRIBUTOR` and approval status `PENDING`.
+   - The system automatically generates a unique 5-digit numeric + `C` Contributor ID (e.g. `26457C`) using collision-resistant generator `generate_unique_contributor_id()`.
+   - Existing accounts safely backfilled via migration `accounts.0004` as `APPROVED` with unique `20000C+` IDs.
+   - Upon registration, users are redirected to a dedicated, responsive, themed Pending Approval screen (`/auth/pending-approval/`) displaying their generated Contributor ID with one-click clipboard copying.
+2. **Separation of System Role & Approval Status**:
+   - `User.role`: `CONTRIBUTOR`, `MANAGER`, `ADMIN` (system permissions).
+   - `User.approval_status`: `PENDING`, `APPROVED`, `REJECTED`, `SUSPENDED` (account lifecycle).
+   - Only `APPROVED` users are permitted to authenticate. Pending users attempting to log in receive informative guidance that their account is awaiting review.
+3. **Contributor ID + Password Authentication**:
+   - `ContributorIdBackend` handles case-insensitive authentication via Contributor ID (with email fallback).
+   - Login page (`/auth/login/`) updated with clear Contributor ID placeholder and help text.
+   - All mock third-party OAuth links/buttons (Google, Microsoft, GitHub) completely purged from templates.
+4. **Global Search-First Rule (Zero Empty-Query Directory Dumps)**:
+   - Enforced across Chat search, Team roster search, Admin people search, Meeting invite search, and Direct Member Add.
+   - Empty, missing, or whitespace queries strictly return 0 records and render `components/people_search_prompt.html`.
+   - Users can be queried by Contributor ID (e.g. `26457C`), full name, username, or email.
+5. **Direct Workspace Member Addition**:
+   - Workspace Admins and Managers can directly add approved platform contributors to their workspaces via `workspaces:direct_add_member` without email invitations.
+   - Features a search-first user selector modal with seat quota enforcement.
+6. **Meeting Hub Audit & Real-Time Sync**:
+   - Synchronized Raise Hand state across participants via `MeetingParticipant.is_hand_raised` and heartbeat pings.
+   - Host participant ejection via `meetings:meeting_remove_participant_api`, auto-terminating removed attendee calls on the next ping.
+   - Web Speech API integration (`SpeechRecognition` / `webkitSpeechRecognition`) for real live speech captions, eliminating fake hallucinated text.
+   - Physical webcam green LED turnoff verified via immediate `track.stop()`.
+7. **Landing Page Redesign & Public About Guide**:
+   - Completely purged all `#pricing` references and pricing cards from the application.
+   - Created an interactive 3D perspective product showcase card with mousemove tilt and multi-tab switcher demonstrating Tasks (`#619347`), Bugs (`B-882316`), Meet Hub, and Team Chat.
+   - Built a comprehensive public About page (`/about/` / `core:about`) explaining platform mission, core modules, role matrix, and Contributor ID governance.
+8. **Navigation & Error Redirect Corrections**:
+   - Sidebar and Header brand logos link authenticated users directly to `workspaces:dashboard`.
+   - Error pages (`400.html`, `403.html`, `404.html`, `500.html`) return authenticated users to `workspaces:dashboard`.
+   - Logout view sets `Cache-Control: no-cache, no-store, must-revalidate` headers to prevent back-button caching.
+
+### Code Verification
+- Django system check: **PASS** (`python manage.py check` — 0 issues, 0 silenced)
+- Automated Phase 15 test suite: **PASS** (`python manage.py test accounts.test_phase15 --keepdb` — 9 tests passed, OK)
+- Migrations: `accounts.0004` and `meetings.0002` cleanly applied to Supabase PostgreSQL.
+
+### Playwright E2E Suite (`tests/e2e/phase15_corrections.spec.ts`)
+- Script created for owner execution covering:
+  1. Registration flow generates Contributor ID (`#####C`) and displays Pending Approval screen.
+  2. Login page requires Contributor ID and contains zero third-party OAuth links.
+  3. Search-First rule: empty queries strictly return 0 records in People Search.
+  4. Logo navigation links authenticated users to workspace dashboard.
+  5. Public About page (`/about/`) renders comprehensive platform architecture guide.
+  6. Landing page has zero pricing references and features interactive 3D product showcase card.
+
+**Execution**: **NOT RUN BY AGENT** (browser launch prohibited by safety rules).  
+**Owner execution command**:
+```bash
+npx playwright test tests/e2e/phase15_corrections.spec.ts --project=chromium
+```
+
+### Owner Manual Verification Instructions
+1. Start the Django development server:
+   ```bash
+   python manage.py runserver
+   ```
+2. Navigate to `http://127.0.0.1:8000/auth/register/` and register a new account.
+3. Verify that you are redirected to `/auth/pending-approval/` displaying your generated Contributor ID (e.g. `26457C`).
+4. Attempt to log in with the new Contributor ID at `http://127.0.0.1:8000/auth/login/` — verify that you are informed your account is awaiting approval.
+5. In another session, log in as an Admin (`admin@aetherspace.dev` or Admin Contributor ID) and navigate to `http://127.0.0.1:8000/admin-panel/users/`.
+6. Inspect the user list: verify the Contributor ID column, filter by `PENDING`, click into the candidate, and click **Approve Contributor**.
+7. Return to the candidate browser session and log in using Contributor ID + Password — verify seamless redirect to the workspace dashboard.
+8. Navigate to a workspace Team page (`/workspaces/<slug>/team/`) as Admin/Manager and click **Direct Add Member**; verify that the search starts blank with the search-first prompt until you type characters.
+9. Open `http://127.0.0.1:8000/about/` and verify the full platform guide and Contributor ID workflow diagram.
+10. Open `http://127.0.0.1:8000/` and move your cursor over the hero showcase card to experience 3D perspective tilt and interactive module tabs.

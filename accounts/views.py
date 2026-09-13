@@ -24,7 +24,7 @@ from .forms import (
     AvatarUploadForm,
     TIMEZONE_CHOICES,
 )
-from .models import User, UserProfile
+from .models import User, UserProfile, UserRole, ApprovalStatus
 from workspaces.models import WorkspaceMembership
 from .tokens import account_verification_token
 from .services import (
@@ -84,7 +84,11 @@ def login_view(request):
 def logout_view(request):
     logout(request)
     messages.info(request, "You have been safely signed out.")
-    return redirect('accounts:login')
+    response = redirect('accounts:login')
+    response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response['Pragma'] = 'no-cache'
+    response['Expires'] = '0'
+    return response
 
 
 def register_view(request):
@@ -103,31 +107,48 @@ def register_view(request):
                 password=password,
                 full_name=full_name,
                 is_verified=False,
+                role=UserRole.CONTRIBUTOR,
+                approval_status=ApprovalStatus.PENDING,
             )
             UserProfile.objects.create(user=user)
 
-            # Generate email verification token
-            token = account_verification_token.make_token(user)
-            uidb64 = urlsafe_base64_encode(force_bytes(user.pk))
-            verify_url = request.build_absolute_uri(
-                reverse('accounts:verify_email_confirm', kwargs={'uidb64': uidb64, 'token': token})
+            # Store in session for the Pending Approval view
+            request.session['pending_contributor_id'] = user.contributor_id
+            request.session['pending_user_name'] = user.full_name
+            request.session['pending_user_email'] = user.email
+
+            # User must NOT be logged in! Pending accounts cannot bypass approval.
+            messages.success(
+                request,
+                f"Registration successful! Your Contributor ID is {user.contributor_id}. Your account is awaiting Admin/Manager approval."
             )
-            logger.info("Verification URL generated for %s: %s", user.email, verify_url)
-
-            # Store in session for easy testing/demo display
-            request.session['pending_verification_email'] = user.email
-            request.session['last_verify_url'] = verify_url
-
-            # Sign user in
-            login(request, user)
-            messages.success(request, f"Welcome to AetherSpace, {full_name}! Please verify your email.")
-            return redirect('accounts:verification')
+            return redirect('accounts:pending_approval')
     else:
         form = RegisterForm()
 
     return render(request, 'accounts/register.html', {
         'form': form,
         'title': 'Create Your Workspace Account — AetherSpace',
+    })
+
+
+def pending_approval_view(request):
+    """
+    Dedicated screen displayed immediately after registration.
+    Shows the generated dynamic Contributor ID (#####C) and explains the approval process.
+    """
+    if request.user.is_authenticated:
+        return redirect('workspaces:dashboard')
+
+    contributor_id = request.session.get('pending_contributor_id') or request.GET.get('cid', '')
+    user_name = request.session.get('pending_user_name', '')
+    user_email = request.session.get('pending_user_email', '')
+
+    return render(request, 'accounts/pending_approval.html', {
+        'contributor_id': contributor_id,
+        'user_name': user_name,
+        'user_email': user_email,
+        'title': 'Account Pending Approval — AetherSpace',
     })
 
 

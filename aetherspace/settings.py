@@ -163,6 +163,11 @@ LOGIN_URL = 'accounts:login'
 LOGIN_REDIRECT_URL = 'workspaces:dashboard'
 LOGOUT_REDIRECT_URL = 'accounts:login'
 
+AUTHENTICATION_BACKENDS = [
+    'accounts.backends.ContributorIdBackend',
+    'django.contrib.auth.backends.ModelBackend',
+]
+
 # Supabase Configuration
 SUPABASE_URL = os.environ.get('SUPABASE_URL', '')
 SUPABASE_PUBLISHABLE_KEY = os.environ.get('SUPABASE_PUBLISHABLE_KEY', '')

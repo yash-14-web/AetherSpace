@@ -93,129 +93,258 @@
             </div>
         </div>
 
-        <!-- Right Hero Column: High-Fidelity Workspace Dashboard Preview Widget (From Mockup) -->
-        <div class="lg:col-span-6 relative">
-            <!-- Glowing Blue Ambient Halo -->
-            <div class="absolute -inset-2 rounded-3xl bg-gradient-to-tr from-blue-600/30 via-indigo-600/20 to-cyan-400/30 blur-2xl opacity-75"></div>
+        <!-- Right Hero Column: Interactive 3D Perspective Product Showcase Card -->
+        <div class="lg:col-span-6 relative"
+             x-data="{
+                 tiltX: 0,
+                 tiltY: 0,
+                 activeTab: 'tasks',
+                 handleMove(e) {
+                     const rect = this.$el.getBoundingClientRect();
+                     const x = e.clientX - rect.left - rect.width / 2;
+                     const y = e.clientY - rect.top - rect.height / 2;
+                     this.tiltX = -(y / (rect.height / 2)) * 7;
+                     this.tiltY = (x / (rect.width / 2)) * 7;
+                 },
+                 handleLeave() {
+                     this.tiltX = 0;
+                     this.tiltY = 0;
+                 }
+             }"
+             @mousemove="handleMove($event)"
+             @mouseleave="handleLeave()">
+            
+            <!-- Ambient Glowing Backdrop -->
+            <div class="absolute -inset-3 rounded-3xl bg-gradient-to-tr from-blue-600/30 via-indigo-600/25 to-cyan-400/30 blur-2xl opacity-75 transition-opacity duration-300 pointer-events-none"></div>
 
-            <div class="relative rounded-2xl border border-blue-500/30 dark:border-blue-500/20 bg-slate-900 text-white shadow-2xl overflow-hidden text-xs">
-                <!-- Browser-like Top Bar -->
-                <div class="bg-slate-950/90 px-4 py-2.5 border-b border-slate-800 flex items-center justify-between">
+            <!-- 3D Tilting Card Container -->
+            <div class="relative rounded-2xl border border-blue-500/30 dark:border-blue-500/20 bg-slate-900/95 text-white shadow-2xl overflow-hidden text-xs select-none backdrop-blur-md"
+                 :style="`transform: perspective(1000px) rotateX(${tiltX.toFixed(2)}deg) rotateY(${tiltY.toFixed(2)}deg); transition: ${tiltX === 0 && tiltY === 0 ? 'transform 0.4s ease-out' : 'transform 0.05s ease-out'}`">
+                
+                <!-- Browser Header Bar -->
+                <div class="bg-slate-950/95 px-4 py-3 border-b border-slate-800/80 flex items-center justify-between">
                     <div class="flex items-center space-x-2">
-                        <img src="{% static 'images/logo.png' %}" alt="AetherSpace" class="w-5 h-5 object-contain">
-                        <span class="font-bold text-xs text-white">AetherSpace</span>
+                        <div class="flex space-x-1.5">
+                            <span class="w-2.5 h-2.5 rounded-full bg-rose-500/80"></span>
+                            <span class="w-2.5 h-2.5 rounded-full bg-amber-500/80"></span>
+                            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500/80"></span>
+                        </div>
+                        <span class="text-slate-500 font-light text-xs ml-1">|</span>
+                        <span class="font-bold text-xs text-white tracking-wide">AetherSpace Studio</span>
                     </div>
 
-                    <!-- Search Input Widget -->
-                    <div class="hidden sm:flex items-center w-64 bg-slate-900 border border-slate-800 rounded-md px-2.5 py-1 text-[11px] text-slate-400">
-                        <svg class="w-3.5 h-3.5 mr-1.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <!-- Search Mock -->
+                    <div class="hidden sm:flex items-center w-56 bg-slate-900 border border-slate-800 rounded-md px-2 py-1 text-[11px] text-slate-400">
+                        <svg class="w-3 h-3 mr-1 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                         </svg>
-                        <span>Search tasks, bugs, people...</span>
+                        <span class="truncate">Search tasks (619347)...</span>
                         <kbd class="ml-auto font-mono text-[9px] px-1 bg-slate-800 rounded text-slate-400">⌘K</kbd>
                     </div>
 
                     <div class="flex items-center space-x-2">
                         <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                        <span class="text-[10px] text-slate-300 font-medium">Live</span>
+                        <span class="text-[10px] text-slate-300 font-semibold font-mono">LIVE CLOUD</span>
                     </div>
                 </div>
 
-                <!-- Dashboard Preview Body -->
-                <div class="grid grid-cols-12 bg-slate-950/60 p-4 gap-4">
-                    <!-- Mini Sidebar Rail -->
-                    <div class="col-span-4 border-r border-slate-800/80 pr-3 space-y-3 hidden sm:block">
-                        <div class="space-y-1">
-                            <span class="text-[9px] uppercase tracking-wider text-slate-400 font-bold">Workspaces</span>
-                            <div class="p-1.5 rounded-lg bg-blue-600/20 text-blue-400 border border-blue-500/30 flex items-center space-x-1.5 font-bold text-[11px]">
-                                <span class="w-4 h-4 rounded bg-aether-blue text-white flex items-center justify-center text-[9px]">SC</span>
-                                <span class="truncate">Smart Classroom</span>
+                <!-- Showcase Navigation Tabs -->
+                <div class="bg-slate-950/80 px-4 py-2 border-b border-slate-800/70 flex items-center space-x-2 overflow-x-auto text-[11px]">
+                    <button type="button" @click="activeTab = 'tasks'"
+                            :class="activeTab === 'tasks' ? 'bg-blue-600 text-white font-bold' : 'text-slate-400 hover:text-white hover:bg-slate-800/60'"
+                            class="px-3 py-1 rounded-lg transition-all flex items-center space-x-1.5 shrink-0">
+                        <span>Tasks</span>
+                        <span class="font-mono text-[10px] opacity-75">#619347</span>
+                    </button>
+                    <button type="button" @click="activeTab = 'bugs'"
+                            :class="activeTab === 'bugs' ? 'bg-rose-600 text-white font-bold' : 'text-slate-400 hover:text-white hover:bg-slate-800/60'"
+                            class="px-3 py-1 rounded-lg transition-all flex items-center space-x-1.5 shrink-0">
+                        <span>Bugs</span>
+                        <span class="font-mono text-[10px] opacity-75">B-882316</span>
+                    </button>
+                    <button type="button" @click="activeTab = 'meetings'"
+                            :class="activeTab === 'meetings' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-400 hover:text-white hover:bg-slate-800/60'"
+                            class="px-3 py-1 rounded-lg transition-all flex items-center space-x-1.5 shrink-0">
+                        <span>Meet Hub</span>
+                        <span class="text-[10px] opacity-75">WebRTC</span>
+                    </button>
+                    <button type="button" @click="activeTab = 'chat'"
+                            :class="activeTab === 'chat' ? 'bg-emerald-600 text-white font-bold' : 'text-slate-400 hover:text-white hover:bg-slate-800/60'"
+                            class="px-3 py-1 rounded-lg transition-all flex items-center space-x-1.5 shrink-0">
+                        <span>Team Chat</span>
+                        <span class="text-[10px] opacity-75">Search-First</span>
+                    </button>
+                </div>
+
+                <!-- Showcase Content Pane -->
+                <div class="p-4 bg-slate-900/90 min-h-[300px] flex flex-col justify-between">
+                    
+                    <!-- TAB 1: TASKS SHOWCASE -->
+                    <div x-show="activeTab === 'tasks'" class="space-y-3">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h4 class="font-bold text-white text-xs">Kanban Sprint Board</h4>
+                                <p class="text-[10px] text-slate-400">Safe 6-digit collision-resistant task numbering</p>
                             </div>
-                            <div class="p-1.5 text-slate-400 flex items-center space-x-1.5 text-[11px]">
-                                <span class="w-4 h-4 rounded bg-slate-800 text-slate-300 flex items-center justify-center text-[9px]">FL</span>
-                                <span class="truncate">Flora</span>
-                            </div>
+                            <span class="px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 font-mono text-[10px] font-bold">Sprint 4</span>
                         </div>
 
-                        <div class="space-y-1 text-[11px] pt-1">
-                            <span class="text-[9px] uppercase tracking-wider text-slate-400 font-bold">Navigation</span>
-                            <div class="px-2 py-1 rounded bg-slate-900 text-white font-medium">Dashboard</div>
-                            <div class="px-2 py-1 text-slate-400">Tasks (#619347)</div>
-                            <div class="px-2 py-1 text-slate-400">Bug Reports</div>
-                            <div class="px-2 py-1 text-slate-400">Team Chat</div>
+                        <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1 text-[11px]">
+                            <!-- Column 1: In Progress -->
+                            <div class="p-2 rounded-xl bg-slate-950/60 border border-slate-800 space-y-2">
+                                <div class="flex items-center justify-between text-[10px] font-bold text-slate-400">
+                                    <span>IN PROGRESS</span>
+                                    <span class="px-1.5 rounded-full bg-blue-500/20 text-blue-400">1</span>
+                                </div>
+                                <div class="p-2 rounded-lg bg-slate-900 border border-slate-700/60 space-y-1.5 shadow-sm hover:border-blue-500 transition-colors">
+                                    <div class="flex items-center justify-between">
+                                        <span class="font-mono text-[9px] font-bold text-blue-400">#619347</span>
+                                        <span class="px-1 rounded bg-rose-500/20 text-rose-300 text-[8px] font-bold">High</span>
+                                    </div>
+                                    <div class="text-[11px] font-semibold text-white leading-tight">Live raise hand synchronization</div>
+                                    <div class="flex items-center justify-between pt-1 text-[9px] text-slate-400">
+                                        <span class="truncate">Yaswanth (26457C)</span>
+                                        <span class="text-blue-400 font-mono">Today</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Column 2: Code Review -->
+                            <div class="p-2 rounded-xl bg-slate-950/60 border border-slate-800 space-y-2">
+                                <div class="flex items-center justify-between text-[10px] font-bold text-slate-400">
+                                    <span>CODE REVIEW</span>
+                                    <span class="px-1.5 rounded-full bg-purple-500/20 text-purple-400">1</span>
+                                </div>
+                                <div class="p-2 rounded-lg bg-slate-900 border border-slate-700/60 space-y-1.5 shadow-sm hover:border-purple-500 transition-colors">
+                                    <div class="flex items-center justify-between">
+                                        <span class="font-mono text-[9px] font-bold text-purple-400">#492108</span>
+                                        <span class="px-1 rounded bg-amber-500/20 text-amber-300 text-[8px] font-bold">Medium</span>
+                                    </div>
+                                    <div class="text-[11px] font-semibold text-white leading-tight">Direct member search-first picker</div>
+                                    <div class="flex items-center justify-between pt-1 text-[9px] text-slate-400">
+                                        <span class="truncate">Sarah (10943C)</span>
+                                        <span class="text-emerald-400 font-mono">Ready</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Column 3: Done -->
+                            <div class="p-2 rounded-xl bg-slate-950/60 border border-slate-800 space-y-2 hidden sm:block">
+                                <div class="flex items-center justify-between text-[10px] font-bold text-slate-400">
+                                    <span>DONE</span>
+                                    <span class="px-1.5 rounded-full bg-emerald-500/20 text-emerald-400">2</span>
+                                </div>
+                                <div class="p-2 rounded-lg bg-slate-900/60 border border-slate-800 space-y-1 opacity-80">
+                                    <div class="flex items-center justify-between">
+                                        <span class="font-mono text-[9px] text-slate-500">#234190</span>
+                                        <span class="text-emerald-400 text-[8px]">✓ Closed</span>
+                                    </div>
+                                    <div class="text-[10px] text-slate-300 truncate">Contributor ID approval flow</div>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
-                    <!-- Mini Dashboard Main View -->
-                    <div class="col-span-12 sm:col-span-8 space-y-3">
-                        <!-- Welcome Header -->
-                        <div class="flex items-center justify-between pb-1 border-b border-slate-800/60">
+                    <!-- TAB 2: BUGS SHOWCASE -->
+                    <div x-show="activeTab === 'bugs'" class="space-y-3" style="display: none;">
+                        <div class="flex items-center justify-between">
                             <div>
-                                <h3 class="font-bold text-xs text-white">Welcome back, Yaswanth 👋</h3>
-                                <p class="text-[10px] text-slate-400">Here's what's happening today.</p>
+                                <h4 class="font-bold text-white text-xs">Defect Resolution Queue</h4>
+                                <p class="text-[10px] text-slate-400">Prefix-based bug IDs with severity and repro steps</p>
                             </div>
-                            <span class="text-[9px] px-2 py-0.5 rounded bg-slate-800 text-slate-300 font-medium">This Week ▾</span>
+                            <span class="px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 font-mono text-[10px] font-bold">2 Active</span>
                         </div>
 
-                        <!-- 4 Mini Metric Cards -->
-                        <div class="grid grid-cols-4 gap-2">
-                            <div class="p-2 rounded-lg bg-slate-900 border border-slate-800 text-center space-y-0.5">
-                                <span class="text-[9px] text-slate-400 block">Tasks</span>
-                                <span class="text-sm font-extrabold text-white">128</span>
-                                <span class="text-[8px] text-emerald-400 font-medium block">↑ 12%</span>
+                        <div class="p-3 rounded-xl bg-slate-950/70 border border-slate-800 space-y-2">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center space-x-2">
+                                    <span class="font-mono font-bold text-xs text-rose-400">B-882316</span>
+                                    <span class="px-1.5 py-0.5 rounded bg-rose-900/40 text-rose-300 text-[9px] font-bold">CRITICAL</span>
+                                </div>
+                                <span class="text-[10px] text-slate-400">Reported 20m ago</span>
                             </div>
-                            <div class="p-2 rounded-lg bg-slate-900 border border-slate-800 text-center space-y-0.5">
-                                <span class="text-[9px] text-slate-400 block">Bugs</span>
-                                <span class="text-sm font-extrabold text-white">23</span>
-                                <span class="text-[8px] text-rose-400 font-medium block">↑ 8%</span>
+                            <div class="text-xs font-semibold text-white">Hardware camera indicator remains on after leave</div>
+                            <p class="text-[10px] text-slate-400 leading-normal">
+                                WebRTC track must invoke <code class="font-mono text-cyan-300">track.stop()</code> on mute/exit to trigger physical green LED turnoff immediately.
+                            </p>
+                            <div class="flex items-center justify-between pt-1 border-t border-slate-800 text-[10px]">
+                                <span class="text-emerald-400">✓ Resolved in Phase 15</span>
+                                <span class="font-mono text-slate-500">AetherSpace Meet</span>
                             </div>
-                            <div class="p-2 rounded-lg bg-slate-900 border border-slate-800 text-center space-y-0.5">
-                                <span class="text-[9px] text-slate-400 block">Meetings</span>
-                                <span class="text-sm font-extrabold text-white">8</span>
-                                <span class="text-[8px] text-indigo-400 font-medium block">↑ 5%</span>
+                        </div>
+                    </div>
+
+                    <!-- TAB 3: MEETINGS SHOWCASE -->
+                    <div x-show="activeTab === 'meetings'" class="space-y-3" style="display: none;">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h4 class="font-bold text-white text-xs">AetherSpace Meet Hub</h4>
+                                <p class="text-[10px] text-slate-400">WebRTC video with live synchronized raise hand & speech captions</p>
                             </div>
-                            <div class="p-2 rounded-lg bg-slate-900 border border-slate-800 text-center space-y-0.5">
-                                <span class="text-[9px] text-slate-400 block">Members</span>
-                                <span class="text-sm font-extrabold text-white">12</span>
-                                <span class="text-[8px] text-cyan-400 font-medium block">↑ 2</span>
+                            <span class="px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 font-mono text-[10px]">3 In Call</span>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2">
+                            <div class="relative aspect-video rounded-xl bg-[#282d22] border border-black/40 flex items-center justify-center overflow-hidden">
+                                <div class="w-10 h-10 rounded-full bg-emerald-600 text-white font-bold flex items-center justify-center text-sm">Y</div>
+                                <div class="absolute top-2 left-2">
+                                    <span class="px-1.5 py-0.5 rounded-full bg-blue-600 text-[9px] font-bold text-white flex items-center space-x-1">
+                                        <span>✋</span>
+                                        <span>Raised</span>
+                                    </span>
+                                </div>
+                                <div class="absolute bottom-2 left-2 text-[10px] font-semibold text-white">Yaswanth (Host)</div>
+                            </div>
+                            <div class="relative aspect-video rounded-xl bg-[#202124] border border-zinc-800 flex items-center justify-center overflow-hidden">
+                                <div class="w-10 h-10 rounded-full bg-indigo-600 text-white font-bold flex items-center justify-center text-sm">E</div>
+                                <div class="absolute bottom-2 left-2 text-[10px] font-semibold text-white">Elena R.</div>
+                                <div class="absolute top-2 right-2 text-emerald-400 text-xs">●</div>
                             </div>
                         </div>
 
-                        <!-- Mini Task & Activity Split -->
-                        <div class="grid grid-cols-2 gap-2 text-[10px] pt-1">
-                            <div class="p-2.5 rounded-lg bg-slate-900 border border-slate-800 space-y-1.5">
-                                <div class="flex justify-between font-bold text-slate-200">
-                                    <span>My Tasks</span>
-                                    <span class="text-aether-blue">View all</span>
-                                </div>
-                                <div class="space-y-1">
-                                    <div class="flex items-center justify-between">
-                                        <span class="truncate text-slate-300">Design landing page</span>
-                                        <span class="px-1 py-0.2 rounded bg-rose-500/20 text-rose-400 text-[8px] font-bold">High</span>
+                        <div class="p-2 rounded-lg bg-black/60 border border-zinc-800 text-center text-[10px] text-slate-300 font-medium">
+                            <span class="text-blue-400 font-bold">CC:</span> "We're shipping the search-first update today with zero empty queries."
+                        </div>
+                    </div>
+
+                    <!-- TAB 4: CHAT SHOWCASE -->
+                    <div x-show="activeTab === 'chat'" class="space-y-3" style="display: none;">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h4 class="font-bold text-white text-xs">Team Chat & Channels</h4>
+                                <p class="text-[10px] text-slate-400">Search-first people picker with Contributor ID tags</p>
+                            </div>
+                            <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono text-[10px]">#general</span>
+                        </div>
+
+                        <div class="space-y-2 text-[11px]">
+                            <div class="flex items-start space-x-2">
+                                <div class="w-6 h-6 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-[10px] shrink-0">Y</div>
+                                <div class="p-2 rounded-xl bg-slate-950 border border-slate-800 space-y-0.5 max-w-[85%]">
+                                    <div class="flex items-center space-x-1.5 text-[9px]">
+                                        <span class="font-bold text-blue-400">Yaswanth</span>
+                                        <span class="font-mono text-slate-500">26457C</span>
                                     </div>
-                                    <div class="flex items-center justify-between">
-                                        <span class="truncate text-slate-300">Fix login issue</span>
-                                        <span class="px-1 py-0.2 rounded bg-amber-500/20 text-amber-400 text-[8px] font-bold">Medium</span>
-                                    </div>
-                                    <div class="flex items-center justify-between">
-                                        <span class="truncate text-slate-300">API integration</span>
-                                        <span class="px-1 py-0.2 rounded bg-blue-500/20 text-blue-400 text-[8px] font-bold">Low</span>
-                                    </div>
+                                    <div class="text-white">Admin approved the new team members. Direct workspace add is enabled!</div>
                                 </div>
                             </div>
-
-                            <div class="p-2.5 rounded-lg bg-slate-900 border border-slate-800 space-y-1.5">
-                                <div class="flex justify-between font-bold text-slate-200">
-                                    <span>Recent Activity</span>
-                                    <span class="text-aether-blue">View all</span>
-                                </div>
-                                <div class="space-y-1 text-slate-400">
-                                    <div class="truncate">Yaswanth created <span class="text-blue-400">#619347</span></div>
-                                    <div class="truncate"><span class="text-rose-400">B-882316</span> assigned</div>
-                                    <div class="truncate">Standup meeting scheduled</div>
+                            <div class="flex items-start space-x-2">
+                                <div class="w-6 h-6 rounded-full bg-indigo-600 text-white font-bold flex items-center justify-center text-[10px] shrink-0">A</div>
+                                <div class="p-2 rounded-xl bg-slate-800 border border-slate-700 space-y-0.5 max-w-[85%]">
+                                    <div class="flex items-center space-x-1.5 text-[9px]">
+                                        <span class="font-bold text-indigo-400">Alex</span>
+                                        <span class="font-mono text-slate-400">31890C</span>
+                                    </div>
+                                    <div class="text-white">Logging in right now with Contributor ID. Ready for sprint sync!</div>
                                 </div>
                             </div>
                         </div>
+                    </div>
+
+                    <!-- Interactive Hint Footer -->
+                    <div class="pt-3 border-t border-slate-800/60 flex items-center justify-between text-[10px] text-slate-400">
+                        <span>✨ Move your cursor over the card to experience 3D perspective</span>
+                        <a href="{% url 'core:about' %}" class="text-blue-400 hover:underline font-medium">Explore all features →</a>
                     </div>
                 </div>
             </div>
@@ -463,11 +592,11 @@
             </div>
 
             <!-- Col 2: Product (2 cols) -->
-            <div id="pricing" class="lg:col-span-2 space-y-3 text-xs">
+            <div class="lg:col-span-2 space-y-3 text-xs">
                 <h4 class="font-bold text-slate-900 dark:text-zinc-100">Product</h4>
                 <ul class="space-y-2 text-slate-500 dark:text-zinc-400">
                     <li><a href="#features" class="hover:text-aether-blue transition-colors">Features</a></li>
-                    <li><a href="#pricing" class="hover:text-aether-blue transition-colors">Pricing</a></li>
+                    <li><a href="{% url 'core:about' %}" class="hover:text-aether-blue transition-colors">About AetherSpace</a></li>
                     <li><a href="#" class="hover:text-aether-blue transition-colors">Changelog</a></li>
                     <li><a href="#" class="hover:text-aether-blue transition-colors">Roadmap</a></li>
                 </ul>
@@ -477,10 +606,10 @@
             <div id="resources" class="lg:col-span-2 space-y-3 text-xs">
                 <h4 class="font-bold text-slate-900 dark:text-zinc-100">Resources</h4>
                 <ul class="space-y-2 text-slate-500 dark:text-zinc-400">
+                    <li><a href="{% url 'core:about' %}" class="hover:text-aether-blue transition-colors">Platform Guide</a></li>
                     <li><a href="#" class="hover:text-aether-blue transition-colors">Documentation</a></li>
-                    <li><a href="#" class="hover:text-aether-blue transition-colors">Guides</a></li>
                     <li><a href="#" class="hover:text-aether-blue transition-colors">Help Center</a></li>
-                    <li><a href="#" class="hover:text-aether-blue transition-colors">Blog</a></li>
+                    <li><a href="#" class="hover:text-aether-blue transition-colors">API Docs</a></li>
                 </ul>
             </div>
 
@@ -488,7 +617,7 @@
             <div class="lg:col-span-2 space-y-3 text-xs">
                 <h4 class="font-bold text-slate-900 dark:text-zinc-100">Company</h4>
                 <ul class="space-y-2 text-slate-500 dark:text-zinc-400">
-                    <li><a href="#about" class="hover:text-aether-blue transition-colors">About Us</a></li>
+                    <li><a href="{% url 'core:about' %}" class="hover:text-aether-blue transition-colors">About Us</a></li>
                     <li><a href="#" class="hover:text-aether-blue transition-colors">Careers</a></li>
                     <li><a href="#" class="hover:text-aether-blue transition-colors">Contact</a></li>
                     <li><a href="#" class="hover:text-aether-blue transition-colors">Privacy Policy</a></li>

@@ -5,7 +5,9 @@ from django.urls import reverse
 from django.utils import timezone
 from django.db.models import Count, Q
 from django.core.exceptions import PermissionDenied
+from django.http import JsonResponse
 
+from accounts.models import User, ApprovalStatus
 from .models import (
     Workspace, WorkspaceMembership, WorkspaceRole,
     WorkspaceInvitation, InvitationStatus, WorkspaceAccessRequest,
@@ -312,6 +314,148 @@ def invite_member(request, slug):
         else:
             messages.error(request, "Please provide a valid email address.")
 
+    return redirect('workspaces:team', slug=slug)
+
+
+@workspace_member_required
+def api_workspace_people_search(request, slug):
+    """
+    Search-first API for direct workspace member addition by Admin/Manager.
+    Mandatory Search-First rule:
+    - If query is empty / missing / whitespace: strictly returns empty array.
+    - Searches by Contributor ID (#####C), full_name, email, or username.
+    - Filters only APPROVED and active users.
+    - Excludes users who are already active members in this workspace.
+    """
+    workspace = request.workspace
+    membership = request.membership
+
+    can_add = (
+        membership.is_admin or
+        membership.is_manager or
+        request.user.is_superuser or
+        getattr(request.user, 'is_admin_role', False)
+    )
+    if not can_add:
+        return JsonResponse({'status': 'error', 'message': 'Forbidden'}, status=403)
+
+    q = request.GET.get('q', '').strip()
+    if not q:
+        return JsonResponse({'status': 'ok', 'users': []})
+
+    # Get IDs of active members in this workspace
+    existing_user_ids = set(
+        WorkspaceMembership.objects.filter(
+            workspace=workspace,
+            status=MembershipStatus.ACTIVE
+        ).values_list('user_id', flat=True)
+    )
+
+    candidates = User.objects.filter(
+        approval_status=ApprovalStatus.APPROVED,
+        is_active=True
+    ).exclude(
+        id__in=existing_user_ids
+    ).filter(
+        Q(contributor_id__icontains=q) |
+        Q(full_name__icontains=q) |
+        Q(email__icontains=q) |
+        Q(username__icontains=q)
+    ).order_by('full_name', 'email')[:20]
+
+    user_data = []
+    for u in candidates:
+        name = u.full_name or u.email.split('@')[0]
+        initials = ''.join([part[0].upper() for part in name.split()[:2]]) or name[:1].upper()
+        user_data.append({
+            'id': str(u.id),
+            'contributor_id': u.contributor_id or '—',
+            'full_name': name,
+            'email': u.email,
+            'initials': initials,
+            'system_role': u.get_role_display(),
+            'avatar': u.avatar if getattr(u, 'avatar', None) and not u.avatar.startswith('preset:') else '',
+        })
+
+    return JsonResponse({'status': 'ok', 'users': user_data})
+
+
+@workspace_member_required
+def direct_add_member(request, slug):
+    """
+    Directly add an existing approved user to the workspace without requiring
+    an invitation link/token, matching Admin/Manager direct addition workflow.
+    """
+    if request.method != 'POST':
+        return redirect('workspaces:team', slug=slug)
+
+    workspace = request.workspace
+    membership = request.membership
+
+    can_add = (
+        membership.is_admin or
+        membership.is_manager or
+        request.user.is_superuser or
+        getattr(request.user, 'is_admin_role', False)
+    )
+    if not can_add:
+        messages.error(request, "Permission Denied: Only Workspace Admins and Managers can add members.")
+        return redirect('workspaces:team', slug=slug)
+
+    # Check seat capacity
+    if workspace.is_seats_full:
+        messages.error(
+            request,
+            f"Workspace seat capacity reached ({workspace.seats_assigned}/{workspace.max_seats} seats used). "
+            "Please increase allocated seats in Workspace Settings before adding members."
+        )
+        return redirect('workspaces:team', slug=slug)
+
+    target_user_id = request.POST.get('user_id', '').strip()
+    role = request.POST.get('role', WorkspaceRole.CONTRIBUTOR).strip()
+    if role not in dict(WorkspaceRole.choices):
+        role = WorkspaceRole.CONTRIBUTOR
+
+    if not target_user_id:
+        messages.error(request, "Please select a valid user to add to the workspace.")
+        return redirect('workspaces:team', slug=slug)
+
+    target_user = get_object_or_404(User, id=target_user_id)
+
+    # Verify user approval
+    if not target_user.is_approved or not target_user.is_active:
+        messages.error(
+            request,
+            f"Cannot add user '{target_user.email}': The account has not been approved by an administrator."
+        )
+        return redirect('workspaces:team', slug=slug)
+
+    # Check if membership exists
+    existing_mem = WorkspaceMembership.objects.filter(workspace=workspace, user=target_user).first()
+    if existing_mem and existing_mem.status == MembershipStatus.ACTIVE:
+        messages.warning(
+            request,
+            f"User '{target_user.full_name or target_user.email}' is already an active member of {workspace.name}."
+        )
+        return redirect('workspaces:team', slug=slug)
+
+    if existing_mem:
+        existing_mem.status = MembershipStatus.ACTIVE
+        existing_mem.role = role
+        existing_mem.save(update_fields=['status', 'role'])
+    else:
+        WorkspaceMembership.objects.create(
+            workspace=workspace,
+            user=target_user,
+            role=role,
+            status=MembershipStatus.ACTIVE
+        )
+
+    user_display = target_user.full_name or target_user.email
+    messages.success(
+        request,
+        f"Member '{user_display}' [{target_user.contributor_id}] directly added to {workspace.name} as {role.capitalize()}."
+    )
     return redirect('workspaces:team', slug=slug)
 
 

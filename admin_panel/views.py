@@ -9,7 +9,7 @@ from django.db.models import Q, Sum, Count
 from django.views.decorators.http import require_POST
 from django.conf import settings
 
-from accounts.models import User, UserRole
+from accounts.models import User, UserRole, ApprovalStatus
 from workspaces.models import (
     Workspace, WorkspaceMembership, WorkspaceRole, WorkspaceStatus,
     WorkspaceInvitation, WorkspaceAccessRequest, MembershipStatus,
@@ -62,6 +62,7 @@ def user_list(request):
     query = request.GET.get('q', '').strip()
     role_filter = request.GET.get('role', '').strip()
     status_filter = request.GET.get('status', '').strip()
+    approval_filter = request.GET.get('approval', '').strip()
 
     users_qs = User.objects.annotate(
         workspaces_count=Count('workspace_memberships', filter=Q(workspace_memberships__status=MembershipStatus.ACTIVE))
@@ -69,12 +70,15 @@ def user_list(request):
 
     if query:
         users_qs = users_qs.filter(
+            Q(contributor_id__icontains=query) |
             Q(full_name__icontains=query) |
             Q(email__icontains=query) |
             Q(username__icontains=query)
         )
     if role_filter:
         users_qs = users_qs.filter(role=role_filter)
+    if approval_filter:
+        users_qs = users_qs.filter(approval_status=approval_filter)
     if status_filter == 'active':
         users_qs = users_qs.filter(is_active=True)
     elif status_filter == 'inactive':
@@ -90,8 +94,10 @@ def user_list(request):
         'query': query,
         'role_filter': role_filter,
         'status_filter': status_filter,
+        'approval_filter': approval_filter,
         'total_count': paginator.count,
         'roles': UserRole.choices,
+        'approval_statuses': ApprovalStatus.choices,
         'page_title': 'User Management',
     }
     return render(request, 'admin_panel/users/user_list.html', context)
@@ -178,6 +184,73 @@ def update_user_role(request, user_id):
     else:
         for error in form.errors.values():
             messages.error(request, error)
+    return redirect('admin_panel:user_details', user_id=user_id)
+
+
+@require_POST
+@platform_admin_required
+def approve_user(request, user_id):
+    """
+    Approve a pending user registration.
+    Sets status to APPROVED, sets approved_by and approved_at, activates account,
+    and optionally confirms or promotes role.
+    """
+    target_user = get_object_or_404(User, id=user_id)
+    target_user.approval_status = ApprovalStatus.APPROVED
+    target_user.approved_by = request.user
+    target_user.approved_at = timezone.now()
+    target_user.is_active = True
+
+    assigned_role = request.POST.get('role', '').strip()
+    if assigned_role in dict(UserRole.choices):
+        target_user.role = assigned_role
+
+    target_user.save()
+
+    AuditLogService.log(
+        action='USER_APPROVED',
+        actor=request.user,
+        target_type='User',
+        target_id=str(target_user.id),
+        target_repr=f"{target_user.contributor_id} ({target_user.email})",
+        ip_address=get_client_ip(request),
+        metadata={
+            'contributor_id': target_user.contributor_id,
+            'role': target_user.role,
+            'approved_at': target_user.approved_at.isoformat()
+        }
+    )
+    messages.success(
+        request,
+        f"User '{target_user.full_name or target_user.email}' (Contributor ID: {target_user.contributor_id}) has been approved as {target_user.get_role_display()}."
+    )
+    return redirect('admin_panel:user_details', user_id=user_id)
+
+
+@require_POST
+@platform_admin_required
+def reject_user(request, user_id):
+    """
+    Reject a pending user registration.
+    """
+    target_user = get_object_or_404(User, id=user_id)
+    target_user.approval_status = ApprovalStatus.REJECTED
+    target_user.is_active = False
+    target_user.save(update_fields=['approval_status', 'is_active'])
+
+    AuditLogService.log(
+        action='USER_REJECTED',
+        actor=request.user,
+        target_type='User',
+        target_id=str(target_user.id),
+        target_repr=f"{target_user.contributor_id} ({target_user.email})",
+        ip_address=get_client_ip(request),
+        metadata={'contributor_id': target_user.contributor_id}
+    )
+    messages.warning(
+        request,
+        f"User '{target_user.full_name or target_user.email}' (Contributor ID: {target_user.contributor_id}) has been marked as REJECTED."
+    )
     return redirect('admin_panel:user_details', user_id=user_id)
 
 
@@ -893,12 +966,14 @@ def api_people_search(request):
     - Empty query / whitespace query / missing query strictly returns EMPTY list.
     - Never dumps complete user directory on modal open.
     - Only queries once characters are typed.
+    - Searches by contributor_id, name, email, or username.
     """
     q = request.GET.get('q', '').strip()
     if not q:
         return JsonResponse({'status': 'ok', 'users': []})
 
     users = User.objects.filter(
+        Q(contributor_id__icontains=q) |
         Q(full_name__icontains=q) |
         Q(email__icontains=q) |
         Q(username__icontains=q)
@@ -908,10 +983,13 @@ def api_people_search(request):
     for u in users:
         user_data.append({
             'id': str(u.id),
+            'contributor_id': u.contributor_id,
             'full_name': u.full_name or u.email.split('@')[0],
             'email': u.email,
             'role': u.role,
             'role_display': u.get_role_display(),
+            'approval_status': u.approval_status,
+            'approval_status_display': u.get_approval_status_display(),
             'is_active': u.is_active,
             'is_verified': u.is_verified,
             'avatar': u.avatar,

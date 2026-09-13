@@ -1,4 +1,5 @@
 import re
+import json
 from datetime import timedelta
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
@@ -661,7 +662,8 @@ def meeting_history_view(request, slug):
 def meeting_ping_api(request, slug, meeting_code):
     """
     Heartbeat and presence ping API from meeting room.
-    Records active session or user departure.
+    Records active session or user departure, updates hand raise state,
+    and checks if the participant has been ejected.
     """
     if request.method != 'POST':
         return HttpResponseBadRequest("POST required")
@@ -672,16 +674,31 @@ def meeting_ping_api(request, slug, meeting_code):
     if not meeting:
         return JsonResponse({'success': False, 'error': 'Meeting not found', 'status': 'ended'})
 
+    # Check if this user was removed by the host
+    current_participant = MeetingParticipant.objects.filter(meeting=meeting, user=request.user).order_by('-joined_at').first()
+    if current_participant and current_participant.is_removed:
+        return JsonResponse({
+            'success': False,
+            'status': 'removed',
+            'error': 'You have been removed from this meeting by the host.',
+            'redirect_url': reverse('meetings:meet_hub', kwargs={'slug': workspace.slug})
+        })
+
     import json
     action = 'ping'
+    hand_raised = None
     if request.content_type == 'application/json' and request.body:
         try:
             payload = json.loads(request.body)
             action = payload.get('action', 'ping')
+            if 'hand_raised' in payload:
+                hand_raised = bool(payload['hand_raised'])
         except Exception:
             action = 'ping'
     else:
         action = request.POST.get('action') or 'ping'
+        if 'hand_raised' in request.POST:
+            hand_raised = request.POST.get('hand_raised') in ['true', '1', True]
 
     if action == 'leave':
         record_participant_leave(meeting, request.user)
@@ -689,12 +706,23 @@ def meeting_ping_api(request, slug, meeting_code):
         if meeting.host == request.user or not meeting.participants.filter(left_at__isnull=True).exists():
             end_meeting(meeting, request.user)
     else:
-        record_participant_join(meeting, request.user)
+        p = record_participant_join(meeting, request.user)
+        # Handle hand raise actions
+        if action == 'raise_hand':
+            p.is_hand_raised = True
+            p.save(update_fields=['is_hand_raised'])
+        elif action == 'lower_hand':
+            p.is_hand_raised = False
+            p.save(update_fields=['is_hand_raised'])
+        elif hand_raised is not None:
+            p.is_hand_raised = hand_raised
+            p.save(update_fields=['is_hand_raised'])
+
         # Touch meeting updated_at so heartbeat freshness is preserved
         meeting.save(update_fields=['updated_at'])
 
     active_participants = []
-    for p in meeting.participants.filter(left_at__isnull=True).select_related('user').order_by('joined_at'):
+    for p in meeting.participants.filter(left_at__isnull=True, is_removed=False).select_related('user').order_by('joined_at'):
         p_name = p.user.full_name or p.user.get_full_name() or p.user.username or p.user.email.split('@')[0]
         initials = ''.join([part[0].upper() for part in p_name.split()[:2]]) or p_name[:1].upper()
         p_is_host = (p.role == ParticipantRole.HOST or p.user == meeting.host)
@@ -708,6 +736,7 @@ def meeting_ping_api(request, slug, meeting_code):
             'avatar': p_avatar,
             'role': p_role_label,
             'is_self': (p.user == request.user),
+            'is_hand_raised': p.is_hand_raised,
         })
 
     return JsonResponse({
@@ -717,6 +746,53 @@ def meeting_ping_api(request, slug, meeting_code):
         'participants': active_participants,
         'duration_display': meeting.duration_display
     })
+
+
+@workspace_member_required
+def meeting_remove_participant_api(request, slug, meeting_code, user_id=None):
+    """
+    Host action to eject/remove an attendee from the active meeting.
+    Accepts user_id from URL parameter, form POST, or JSON body.
+    """
+    if request.method != 'POST':
+        return HttpResponseBadRequest("POST required")
+
+    workspace = request.workspace
+    clean_code = _clean_code(meeting_code)
+    meeting = Meeting.objects.filter(workspace=workspace, meeting_code__iexact=clean_code).first()
+    if not meeting:
+        return JsonResponse({'success': False, 'status': 'error', 'error': 'Meeting not found'}, status=404)
+
+    is_host = (meeting.host == request.user or request.membership.can_manage_content)
+    if not is_host:
+        return JsonResponse({'success': False, 'status': 'error', 'error': 'Only the meeting host can remove participants.'}, status=403)
+
+    target_user_id = user_id or request.POST.get('user_id')
+    if not target_user_id:
+        try:
+            body = json.loads(request.body.decode('utf-8'))
+            target_user_id = body.get('user_id')
+        except Exception:
+            pass
+
+    if not target_user_id:
+        return JsonResponse({'success': False, 'status': 'error', 'error': 'Missing user_id parameter.'}, status=400)
+
+    target_participant = MeetingParticipant.objects.filter(
+        meeting=meeting,
+        user_id=target_user_id,
+        left_at__isnull=True
+    ).first()
+
+    if target_participant:
+        now = timezone.now()
+        target_participant.is_removed = True
+        target_participant.removed_at = now
+        target_participant.left_at = now
+        target_participant.is_hand_raised = False
+        target_participant.save(update_fields=['is_removed', 'removed_at', 'left_at', 'is_hand_raised'])
+
+    return JsonResponse({'success': True, 'status': 'ok', 'message': 'Participant removed from meeting.'})
 
 
 @workspace_member_required
@@ -759,3 +835,5 @@ def meeting_end_api(request, slug, meeting_code):
         })
 
     return redirect(redirect_url)
+
+

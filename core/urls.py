@@ -5,6 +5,7 @@ app_name = 'core'
 
 urlpatterns = [
     path('', views.landing, name='landing'),
+    path('about/', views.about_view, name='about'),
     
     # Global Navigation Shell destinations
     path('calendar/', views.calendar_view, name='calendar'),

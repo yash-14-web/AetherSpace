@@ -2,17 +2,17 @@ from django import forms
 from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
 from django.utils.translation import gettext_lazy as _
-from .models import User
+from .models import User, ApprovalStatus
 
 
 class LoginForm(forms.Form):
-    email = forms.EmailField(
-        label=_("Email address"),
-        widget=forms.EmailInput(attrs={
-            'id': 'login-email',
-            'placeholder': 'yaswanth@example.com',
-            'autocomplete': 'email',
-            'class': 'w-full px-3.5 py-2.5 text-sm rounded-lg border transition-colors focus:outline-none focus:ring-2 focus:ring-aether-blue border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500',
+    contributor_id = forms.CharField(
+        label=_("Contributor ID"),
+        widget=forms.TextInput(attrs={
+            'id': 'login-contributor-id',
+            'placeholder': 'e.g. 26457C',
+            'autocomplete': 'username',
+            'class': 'w-full px-3.5 py-2.5 text-sm rounded-lg border transition-colors focus:outline-none focus:ring-2 focus:ring-aether-blue border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 uppercase',
         })
     )
     password = forms.CharField(
@@ -36,16 +36,54 @@ class LoginForm(forms.Form):
 
     def clean(self):
         cleaned_data = super().clean()
-        email = cleaned_data.get('email')
+        contributor_id = cleaned_data.get('contributor_id')
         password = cleaned_data.get('password')
 
-        if email and password:
-            email_normalized = email.lower().strip()
-            self.user_cache = authenticate(username=email_normalized, password=password)
-            if self.user_cache is None:
-                raise forms.ValidationError(_("Invalid email address or password."))
-            elif not self.user_cache.is_active:
-                raise forms.ValidationError(_("This account is currently disabled. Please contact your workspace administrator."))
+        if contributor_id and password:
+            cid_clean = str(contributor_id).strip().upper()
+            
+            # Check user existence and credentials securely without exposing user existence
+            user = authenticate(username=cid_clean, password=password)
+            
+            if user is None:
+                # Also check if user exists with matching credentials but is unapproved/suspended
+                potential_user = User.objects.filter(contributor_id__iexact=cid_clean).first()
+                if not potential_user and '@' in cid_clean:
+                    potential_user = User.objects.filter(email__iexact=cid_clean).first()
+                    
+                if potential_user and potential_user.check_password(password):
+                    if potential_user.approval_status == ApprovalStatus.PENDING:
+                        raise forms.ValidationError(
+                            _("Your account (Contributor ID: %(cid)s) is awaiting Admin/Manager approval. Login will become available once approved."),
+                            params={'cid': potential_user.contributor_id or cid_clean}
+                        )
+                    elif potential_user.approval_status in [ApprovalStatus.REJECTED, ApprovalStatus.SUSPENDED]:
+                        raise forms.ValidationError(
+                            _("This account has been suspended or rejected. Please contact an administrator.")
+                        )
+                    elif not potential_user.is_active:
+                        raise forms.ValidationError(
+                            _("This account is currently disabled. Please contact your workspace administrator.")
+                        )
+                raise forms.ValidationError(_("Invalid Contributor ID or password."))
+            
+            # Verify approval status for authenticated user
+            if user.approval_status == ApprovalStatus.PENDING:
+                raise forms.ValidationError(
+                    _("Your account (Contributor ID: %(cid)s) is awaiting Admin/Manager approval. Login will become available once approved."),
+                    params={'cid': user.contributor_id or cid_clean}
+                )
+            elif user.approval_status in [ApprovalStatus.REJECTED, ApprovalStatus.SUSPENDED]:
+                raise forms.ValidationError(
+                    _("This account has been suspended or rejected. Please contact an administrator.")
+                )
+            elif not user.is_active:
+                raise forms.ValidationError(
+                    _("This account is currently disabled. Please contact your workspace administrator.")
+                )
+
+            self.user_cache = user
+
         return cleaned_data
 
     def get_user(self):

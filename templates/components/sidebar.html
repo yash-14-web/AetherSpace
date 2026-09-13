@@ -23,7 +23,7 @@
         <aside class="w-16 bg-white dark:bg-obsidian-950 border-r border-slate-200 dark:border-zinc-800/80 flex flex-col items-center py-4 justify-between shrink-0 select-none z-30 shadow-sm">
             <div class="flex flex-col items-center space-y-4">
                 <!-- App Logo Icon -->
-                <a href="{% url 'core:landing' %}" class="w-10 h-10 rounded-xl flex items-center justify-center shadow-md hover:scale-105 transition-transform overflow-hidden group" title="AetherSpace">
+                <a href="{% if user.is_authenticated %}{% url 'workspaces:dashboard' %}{% else %}{% url 'core:landing' %}{% endif %}" class="w-10 h-10 rounded-xl flex items-center justify-center shadow-md hover:scale-105 transition-transform overflow-hidden group" title="AetherSpace">
                     <img src="{% static 'images/logo.png' %}" alt="AetherSpace Logo" class="w-full h-full object-contain drop-shadow-md">
                 </a>
 

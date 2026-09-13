@@ -133,6 +133,14 @@
                         {% endif %}
                     </div>
 
+                    <!-- Top-Left Hand Raised Indicator (Local) -->
+                    <div class="absolute top-4 left-4 z-10" x-show="handRaised">
+                        <span class="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full bg-blue-600 text-white text-xs font-semibold shadow-lg">
+                            <span>✋</span>
+                            <span>Hand raised</span>
+                        </span>
+                    </div>
+
                     <!-- Top-Right Mic Status Indicator inside Tile (Screenshot 1 top-right) -->
                     <div class="absolute top-4 right-4 z-10">
                         <div x-show="isMuted" 
@@ -178,6 +186,14 @@
                             </template>
                         </div>
 
+                        <!-- Top-Left Hand Raised Indicator (Remote) -->
+                        <div class="absolute top-4 left-4 z-10" x-show="peer.is_hand_raised">
+                            <span class="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full bg-blue-600 text-white text-xs font-semibold shadow-lg">
+                                <span>✋</span>
+                                <span>Hand raised</span>
+                            </span>
+                        </div>
+
                         <!-- Top-Right Mic Indicator -->
                         <div class="absolute top-4 right-4 z-10">
                             <div class="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400">
@@ -195,6 +211,29 @@
                     </div>
                 </template>
 
+            </div>
+
+            <!-- Live Closed Captions Display Banner (Web Speech API) -->
+            <div x-show="captionsEnabled"
+                 x-transition:enter="transition ease-out duration-200"
+                 x-transition:enter-start="opacity-0 translate-y-4"
+                 x-transition:enter-end="opacity-100 translate-y-0"
+                 class="fixed bottom-24 left-1/2 -translate-x-1/2 z-40 max-w-2xl px-6 py-3 rounded-2xl bg-black/85 backdrop-blur-md border border-zinc-700/80 shadow-2xl text-center pointer-events-none">
+                <div class="text-[11px] uppercase tracking-wider font-semibold text-blue-400 mb-1 flex items-center justify-center space-x-1.5">
+                    <span class="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
+                    <span>Live Captions (Web Speech)</span>
+                </div>
+                <div class="text-sm font-medium text-white select-text">
+                    <template x-if="liveCaptionText">
+                        <span x-text="liveCaptionText"></span>
+                    </template>
+                    <template x-if="!liveCaptionText && speechSupported">
+                        <span class="text-zinc-400 italic">Listening... speak into your microphone</span>
+                    </template>
+                    <template x-if="!speechSupported">
+                        <span class="text-amber-400 italic">Web Speech API is not supported in this browser. Captions require Chrome/Edge.</span>
+                    </template>
+                </div>
             </div>
 
             <!-- Floating Emoji Reactions Canvas Animation -->
@@ -290,6 +329,7 @@
                                     </div>
                                 </div>
                                 <div class="flex items-center space-x-2 text-zinc-400">
+                                    <span x-show="handRaised" class="text-xs mr-0.5" title="Your hand is raised">✋</span>
                                     <span :class="isMuted ? 'text-zinc-400' : 'text-emerald-400'">
                                         <template x-if="isMuted">
                                             <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
@@ -302,13 +342,6 @@
                                             </svg>
                                         </template>
                                     </span>
-                                    <button class="p-1 rounded hover:bg-zinc-700/60 text-zinc-400 hover:text-white" title="Actions">
-                                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                                            <circle cx="12" cy="5" r="2"/>
-                                            <circle cx="12" cy="12" r="2"/>
-                                            <circle cx="12" cy="19" r="2"/>
-                                        </svg>
-                                    </button>
                                 </div>
                             </div>
 
@@ -328,16 +361,17 @@
                                         </div>
                                     </div>
                                     <div class="flex items-center space-x-2 text-zinc-400">
+                                        <span x-show="peer.is_hand_raised" class="text-xs mr-0.5" title="Hand raised">✋</span>
                                         <svg class="w-4 h-4 text-emerald-400" fill="currentColor" viewBox="0 0 24 24">
                                             <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5-3c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
                                         </svg>
-                                        <button class="p-1 rounded hover:bg-zinc-700/60 text-zinc-400 hover:text-white">
-                                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                                                <circle cx="12" cy="5" r="2"/>
-                                                <circle cx="12" cy="12" r="2"/>
-                                                <circle cx="12" cy="19" r="2"/>
+                                        {% if is_host %}
+                                        <button @click="removeParticipant(peer.id, peer.name)" class="p-1 rounded hover:bg-rose-900/50 text-zinc-400 hover:text-rose-400 transition ml-1" title="Remove participant from call">
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7a4 4 0 11-8 0 4 4 0 018 0zM9 14a6 6 0 00-6 6v1h12v-1a6 6 0 00-6-6zM21 12h-6"/>
                                             </svg>
                                         </button>
+                                        {% endif %}
                                     </div>
                                 </div>
                             </template>
@@ -646,7 +680,7 @@
             </div>
 
             <!-- 5. Closed Captions [CC] -->
-            <button @click="captionsEnabled = !captionsEnabled" 
+            <button @click="toggleCaptions()" 
                     :class="captionsEnabled ? 'bg-blue-600 text-white' : 'bg-[#3c4043] hover:bg-[#4a4e52] text-white'"
                     class="p-3 rounded-full transition flex items-center justify-center font-bold text-xs shadow-sm"
                     title="Turn on captions (c)">
@@ -654,7 +688,7 @@
             </button>
 
             <!-- 6. Raise Hand ✋ -->
-            <button @click="handRaised = !handRaised" 
+            <button @click="toggleHandRaise()" 
                     :class="handRaised ? 'bg-[#a8c7fa] text-[#041e49]' : 'bg-[#3c4043] hover:bg-[#4a4e52] text-white'"
                     class="p-3 rounded-full transition flex items-center justify-center shadow-sm"
                     title="Raise hand">
@@ -785,6 +819,9 @@ function googleMeetRoomState() {
         showReactionPicker: false,
         captionsEnabled: false,
         handRaised: false,
+        speechSupported: ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window),
+        liveCaptionText: '',
+        speechRecognition: null,
         copiedShareNotice: false,
         peopleSearchQuery: '',
         
@@ -1032,6 +1069,99 @@ function googleMeetRoomState() {
             return `${h}:${m}:${s}`;
         },
 
+        toggleHandRaise() {
+            this.handRaised = !this.handRaised;
+            fetch("{% url 'meetings:meeting_ping_api' slug=workspace.slug meeting_code=meeting.meeting_code %}", {
+                method: "POST",
+                headers: {
+                    "X-CSRFToken": "{{ csrf_token }}",
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ 
+                    action: this.handRaised ? 'raise_hand' : 'lower_hand',
+                    hand_raised: this.handRaised
+                })
+            }).then(r => r.json()).then(data => {
+                if (data && data.status === 'removed') {
+                    alert(data.error || "You have been removed from this meeting by the host.");
+                    window.location.href = data.redirect_url || "{% url 'meetings:meet_hub' slug=workspace.slug %}";
+                    return;
+                }
+                if (data && data.participants && Array.isArray(data.participants)) {
+                    this.participants = data.participants;
+                }
+            }).catch(err => console.error("Error toggling hand raise:", err));
+        },
+
+        removeParticipant(userId, userName) {
+            if (!confirm(`Are you sure you want to remove ${userName || 'this participant'} from the meeting?`)) {
+                return;
+            }
+            fetch("{% url 'meetings:meeting_remove_participant_api' slug=workspace.slug meeting_code=meeting.meeting_code %}", {
+                method: "POST",
+                headers: {
+                    "X-CSRFToken": "{{ csrf_token }}",
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ user_id: userId })
+            }).then(r => r.json()).then(data => {
+                if (data.status === 'ok') {
+                    this.sendPing();
+                } else {
+                    alert(data.error || "Could not remove participant.");
+                }
+            }).catch(err => {
+                console.error("Error removing participant:", err);
+                alert("Failed to remove participant.");
+            });
+        },
+
+        toggleCaptions() {
+            this.captionsEnabled = !this.captionsEnabled;
+            if (this.captionsEnabled) {
+                this.startSpeechRecognition();
+            } else {
+                this.stopSpeechRecognition();
+            }
+        },
+
+        startSpeechRecognition() {
+            if (!this.speechSupported) return;
+            try {
+                const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+                this.speechRecognition = new SpeechRec();
+                this.speechRecognition.continuous = true;
+                this.speechRecognition.interimResults = true;
+                this.speechRecognition.lang = 'en-US';
+                this.speechRecognition.onresult = (event) => {
+                    let interim = '';
+                    for (let i = event.resultIndex; i < event.results.length; ++i) {
+                        interim += event.results[i][0].transcript;
+                    }
+                    this.liveCaptionText = interim;
+                };
+                this.speechRecognition.onerror = (event) => {
+                    console.warn('Speech recognition notice:', event.error);
+                };
+                this.speechRecognition.onend = () => {
+                    if (this.captionsEnabled && this.speechRecognition) {
+                        try { this.speechRecognition.start(); } catch(e){}
+                    }
+                };
+                this.speechRecognition.start();
+            } catch(e) {
+                console.warn('Could not start speech recognition:', e);
+            }
+        },
+
+        stopSpeechRecognition() {
+            if (this.speechRecognition) {
+                try { this.speechRecognition.stop(); } catch(e){}
+                this.speechRecognition = null;
+            }
+            this.liveCaptionText = '';
+        },
+
         sendPing() {
             fetch("{% url 'meetings:meeting_ping_api' slug=workspace.slug meeting_code=meeting.meeting_code %}", {
                 method: "POST",
@@ -1039,8 +1169,16 @@ function googleMeetRoomState() {
                     "X-CSRFToken": "{{ csrf_token }}",
                     "Content-Type": "application/json"
                 },
-                body: JSON.stringify({ action: 'ping' })
+                body: JSON.stringify({ 
+                    action: 'ping',
+                    hand_raised: this.handRaised
+                })
             }).then(r => r.json()).then(data => {
+                if (data && data.status === 'removed') {
+                    alert(data.error || "You have been removed from this meeting by the host.");
+                    window.location.href = data.redirect_url || "{% url 'meetings:meet_hub' slug=workspace.slug %}";
+                    return;
+                }
                 if (data && data.participants && Array.isArray(data.participants)) {
                     this.participants = data.participants;
                 }

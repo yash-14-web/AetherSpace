@@ -20,7 +20,7 @@
             <button onclick="window.location.reload()" class="aether-button-secondary text-xs py-2 px-4">
                 Reload Page
             </button>
-            <a href="{% url 'core:landing' %}" class="aether-button-primary text-xs py-2 px-4">
+            <a href="{% if user.is_authenticated %}{% url 'workspaces:dashboard' %}{% else %}{% url 'core:landing' %}{% endif %}" class="aether-button-primary text-xs py-2 px-4">
                 Return to Dashboard
             </a>
         </div>

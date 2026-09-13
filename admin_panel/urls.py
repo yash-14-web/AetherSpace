@@ -13,6 +13,8 @@ urlpatterns = [
     path('users/<uuid:user_id>/', views.user_details, name='user_details'),
     path('users/<uuid:user_id>/status/', views.toggle_user_status, name='toggle_user_status'),
     path('users/<uuid:user_id>/role/', views.update_user_role, name='update_user_role'),
+    path('users/<uuid:user_id>/approve/', views.approve_user, name='approve_user'),
+    path('users/<uuid:user_id>/reject/', views.reject_user, name='reject_user'),
 
     # 3. Roles & Permissions (Screen 61)
     path('roles/', views.roles_permissions, name='roles_permissions'),

@@ -8,6 +8,34 @@
          currentTab: 'directory',
          inviteModalOpen: false, 
          editModalOpen: false,
+         directAddModalOpen: false,
+         directSearchQuery: '',
+         directSearchResults: [],
+         directSearching: false,
+         selectedCandidate: null,
+         directRole: 'CONTRIBUTOR',
+         async searchDirectPeople() {
+             const q = this.directSearchQuery.trim();
+             if (!q) {
+                 this.directSearchResults = [];
+                 return;
+             }
+             this.directSearching = true;
+             try {
+                 const resp = await fetch(`{% url 'workspaces:api_workspace_people_search' slug=workspace.slug %}?q=${encodeURIComponent(q)}`);
+                 const data = await resp.json();
+                 if (data.status === 'ok') {
+                     this.directSearchResults = data.users;
+                 }
+             } catch (e) {
+                 console.error('People search failed:', e);
+             } finally {
+                 this.directSearching = false;
+             }
+         },
+         selectUserToAdd(u) {
+             this.selectedCandidate = u;
+         },
          activeEditMember: {
              id: '',
              name: '',
@@ -87,12 +115,19 @@
                 </button>
             </div>
 
-            {% if membership.can_manage_workspace %}
-                <button type="button" @click="inviteModalOpen = true" class="aether-button-primary text-xs px-4 py-2 flex items-center space-x-1.5 shadow-md shadow-blue-500/20">
+            {% if membership.can_manage_workspace or membership.is_manager %}
+                <button type="button" @click="directAddModalOpen = true; directSearchQuery = ''; directSearchResults = []; selectedCandidate = null;" 
+                        class="aether-button-secondary text-xs px-3.5 py-2 flex items-center space-x-1.5 border-purple-300 dark:border-purple-800 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/40">
                     <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/>
                     </svg>
-                    <span>Invite Member</span>
+                    <span>Direct Add Member</span>
+                </button>
+                <button type="button" @click="inviteModalOpen = true" class="aether-button-primary text-xs px-4 py-2 flex items-center space-x-1.5 shadow-md shadow-blue-500/20">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                    </svg>
+                    <span>Invite via Email</span>
                 </button>
             {% endif %}
         </div>
@@ -845,6 +880,152 @@
                         </button>
                     </div>
                 </form>
+            </div>
+        </div>
+    {% endif %}
+
+    <!-- Direct Add Member Modal (Search-First Selector) -->
+    {% if membership.can_manage_workspace or membership.is_manager %}
+        <div x-show="directAddModalOpen" 
+             x-transition:enter="transition ease-out duration-150"
+             x-transition:enter-start="opacity-0"
+             x-transition:enter-end="opacity-100"
+             x-transition:leave="transition ease-in duration-100"
+             x-transition:leave-start="opacity-100"
+             x-transition:leave-end="opacity-0"
+             class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+             style="display: none;"
+             @keydown.escape.window="directAddModalOpen = false">
+            
+            <div class="aether-card w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] space-y-4 p-5"
+                 @click.outside="directAddModalOpen = false">
+                
+                <div class="flex items-center justify-between border-b border-slate-100 dark:border-zinc-800 pb-3">
+                    <div class="flex items-center space-x-2">
+                        <div class="w-8 h-8 rounded-lg bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 class="text-sm font-bold text-slate-900 dark:text-zinc-100">Direct Member Addition</h3>
+                            <p class="text-[11px] text-slate-500 dark:text-zinc-400">Add an approved platform user directly without invitation token</p>
+                        </div>
+                    </div>
+                    <button type="button" @click="directAddModalOpen = false" class="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- Step 1: Search-First Selector -->
+                <div class="space-y-3">
+                    <label class="block text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                        Search Registered Platform Users
+                    </label>
+                    <input type="text" 
+                           x-model="directSearchQuery" 
+                           @input.debounce.250ms="searchDirectPeople()"
+                           placeholder="Type Contributor ID (#####C), full name, or email..."
+                           class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-purple-500 shadow-sm"
+                           autofocus>
+
+                    <!-- Results / Search-First Container -->
+                    <div class="max-h-56 overflow-y-auto rounded-xl border border-slate-100 dark:border-zinc-800/80 p-2">
+                        <!-- State 1: Empty Query Prompt -->
+                        <template x-if="!directSearchQuery.trim()">
+                            {% include 'components/people_search_prompt.html' with title="Search-First Member Addition" subtitle="Type characters or Contributor ID above to search approved users. Directory is protected." %}
+                        </template>
+
+                        <!-- State 2: Loading -->
+                        <template x-if="directSearching">
+                            <div class="py-6 text-center text-xs text-slate-400">
+                                Searching candidate users...
+                            </div>
+                        </template>
+
+                        <!-- State 3: Results -->
+                        <template x-if="directSearchQuery.trim() && !directSearching && directSearchResults.length > 0">
+                            <div class="divide-y divide-slate-100 dark:divide-zinc-800/80">
+                                <template x-for="candidate in directSearchResults" :key="candidate.id">
+                                    <div class="py-2 px-2.5 flex items-center justify-between rounded-lg hover:bg-slate-50 dark:hover:bg-zinc-900/60 transition-colors">
+                                        <div class="flex items-center space-x-2.5 truncate mr-2">
+                                            <div class="w-7 h-7 rounded-full bg-gradient-to-tr from-purple-600 to-indigo-700 text-white font-bold text-xs flex items-center justify-center shrink-0"
+                                                 x-text="candidate.initials">
+                                            </div>
+                                            <div class="truncate">
+                                                <div class="flex items-center space-x-1.5">
+                                                    <span class="text-xs font-bold text-slate-900 dark:text-zinc-100 truncate" x-text="candidate.full_name"></span>
+                                                    <span class="font-mono text-[10px] font-bold px-1.5 py-0.2 rounded bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-300" x-text="candidate.contributor_id"></span>
+                                                </div>
+                                                <div class="text-[11px] text-slate-400 truncate" x-text="candidate.email"></div>
+                                            </div>
+                                        </div>
+                                        <button type="button" 
+                                                @click="selectUserToAdd(candidate)"
+                                                :class="selectedCandidate && selectedCandidate.id === candidate.id ? 'bg-purple-600 text-white' : 'aether-button-secondary'"
+                                                class="text-xs px-2.5 py-1 shrink-0 rounded-lg">
+                                            <span x-text="selectedCandidate && selectedCandidate.id === candidate.id ? 'Selected' : 'Select'"></span>
+                                        </button>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+
+                        <!-- State 4: No Results -->
+                        <template x-if="directSearchQuery.trim() && !directSearching && directSearchResults.length === 0">
+                            <div class="py-6 text-center text-xs text-slate-400">
+                                No eligible approved users found matching "<span x-text="directSearchQuery"></span>"
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Step 2: Selected User & Role Assignment -->
+                <template x-if="selectedCandidate">
+                    <form method="POST" action="{% url 'workspaces:direct_add_member' slug=workspace.slug %}" class="space-y-3 pt-2 border-t border-slate-100 dark:border-zinc-800">
+                        {% csrf_token %}
+                        <input type="hidden" name="user_id" :value="selectedCandidate.id">
+
+                        <div class="p-3 rounded-xl bg-purple-50/70 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800/60 flex items-center justify-between">
+                            <div class="truncate mr-2">
+                                <span class="text-[11px] font-semibold text-purple-600 dark:text-purple-400 uppercase tracking-wider block">Selected Contributor</span>
+                                <span class="text-xs font-bold text-slate-900 dark:text-zinc-100" x-text="selectedCandidate.full_name"></span>
+                                <span class="text-[11px] text-slate-500 dark:text-zinc-400 font-mono ml-1.5" x-text="'[' + selectedCandidate.contributor_id + ']'"></span>
+                            </div>
+                            <span class="text-[10px] px-2 py-0.5 rounded bg-white dark:bg-zinc-900 border border-purple-200 dark:border-purple-800 font-bold text-purple-700 dark:text-purple-300">
+                                Ready to add
+                            </span>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-1">Assign Workspace Role</label>
+                            <select name="role" x-model="directRole" class="w-full text-xs px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-purple-500">
+                                <option value="CONTRIBUTOR">Contributor — Standard member</option>
+                                <option value="MANAGER">Manager — Manage tasks/bugs, team oversight</option>
+                                <option value="ADMIN">Admin — Full workspace management</option>
+                            </select>
+                        </div>
+
+                        <div class="pt-2 flex justify-end space-x-2">
+                            <button type="button" @click="directAddModalOpen = false" class="aether-button-secondary text-xs px-3 py-1.5">
+                                Cancel
+                            </button>
+                            <button type="submit" class="aether-button-primary text-xs px-4 py-1.5 bg-purple-600 hover:bg-purple-700 text-white">
+                                Direct Add to Workspace
+                            </button>
+                        </div>
+                    </form>
+                </template>
+
+                <template x-if="!selectedCandidate">
+                    <div class="pt-2 flex justify-end border-t border-slate-100 dark:border-zinc-800">
+                        <button type="button" @click="directAddModalOpen = false" class="aether-button-secondary text-xs px-3 py-1.5">
+                            Close
+                        </button>
+                    </div>
+                </template>
             </div>
         </div>
     {% endif %}

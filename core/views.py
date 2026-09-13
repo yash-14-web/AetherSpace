@@ -17,6 +17,13 @@ def landing(request):
     })
 
 
+def about_view(request):
+    """Public About page providing a comprehensive guide to AetherSpace."""
+    return render(request, 'core/about.html', {
+        'title': 'About AetherSpace — High-Performance Team Collaboration',
+    })
+
+
 @login_required
 def calendar_view(request):
     """Calendar & Agenda navigation destination - redirects to active workspace calendar."""

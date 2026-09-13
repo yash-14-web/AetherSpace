@@ -584,6 +584,7 @@ def api_search_users(request, slug):
     current_user = request.user
 
     users_qs = User.objects.exclude(id=current_user.id).filter(
+        Q(contributor_id__icontains=q) |
         Q(full_name__icontains=q) |
         Q(email__icontains=q) |
         Q(username__icontains=q)
@@ -603,6 +604,7 @@ def api_search_users(request, slug):
         mem = workspace_memberships.get(u.id)
         results.append({
             'id': str(u.id),
+            'contributor_id': u.contributor_id or '',
             'name': u.full_name or u.email.split('@')[0],
             'email': u.email,
             'initial': (u.first_name[:1] if u.first_name else u.email[:1]).upper(),

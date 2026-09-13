@@ -260,7 +260,7 @@
                         <input type="text" 
                                x-model="searchQuery" 
                                @input.debounce.250ms="searchUsers()" 
-                               placeholder="Search by name, email, or username..." 
+                               placeholder="Search by Contributor ID (#####C), name, email..." 
                                class="w-full pl-10 pr-9 py-2.5 text-xs rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900 text-slate-900 dark:text-zinc-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
                         <button type="button" 
                                 x-show="searchQuery.length > 0" 
@@ -286,7 +286,7 @@
                                 Find People for Direct Chat
                             </h4>
                             <p class="text-[11px] text-slate-400 dark:text-zinc-500 max-w-xs mx-auto">
-                                Type a name, email address, or username above to discover registered users.
+                                Type Contributor ID (#####C), name, or email above to discover registered users.
                             </p>
                         </div>
 
@@ -318,8 +318,11 @@
                                         </div>
                                         <div class="flex-1 min-w-0">
                                             <div class="flex items-center justify-between">
-                                                <p class="text-xs font-bold text-slate-900 dark:text-zinc-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors truncate" x-text="usr.name"></p>
-                                                <span class="text-[10px] font-semibold px-2 py-0.5 rounded border"
+                                                <div class="flex items-center space-x-1.5 truncate">
+                                                    <p class="text-xs font-bold text-slate-900 dark:text-zinc-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors truncate" x-text="usr.name"></p>
+                                                    <span x-show="usr.contributor_id" class="font-mono text-[10px] font-bold px-1.5 py-0.2 rounded bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-300" x-text="usr.contributor_id"></span>
+                                                </div>
+                                                <span class="text-[10px] font-semibold px-2 py-0.5 rounded border shrink-0 ml-2"
                                                       :class="usr.is_member ? 'bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-300 border-blue-200 dark:border-blue-800/60' : 'bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 border-slate-200 dark:border-zinc-700'"
                                                       x-text="usr.is_member ? 'Workspace Member' : 'Direct Chat'">
                                                 </span>

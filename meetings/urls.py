@@ -23,4 +23,6 @@ urlpatterns = [
     # Real-time room session APIs
     path('w/<slug:slug>/<str:meeting_code>/api/ping/', views.meeting_ping_api, name='meeting_ping_api'),
     path('w/<slug:slug>/<str:meeting_code>/api/end/', views.meeting_end_api, name='meeting_end_api'),
+    path('w/<slug:slug>/<str:meeting_code>/api/remove-participant/', views.meeting_remove_participant_api, name='meeting_remove_participant_api'),
+    path('w/<slug:slug>/<str:meeting_code>/api/remove-participant/<uuid:user_id>/', views.meeting_remove_participant_api, name='meeting_remove_participant_api_param'),
 ]

@@ -37,7 +37,7 @@
                     <svg class="h-4 w-4 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                     </svg>
-                    <span>Search users by name, email, or role...</span>
+                    <span>Search users by Contributor ID (#####C), name, email...</span>
                 </div>
                 <kbd class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-200 dark:bg-zinc-800 text-slate-500 border border-slate-300 dark:border-zinc-700">Find</kbd>
             </button>
@@ -45,6 +45,13 @@
 
         <!-- Filter Pills Form -->
         <form method="GET" class="flex items-center space-x-2 shrink-0">
+            <select name="approval" onchange="this.form.submit()" class="text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] text-slate-700 dark:text-zinc-300 focus:outline-none focus:ring-1 focus:ring-purple-500">
+                <option value="">All Approvals</option>
+                {% for code, label in approval_statuses %}
+                    <option value="{{ code }}" {% if approval_filter == code %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+
             <select name="role" onchange="this.form.submit()" class="text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] text-slate-700 dark:text-zinc-300 focus:outline-none focus:ring-1 focus:ring-purple-500">
                 <option value="">All Roles</option>
                 {% for code, label in roles %}
@@ -58,7 +65,7 @@
                 <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Deactivated</option>
             </select>
 
-            {% if role_filter or status_filter or query %}
+            {% if role_filter or status_filter or approval_filter or query %}
                 <a href="{% url 'admin_panel:user_list' %}" class="text-xs text-rose-500 font-semibold hover:underline px-2">
                     Reset
                 </a>
@@ -73,10 +80,11 @@
                 <thead class="bg-slate-50/75 dark:bg-zinc-900/60 border-b border-slate-200 dark:border-zinc-800 text-slate-400 dark:text-zinc-500 font-bold uppercase tracking-wider text-[10px]">
                     <tr>
                         <th class="px-5 py-3">User</th>
+                        <th class="px-4 py-3">Contributor ID</th>
+                        <th class="px-4 py-3">Approval</th>
                         <th class="px-4 py-3">Platform Role</th>
                         <th class="px-4 py-3">Workspaces</th>
                         <th class="px-4 py-3">Status</th>
-                        <th class="px-4 py-3">Verification</th>
                         <th class="px-4 py-3">Joined</th>
                         <th class="px-4 py-3 text-right">Actions</th>
                     </tr>
@@ -97,6 +105,36 @@
                                     </div>
                                     <div class="text-[11px] text-slate-500 dark:text-zinc-400 truncate">{{ u.email }}</div>
                                 </div>
+                            </td>
+
+                            <!-- Contributor ID -->
+                            <td class="px-4 py-3.5">
+                                <span class="font-mono text-xs font-bold px-2 py-0.5 rounded bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800/60">
+                                    {{ u.contributor_id|default:"Pending" }}
+                                </span>
+                            </td>
+
+                            <!-- Approval Status -->
+                            <td class="px-4 py-3.5">
+                                {% if u.approval_status == 'APPROVED' %}
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 border border-emerald-200 dark:border-emerald-800/60">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1"></span>
+                                        Approved
+                                    </span>
+                                {% elif u.approval_status == 'PENDING' %}
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 dark:bg-amber-950/60 text-amber-600 border border-amber-200 dark:border-amber-800/60 animate-pulse">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-amber-500 mr-1"></span>
+                                        Pending Review
+                                    </span>
+                                {% elif u.approval_status == 'REJECTED' %}
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 dark:bg-rose-950/60 text-rose-600 border border-rose-200 dark:border-rose-800/60">
+                                        Rejected
+                                    </span>
+                                {% else %}
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400">
+                                        Suspended
+                                    </span>
+                                {% endif %}
                             </td>
 
                             <!-- Role -->
@@ -127,20 +165,6 @@
                                 {% endif %}
                             </td>
 
-                            <!-- Verification -->
-                            <td class="px-4 py-3.5">
-                                {% if u.is_verified %}
-                                    <span class="text-emerald-500 font-semibold flex items-center text-[11px]">
-                                        <svg class="w-3.5 h-3.5 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-                                        </svg>
-                                        Verified
-                                    </span>
-                                {% else %}
-                                    <span class="text-slate-400 text-[11px]">Unverified</span>
-                                {% endif %}
-                            </td>
-
                             <!-- Joined -->
                             <td class="px-4 py-3.5 text-slate-500 dark:text-zinc-400 text-[11px]">
                                 {{ u.created_at|date:"M d, Y" }}
@@ -149,13 +173,13 @@
                             <!-- Actions -->
                             <td class="px-4 py-3.5 text-right space-x-2">
                                 <a href="{% url 'admin_panel:user_details' user_id=u.id %}" class="aether-button-secondary text-[11px] px-2.5 py-1">
-                                    Details
+                                    {% if u.approval_status == 'PENDING' %}Review & Approve{% else %}Details{% endif %}
                                 </a>
                             </td>
                         </tr>
                     {% empty %}
                         <tr>
-                            <td colspan="7" class="py-12 text-center text-slate-400 dark:text-zinc-500">
+                            <td colspan="8" class="py-12 text-center text-slate-400 dark:text-zinc-500">
                                 No users matched your search criteria.
                             </td>
                         </tr>
@@ -170,13 +194,13 @@
                 <span>Showing {{ users_page.start_index }}–{{ users_page.end_index }} of {{ total_count }} users</span>
                 <div class="flex items-center space-x-1">
                     {% if users_page.has_previous %}
-                        <a href="?page={{ users_page.previous_page_number }}&role={{ role_filter }}&status={{ status_filter }}&q={{ query }}" class="px-2.5 py-1 rounded bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 font-semibold hover:bg-slate-200">
+                        <a href="?page={{ users_page.previous_page_number }}&role={{ role_filter }}&status={{ status_filter }}&approval={{ approval_filter }}&q={{ query }}" class="px-2.5 py-1 rounded bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 font-semibold hover:bg-slate-200">
                             &larr; Prev
                         </a>
                     {% endif %}
                     <span class="px-3 py-1 font-bold">{{ users_page.number }}</span>
                     {% if users_page.has_next %}
-                        <a href="?page={{ users_page.next_page_number }}&role={{ role_filter }}&status={{ status_filter }}&q={{ query }}" class="px-2.5 py-1 rounded bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 font-semibold hover:bg-slate-200">
+                        <a href="?page={{ users_page.next_page_number }}&role={{ role_filter }}&status={{ status_filter }}&approval={{ approval_filter }}&q={{ query }}" class="px-2.5 py-1 rounded bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 font-semibold hover:bg-slate-200">
                             Next &rarr;
                         </a>
                     {% endif %}
@@ -219,7 +243,7 @@
                 <input type="text" 
                        x-model="searchQuery" 
                        @input.debounce.250ms="performSearch()"
-                       placeholder="Start typing name or email..."
+                       placeholder="Start typing name, email, or Contributor ID..."
                        class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-purple-500 shadow-sm"
                        autofocus>
             </div>
@@ -249,11 +273,19 @@
                                          x-text="person.full_name.slice(0, 2).toUpperCase()">
                                     </div>
                                     <div class="truncate">
-                                        <div class="text-xs font-bold text-slate-900 dark:text-zinc-100 truncate" x-text="person.full_name"></div>
+                                        <div class="flex items-center space-x-1.5">
+                                            <span class="text-xs font-bold text-slate-900 dark:text-zinc-100 truncate" x-text="person.full_name"></span>
+                                            <span class="font-mono text-[10px] font-bold px-1.5 py-0.2 rounded bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-300" x-text="person.contributor_id"></span>
+                                        </div>
                                         <div class="text-[11px] text-slate-400 truncate" x-text="person.email"></div>
                                     </div>
                                 </div>
-                                <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-purple-50 dark:bg-purple-950/60 text-purple-600" x-text="person.role_display"></span>
+                                <div class="flex items-center space-x-1.5">
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-semibold" 
+                                          :class="person.approval_status === 'APPROVED' ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600' : (person.approval_status === 'PENDING' ? 'bg-amber-50 dark:bg-amber-950/60 text-amber-600' : 'bg-rose-50 text-rose-600')"
+                                          x-text="person.approval_status_display"></span>
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-purple-50 dark:bg-purple-950/60 text-purple-600" x-text="person.role_display"></span>
+                                </div>
                             </a>
                         </template>
                     </div>

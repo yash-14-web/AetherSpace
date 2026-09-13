@@ -197,6 +197,9 @@ class MeetingParticipant(models.Model):
     )
     joined_at = models.DateTimeField(auto_now_add=True, db_index=True)
     left_at = models.DateTimeField(null=True, blank=True)
+    is_hand_raised = models.BooleanField(default=False)
+    is_removed = models.BooleanField(default=False)
+    removed_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ['-joined_at']
