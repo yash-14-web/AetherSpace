@@ -5,9 +5,9 @@ from django.urls import reverse
 from django.utils import timezone
 from django.db.models import Count, Q
 from django.core.exceptions import PermissionDenied
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponseForbidden
 
-from accounts.models import User, ApprovalStatus
+from accounts.models import User, UserRole, ApprovalStatus
 from .models import (
     Workspace, WorkspaceMembership, WorkspaceRole,
     WorkspaceInvitation, InvitationStatus, WorkspaceAccessRequest,
@@ -54,7 +54,12 @@ def dashboard_router(request):
             first_ws = Workspace.objects.filter(status=WorkspaceStatus.ACTIVE).first()
             if first_ws:
                 return redirect('workspaces:workspace_dashboard', slug=first_ws.slug)
-        return redirect('workspaces:create')
+            return redirect('workspaces:create')
+
+        if getattr(request.user, 'is_manager_role', False) or request.user.role in [UserRole.ADMIN, UserRole.MANAGER]:
+            return redirect('workspaces:create')
+
+        return render(request, 'workspaces/no_workspaces.html')
 
     # If user is manager/admin or belongs to multiple workspaces -> Master Dashboard
     is_manager_or_multi = (
@@ -165,8 +170,18 @@ def workspace_dashboard(request, slug):
 def create_workspace(request):
     """
     Create a new workspace.
+    Restricted to Admins and Managers. Contributors cannot create workspaces.
     The creator is automatically assigned the ADMIN role in WorkspaceMembership.
     """
+    is_authorized = (
+        request.user.is_superuser or
+        getattr(request.user, 'is_admin_role', False) or
+        getattr(request.user, 'is_manager_role', False) or
+        request.user.role in [UserRole.ADMIN, UserRole.MANAGER]
+    )
+    if not is_authorized:
+        return HttpResponseForbidden("Permission Denied: Only Administrators and Managers can create workspaces.")
+
     if request.method == 'POST':
         form = WorkspaceCreateForm(request.POST)
         if form.is_valid():
@@ -305,6 +320,18 @@ def invite_member(request, slug):
             invite_url = request.build_absolute_uri(
                 reverse('workspaces:accept_invitation', kwargs={'token': invite.token})
             )
+
+            try:
+                from notifications.email_service import send_workspace_invitation_email
+                send_workspace_invitation_email(
+                    recipient_email=email,
+                    workspace=workspace,
+                    invitation_url=invite_url,
+                    role_name=invite.get_role_display(),
+                    actor=request.user
+                )
+            except Exception:
+                pass
 
             messages.success(
                 request,

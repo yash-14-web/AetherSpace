@@ -8,6 +8,7 @@ from django.views.decorators.http import require_POST
 from django.db.models import Q, Max, Count
 from django.utils import timezone
 from django.contrib.auth import get_user_model
+from accounts.models import ApprovalStatus
 
 from django.core.exceptions import PermissionDenied
 from workspaces.models import Workspace, WorkspaceMembership, MembershipStatus, WorkspaceRole
@@ -584,6 +585,9 @@ def api_search_users(request, slug):
     current_user = request.user
 
     users_qs = User.objects.exclude(id=current_user.id).filter(
+        approval_status=ApprovalStatus.APPROVED,
+        is_active=True
+    ).filter(
         Q(contributor_id__icontains=q) |
         Q(full_name__icontains=q) |
         Q(email__icontains=q) |

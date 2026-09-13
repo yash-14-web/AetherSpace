@@ -539,6 +539,15 @@ def meeting_edit_view(request, slug, meeting_code):
             meeting.description = description
             meeting.meeting_type = meeting_type
             meeting.save(update_fields=['title', 'description', 'meeting_type', 'updated_at'])
+
+            try:
+                from notifications.email_service import send_meeting_status_email
+                for invite in meeting.invites.select_related('user'):
+                    if invite.user_id != request.user.id:
+                        send_meeting_status_email(meeting=meeting, recipient=invite.user, status_change='updated', actor=request.user)
+            except Exception:
+                pass
+
             messages.success(request, "Meeting updated successfully.")
             return redirect('meetings:meeting_detail', slug=workspace.slug, meeting_code=meeting.meeting_code)
         else:

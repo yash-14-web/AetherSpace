@@ -3452,3 +3452,43 @@ npx playwright test tests/e2e/phase15_corrections.spec.ts --project=chromium
    - **Profile Pages**: Displayed authoritative Contributor ID chip beside user name in `base_profile.html` and under Account Information in `my_profile.html`.
    - **Team Directory**: Displayed Contributor ID badges beside member email addresses in `team.html`.
 
+---
+
+## Phase 16 — Functional Completeness, RBAC & Communication Audit
+
+### 1. Production Time Tracking & Logs Architecture (`timetracking` app)
+- **Authoritative Model**: Created `TimeEntry` model (`timetracking/models.py`) connecting elapsed work to workspaces, contributors, and optional 6-digit tasks (`#619347`). Supports both live stopwatch tracking (`TIMER`) and manual logging (`MANUAL`).
+- **Live Stopwatch Widget**: Built a real-time reactive stopwatch timer powered by Alpine.js in `templates/timetracking/timesheet.html`. Features instantaneous Start, Stop, task selection, and elapsed counter.
+- **Manual Time Entry Modal**: Integrated manual work log submission with date picker, hours, minutes, optional task association, and descriptions.
+- **Dynamic Metrics**: 4 real database-driven metric cards displaying *Today Tracked*, *This Week*, *This Month*, and privileged cross-member *Active Team Hours*.
+- **Search & Filters**: Comprehensive filtering by date, member (Managers/Admins only), and task ID.
+- **CSV Timesheet Export**: Server-side RFC 4180 compliant CSV export endpoint (`/timetracking/w/<slug>/export/`) for sprint accounting.
+- **Workspace Isolation**: Enforces `@workspace_member_required` across all views and API endpoints.
+
+### 2. Email Notification Delivery Architecture (`notifications` app)
+- **Environment-Driven Configuration**: Configured `EMAIL_BACKEND`, `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_USE_TLS`, and `DEFAULT_FROM_EMAIL` with fallback to console backend in development.
+- **Preference Enforcement**: Automatically inspects `user.profile.preferences['notifications']` before dispatching emails (e.g. `email_frequency == 'never'`, `task_alerts`, `meeting_reminders`).
+- **Deduplication Engine**: Automatically suppresses duplicate emails sent to the same recipient with the same subject and event type within 60 seconds.
+- **Delivery Audit Logging**: Created `EmailDeliveryLog` model recording `SENT`, `FAILED`, and `SUPPRESSED` delivery outcomes with timestamps.
+- **Event Triggers**:
+  - Task Assignment (`tasks/services.py` -> `send_task_assigned_email`).
+  - Meeting Scheduled, Updated, and Cancelled (`meetings/services.py` & `meetings/views.py` -> `send_meeting_scheduled_email`, `send_meeting_status_email`).
+  - Account Approved & Status Updates (`admin_panel/views.py` -> `send_account_approved_email`, `send_account_status_email`).
+  - Workspace Invitations (`workspaces/views.py` -> `send_workspace_invitation_email`).
+- **Branded HTML & Text Email Templates**: Responsive email layouts with Obsidian Dark accent banners in `templates/emails/`.
+
+### 3. Role-Based UI & Disabled Action UX
+- **Workspace Creation RBAC**: Strictly restricted `/workspaces/create/` to Administrators and Managers; unauthorized Contributors receive a clean 403 Forbidden.
+- **Disabled Action UX**: In `templates/components/header.html` and `templates/workspaces/master_dashboard.html`, Contributors see a disabled button/link with an explanatory tooltip explaining that only Managers and Admins can create workspaces.
+- **Zero-Workspace Empty State**: Contributors with 0 workspace memberships are routed to `workspaces/no_workspaces.html` explaining that they must be invited to a workspace, preventing invalid redirect loops.
+
+### 4. Profile & People Search Audit
+- **Profile Cleanup**: Removed unused HR mock fields (`functional_role`, `role_tag`, `reporting_to`) from `templates/profile/base_profile.html` and `workspace_roles.html`.
+- **Search-First Global Compliance**: Validated and updated `chat/views.py` `api_search_users` and `workspaces/views.py` `api_workspace_people_search` to strictly return empty lists on empty queries and exclude inactive/unapproved accounts.
+
+### 5. Verification & Testing
+- **Automated Tests**: 24 tests passing (`python manage.py test timetracking notifications.test_email workspaces.test_rbac_phase16 accounts.test_phase15`).
+- **Django Check**: 0 issues identified.
+- **Playwright Spec**: Authored `tests/e2e/phase16_audit.spec.ts` for owner execution.
+
+

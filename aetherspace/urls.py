@@ -23,6 +23,8 @@ urlpatterns = [
     path('files/', include('files.urls')),
     path('notifications/', include('notifications.urls')),
     path('settings/', include('user_settings.urls')),
+    path('timetracking/', include('timetracking.urls')),
+    path('time-tracking/', RedirectView.as_view(url='/timetracking/', permanent=False)),
     path('dashboard/', RedirectView.as_view(url='/workspaces/dashboard/', permanent=False)),
     path('', include('core.urls')),
 ]

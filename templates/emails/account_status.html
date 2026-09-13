@@ -1,0 +1,36 @@
+{% extends 'emails/base_email.html' %}
+
+{% block email_content %}
+    {% if status == 'REJECTED' or status == 'SUSPENDED' %}
+        <span class="badge badge-amber">Account Status Notice</span>
+        <h1>Account Status: {{ status|title }}</h1>
+        <p>Hello <strong>{{ user.full_name|default:user.email }}</strong>,</p>
+        <p>
+            Your AetherSpace account (Contributor ID: <strong style="font-family: monospace;">{{ user.contributor_id }}</strong>) status has been updated to <strong>{{ status }}</strong>.
+        </p>
+        {% if reason %}
+            <div style="background-color: #09090b; border: 1px solid #27272a; border-radius: 12px; padding: 16px; margin: 20px 0; color: #a1a1aa; font-size: 13px;">
+                <strong>Reason:</strong> {{ reason }}
+            </div>
+        {% endif %}
+    {% else %}
+        <span class="badge badge-emerald">Account Approved</span>
+        <h1>Welcome to AetherSpace!</h1>
+        <p>Hello <strong>{{ user.full_name|default:user.email }}</strong>,</p>
+        <p>
+            Great news! Your AetherSpace account has been approved by a platform Administrator or Workspace Manager.
+        </p>
+        <div style="background-color: #09090b; border: 1px solid #27272a; border-radius: 12px; padding: 16px; margin: 20px 0; text-align: center;">
+            <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: #a1a1aa; margin-bottom: 6px;">
+                Your Authoritative Contributor ID
+            </div>
+            <div style="font-family: monospace; font-size: 28px; font-weight: 900; color: #60a5fa; letter-spacing: 0.1em;">
+                {{ user.contributor_id }}
+            </div>
+        </div>
+        <p>You can now sign in using your Contributor ID (or email) and password.</p>
+        <a href="{{ site_url|default:'http://127.0.0.1:8000' }}{{ action_url }}" class="btn">
+            Sign In to AetherSpace &rarr;
+        </a>
+    {% endif %}
+{% endblock %}

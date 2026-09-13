@@ -85,12 +85,21 @@
                                 </svg>
                                 <span>Master Dashboard</span>
                             </a>
-                            <a href="{% url 'workspaces:create' %}" class="flex items-center space-x-2 px-3.5 py-2 text-xs text-aether-blue font-bold hover:bg-blue-50/50 dark:hover:bg-blue-950/20">
-                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                                </svg>
-                                <span>Create Workspace</span>
-                            </a>
+                            {% if user.role == 'ADMIN' or user.role == 'MANAGER' or user.is_superuser or user.is_admin_role or user.is_manager_role %}
+                                <a href="{% url 'workspaces:create' %}" class="flex items-center space-x-2 px-3.5 py-2 text-xs text-aether-blue font-bold hover:bg-blue-50/50 dark:hover:bg-blue-950/20">
+                                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                                    </svg>
+                                    <span>Create Workspace</span>
+                                </a>
+                            {% else %}
+                                <div class="flex items-center space-x-2 px-3.5 py-2 text-xs text-slate-400 dark:text-zinc-600 cursor-not-allowed opacity-70" title="Only Administrators and Managers can create workspaces">
+                                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                                    </svg>
+                                    <span>Create Workspace (Managers only)</span>
+                                </div>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
@@ -285,9 +294,15 @@
                         <a href="{% url 'workspaces:master_dashboard' %}" class="block px-4 py-2 text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800/60 font-medium">
                             My Workspaces
                         </a>
-                        <a href="{% url 'workspaces:create' %}" class="block px-4 py-2 text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800/60 font-medium">
-                            New Workspace
-                        </a>
+                        {% if user.role == 'ADMIN' or user.role == 'MANAGER' or user.is_superuser or user.is_admin_role or user.is_manager_role %}
+                            <a href="{% url 'workspaces:create' %}" class="block px-4 py-2 text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800/60 font-medium">
+                                New Workspace
+                            </a>
+                        {% else %}
+                            <span class="block px-4 py-2 text-slate-400 dark:text-zinc-600 cursor-not-allowed text-xs font-medium" title="Only Administrators and Managers can create workspaces">
+                                New Workspace (Locked)
+                            </span>
+                        {% endif %}
                         {% if current_workspace and current_membership.can_manage_workspace %}
                             <a href="{% url 'workspaces:settings' slug=current_workspace.slug %}" class="block px-4 py-2 text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800/60 font-medium">
                                 Workspace Settings

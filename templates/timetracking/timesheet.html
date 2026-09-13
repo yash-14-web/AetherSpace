@@ -1,0 +1,515 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ title }} — AetherSpace{% endblock %}
+
+{% block content %}
+<div class="space-y-6 max-w-7xl mx-auto pb-12" 
+     x-data="{ 
+         manualModalOpen: false,
+         timerRunning: {% if active_timer %}true{% else %}false{% endif %},
+         timerId: '{{ active_timer.id|default:'' }}',
+         elapsedSeconds: {{ active_timer.current_duration_seconds|default:0 }},
+         timerInterval: null,
+         selectedTask: '{{ active_timer.task_id|default:'' }}',
+         taskTitle: '{{ active_timer.task.title|default:'' }}',
+         taskCode: '{% if active_timer.task %}#{{ active_timer.task.task_code }}{% endif %}',
+         description: '{{ active_timer.description|default:'' }}',
+         
+         init() {
+             if (this.timerRunning) {
+                 this.startTicker();
+             }
+         },
+
+         startTicker() {
+             clearInterval(this.timerInterval);
+             this.timerInterval = setInterval(() => {
+                 this.elapsedSeconds++;
+             }, 1000);
+         },
+
+         stopTicker() {
+             clearInterval(this.timerInterval);
+         },
+
+         formatTime(totalSecs) {
+             const h = Math.floor(totalSecs / 3600);
+             const m = Math.floor((totalSecs % 3600) / 60);
+             const s = totalSecs % 60;
+             return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+         },
+
+         async startTimer() {
+             const formData = new FormData();
+             formData.append('task_id', this.selectedTask);
+             formData.append('description', this.description);
+             formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+             try {
+                 const res = await fetch('{% url 'timetracking:api_timer_start' slug=workspace.slug %}', {
+                     method: 'POST',
+                     body: formData
+                 });
+                 const data = await res.json();
+                 if (data.status === 'ok') {
+                     this.timerRunning = true;
+                     this.timerId = data.timer_id;
+                     this.taskCode = data.task_code;
+                     this.taskTitle = data.task_title;
+                     this.elapsedSeconds = 0;
+                     this.startTicker();
+                 }
+             } catch (e) {
+                 console.error('Failed to start timer:', e);
+             }
+         },
+
+         async stopTimer() {
+             const formData = new FormData();
+             formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+             try {
+                 const res = await fetch('{% url 'timetracking:api_timer_stop' slug=workspace.slug %}', {
+                     method: 'POST',
+                     body: formData
+                 });
+                 const data = await res.json();
+                 if (data.status === 'ok') {
+                     this.timerRunning = false;
+                     this.stopTicker();
+                     window.location.reload();
+                 }
+             } catch (e) {
+                 console.error('Failed to stop timer:', e);
+             }
+         }
+     }">
+
+    <!-- Top Header & Actions -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+            <div class="flex items-center space-x-2 text-xs text-slate-500 dark:text-zinc-400 mb-1">
+                <a href="{% url 'workspaces:workspace_dashboard' slug=workspace.slug %}" class="hover:text-aether-blue transition-colors">{{ workspace.name }}</a>
+                <span>/</span>
+                <span class="text-slate-800 dark:text-zinc-200 font-semibold">Time Tracking</span>
+            </div>
+            <h1 class="text-2xl sm:text-3xl font-black text-slate-900 dark:text-zinc-50 tracking-tight flex items-center space-x-2.5">
+                <span>Time Tracking & Logs</span>
+                <span class="text-xs font-mono font-bold px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-900/60">
+                    Live Stopwatch
+                </span>
+            </h1>
+            <p class="text-xs text-slate-500 dark:text-zinc-400 mt-1">
+                Track task sprint hours, monitor active timers, and review daily timesheets for {{ workspace.name }}.
+            </p>
+        </div>
+
+        <div class="flex items-center space-x-2.5">
+            <button type="button" @click="manualModalOpen = true" 
+                    class="aether-button-secondary text-xs px-3.5 py-2 flex items-center space-x-1.5 shadow-sm">
+                <svg class="w-4 h-4 text-slate-500 dark:text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                </svg>
+                <span>Log Time Manually</span>
+            </button>
+            <a href="{% url 'timetracking:export_timesheet_csv' slug=workspace.slug %}?date_range={{ date_filter }}{% if member_filter %}&member={{ member_filter }}{% endif %}" 
+               class="aether-button-primary text-xs px-3.5 py-2 flex items-center space-x-1.5 shadow-sm shadow-blue-500/20"
+               title="Export CSV Timesheet">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                </svg>
+                <span>Export CSV</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Active Stopwatch Card (Featured Control) -->
+    <div class="aether-card p-5 sm:p-6 border-2 transition-all"
+         :class="timerRunning ? 'border-amber-500 shadow-lg shadow-amber-500/10' : 'border-slate-200 dark:border-zinc-800'">
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+            <!-- Left: Task & Note Configuration -->
+            <div class="flex-1 space-y-3">
+                <div class="flex items-center space-x-2">
+                    <span class="w-2.5 h-2.5 rounded-full" 
+                          :class="timerRunning ? 'bg-amber-500 animate-ping' : 'bg-slate-400'"></span>
+                    <span class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400"
+                          x-text="timerRunning ? 'Live Stopwatch Running' : 'Ready to Start Timer'"></span>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3" x-show="!timerRunning">
+                    <div>
+                        <label class="block text-[11px] font-semibold text-slate-700 dark:text-zinc-300 mb-1">Associate with Sprint Task</label>
+                        <select x-model="selectedTask" 
+                                class="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-aether-blue">
+                            <option value="">General Workspace Activity (No Task)</option>
+                            {% for t in available_tasks %}
+                                <option value="{{ t.id }}">#{{ t.task_code }} — {{ t.title|truncatechars:45 }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-semibold text-slate-700 dark:text-zinc-300 mb-1">What are you working on?</label>
+                        <input type="text" x-model="description" placeholder="e.g. Implementing auth backend..." 
+                               class="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-aether-blue">
+                    </div>
+                </div>
+
+                <!-- Display active task when running -->
+                <div x-show="timerRunning" class="space-y-1">
+                    <div class="flex items-center space-x-2">
+                        <template x-if="taskCode">
+                            <span class="font-mono text-xs font-bold px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-950/60 text-aether-blue dark:text-blue-400 border border-blue-200 dark:border-blue-900/60" x-text="taskCode"></span>
+                        </template>
+                        <h3 class="text-base font-bold text-slate-900 dark:text-zinc-100" x-text="taskTitle || 'General Workspace Effort'"></h3>
+                    </div>
+                    <p class="text-xs text-slate-500 dark:text-zinc-400 italic" x-text="description || 'No additional note'"></p>
+                </div>
+            </div>
+
+            <!-- Right: Big Monospace Clock & Action Buttons -->
+            <div class="flex items-center space-x-4 shrink-0 justify-between lg:justify-end border-t lg:border-t-0 pt-4 lg:pt-0 border-slate-100 dark:border-zinc-800">
+                <div class="text-right">
+                    <div class="font-mono text-3xl sm:text-4xl font-black tracking-widest text-slate-900 dark:text-zinc-50"
+                         x-text="formatTime(elapsedSeconds)">
+                        00:00:00
+                    </div>
+                    <span class="text-[10px] text-slate-400 dark:text-zinc-500 uppercase tracking-widest font-semibold">Hours : Mins : Secs</span>
+                </div>
+
+                <div>
+                    <template x-if="!timerRunning">
+                        <button type="button" @click="startTimer()" 
+                                class="px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center space-x-2 shadow-lg shadow-emerald-600/20 active:scale-95 transition-all">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"/>
+                            </svg>
+                            <span>Start Timer</span>
+                        </button>
+                    </template>
+                    <template x-if="timerRunning">
+                        <button type="button" @click="stopTimer()" 
+                                class="px-5 py-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs flex items-center space-x-2 shadow-lg shadow-rose-600/20 active:scale-95 transition-all animate-pulse">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z" clip-rule="evenodd"/>
+                            </svg>
+                            <span>Stop & Save Log</span>
+                        </button>
+                    </template>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4 Real Database Metric Cards -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- Today's Hours -->
+        <div class="aether-card p-5 space-y-1.5 border-l-4 border-l-blue-500">
+            <span class="text-xs font-semibold text-slate-500 dark:text-zinc-400">Today's Logged Hours</span>
+            <div class="flex items-baseline space-x-2">
+                <span class="text-2xl font-black text-slate-900 dark:text-zinc-50">{{ today_hours }}</span>
+                <span class="text-xs text-slate-400 dark:text-zinc-500 font-medium">hours</span>
+            </div>
+            <p class="text-[11px] text-slate-400 dark:text-zinc-500">Individual daily contribution</p>
+        </div>
+
+        <!-- This Week's Hours -->
+        <div class="aether-card p-5 space-y-1.5 border-l-4 border-l-indigo-500">
+            <span class="text-xs font-semibold text-slate-500 dark:text-zinc-400">This Week's Hours</span>
+            <div class="flex items-baseline space-x-2">
+                <span class="text-2xl font-black text-slate-900 dark:text-zinc-50">{{ week_hours }}</span>
+                <span class="text-xs text-slate-400 dark:text-zinc-500 font-medium">hours</span>
+            </div>
+            <p class="text-[11px] text-slate-400 dark:text-zinc-500">Current sprint week total</p>
+        </div>
+
+        <!-- This Month's Hours -->
+        <div class="aether-card p-5 space-y-1.5 border-l-4 border-l-cyan-500">
+            <span class="text-xs font-semibold text-slate-500 dark:text-zinc-400">Monthly Total</span>
+            <div class="flex items-baseline space-x-2">
+                <span class="text-2xl font-black text-slate-900 dark:text-zinc-50">{{ month_hours }}</span>
+                <span class="text-xs text-slate-400 dark:text-zinc-500 font-medium">hours</span>
+            </div>
+            <p class="text-[11px] text-slate-400 dark:text-zinc-500">Calendar month logged work</p>
+        </div>
+
+        <!-- Team Week Hours or Active Timer Info -->
+        <div class="aether-card p-5 space-y-1.5 border-l-4 border-l-amber-500">
+            {% if is_privileged and team_week_hours is not None %}
+                <span class="text-xs font-semibold text-slate-500 dark:text-zinc-400">Workspace Team Total</span>
+                <div class="flex items-baseline space-x-2">
+                    <span class="text-2xl font-black text-amber-600 dark:text-amber-400">{{ team_week_hours }}</span>
+                    <span class="text-xs text-slate-400 dark:text-zinc-500 font-medium">hours this week</span>
+                </div>
+                <p class="text-[11px] text-slate-400 dark:text-zinc-500">Across all team contributors</p>
+            {% else %}
+                <span class="text-xs font-semibold text-slate-500 dark:text-zinc-400">Current Status</span>
+                <div class="flex items-baseline space-x-2">
+                    <span class="text-2xl font-black text-slate-900 dark:text-zinc-50">
+                        {% if active_timer %}Active{% else %}Idle{% endif %}
+                    </span>
+                </div>
+                <p class="text-[11px] text-slate-400 dark:text-zinc-500">
+                    {% if active_timer %}Live timer in progress{% else %}Ready for sprint work{% endif %}
+                </p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Filter Bar & History Table -->
+    <div class="aether-card overflow-hidden">
+        <!-- Filter Controls Form -->
+        <form method="GET" class="p-4 sm:px-5 border-b border-slate-100 dark:border-zinc-800 flex flex-col md:flex-row md:items-center justify-between gap-3">
+            <div class="flex items-center space-x-2">
+                <h2 class="text-sm font-bold text-slate-900 dark:text-zinc-100">
+                    Timesheet History
+                </h2>
+            </div>
+
+            <div class="flex items-center flex-wrap gap-2.5">
+                <!-- Date Range Pills -->
+                <div class="flex items-center p-1 bg-slate-100 dark:bg-zinc-800/80 rounded-lg text-xs font-semibold">
+                    <a href="?date_range=today{% if member_filter %}&member={{ member_filter }}{% endif %}{% if task_filter %}&task={{ task_filter }}{% endif %}" 
+                       class="px-2.5 py-1 rounded-md transition-colors {% if date_filter == 'today' %}bg-white dark:bg-zinc-900 text-aether-blue shadow-sm{% else %}text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200{% endif %}">
+                        Today
+                    </a>
+                    <a href="?date_range=week{% if member_filter %}&member={{ member_filter }}{% endif %}{% if task_filter %}&task={{ task_filter }}{% endif %}" 
+                       class="px-2.5 py-1 rounded-md transition-colors {% if date_filter == 'week' %}bg-white dark:bg-zinc-900 text-aether-blue shadow-sm{% else %}text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200{% endif %}">
+                        This Week
+                    </a>
+                    <a href="?date_range=month{% if member_filter %}&member={{ member_filter }}{% endif %}{% if task_filter %}&task={{ task_filter }}{% endif %}" 
+                       class="px-2.5 py-1 rounded-md transition-colors {% if date_filter == 'month' %}bg-white dark:bg-zinc-900 text-aether-blue shadow-sm{% else %}text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200{% endif %}">
+                        This Month
+                    </a>
+                    <a href="?date_range=all{% if member_filter %}&member={{ member_filter }}{% endif %}{% if task_filter %}&task={{ task_filter }}{% endif %}" 
+                       class="px-2.5 py-1 rounded-md transition-colors {% if date_filter == 'all' %}bg-white dark:bg-zinc-900 text-aether-blue shadow-sm{% else %}text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200{% endif %}">
+                        All Time
+                    </a>
+                </div>
+
+                <!-- Member Filter (Managers/Admins only) -->
+                {% if is_privileged and workspace_members %}
+                    <select name="member" onchange="this.form.submit()" 
+                            class="px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-aether-blue">
+                        <option value="">All Team Members</option>
+                        {% for m in workspace_members %}
+                            <option value="{{ m.user.id }}" {% if member_filter == m.user.id|stringformat:'s' %}selected{% endif %}>
+                                {{ m.user.full_name|default:m.user.email }} ({{ m.user.contributor_id }})
+                            </option>
+                        {% endfor %}
+                    </select>
+                {% endif %}
+
+                <!-- Task Search Input -->
+                <div class="relative">
+                    <input type="text" name="task" value="{{ task_filter }}" placeholder="Filter by task..." 
+                           class="pl-7 pr-3 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-aether-blue">
+                    <svg class="w-3.5 h-3.5 text-slate-400 absolute left-2 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                    </svg>
+                </div>
+            </div>
+        </form>
+
+        <!-- Time Logs Table -->
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+                <thead class="bg-slate-50 dark:bg-obsidian-950 text-slate-500 dark:text-zinc-400 uppercase text-[10px] tracking-wider border-b border-slate-100 dark:border-zinc-800">
+                    <tr>
+                        <th class="py-3 px-5">Date & Time</th>
+                        <th class="py-3 px-4">Contributor</th>
+                        <th class="py-3 px-4">Associated Task</th>
+                        <th class="py-3 px-4">Work Description</th>
+                        <th class="py-3 px-4">Type</th>
+                        <th class="py-3 px-4 text-right">Duration</th>
+                        <th class="py-3 px-5 text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 dark:divide-zinc-800">
+                    {% for entry in logs_page %}
+                        <tr class="hover:bg-slate-50/50 dark:hover:bg-obsidian-800/40 transition-colors">
+                            <!-- Date & Time -->
+                            <td class="py-3.5 px-5 whitespace-nowrap">
+                                <span class="font-semibold text-slate-800 dark:text-zinc-200 block">{{ entry.started_at|date:"M d, Y" }}</span>
+                                <span class="text-[11px] text-slate-400 dark:text-zinc-500">{{ entry.started_at|date:"H:i" }}{% if entry.ended_at %} – {{ entry.ended_at|date:"H:i" }}{% endif %}</span>
+                            </td>
+
+                            <!-- Contributor -->
+                            <td class="py-3.5 px-4 whitespace-nowrap">
+                                <div class="flex items-center space-x-2">
+                                    <div class="w-6 h-6 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-700 text-white font-bold text-[10px] flex items-center justify-center shrink-0">
+                                        {{ entry.user.full_name|default:entry.user.email|slice:":2"|upper }}
+                                    </div>
+                                    <div class="truncate">
+                                        <span class="font-semibold text-slate-900 dark:text-zinc-100 block truncate">{{ entry.user.full_name|default:entry.user.email }}</span>
+                                        <span class="font-mono text-[10px] text-slate-400 dark:text-zinc-500">{{ entry.user.contributor_id }}</span>
+                                    </div>
+                                </div>
+                            </td>
+
+                            <!-- Associated Task -->
+                            <td class="py-3.5 px-4 whitespace-nowrap">
+                                {% if entry.task %}
+                                    <a href="{% url 'tasks:task_detail' slug=workspace.slug task_code=entry.task.task_code %}" 
+                                       class="inline-flex items-center space-x-1.5 font-mono text-xs font-bold text-aether-blue dark:text-blue-400 hover:underline">
+                                        <span>#{{ entry.task.task_code }}</span>
+                                        <span class="font-sans font-normal text-slate-600 dark:text-zinc-300 truncate max-w-[160px]">{{ entry.task.title }}</span>
+                                    </a>
+                                {% else %}
+                                    <span class="text-slate-400 dark:text-zinc-500 italic text-[11px]">General Work</span>
+                                {% endif %}
+                            </td>
+
+                            <!-- Description -->
+                            <td class="py-3.5 px-4 max-w-xs truncate text-slate-600 dark:text-zinc-300">
+                                {{ entry.description|default:"—" }}
+                            </td>
+
+                            <!-- Type -->
+                            <td class="py-3.5 px-4 whitespace-nowrap">
+                                {% if entry.entry_type == 'TIMER' %}
+                                    <span class="inline-flex items-center space-x-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/50">
+                                        <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                        </svg>
+                                        <span>Stopwatch</span>
+                                    </span>
+                                {% else %}
+                                    <span class="inline-flex items-center space-x-1 px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 border border-slate-200 dark:border-zinc-700">
+                                        <span>Manual</span>
+                                    </span>
+                                {% endif %}
+                            </td>
+
+                            <!-- Duration -->
+                            <td class="py-3.5 px-4 whitespace-nowrap text-right">
+                                <span class="font-mono text-sm font-black text-slate-900 dark:text-zinc-50">
+                                    {{ entry.duration_formatted }}
+                                </span>
+                                <span class="text-[10px] text-slate-400 dark:text-zinc-500 block font-mono">({{ entry.hours_decimal }} hrs)</span>
+                            </td>
+
+                            <!-- Actions -->
+                            <td class="py-3.5 px-5 whitespace-nowrap text-right">
+                                {% if entry.user == user or is_privileged %}
+                                    <form method="POST" action="{% url 'timetracking:delete_time_entry' slug=workspace.slug entry_id=entry.id %}" 
+                                          onsubmit="return confirm('Are you sure you want to delete this time log?');" class="inline-block">
+                                        {% csrf_token %}
+                                        <button type="submit" class="p-1 rounded text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 transition-colors" title="Delete Time Log">
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                            </svg>
+                                        </button>
+                                    </form>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="7" class="py-12 text-center text-slate-400 dark:text-zinc-500">
+                                <svg class="w-10 h-10 mx-auto mb-2 text-slate-300 dark:text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                                <p class="text-sm font-semibold">No time entries recorded</p>
+                                <p class="text-xs text-slate-400 dark:text-zinc-500 mt-0.5">Use the live stopwatch or click "Log Time Manually" to record sprint hours.</p>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination Controls -->
+        {% if logs_page.has_other_pages %}
+            <div class="px-5 py-3 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between text-xs">
+                <span class="text-slate-500 dark:text-zinc-400">
+                    Showing page {{ logs_page.number }} of {{ logs_page.paginator.num_pages }}
+                </span>
+                <div class="flex items-center space-x-1.5">
+                    {% if logs_page.has_previous %}
+                        <a href="?page={{ logs_page.previous_page_number }}&date_range={{ date_filter }}{% if member_filter %}&member={{ member_filter }}{% endif %}{% if task_filter %}&task={{ task_filter }}{% endif %}"
+                           class="px-2.5 py-1 rounded border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800">
+                            Previous
+                        </a>
+                    {% endif %}
+                    {% if logs_page.has_next %}
+                        <a href="?page={{ logs_page.next_page_number }}&date_range={{ date_filter }}{% if member_filter %}&member={{ member_filter }}{% endif %}{% if task_filter %}&task={{ task_filter }}{% endif %}"
+                           class="px-2.5 py-1 rounded border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800">
+                            Next
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Manual Time Entry Modal -->
+    <div x-show="manualModalOpen" 
+         x-transition:enter="transition ease-out duration-150" 
+         x-transition:enter-start="opacity-0" 
+         x-transition:enter-end="opacity-100" 
+         x-transition:leave="transition ease-in duration-100" 
+         x-transition:leave-start="opacity-100" 
+         x-transition:leave-end="opacity-0" 
+         class="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4" 
+         style="display: none;">
+        
+        <div @click.outside="manualModalOpen = false" 
+             class="aether-card max-w-md w-full p-6 space-y-4 shadow-2xl relative rounded-2xl">
+            
+            <div class="flex items-center justify-between border-b border-slate-100 dark:border-zinc-800 pb-3">
+                <h3 class="text-base font-bold text-slate-900 dark:text-zinc-100 flex items-center space-x-2">
+                    <svg class="w-4 h-4 text-aether-blue" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <span>Log Time Manually</span>
+                </h3>
+                <button type="button" @click="manualModalOpen = false" class="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+
+            <form method="POST" action="{% url 'timetracking:manual_time_entry' slug=workspace.slug %}" class="space-y-4">
+                {% csrf_token %}
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-1">Select Task (Optional)</label>
+                    {{ manual_form.task }}
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-1">Date Worked</label>
+                    {{ manual_form.date }}
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-1">Hours</label>
+                        {{ manual_form.hours }}
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-1">Minutes</label>
+                        {{ manual_form.minutes }}
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-1">Work Description</label>
+                    {{ manual_form.description }}
+                </div>
+
+                <div class="flex items-center justify-end space-x-2 pt-2 border-t border-slate-100 dark:border-zinc-800">
+                    <button type="button" @click="manualModalOpen = false" class="aether-button-secondary text-xs px-3.5 py-2">
+                        Cancel
+                    </button>
+                    <button type="submit" class="aether-button-primary text-xs px-4 py-2 shadow-sm shadow-blue-500/20">
+                        Record Time Log
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

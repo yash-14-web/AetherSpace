@@ -162,6 +162,14 @@ def schedule_meeting(workspace, host, title, scheduled_start, duration_minutes=3
             except Exception:
                 pass
 
+            # Email invitee
+            try:
+                from notifications.email_service import send_meeting_scheduled_email
+                if not host or user.id != host.id:
+                    send_meeting_scheduled_email(meeting=meeting, recipient=user, actor=host)
+            except Exception:
+                pass
+
     return meeting
 
 
@@ -210,6 +218,15 @@ def cancel_meeting(meeting: Meeting, user=None) -> Meeting:
         raise ValidationError("Only scheduled meetings can be cancelled.")
     meeting.status = MeetingStatus.CANCELLED
     meeting.save(update_fields=['status', 'updated_at'])
+
+    try:
+        from notifications.email_service import send_meeting_status_email
+        for invite in meeting.invites.select_related('user'):
+            if not user or invite.user_id != user.id:
+                send_meeting_status_email(meeting=meeting, recipient=invite.user, status_change='cancelled', actor=user)
+    except Exception:
+        pass
+
     return meeting
 
 

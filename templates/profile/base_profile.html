@@ -141,23 +141,6 @@
                         {{ profile_user.role|default:"CONTRIBUTOR" }}
                     </span>
 
-                    <!-- Functional Role / Designation Tag (if set) -->
-                    {% if metrics.primary_membership.functional_role %}
-                        <span class="px-2.5 py-0.5 text-[11px] font-bold rounded-lg bg-indigo-50 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-900/60 inline-flex items-center space-x-1">
-                            <svg class="w-3 h-3 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/>
-                            </svg>
-                            <span>{{ metrics.primary_membership.functional_role }}</span>
-                        </span>
-                    {% endif %}
-
-                    <!-- Role Tag Pill (e.g. Frontend, Backend, Support) -->
-                    {% if metrics.primary_membership.role_tag %}
-                        <span class="px-2.5 py-0.5 text-[11px] font-bold rounded-lg bg-cyan-50 dark:bg-cyan-950/60 text-cyan-700 dark:text-cyan-300 border border-cyan-200 dark:border-cyan-900/60">
-                            {{ metrics.primary_membership.role_tag }}
-                        </span>
-                    {% endif %}
-
                     <!-- Verified Badge -->
                     {% if profile_user.is_verified %}
                         <span class="px-2 py-0.5 text-[11px] font-semibold rounded-lg bg-emerald-50 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900/60 inline-flex items-center space-x-1">
@@ -205,19 +188,6 @@
                         </svg>
                         <span>Joined {{ profile_user.created_at|date:"M Y" }}</span>
                     </span>
-
-                    <!-- Reporting Person / Hierarchy Node -->
-                    {% if metrics.primary_membership and metrics.primary_membership.effective_reporting_to %}
-                        <span class="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-lg bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 font-medium">
-                            <svg class="w-3 h-3 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 11l5-5m0 0l5 5m-5-5v12"/>
-                            </svg>
-                            <span>Reports to:</span>
-                            <strong class="text-blue-600 dark:text-blue-400 font-bold ml-0.5">
-                                {{ metrics.primary_membership.effective_reporting_to.user.full_name|default:metrics.primary_membership.effective_reporting_to.user.email }}
-                            </strong>
-                        </span>
-                    {% endif %}
                 </div>
             </div>
 

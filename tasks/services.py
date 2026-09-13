@@ -85,6 +85,14 @@ def create_task(workspace, reporter, title, description='', status=TaskStatus.TO
         except Exception:
             pass
 
+        # Email assignee
+        try:
+            from notifications.email_service import send_task_assigned_email
+            if not reporter or assignee.id != reporter.id:
+                send_task_assigned_email(task=task, assignee=assignee, actor=reporter)
+        except Exception:
+            pass
+
     return task
 
 
@@ -172,6 +180,14 @@ def update_task(task: Task, actor, **kwargs) -> Task:
                     actor=actor,
                     action_url=task.get_absolute_url()
                 )
+        except Exception:
+            pass
+
+        # Email new assignee
+        try:
+            from notifications.email_service import send_task_assigned_email
+            if task.assignee and actor and task.assignee.id != actor.id:
+                send_task_assigned_email(task=task, assignee=task.assignee, actor=actor)
         except Exception:
             pass
 

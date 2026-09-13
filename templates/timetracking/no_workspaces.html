@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+
+{% block title %}Time Tracking — AetherSpace{% endblock %}
+
+{% block content %}
+<div class="min-h-[70vh] flex flex-col items-center justify-center py-12 px-4 text-center">
+    <div class="max-w-md w-full aether-card p-8 space-y-4 border border-slate-200 dark:border-zinc-800 shadow-xl rounded-2xl">
+        <div class="w-16 h-16 mx-auto rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-aether-blue flex items-center justify-center shadow-md">
+            <svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+        </div>
+
+        <h1 class="text-xl font-bold text-slate-900 dark:text-zinc-50">No Active Workspace Found</h1>
+        <p class="text-xs text-slate-600 dark:text-zinc-400 leading-relaxed">
+            Time tracking is scoped to team workspaces. You are not currently an active member of any workspace. Please contact your platform Administrator or Workspace Manager to be added to a team workspace.
+        </p>
+
+        <div class="pt-4">
+            <a href="{% url 'workspaces:dashboard' %}" class="w-full aether-button-primary py-2.5 text-xs font-semibold flex items-center justify-center space-x-1.5 shadow-sm shadow-blue-500/20">
+                <span>Return to Dashboard</span>
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

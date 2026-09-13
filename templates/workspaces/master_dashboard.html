@@ -22,12 +22,21 @@
         </div>
 
         <div class="flex items-center space-x-3">
-            <a href="{% url 'workspaces:create' %}" class="aether-button-primary text-xs px-4 py-2 flex items-center space-x-1.5 shadow-md shadow-blue-500/20">
-                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                </svg>
-                <span>New Workspace</span>
-            </a>
+            {% if user.role == 'ADMIN' or user.role == 'MANAGER' or user.is_superuser or user.is_admin_role or user.is_manager_role %}
+                <a href="{% url 'workspaces:create' %}" class="aether-button-primary text-xs px-4 py-2 flex items-center space-x-1.5 shadow-md shadow-blue-500/20">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    </svg>
+                    <span>New Workspace</span>
+                </a>
+            {% else %}
+                <button type="button" disabled class="px-4 py-2 rounded-lg bg-slate-100 dark:bg-zinc-800/60 text-slate-400 dark:text-zinc-500 text-xs font-semibold flex items-center space-x-1.5 cursor-not-allowed border border-slate-200 dark:border-zinc-800" title="Only Administrators and Managers can create workspaces">
+                    <svg class="w-4 h-4 text-slate-400 dark:text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                    </svg>
+                    <span>New Workspace (Managers Only)</span>
+                </button>
+            {% endif %}
         </div>
     </div>
 

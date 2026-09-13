@@ -1,0 +1,28 @@
+{% extends 'emails/base_email.html' %}
+
+{% block email_content %}
+    <span class="badge badge-blue">Sprint Task Assignment</span>
+    <h1>You have been assigned a task</h1>
+    <p>
+        Hello <strong>{{ user.full_name|default:user.email }}</strong>,
+    </p>
+    <p>
+        {% if actor %}<strong>{{ actor.full_name|default:actor.email }}</strong> has assigned you{% else %}You have been assigned{% endif %} to the task:
+    </p>
+
+    <div style="background-color: #09090b; border: 1px solid #27272a; border-radius: 12px; padding: 16px; margin: 20px 0;">
+        <div style="font-family: monospace; font-size: 13px; font-weight: bold; color: #60a5fa; margin-bottom: 6px;">
+            #{{ task.task_code }} &bull; {{ task.get_priority_display }} Priority
+        </div>
+        <div style="font-size: 16px; font-weight: bold; color: #ffffff; margin-bottom: 8px;">
+            {{ task.title }}
+        </div>
+        {% if task.description %}
+            <p style="font-size: 13px; color: #a1a1aa; margin: 0;">{{ task.description|truncatechars:200 }}</p>
+        {% endif %}
+    </div>
+
+    <a href="{{ site_url|default:'http://127.0.0.1:8000' }}{{ action_url }}" class="btn">
+        View Task in AetherSpace &rarr;
+    </a>
+{% endblock %}

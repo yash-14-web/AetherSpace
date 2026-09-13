@@ -155,3 +155,37 @@ class Notification(models.Model):
             },
         }
         return mapping.get(self.category, mapping[NotificationCategory.SYSTEM])
+
+
+class EmailDeliveryStatus(models.TextChoices):
+    SENT = 'SENT', _('Sent')
+    FAILED = 'FAILED', _('Failed')
+    SUPPRESSED = 'SUPPRESSED', _('Suppressed (Preferences or Duplicate)')
+
+
+class EmailDeliveryLog(models.Model):
+    """
+    Audit log of dispatched notification emails.
+    Records delivery outcome, timestamps, and troubleshooting data without storing sensitive secrets.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    recipient_email = models.EmailField(db_index=True)
+    event_type = models.CharField(max_length=50, db_index=True)
+    subject = models.CharField(max_length=255)
+    status = models.CharField(
+        max_length=20,
+        choices=EmailDeliveryStatus.choices,
+        default=EmailDeliveryStatus.SENT,
+        db_index=True
+    )
+    error_message = models.TextField(blank=True, default='')
+    sent_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ['-sent_at']
+        indexes = [
+            models.Index(fields=['recipient_email', 'event_type', '-sent_at']),
+        ]
+
+    def __str__(self):
+        return f"[{self.status}] {self.event_type} to {self.recipient_email} at {self.sent_at}"

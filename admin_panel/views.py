@@ -155,6 +155,12 @@ def toggle_user_status(request, user_id):
         metadata={'new_status': target_user.is_active}
     )
     status_str = "activated" if target_user.is_active else "deactivated"
+    try:
+        from notifications.email_service import send_account_status_email
+        send_account_status_email(target_user, status_name=status_str, actor=request.user)
+    except Exception:
+        pass
+
     messages.success(request, f"User '{target_user.email}' has been {status_str}.")
     return redirect('admin_panel:user_details', user_id=user_id)
 
@@ -220,6 +226,13 @@ def approve_user(request, user_id):
             'approved_at': target_user.approved_at.isoformat()
         }
     )
+
+    try:
+        from notifications.email_service import send_account_approved_email
+        send_account_approved_email(target_user, approved_by=request.user)
+    except Exception:
+        pass
+
     messages.success(
         request,
         f"User '{target_user.full_name or target_user.email}' (Contributor ID: {target_user.contributor_id}) has been approved as {target_user.get_role_display()}."
@@ -247,6 +260,13 @@ def reject_user(request, user_id):
         ip_address=get_client_ip(request),
         metadata={'contributor_id': target_user.contributor_id}
     )
+
+    try:
+        from notifications.email_service import send_account_status_email
+        send_account_status_email(target_user, status_name='rejected', actor=request.user)
+    except Exception:
+        pass
+
     messages.warning(
         request,
         f"User '{target_user.full_name or target_user.email}' (Contributor ID: {target_user.contributor_id}) has been marked as REJECTED."

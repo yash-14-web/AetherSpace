@@ -68,21 +68,8 @@ def chat_view(request):
 
 @login_required
 def time_tracking_view(request):
-    """Time Tracking navigation destination."""
-    return render(request, 'components/placeholder.html', {
-        'module_title': 'Time Tracking & Logs',
-        'phase_badge': 'Phase 4 — Shell Rail',
-        'module_icon': 'time',
-        'module_description': 'Track sprint hours, task durations, and team workload efficiency across active workspaces.',
-        'empty_heading': 'Workload & Sprint Hours',
-        'empty_text': 'Live stopwatch timers, manual hour logs, and billable time export will accompany the task execution phase.',
-        'features': [
-            'Real-time task stopwatch timer',
-            'Daily and weekly timesheet summaries',
-            'Sprint hour burn-down analytics',
-            'Exportable CSV timesheets for team leads',
-        ],
-    })
+    """Time Tracking navigation destination - redirects to active workspace timesheet."""
+    return redirect('timetracking:router')
 
 
 @login_required

@@ -1,0 +1,32 @@
+{% extends 'emails/base_email.html' %}
+
+{% block email_content %}
+    <span class="badge badge-amber">Meet Hub &bull; {{ status_str|default:"Scheduled" }}</span>
+    <h1>Meeting {{ status_str|default:"Scheduled" }}: {{ meeting.title }}</h1>
+    <p>
+        Hello <strong>{{ user.full_name|default:user.email }}</strong>,
+    </p>
+    <p>
+        {% if actor %}<strong>{{ actor.full_name|default:actor.email }}</strong> has {% if status_str == 'Cancelled' %}cancelled{% else %}scheduled{% endif %} a conference:{% else %}A video meeting has been scheduled:{% endif %}
+    </p>
+
+    <div style="background-color: #09090b; border: 1px solid #27272a; border-radius: 12px; padding: 16px; margin: 20px 0;">
+        <div style="font-size: 16px; font-weight: bold; color: #ffffff; margin-bottom: 8px;">
+            {{ meeting.title }}
+        </div>
+        <div style="font-family: monospace; font-size: 13px; color: #60a5fa; margin-bottom: 6px;">
+            Room Code: {{ meeting.meeting_code }}
+        </div>
+        {% if meeting.scheduled_start %}
+            <p style="font-size: 13px; color: #a1a1aa; margin: 0;">
+                Scheduled for: <strong>{{ meeting.scheduled_start|date:"M d, Y H:i" }} UTC</strong>
+            </p>
+        {% endif %}
+    </div>
+
+    {% if status_str != 'Cancelled' %}
+        <a href="{{ site_url|default:'http://127.0.0.1:8000' }}{{ action_url }}" class="btn">
+            Join Meeting Room &rarr;
+        </a>
+    {% endif %}
+{% endblock %}
