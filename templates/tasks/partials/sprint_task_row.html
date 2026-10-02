@@ -1,0 +1,87 @@
+{% load static %}
+<div class="p-3.5 rounded-xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 hover:border-slate-300 dark:hover:border-zinc-700 shadow-2xs transition flex flex-col md:flex-row md:items-center justify-between gap-3 group">
+    
+    <!-- Left: Task ID, Priority, Title -->
+    <div class="flex items-center space-x-3 min-w-0 flex-1">
+        <!-- 6-digit Task Code Pill -->
+        <a href="{% url 'tasks:task_detail' slug=workspace.slug task_code=task.task_code %}" 
+           class="px-2 py-0.5 rounded-md text-[11px] font-black font-mono tracking-wide bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 hover:bg-blue-50 hover:text-aether-blue transition shrink-0">
+            #{{ task.task_code }}
+        </a>
+
+        <!-- Priority Pill -->
+        <span class="text-[10px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wider shrink-0
+            {% if task.priority == 'URGENT' %}bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400 border border-rose-200 dark:border-rose-900/40
+            {% elif task.priority == 'HIGH' %}bg-amber-50 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400 border border-amber-200 dark:border-amber-900/40
+            {% elif task.priority == 'MEDIUM' %}bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400 border border-blue-200 dark:border-blue-900/40
+            {% else %}bg-slate-100 text-slate-600 dark:bg-zinc-800 dark:text-zinc-400{% endif %}">
+            {{ task.get_priority_display }}
+        </span>
+
+        <!-- Status Indicator Pill -->
+        <span class="text-[10px] font-bold px-2 py-0.5 rounded-md shrink-0
+            {% if task.status == 'DONE' %}bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/40
+            {% elif task.status == 'IN_PROGRESS' %}bg-sky-50 text-sky-600 dark:bg-sky-950/60 dark:text-sky-400 border border-sky-200 dark:border-sky-900/40
+            {% elif task.status == 'CODE_REVIEW' %}bg-purple-50 text-purple-600 dark:bg-purple-950/60 dark:text-purple-400 border border-purple-200 dark:border-purple-900/40
+            {% elif task.status == 'TESTING' %}bg-amber-50 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400 border border-amber-200 dark:border-amber-900/40
+            {% else %}bg-slate-100 text-slate-600 dark:bg-zinc-800 dark:text-zinc-400{% endif %}">
+            {{ task.get_status_display }}
+        </span>
+
+        <!-- Title -->
+        <a href="{% url 'tasks:task_detail' slug=workspace.slug task_code=task.task_code %}" 
+           class="text-xs sm:text-sm font-semibold text-slate-800 dark:text-zinc-200 hover:text-aether-blue dark:hover:text-blue-400 transition truncate">
+            {{ task.title }}
+        </a>
+    </div>
+
+    <!-- Right: Assignee Hover Card, Estimated Hours & Move Dropdown -->
+    <div class="flex items-center space-x-3 shrink-0 self-end md:self-auto">
+        <!-- Assignee with Global Hover Card & Photo -->
+        <div class="flex items-center space-x-1.5">
+            {% if task.assignee %}
+                {% include 'components/people_hover_card.html' with target_user=task.assignee workspace_slug=workspace.slug show_name=True avatar_size='w-6 h-6' %}
+            {% else %}
+                <span class="text-[11px] text-slate-400 italic">Unassigned</span>
+            {% endif %}
+        </div>
+
+        <!-- Estimated Hours Badge -->
+        <span class="text-[11px] font-mono font-medium px-2 py-0.5 rounded-md bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 border border-slate-200/60 dark:border-zinc-700/60">
+            {{ task.estimated_hours|default:"0" }}h
+        </span>
+
+        <!-- Move Task to Sprint or Backlog Dropdown -->
+        <form method="post" action="{% url 'tasks:sprint_move_task' slug=workspace.slug %}" class="inline-flex items-center">
+            {% csrf_token %}
+            <input type="hidden" name="task_id" value="{{ task.id }}">
+            <select name="target_sprint_id" onchange="this.form.submit()" 
+                    class="text-[11px] font-medium py-1 px-2 rounded-lg bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 focus:outline-none focus:ring-1 focus:ring-aether-blue cursor-pointer"
+                    title="Move task to another sprint or backlog">
+                <option value="backlog" {% if not task.sprint_ref %}selected{% endif %}>
+                    &bull; Backlog
+                </option>
+                {% if active_sprint %}
+                    <option value="{{ active_sprint.id }}" {% if task.sprint_ref_id == active_sprint.id %}selected{% endif %}>
+                        ★ {{ active_sprint.name }} (Active)
+                    </option>
+                {% endif %}
+                {% for sp in planned_sprints %}
+                    <option value="{{ sp.id }}" {% if task.sprint_ref_id == sp.id %}selected{% endif %}>
+                        &rarr; {{ sp.name }} (Planned)
+                    </option>
+                {% endfor %}
+            </select>
+        </form>
+
+        <!-- View / Details Link -->
+        <a href="{% url 'tasks:task_detail' slug=workspace.slug task_code=task.task_code %}" 
+           class="p-1 rounded text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200 transition"
+           title="View Task Details">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+            </svg>
+        </a>
+    </div>
+
+</div>

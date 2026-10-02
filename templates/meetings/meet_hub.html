@@ -12,12 +12,22 @@
     }
 }">
 
+    <!-- Global Module Maintenance Banner -->
+    {% if is_maintenance %}
+        {% include 'components/module_maintenance_banner.html' with module_status=meetings_status %}
+    {% endif %}
+
     <!-- Page Header (Screen 1 style) -->
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-3 border-b border-slate-200 dark:border-zinc-800">
         <div>
             <div class="flex items-center space-x-2.5">
                 <h1 class="text-2xl sm:text-3xl font-black meet-title tracking-tight">Meet Hub</h1>
-                {% if live_meetings %}
+                {% if is_maintenance %}
+                <span class="inline-flex items-center space-x-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 border border-amber-300 dark:border-amber-700/60">
+                    <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+                    <span>Under Maintenance</span>
+                </span>
+                {% elif live_meetings %}
                 <span class="inline-flex items-center space-x-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800">
                     <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                     <span>{{ live_meetings|length }} Live</span>
@@ -25,12 +35,44 @@
                 {% endif %}
             </div>
             <p class="text-xs sm:text-sm meet-sub mt-1">
+                {% if is_maintenance %}
+                Real-time meetings are temporarily locked while WebRTC services undergo scheduled maintenance.
+                {% else %}
                 Connect, collaborate, and meet with your team seamlessly.
+                {% endif %}
             </p>
         </div>
 
         <!-- Header Action Buttons -->
         <div class="flex items-center flex-wrap gap-2.5">
+            {% if is_maintenance %}
+            <button type="button" disabled
+                    class="inline-flex items-center space-x-2 px-4 py-2.5 text-xs font-bold rounded-xl bg-slate-300 dark:bg-zinc-800 text-slate-500 dark:text-zinc-500 cursor-not-allowed shadow-none border border-slate-200 dark:border-zinc-700"
+                    title="Start Meeting is disabled during maintenance">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                </svg>
+                <span>Start Meeting</span>
+            </button>
+
+            <button type="button" disabled
+                    class="inline-flex items-center space-x-2 px-3.5 py-2.5 text-xs font-bold rounded-xl bg-slate-200/60 dark:bg-zinc-800/60 text-slate-400 dark:text-zinc-500 cursor-not-allowed border border-slate-200 dark:border-zinc-700"
+                    title="Join Meeting is disabled during maintenance">
+                <svg class="w-4 h-4 text-slate-400 dark:text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/>
+                </svg>
+                <span>Join Meeting</span>
+            </button>
+
+            <button type="button" disabled
+                    class="inline-flex items-center space-x-2 px-3.5 py-2.5 text-xs font-bold rounded-xl bg-slate-200/60 dark:bg-zinc-800/60 text-slate-400 dark:text-zinc-500 cursor-not-allowed border border-slate-200 dark:border-zinc-700"
+                    title="Schedule Meeting is disabled during maintenance">
+                <svg class="w-4 h-4 text-slate-400 dark:text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                </svg>
+                <span>Schedule Meeting</span>
+            </button>
+            {% else %}
             <a href="{% url 'meetings:meeting_start' slug=workspace.slug %}"
                class="inline-flex items-center space-x-2 px-4 py-2.5 text-xs font-bold rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-sm shadow-blue-500/20 transition">
                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -54,6 +96,7 @@
                 </svg>
                 <span>Schedule Meeting</span>
             </a>
+            {% endif %}
         </div>
     </div>
 
@@ -206,12 +249,25 @@
                     <p class="text-xs font-bold meet-title">No upcoming meetings scheduled</p>
                     <p class="text-xs meet-sub mt-0.5">Plan your next team standup or start an instant meeting right now.</p>
                     <div class="mt-4 flex items-center justify-center space-x-3">
-                        <a href="{% url 'meetings:meeting_start' slug=workspace.slug %}" class="px-3.5 py-1.5 text-xs font-bold rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition">
-                            Start Instant Call
-                        </a>
-                        <a href="{% url 'meetings:meeting_schedule' slug=workspace.slug %}" class="meet-btn-secondary px-3.5 py-1.5 text-xs">
-                            Schedule Meeting
-                        </a>
+                        {% if is_maintenance %}
+                            <button type="button" disabled 
+                                    class="px-3.5 py-1.5 text-xs font-bold rounded-xl bg-slate-200 dark:bg-zinc-800 text-slate-400 dark:text-zinc-500 cursor-not-allowed border border-slate-300 dark:border-zinc-700"
+                                    title="Start Instant Call is disabled during maintenance">
+                                Start Instant Call (Maintenance)
+                            </button>
+                            <button type="button" disabled 
+                                    class="px-3.5 py-1.5 text-xs font-bold rounded-xl bg-slate-200/60 dark:bg-zinc-800/60 text-slate-400 dark:text-zinc-500 cursor-not-allowed border border-slate-300 dark:border-zinc-700"
+                                    title="Schedule Meeting is disabled during maintenance">
+                                Schedule Meeting (Maintenance)
+                            </button>
+                        {% else %}
+                            <a href="{% url 'meetings:meeting_start' slug=workspace.slug %}" class="px-3.5 py-1.5 text-xs font-bold rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition">
+                                Start Instant Call
+                            </a>
+                            <a href="{% url 'meetings:meeting_schedule' slug=workspace.slug %}" class="meet-btn-secondary px-3.5 py-1.5 text-xs">
+                                Schedule Meeting
+                            </a>
+                        {% endif %}
                     </div>
                 </div>
                 {% endif %}
@@ -289,6 +345,20 @@
 
                 <div class="grid grid-cols-2 gap-3">
                     <!-- Action 1: Start Meeting -->
+                    {% if is_maintenance %}
+                    <div class="p-3.5 meet-subcard opacity-60 cursor-not-allowed flex flex-col justify-between"
+                         title="Start Meeting is disabled during maintenance">
+                        <div class="w-8 h-8 rounded-lg bg-slate-400 dark:bg-zinc-700 text-white flex items-center justify-center mb-2 shadow-xs">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <span class="text-xs font-bold text-slate-500 dark:text-zinc-400 block">Start Meeting</span>
+                            <span class="text-[10px] text-amber-600 dark:text-amber-400 font-semibold">Under Maintenance</span>
+                        </div>
+                    </div>
+                    {% else %}
                     <a href="{% url 'meetings:meeting_start' slug=workspace.slug %}"
                        class="p-3.5 meet-subcard meet-card-hover group flex flex-col justify-between">
                         <div class="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center mb-2 shadow-sm shadow-blue-500/20">
@@ -301,8 +371,23 @@
                             <span class="text-[10px] meet-sub">Host instant call</span>
                         </div>
                     </a>
+                    {% endif %}
 
                     <!-- Action 2: Join Meeting -->
+                    {% if is_maintenance %}
+                    <div class="p-3.5 meet-subcard opacity-60 cursor-not-allowed flex flex-col justify-between"
+                         title="Join Meeting is disabled during maintenance">
+                        <div class="w-8 h-8 rounded-lg bg-slate-400 dark:bg-zinc-700 text-white flex items-center justify-center mb-2 shadow-xs">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <span class="text-xs font-bold text-slate-500 dark:text-zinc-400 block">Join Meeting</span>
+                            <span class="text-[10px] text-amber-600 dark:text-amber-400 font-semibold">Under Maintenance</span>
+                        </div>
+                    </div>
+                    {% else %}
                     <a href="{% url 'meetings:meeting_join' slug=workspace.slug %}"
                        class="p-3.5 meet-subcard meet-card-hover group flex flex-col justify-between">
                         <div class="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center mb-2 shadow-sm shadow-emerald-500/20">
@@ -315,8 +400,23 @@
                             <span class="text-[10px] meet-sub">Enter code/link</span>
                         </div>
                     </a>
+                    {% endif %}
 
                     <!-- Action 3: Schedule Meeting -->
+                    {% if is_maintenance %}
+                    <div class="p-3.5 meet-subcard opacity-60 cursor-not-allowed flex flex-col justify-between"
+                         title="Schedule Meeting is disabled during maintenance">
+                        <div class="w-8 h-8 rounded-lg bg-slate-400 dark:bg-zinc-700 text-white flex items-center justify-center mb-2 shadow-xs">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <span class="text-xs font-bold text-slate-500 dark:text-zinc-400 block">Schedule</span>
+                            <span class="text-[10px] text-amber-600 dark:text-amber-400 font-semibold">Under Maintenance</span>
+                        </div>
+                    </div>
+                    {% else %}
                     <a href="{% url 'meetings:meeting_schedule' slug=workspace.slug %}"
                        class="p-3.5 meet-subcard meet-card-hover group flex flex-col justify-between">
                         <div class="w-8 h-8 rounded-lg bg-purple-600 text-white flex items-center justify-center mb-2 shadow-sm shadow-purple-500/20">
@@ -329,6 +429,7 @@
                             <span class="text-[10px] meet-sub">Plan for later</span>
                         </div>
                     </a>
+                    {% endif %}
 
                     <!-- Action 4: Meeting History -->
                     <a href="{% url 'meetings:meeting_history' slug=workspace.slug %}"

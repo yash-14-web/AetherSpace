@@ -183,9 +183,7 @@
                     {% for s in shares %}
                     <div class="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-zinc-800/40 border border-slate-100 dark:border-zinc-800">
                         <div class="flex items-center space-x-2">
-                            <div class="w-6 h-6 rounded-full bg-slate-200 dark:bg-zinc-700 text-slate-700 dark:text-zinc-200 flex items-center justify-center font-bold text-[10px]">
-                                {{ s.shared_with.email|slice:":2"|upper }}
-                            </div>
+                            {% include 'components/avatar.html' with user=s.shared_with size='w-6 h-6' text_size='text-[10px]' %}
                             <div>
                                 <p class="text-xs font-medium text-slate-800 dark:text-zinc-200">{{ s.shared_with.get_full_name|default:s.shared_with.username }}</p>
                                 <p class="text-[10px] text-slate-400">{{ s.shared_with.email }}</p>

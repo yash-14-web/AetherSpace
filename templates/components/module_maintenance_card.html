@@ -1,0 +1,44 @@
+{% comment %}
+Reusable Module Maintenance Card Component
+Suitable for embedded widgets, cards, or when an entire view is replaced by a maintenance state.
+Usage: {% include 'components/module_maintenance_card.html' with module_status=MODULE_STATUSES.meetings %}
+{% endcomment %}
+{% if module_status and not module_status.is_available %}
+<div class="w-full rounded-2xl bg-white dark:bg-[#121826] border border-slate-200 dark:border-zinc-800 p-8 text-center shadow-sm flex flex-col items-center justify-center my-6">
+    <div class="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl font-bold mb-4 shadow-sm {% if module_status.is_under_maintenance %}bg-amber-500/15 text-amber-500 border border-amber-500/30{% else %}bg-blue-500/15 text-blue-500 border border-blue-500/30{% endif %}">
+        {% if module_status.is_under_maintenance %}🚧{% else %}🚀{% endif %}
+    </div>
+    
+    <div class="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-2 {% if module_status.is_under_maintenance %}bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 border border-amber-300 dark:border-amber-700/50{% else %}bg-blue-100 text-blue-800 dark:bg-blue-950/80 dark:text-blue-300 border border-blue-300 dark:border-blue-700/50{% endif %}">
+        <span>●</span>
+        <span>{{ module_status.get_status_display }}</span>
+    </div>
+
+    <h2 class="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
+        {{ module_status.name }} is {% if module_status.is_under_maintenance %}Under Maintenance{% else %}Coming Soon{% endif %}
+    </h2>
+
+    <p class="text-sm text-slate-600 dark:text-zinc-400 max-w-lg mt-2 mb-6 leading-relaxed">
+        {{ module_status.effective_message }}
+    </p>
+
+    <div class="flex flex-wrap items-center justify-center gap-3">
+        {% if current_workspace %}
+            <a href="{% url 'workspaces:workspace_dashboard' slug=current_workspace.slug %}"
+               class="px-4 py-2 rounded-xl text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white shadow-sm transition-colors">
+                Return to Workspace Dashboard
+            </a>
+        {% elif user.is_authenticated %}
+            <a href="{% url 'workspaces:dashboard' %}"
+               class="px-4 py-2 rounded-xl text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white shadow-sm transition-colors">
+                Return to Dashboard
+            </a>
+        {% else %}
+            <a href="{% url 'core:landing' %}"
+               class="px-4 py-2 rounded-xl text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white shadow-sm transition-colors">
+                Return to Home
+            </a>
+        {% endif %}
+    </div>
+</div>
+{% endif %}

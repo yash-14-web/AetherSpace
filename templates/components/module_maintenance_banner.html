@@ -1,0 +1,39 @@
+{% comment %}
+Reusable Module Maintenance Banner Component
+Usage: {% include 'components/module_maintenance_banner.html' with module_status=MODULE_STATUSES.meetings %}
+{% endcomment %}
+{% if module_status and not module_status.is_available %}
+<div class="rounded-2xl border transition-all duration-200 overflow-hidden mb-6 shadow-sm {% if module_status.is_under_maintenance %}bg-amber-500/10 border-amber-500/30 dark:bg-amber-950/20 dark:border-amber-500/30 text-amber-900 dark:text-amber-200{% else %}bg-blue-500/10 border-blue-500/30 dark:bg-blue-950/20 dark:border-blue-500/30 text-blue-900 dark:text-blue-200{% endif %}">
+    <div class="p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div class="flex items-start sm:items-center space-x-3.5">
+            <div class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-xl font-bold shadow-sm {% if module_status.is_under_maintenance %}bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30{% else %}bg-blue-500/20 text-blue-600 dark:text-blue-400 border border-blue-500/30{% endif %}">
+                {% if module_status.is_under_maintenance %}🚧{% else %}🚀{% endif %}
+            </div>
+            <div>
+                <div class="flex items-center space-x-2">
+                    <h3 class="text-sm font-bold tracking-tight text-slate-900 dark:text-white">
+                        {{ module_status.name }} — {{ module_status.get_status_display }}
+                    </h3>
+                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider {% if module_status.is_under_maintenance %}bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300 border border-amber-300 dark:border-amber-700/50{% else %}bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-300 border border-blue-300 dark:border-blue-700/50{% endif %}">
+                        {{ module_status.get_status_display }}
+                    </span>
+                </div>
+                <p class="text-xs mt-1 text-slate-700 dark:text-zinc-300 leading-relaxed max-w-3xl">
+                    {{ module_status.effective_message }}
+                </p>
+            </div>
+        </div>
+        <div class="flex items-center space-x-2 shrink-0 self-end sm:self-center">
+            {% if current_workspace %}
+                <a href="{% url 'workspaces:workspace_dashboard' slug=current_workspace.slug %}"
+                   class="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white dark:bg-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700 shadow-xs transition-colors">
+                    <svg class="w-3.5 h-3.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                    </svg>
+                    <span>Back to Dashboard</span>
+                </a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endif %}

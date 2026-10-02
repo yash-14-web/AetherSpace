@@ -114,6 +114,18 @@ class CalendarEvent(models.Model):
         help_text=_("Optional video/audio conference linked to this calendar event.")
     )
 
+    # Formatted Agenda and Reference Links
+    agenda = models.TextField(
+        blank=True,
+        default='',
+        help_text=_("Formatted event agenda, discussion topics, or meeting notes.")
+    )
+    reference_links = models.JSONField(
+        default=list,
+        blank=True,
+        help_text=_("List of external reference links [{'title': '...', 'url': '...'}]")
+    )
+
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -187,3 +199,28 @@ class CalendarEventAttendee(models.Model):
 
     def __str__(self):
         return f"{self.user.email} - {self.event.title} ({self.status})"
+
+
+class CalendarEventAttachment(models.Model):
+    """
+    Uploaded reference documents and files attached to a calendar event.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    event = models.ForeignKey(
+        CalendarEvent,
+        on_delete=models.CASCADE,
+        related_name='attachments'
+    )
+    file = models.ForeignKey(
+        'files.StoredFile',
+        on_delete=models.CASCADE,
+        related_name='calendar_attachments'
+    )
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Attachment {self.file.name} on event {self.event.title}"
+

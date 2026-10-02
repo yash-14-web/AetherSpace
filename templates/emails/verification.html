@@ -1,0 +1,20 @@
+{% extends 'emails/base_email.html' %}
+
+{% block email_content %}
+    <span class="badge badge-blue">Email Verification</span>
+    <h1>Verify Your Email Address</h1>
+    <p>Hello <strong>{{ user.full_name|default:user.email }}</strong>,</p>
+    <p>
+        Thank you for registering on AetherSpace! Please verify your email address to confirm your registration and proceed with administrator account approval.
+    </p>
+
+    <div style="margin: 24px 0;">
+        <a href="{{ verify_url }}" class="btn">
+            Verify Email Address &rarr;
+        </a>
+    </div>
+
+    <p style="font-size: 12px; color: #71717a;">
+        Your Contributor ID: <strong style="font-family: monospace;">{{ user.contributor_id }}</strong>
+    </p>
+{% endblock %}

@@ -94,9 +94,7 @@
                         <tr class="hover:bg-slate-50/50 dark:hover:bg-zinc-900/30 transition-colors">
                             <!-- User Name & Avatar -->
                             <td class="px-5 py-3.5 flex items-center space-x-3">
-                                <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-purple-600 to-indigo-700 text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-sm">
-                                    {{ u.full_name|default:u.email|slice:":2"|upper }}
-                                </div>
+                                {% include 'components/avatar.html' with user=u size="w-8 h-8" rounded="rounded-full" text_size="text-xs" extra_classes="shadow-sm" %}
                                 <div class="truncate">
                                     <div class="font-bold text-slate-900 dark:text-zinc-100 truncate">
                                         <a href="{% url 'admin_panel:user_details' user_id=u.id %}" class="hover:text-purple-600 dark:hover:text-purple-400">

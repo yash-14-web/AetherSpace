@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load rich_text %}
 
 {% block title %}{{ event.title }} • Calendar — AetherSpace{% endblock %}
 
@@ -160,7 +161,7 @@
                 </div>
                 <div class="flex justify-between">
                     <span class="text-slate-500">Created by:</span>
-                    <span class="font-semibold text-slate-800 dark:text-zinc-200">{{ event.created_by.get_full_name|default:event.created_by.username|default:"System" }}</span>
+                    <span class="font-semibold text-slate-800 dark:text-zinc-200">{{ event.created_by.full_name|default:event.created_by.get_full_name|default:"System" }}</span>
                 </div>
                 <div class="flex justify-between">
                     <span class="text-slate-500">Created on:</span>
@@ -192,7 +193,84 @@
             </div>
 
             <!-- Tab 1: Overview & Connected Items (Screen 4) -->
-            <div x-show="activeTab === 'overview' || activeTab === 'connected'" class="pt-5 space-y-5">
+            <div x-show="activeTab === 'overview' || activeTab === 'connected'" class="pt-5 space-y-6">
+                
+                <!-- Meeting Agenda Section (if present) -->
+                {% if event.agenda %}
+                <div class="p-5 rounded-2xl bg-slate-50/80 dark:bg-zinc-900/60 border border-slate-200 dark:border-zinc-800 space-y-2.5">
+                    <div class="flex items-center space-x-2 pb-1 border-b border-slate-200/80 dark:border-zinc-800">
+                        <span class="text-blue-600 dark:text-blue-400">📋</span>
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-zinc-200">Meeting Agenda & Discussion Items</h4>
+                    </div>
+                    <div class="prose prose-xs dark:prose-invert max-w-none text-xs text-slate-700 dark:text-zinc-300 leading-relaxed pl-1">
+                        {{ event.agenda|render_rich_text }}
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Reference Documents & External Links Section (if present) -->
+                {% if attachments or event.reference_links %}
+                <div class="p-5 rounded-2xl bg-slate-50/80 dark:bg-zinc-900/60 border border-slate-200 dark:border-zinc-800 space-y-4">
+                    <div class="flex items-center space-x-2 pb-1 border-b border-slate-200/80 dark:border-zinc-800">
+                        <span class="text-emerald-600 dark:text-emerald-400">📁</span>
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-zinc-200">Reference Materials & Attachments</h4>
+                    </div>
+
+                    <!-- Uploaded File Attachments -->
+                    {% if attachments %}
+                    <div class="space-y-2">
+                        <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">Attached Documents</span>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                            {% for att in attachments %}
+                                <div class="p-3 rounded-xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 flex items-center justify-between gap-3 shadow-2xs">
+                                    <div class="flex items-center space-x-2.5 min-w-0">
+                                        <div class="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-sm shrink-0">
+                                            📄
+                                        </div>
+                                        <div class="min-w-0">
+                                            <div class="text-xs font-bold text-slate-800 dark:text-zinc-200 truncate" title="{{ att.file.file_name }}">{{ att.file.file_name }}</div>
+                                            <div class="text-[10px] text-slate-400 font-mono">{{ att.file.file_size_display }}</div>
+                                        </div>
+                                    </div>
+                                    <a href="{{ att.file.get_download_url }}" target="_blank" 
+                                       class="px-3 py-1.5 rounded-lg text-xs font-bold bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/60 dark:hover:bg-blue-900/80 text-blue-600 dark:text-blue-400 transition shrink-0">
+                                        Download
+                                    </a>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- External Reference Links -->
+                    {% if event.reference_links %}
+                    <div class="space-y-2 pt-2">
+                        <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">Reference Links</span>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                            {% for link in event.reference_links %}
+                                <a href="{{ link.url }}" target="_blank" 
+                                   class="p-3 rounded-xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 flex items-center justify-between gap-3 shadow-2xs hover:border-blue-400 transition group">
+                                    <div class="flex items-center space-x-2.5 min-w-0">
+                                        <div class="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold text-sm shrink-0">
+                                            🔗
+                                        </div>
+                                        <div class="min-w-0">
+                                            <div class="text-xs font-bold text-slate-800 dark:text-zinc-200 group-hover:text-blue-600 transition truncate">{{ link.title }}</div>
+                                            <div class="text-[10px] text-slate-400 font-mono truncate">{{ link.url }}</div>
+                                        </div>
+                                    </div>
+                                    <svg class="w-3.5 h-3.5 text-slate-400 group-hover:text-blue-600 shrink-0 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                                    </svg>
+                                </a>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                </div>
+                {% endif %}
+
                 <h4 class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">Connected Items</h4>
 
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -268,17 +346,19 @@
                     {% for att in attendees %}
                         <div class="p-3 rounded-xl bg-slate-50 dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800 flex items-center justify-between gap-2">
                             <div class="flex items-center space-x-2.5 min-w-0">
-                                <div class="w-8 h-8 rounded-full bg-blue-600 text-white font-bold text-xs flex items-center justify-center shrink-0">
-                                    {{ att.user.get_full_name|default:att.user.username|slice:":2"|upper }}
+                                <div class="shrink-0">
+                                    {% include 'components/people_hover_card.html' with target_user=att.user workspace_slug=workspace.slug show_name=False avatar_size='w-8 h-8' %}
                                 </div>
                                 <div class="min-w-0">
-                                    <div class="text-xs font-bold text-slate-800 dark:text-zinc-200 truncate">
-                                        {{ att.user.get_full_name|default:att.user.username }}
+                                    <div class="text-xs font-bold text-slate-800 dark:text-zinc-200 truncate flex items-center gap-1">
+                                        {% include 'components/people_hover_card.html' with target_user=att.user workspace_slug=workspace.slug show_name=True avatar_size='hidden' %}
                                         {% if att.user == event.created_by %}
                                             <span class="text-[10px] text-blue-600 font-semibold">(Organizer)</span>
                                         {% endif %}
                                     </div>
-                                    <div class="text-[10px] text-slate-400 truncate">{{ att.user.email }}</div>
+                                    <div class="text-[10px] text-slate-400 dark:text-zinc-500 font-mono truncate">
+                                        {% if att.user.contributor_id %}ID: {{ att.user.contributor_id }}{% else %}{{ att.user.role|default:"Member" }}{% endif %}
+                                    </div>
                                 </div>
                             </div>
                             <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-200 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300">

@@ -150,6 +150,46 @@ class StoredFile(models.Model):
     def __str__(self):
         return f"{self.name} ({self.workspace.name})"
 
+    def get_absolute_url(self):
+        try:
+            return reverse('files:file_detail', kwargs={'slug': self.workspace.slug, 'file_id': self.id})
+        except Exception:
+            return ''
+
+    @property
+    def detail_url(self):
+        return self.get_absolute_url()
+
+    @property
+    def filename(self):
+        return self.original_name or self.name
+
+    @property
+    def size_display(self):
+        return self.formatted_size
+
+    @property
+    def file_url(self):
+        if self.is_external_link:
+            return self.external_url
+        try:
+            return reverse('files:file_download', kwargs={'slug': self.workspace.slug, 'file_id': self.id})
+        except Exception:
+            return ''
+
+    @property
+    def download_url(self):
+        return self.file_url
+
+    @property
+    def preview_url(self):
+        if self.is_external_link:
+            return self.external_url
+        try:
+            return reverse('files:file_preview', kwargs={'slug': self.workspace.slug, 'file_id': self.id})
+        except Exception:
+            return ''
+
     @property
     def extension(self):
         if self.is_external_link:
@@ -176,21 +216,31 @@ class StoredFile(models.Model):
 
     @property
     def is_image(self):
-        return self.category == FileCategory.IMAGE or self.mime_type.startswith('image/')
+        return self.category == FileCategory.IMAGE or self.mime_type.startswith('image/') or self.extension in [
+            'jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'ico'
+        ]
 
     @property
     def is_pdf(self):
         return self.mime_type == 'application/pdf' or self.extension == 'pdf'
 
     @property
+    def is_audio(self):
+        return self.category == FileCategory.AUDIO or self.mime_type.startswith('audio/') or self.extension in ['mp3', 'wav', 'ogg', 'm4a', 'aac']
+
+    @property
+    def is_video(self):
+        return self.category == FileCategory.VIDEO or self.mime_type.startswith('video/') or self.extension in ['mp4', 'webm', 'mov', 'mkv', 'avi']
+
+    @property
     def is_text_or_code(self):
         return self.category == FileCategory.CODE or self.mime_type.startswith('text/') or self.extension in [
-            'txt', 'md', 'py', 'js', 'html', 'css', 'json', 'yml', 'yaml', 'sql', 'sh', 'ts'
+            'txt', 'md', 'py', 'js', 'html', 'css', 'json', 'yml', 'yaml', 'sql', 'sh', 'ts', 'csv'
         ]
 
     @property
     def is_previewable(self):
-        return self.is_image or self.is_pdf or self.is_text_or_code or self.is_external_link
+        return self.is_image or self.is_pdf or self.is_audio or self.is_video or self.is_text_or_code or self.is_external_link
 
     @property
     def badge_theme(self):

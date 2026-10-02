@@ -3,7 +3,7 @@
 {% block title %}Project Details — {{ workspace.name }} — AetherSpace{% endblock %}
 
 {% block content %}
-<div class="space-y-6 max-w-7xl mx-auto py-4 sm:py-6 px-4 sm:px-6">
+<div class="space-y-6 max-w-7xl mx-auto py-4 sm:py-6 px-4 sm:px-6" x-data="{ editModalOpen: false }">
     
     <!-- Breadcrumbs -->
     <div class="flex items-center space-x-2 text-xs text-slate-500 dark:text-zinc-400">
@@ -16,8 +16,15 @@
     <div class="aether-card p-6 sm:p-8 space-y-6">
         <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
             <div class="flex items-start space-x-4 min-w-0">
-                <div class="w-14 h-14 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-violet-700 text-white font-black text-xl flex items-center justify-center shrink-0 flex-none shadow-lg shadow-blue-500/20 border border-blue-400/25">
-                    {{ workspace.name|slice:":2"|upper }}
+                <div class="w-14 h-14 rounded-2xl overflow-hidden shadow-lg shadow-blue-500/20 border border-blue-400/25 flex items-center justify-center shrink-0 flex-none bg-gradient-to-tr from-blue-600 via-indigo-600 to-violet-700 text-white font-black text-xl">
+                    {% if workspace.logo_url %}
+                        <img src="{{ workspace.logo_url }}" alt="{{ workspace.name }}" class="w-full h-full object-cover" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                        <span style="display:none;" class="w-full h-full items-center justify-center">
+                            {{ workspace.name|slice:":2"|upper }}
+                        </span>
+                    {% else %}
+                        {{ workspace.name|slice:":2"|upper }}
+                    {% endif %}
                 </div>
                 <div class="space-y-1 min-w-0">
                     <div class="flex flex-wrap items-center gap-2.5">
@@ -31,6 +38,10 @@
                             <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-300 border border-purple-200 dark:border-purple-900/50">
                                 Admin
                             </span>
+                        {% elif membership.is_manager %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-300 border border-blue-200 dark:border-blue-900/50">
+                                Manager
+                            </span>
                         {% endif %}
                     </div>
                     <p class="text-sm text-slate-500 dark:text-zinc-400 leading-relaxed max-w-3xl">
@@ -39,8 +50,18 @@
                 </div>
             </div>
 
-            <!-- Quick Action Links -->
-            <div class="flex items-center space-x-2 shrink-0">
+            <!-- Quick Action Links & Edit Button -->
+            <div class="flex items-center space-x-2.5 shrink-0">
+                {% if can_edit %}
+                    <button type="button" 
+                            @click="editModalOpen = true" 
+                            class="px-4 py-2 text-xs font-semibold rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-800 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700 transition flex items-center space-x-1.5 shadow-xs">
+                        <svg class="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                        </svg>
+                        <span>Edit Details</span>
+                    </button>
+                {% endif %}
                 <a href="{% url 'workspaces:workspace_dashboard' slug=workspace.slug %}" class="aether-button-primary text-xs px-4 py-2 flex items-center space-x-1.5 shadow-md shadow-blue-500/20">
                     <span>Dashboard</span>
                     <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -50,39 +71,70 @@
             </div>
         </div>
 
-        <!-- Tech Stack Badges (from Mockup Panel 2) -->
+        <!-- Tech Stack Badges (Dynamic from Database) -->
         <div class="pt-4 border-t border-slate-100 dark:border-zinc-800 flex flex-wrap items-center gap-2">
             <span class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500 mr-2">Tech Stack:</span>
             {% for tech in tech_stack %}
                 <span class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-[#0c1322] text-slate-700 dark:text-zinc-300 border border-slate-200 dark:border-zinc-800">
                     {{ tech }}
                 </span>
+            {% empty %}
+                <span class="text-xs text-slate-400 italic">No tech stack configured yet.</span>
             {% endfor %}
         </div>
     </div>
 
     <!-- 4 High-Fidelity Metric Cards -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div class="aether-card p-5 space-y-2">
-            <span class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">Current Sprint</span>
-            <div class="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-zinc-50">Sprint 4</div>
-            <div class="text-xs font-semibold text-aether-blue">7 days remaining</div>
-        </div>
-        <div class="aether-card p-5 space-y-2">
-            <span class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">Active Tasks</span>
+        <!-- Current Sprint Card -->
+        <a href="{% url 'tasks:sprint_planning' slug=workspace.slug %}" class="aether-card p-5 space-y-2 hover:border-blue-500/50 transition group block">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">Current Sprint</span>
+                <span class="text-[10px] text-blue-600 dark:text-blue-400 group-hover:underline">Plan &rarr;</span>
+            </div>
+            <div class="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-zinc-50 truncate">
+                {{ current_sprint.name|default:"Sprint 1" }}
+            </div>
+            <div class="text-xs font-semibold text-aether-blue">
+                {% if current_sprint and current_sprint.days_remaining is not None %}
+                    {{ current_sprint.days_remaining }} days remaining
+                {% elif current_sprint %}
+                    {{ current_sprint.get_status_display }}
+                {% else %}
+                    Sprint Planning Ready
+                {% endif %}
+            </div>
+        </a>
+
+        <!-- Active Tasks Card -->
+        <a href="{% url 'tasks:task_list' slug=workspace.slug %}" class="aether-card p-5 space-y-2 hover:border-emerald-500/50 transition group block">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">Active Tasks</span>
+                <span class="text-[10px] text-emerald-600 dark:text-emerald-400 group-hover:underline">View &rarr;</span>
+            </div>
             <div class="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-zinc-50">{{ active_tasks_count }}</div>
-            <div class="text-xs font-semibold text-emerald-600 dark:text-emerald-400">82% on schedule</div>
-        </div>
-        <div class="aether-card p-5 space-y-2">
-            <span class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">Reported Bugs</span>
+            <div class="text-xs font-semibold text-emerald-600 dark:text-emerald-400">{{ task_schedule_pct }}% on schedule</div>
+        </a>
+
+        <!-- Reported Bugs Card -->
+        <a href="{% url 'bugs:bug_list' slug=workspace.slug %}" class="aether-card p-5 space-y-2 hover:border-rose-500/50 transition group block">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">Reported Bugs</span>
+                <span class="text-[10px] text-rose-500 group-hover:underline">Triage &rarr;</span>
+            </div>
             <div class="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-zinc-50">{{ open_bugs_count }}</div>
-            <div class="text-xs font-semibold text-rose-500">2 high severity</div>
-        </div>
-        <div class="aether-card p-5 space-y-2">
-            <span class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">Team Contributors</span>
+            <div class="text-xs font-semibold text-rose-500">{{ high_sev_bugs_count }} high severity</div>
+        </a>
+
+        <!-- Team Contributors Card -->
+        <a href="{% url 'workspaces:team' slug=workspace.slug %}" class="aether-card p-5 space-y-2 hover:border-purple-500/50 transition group block">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">Team Contributors</span>
+                <span class="text-[10px] text-purple-600 dark:text-purple-400 group-hover:underline">Team &rarr;</span>
+            </div>
             <div class="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-zinc-50">{{ total_members_count }}</div>
             <div class="text-xs font-semibold text-slate-500 dark:text-zinc-400">Assigned seats</div>
-        </div>
+        </a>
     </div>
 
     <!-- Project Specifications & Architecture Details -->
@@ -91,18 +143,22 @@
         <!-- Left: Specification Overview (8 cols) -->
         <div class="lg:col-span-8 space-y-6">
             <div class="aether-card p-6 space-y-4">
-                <h3 class="text-base sm:text-lg font-bold text-slate-900 dark:text-zinc-100 tracking-tight">
-                    Project Scope & Architecture
-                </h3>
+                <div class="flex items-center justify-between">
+                    <h3 class="text-base sm:text-lg font-bold text-slate-900 dark:text-zinc-100 tracking-tight">
+                        Project Scope & Architecture
+                    </h3>
+                    {% if can_edit %}
+                        <button type="button" 
+                                @click="editModalOpen = true" 
+                                class="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline">
+                            Edit Scope & Architecture
+                        </button>
+                    {% endif %}
+                </div>
+                
                 <div class="text-xs sm:text-sm text-slate-600 dark:text-zinc-300 leading-relaxed space-y-3">
-                    <p>
-                        This workspace provides an isolated agile software environment for the <strong>{{ workspace.name }}</strong> initiative. 
-                        It brings together backlog sprint management, standardized 6-digit task tracking (<code class="font-mono text-xs bg-slate-100 dark:bg-zinc-800 px-1 py-0.5 rounded">619347</code>), 
-                        B-prefix bug triage (<code class="font-mono text-xs bg-slate-100 dark:bg-zinc-800 px-1 py-0.5 rounded text-rose-500">B-882316</code>), real-time team chat, and WebRTC standup conferencing.
-                    </p>
-                    <p>
-                        Data persistence and storage isolation are securely separated by workspace boundaries, enforcing strict role-based access control across Administrators, Managers, and Contributors.
-                    </p>
+                    <p class="whitespace-pre-line">{{ workspace.effective_scope }}</p>
+                    <p class="whitespace-pre-line">{{ workspace.effective_architecture }}</p>
                 </div>
 
                 <div class="pt-4 border-t border-slate-100 dark:border-zinc-800 grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
@@ -112,11 +168,11 @@
                     </div>
                     <div>
                         <span class="text-slate-400 dark:text-zinc-500 block">Storage Provider:</span>
-                        <span class="font-semibold text-emerald-600 dark:text-emerald-400">Supabase Storage</span>
+                        <span class="font-semibold text-emerald-600 dark:text-emerald-400">{{ workspace.storage_provider }}</span>
                     </div>
                     <div>
                         <span class="text-slate-400 dark:text-zinc-500 block">Security Mode:</span>
-                        <span class="font-semibold text-blue-600 dark:text-blue-400">Strict RBAC</span>
+                        <span class="font-semibold text-blue-600 dark:text-blue-400">{{ workspace.security_mode }}</span>
                     </div>
                 </div>
             </div>
@@ -131,6 +187,18 @@
                 <div class="space-y-1 pt-1">
                     <a href="{% url 'workspaces:workspace_dashboard' slug=workspace.slug %}" class="flex items-center justify-between p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800/60 text-slate-700 dark:text-zinc-300 font-medium transition-colors">
                         <span>Workspace Dashboard</span>
+                        <span>&rarr;</span>
+                    </a>
+                    <a href="{% url 'tasks:sprint_planning' slug=workspace.slug %}" class="flex items-center justify-between p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800/60 text-slate-700 dark:text-zinc-300 font-medium transition-colors text-blue-600 dark:text-blue-400">
+                        <span class="font-bold">Agile Sprint Planning</span>
+                        <span>&rarr;</span>
+                    </a>
+                    <a href="{% url 'tasks:task_list' slug=workspace.slug %}" class="flex items-center justify-between p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800/60 text-slate-700 dark:text-zinc-300 font-medium transition-colors">
+                        <span>Task List</span>
+                        <span>&rarr;</span>
+                    </a>
+                    <a href="{% url 'tasks:task_board' slug=workspace.slug %}" class="flex items-center justify-between p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800/60 text-slate-700 dark:text-zinc-300 font-medium transition-colors">
+                        <span>Kanban Board</span>
                         <span>&rarr;</span>
                     </a>
                     <a href="{% url 'workspaces:team' slug=workspace.slug %}" class="flex items-center justify-between p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800/60 text-slate-700 dark:text-zinc-300 font-medium transition-colors">
@@ -153,5 +221,158 @@
 
     </div>
 
+    <!-- Edit Project Details Modal (Admins & Managers) -->
+    {% if can_edit %}
+    <div x-show="editModalOpen" 
+         x-cloak 
+         class="fixed inset-0 z-50 overflow-y-auto" 
+         aria-labelledby="modal-title" 
+         role="dialog" 
+         aria-modal="true">
+        <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div x-show="editModalOpen" 
+                 x-transition:enter="ease-out duration-200" 
+                 x-transition:enter-start="opacity-0" 
+                 x-transition:enter-end="opacity-100" 
+                 x-transition:leave="ease-in duration-150" 
+                 x-transition:leave-start="opacity-100" 
+                 x-transition:leave-end="opacity-0" 
+                 class="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity" 
+                 @click="editModalOpen = false"></div>
+
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
+
+            <div x-show="editModalOpen" 
+                 x-transition:enter="ease-out duration-200" 
+                 x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95" 
+                 x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100" 
+                 x-transition:leave="ease-in duration-150" 
+                 x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100" 
+                 x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95" 
+                 class="inline-block align-bottom bg-white dark:bg-zinc-900 rounded-2xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full border border-slate-200 dark:border-zinc-800">
+                
+                <form method="POST" action="{% url 'workspaces:project_details' slug=workspace.slug %}">
+                    {% csrf_token %}
+                    <div class="px-6 py-5 border-b border-slate-100 dark:border-zinc-800 flex items-center justify-between">
+                        <div>
+                            <h3 class="text-base font-bold text-slate-900 dark:text-zinc-100">
+                                Edit Project Details
+                            </h3>
+                            <p class="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
+                                Update workspace scope, architecture overview, and technology stack.
+                            </p>
+                        </div>
+                        <button type="button" @click="editModalOpen = false" class="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200">
+                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <div class="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
+                        <!-- Project Name -->
+                        <div class="space-y-1">
+                            <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">
+                                Project / Workspace Name <span class="text-rose-500">*</span>
+                            </label>
+                            <input type="text" 
+                                   name="name" 
+                                   required 
+                                   value="{{ workspace.name }}" 
+                                   class="w-full px-3.5 py-2 text-xs bg-slate-50 dark:bg-zinc-900/60 border border-slate-200 dark:border-zinc-800 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-hidden text-slate-900 dark:text-zinc-100">
+                        </div>
+
+                        <!-- Tagline / Short Description -->
+                        <div class="space-y-1">
+                            <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">
+                                Tagline / Short Description
+                            </label>
+                            <input type="text" 
+                                   name="description" 
+                                   value="{{ workspace.description }}" 
+                                   placeholder="Primary Workspace for agile team development"
+                                   class="w-full px-3.5 py-2 text-xs bg-slate-50 dark:bg-zinc-900/60 border border-slate-200 dark:border-zinc-800 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-hidden text-slate-900 dark:text-zinc-100">
+                        </div>
+
+                        <!-- Tech Stack Tags -->
+                        <div class="space-y-1">
+                            <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">
+                                Tech Stack Badges (Comma-separated)
+                            </label>
+                            <input type="text" 
+                                   name="tech_stack" 
+                                   value="{{ workspace.tech_stack }}" 
+                                   placeholder="Python 3.12, Django 5.x, PostgreSQL, Supabase Storage, Tailwind CSS, Alpine.js, WebRTC"
+                                   class="w-full px-3.5 py-2 text-xs bg-slate-50 dark:bg-zinc-900/60 border border-slate-200 dark:border-zinc-800 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-hidden text-slate-900 dark:text-zinc-100">
+                            <p class="text-[11px] text-slate-400 dark:text-zinc-500">Separated by commas to generate individual tech badges.</p>
+                        </div>
+
+                        <!-- Project Scope -->
+                        <div class="space-y-1">
+                            <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">
+                                Project Scope
+                            </label>
+                            <textarea name="project_scope" 
+                                      rows="3" 
+                                      placeholder="Describe the overall scope, deliverables, and targets for this initiative..." 
+                                      class="w-full px-3.5 py-2 text-xs bg-slate-50 dark:bg-zinc-900/60 border border-slate-200 dark:border-zinc-800 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-hidden text-slate-900 dark:text-zinc-100">{{ workspace.project_scope }}</textarea>
+                        </div>
+
+                        <!-- Architecture Notes -->
+                        <div class="space-y-1">
+                            <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">
+                                Architecture & Engineering Notes
+                            </label>
+                            <textarea name="architecture_notes" 
+                                      rows="3" 
+                                      placeholder="Data isolation, role security, deployment target, infrastructure boundaries..." 
+                                      class="w-full px-3.5 py-2 text-xs bg-slate-50 dark:bg-zinc-900/60 border border-slate-200 dark:border-zinc-800 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-hidden text-slate-900 dark:text-zinc-100">{{ workspace.architecture_notes }}</textarea>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                            <!-- Storage Provider -->
+                            <div class="space-y-1">
+                                <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">
+                                    Storage Provider
+                                </label>
+                                <input type="text" 
+                                       name="storage_provider" 
+                                       value="{{ workspace.storage_provider }}" 
+                                       placeholder="Supabase Storage"
+                                       class="w-full px-3.5 py-2 text-xs bg-slate-50 dark:bg-zinc-900/60 border border-slate-200 dark:border-zinc-800 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-hidden text-slate-900 dark:text-zinc-100">
+                            </div>
+
+                            <!-- Security Mode -->
+                            <div class="space-y-1">
+                                <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">
+                                    Security Mode
+                                </label>
+                                <input type="text" 
+                                       name="security_mode" 
+                                       value="{{ workspace.security_mode }}" 
+                                       placeholder="Strict RBAC"
+                                       class="w-full px-3.5 py-2 text-xs bg-slate-50 dark:bg-zinc-900/60 border border-slate-200 dark:border-zinc-800 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-hidden text-slate-900 dark:text-zinc-100">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="px-6 py-4 bg-slate-50 dark:bg-zinc-900/60 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-end space-x-2.5">
+                        <button type="button" 
+                                @click="editModalOpen = false" 
+                                class="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-800 rounded-xl transition">
+                            Cancel
+                        </button>
+                        <button type="submit" 
+                                class="aether-button-primary text-xs px-5 py-2 font-bold shadow-md shadow-blue-500/20">
+                            Save Changes
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
 </div>
 {% endblock %}
+

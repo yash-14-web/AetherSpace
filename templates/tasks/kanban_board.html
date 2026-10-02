@@ -11,9 +11,16 @@
         <!-- Left: Workspace Selector -->
         <div class="flex items-center space-x-3">
             <div class="flex items-center space-x-2 px-3 py-1.5 rounded-xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 shadow-2xs">
-                <div class="w-5 h-5 rounded-md bg-gradient-to-tr from-blue-600 to-indigo-700 text-white font-bold text-[10px] flex items-center justify-center shrink-0">
-                    {{ workspace.name|slice:":2"|upper }}
-                </div>
+                {% if workspace.logo_url %}
+                    <img src="{{ workspace.logo_url }}" alt="{{ workspace.name }}" class="w-5 h-5 rounded-md object-cover shrink-0 border border-slate-200/50 dark:border-zinc-800 shadow-xs" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                    <div style="display:none;" class="w-5 h-5 rounded-md bg-gradient-to-tr from-blue-600 to-indigo-700 text-white font-bold text-[10px] items-center justify-center shrink-0">
+                        {{ workspace.name|slice:":2"|upper }}
+                    </div>
+                {% else %}
+                    <div class="w-5 h-5 rounded-md bg-gradient-to-tr from-blue-600 to-indigo-700 text-white font-bold text-[10px] flex items-center justify-center shrink-0">
+                        {{ workspace.name|slice:":2"|upper }}
+                    </div>
+                {% endif %}
                 <span class="text-xs font-bold text-slate-900 dark:text-zinc-100">{{ workspace.name }}</span>
                 <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
@@ -34,7 +41,7 @@
                        class="w-full pl-9 pr-4 py-2 text-xs rounded-xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 text-slate-900 dark:text-zinc-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-aether-blue transition">
             </form>
 
-            <!-- View Switcher matching mockup: Board (blue active) / List -->
+            <!-- View Switcher matching mockup: Board (blue active) / List / Sprints -->
             <div class="inline-flex rounded-xl bg-slate-100 dark:bg-zinc-800/80 p-1 border border-slate-200 dark:border-zinc-700/60 shrink-0">
                 <a href="{% url 'tasks:task_board' slug=workspace.slug %}" 
                    class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-white dark:bg-[#0c1322] text-aether-blue shadow-2xs">
@@ -50,9 +57,17 @@
                     </svg>
                     <span>List</span>
                 </a>
+                <a href="{% url 'tasks:sprint_planning' slug=workspace.slug %}" 
+                   class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200 transition-colors">
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                    </svg>
+                    <span>Sprints</span>
+                </a>
             </div>
 
             <!-- + Create Task Button -->
+            {% if can_create_task %}
             <a href="{% url 'tasks:task_create' slug=workspace.slug %}" 
                class="inline-flex items-center space-x-1.5 px-4 py-2 text-xs font-bold rounded-xl bg-aether-blue text-white hover:bg-blue-700 shadow-md shadow-blue-500/20 transition shrink-0">
                 <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -60,6 +75,17 @@
                 </svg>
                 <span>New Task</span>
             </a>
+            {% else %}
+            <button type="button"
+                    @click="$dispatch('open-access-request', { action: 'task.create', workspaceSlug: '{{ workspace.slug }}', workspaceName: '{{ workspace.name }}', workspaceId: '{{ workspace.id }}' })"
+                    title="You don't currently have permission. Request temporary access."
+                    class="inline-flex items-center space-x-1.5 px-3.5 py-2 text-xs font-semibold rounded-xl bg-slate-100 dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700 text-slate-500 dark:text-zinc-400 hover:text-purple-600 dark:hover:text-purple-400 hover:border-purple-300 dark:hover:border-purple-800 transition shrink-0 cursor-pointer">
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                </svg>
+                <span>Create Task 🔒</span>
+            </button>
+            {% endif %}
         </div>
     </div>
 
@@ -74,9 +100,9 @@
     </div>
 
     <!-- Kanban Columns Grid matching Panel 2 -->
-    <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 items-start overflow-x-auto pb-4">
+    <div class="flex gap-4 items-start overflow-x-auto pb-4">
         {% for col in columns %}
-            <div class="flex flex-col bg-slate-100/60 dark:bg-[#090d16] rounded-2xl border border-slate-200/80 dark:border-zinc-800/80 p-3 space-y-3 min-w-[270px]">
+            <div class="flex flex-col bg-slate-100/60 dark:bg-[#090d16] rounded-2xl border border-slate-200/80 dark:border-zinc-800/80 p-3 space-y-3 w-[270px] min-w-[270px] shrink-0">
                 
                 <!-- Column Header matching mockup -->
                 <div class="flex items-center justify-between px-1.5 pt-1">
@@ -216,16 +242,7 @@
 
                                         <!-- Assignee Profile Pic -->
                                         {% if task.assignee %}
-                                            {% if task.assignee.avatar %}
-                                                <img src="{{ task.assignee.avatar }}" alt="{{ task.assignee.full_name }}" 
-                                                     class="w-5 h-5 rounded-full object-cover ring-1 ring-slate-200 dark:ring-zinc-700" 
-                                                     title="{{ task.assignee.full_name|default:task.assignee.email }}">
-                                            {% else %}
-                                                <div class="w-5 h-5 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-bold text-[9px] flex items-center justify-center shrink-0 shadow-xs" 
-                                                     title="{{ task.assignee.full_name|default:task.assignee.email }}">
-                                                    {{ task.assignee.full_name|default:task.assignee.email|slice:":1"|upper }}
-                                                </div>
-                                            {% endif %}
+                                            {% include 'components/avatar.html' with user=task.assignee size="w-5 h-5" rounded="rounded-full" text_size="text-[9px]" %}
                                         {% endif %}
                                     </div>
 
@@ -243,10 +260,19 @@
                     </div>
 
                     <!-- + Add Task dashed button matching mockup -->
+                    {% if can_create_task %}
                     <a href="{% url 'tasks:task_create' slug=workspace.slug %}?status={{ col.status }}" 
                        class="w-full py-2 rounded-xl border border-dashed border-slate-300 dark:border-zinc-800 text-xs font-semibold text-slate-500 dark:text-zinc-400 hover:text-aether-blue hover:border-aether-blue hover:bg-white dark:hover:bg-zinc-900 transition flex items-center justify-center space-x-1">
                         <span>+ Add Task</span>
                     </a>
+                    {% else %}
+                    <button type="button"
+                            @click="$dispatch('open-access-request', { action: 'task.create', workspaceSlug: '{{ workspace.slug }}', workspaceName: '{{ workspace.name }}', workspaceId: '{{ workspace.id }}' })"
+                            class="w-full py-2 rounded-xl border border-dashed border-slate-300 dark:border-zinc-800 text-xs font-semibold text-slate-400 dark:text-zinc-600 hover:text-purple-500 hover:border-purple-400 hover:bg-slate-50 dark:hover:bg-zinc-900/50 transition flex items-center justify-center space-x-1 cursor-pointer"
+                            title="You don't currently have permission. Request temporary access.">
+                        <span>+ Add Task 🔒</span>
+                    </button>
+                    {% endif %}
                 </div>
         {% endfor %}
     </div>

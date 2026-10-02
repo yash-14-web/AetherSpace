@@ -1,6 +1,7 @@
 from django.test import TestCase, Client
 from django.urls import reverse
 from django.contrib.auth import get_user_model
+from accounts.models import UserRole, ApprovalStatus
 from workspaces.models import (
     Workspace, WorkspaceMembership, WorkspaceRole,
     WorkspaceInvitation, InvitationStatus, WorkspaceAccessRequest,
@@ -40,7 +41,9 @@ class WorkspaceRBACAndIsolationTest(TestCase):
         self.external_user = User.objects.create_user(
             email="external.ws@aetherspace.dev",
             password=self.password,
-            full_name="Dave External"
+            full_name="Dave External",
+            role=UserRole.MANAGER,
+            approval_status=ApprovalStatus.APPROVED
         )
 
         # Primary Workspace
@@ -285,11 +288,11 @@ class WorkspaceRBACAndIsolationTest(TestCase):
         self.client.login(email=self.admin_user.email, password=self.password)
         dashboard_url = reverse('workspaces:workspace_dashboard', kwargs={'slug': self.workspace1.slug})
 
-        # Initially 0 bugs
+        # Initially 0 bugs - displays professional empty state
         response = self.client.get(dashboard_url)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context['open_bugs_count'], 0)
-        self.assertContains(response, "No bugs reported yet in this workspace")
+        self.assertContains(response, "Zero Active Bugs")
 
         # Create a real bug
         Bug.objects.create(
@@ -305,6 +308,72 @@ class WorkspaceRBACAndIsolationTest(TestCase):
         self.assertEqual(response2.context['high_severity_bugs_count'], 1)
         self.assertContains(response2, "B-123456")
         self.assertContains(response2, "Production latency issue")
+
+    def test_workspace_dashboard_real_kpi_and_isolation(self):
+        """Dashboard displays real KPIs and strictly enforces workspace isolation."""
+        from tasks.models import Task, TaskStatus, TaskPriority, Sprint, SprintStatus
+        from bugs.models import Bug, BugSeverity, BugStatus
+        from meetings.models import Meeting, MeetingStatus
+        from django.utils import timezone
+
+        self.client.login(email=self.admin_user.email, password=self.password)
+        dashboard_url_1 = reverse('workspaces:workspace_dashboard', kwargs={'slug': self.workspace1.slug})
+
+        # 1. Active task in Workspace 1
+        Task.objects.create(
+            workspace=self.workspace1,
+            task_code='101001',
+            title='Database Migration Core',
+            status=TaskStatus.IN_PROGRESS,
+            priority=TaskPriority.HIGH,
+            reporter=self.admin_user
+        )
+        # Task in Workspace 2 (isolated)
+        Task.objects.create(
+            workspace=self.workspace2,
+            task_code='202002',
+            title='Workspace 2 Private Task',
+            status=TaskStatus.TODO,
+            priority=TaskPriority.URGENT,
+            reporter=self.admin_user
+        )
+
+        # 2. Meeting today in Workspace 1
+        Meeting.objects.create(
+            workspace=self.workspace1,
+            meeting_code='meet-core-101',
+            title='Daily Core Standup',
+            host=self.admin_user,
+            scheduled_start=timezone.now() + timezone.timedelta(hours=1),
+            status=MeetingStatus.SCHEDULED
+        )
+
+        # 3. Active Sprint in Workspace 1
+        Sprint.objects.create(
+            workspace=self.workspace1,
+            name='Sprint Delta',
+            goal='UX and Performance Refinements',
+            status=SprintStatus.ACTIVE,
+            created_by=self.admin_user
+        )
+
+        resp = self.client.get(dashboard_url_1)
+        self.assertEqual(resp.status_code, 200)
+
+        # KPI Verification
+        self.assertEqual(resp.context['active_tasks_count'], 1)
+        self.assertEqual(resp.context['meetings_today_count'], 1)
+        self.assertIsNotNone(resp.context['active_sprint'])
+        self.assertEqual(resp.context['active_sprint'].name, 'Sprint Delta')
+
+        # Isolation Verification: Workspace 2 task must NOT appear in Workspace 1 dashboard
+        self.assertContains(resp, 'Database Migration Core')
+        self.assertContains(resp, '#101001')
+        self.assertNotContains(resp, 'Workspace 2 Private Task')
+        self.assertNotContains(resp, '#202002')
+
+        # Roster Verification: Shows real full name, not email
+        self.assertContains(resp, self.admin_user.full_name)
 
     def test_delete_workspace_owner_only_with_name_confirmation(self):
         """Workspace can be permanently deleted by the owner after typing exact name."""
@@ -403,6 +472,309 @@ class WorkspaceRBACAndIsolationTest(TestCase):
         )
         self.assertFalse(form_cycle.is_valid())
         self.assertIn('reporting_to', form_cycle.errors)
+
+
+class ProjectDetailsEditTests(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.password = "SecurePassword123!"
+
+        self.admin = User.objects.create_user(
+            email="admin.pd@aetherspace.dev",
+            password=self.password,
+            full_name="Admin PD"
+        )
+        self.contributor = User.objects.create_user(
+            email="contrib.pd@aetherspace.dev",
+            password=self.password,
+            full_name="Contrib PD"
+        )
+        self.workspace = Workspace.objects.create(
+            name="Original Project",
+            slug="original-project",
+            description="Original description",
+            owner=self.admin
+        )
+        WorkspaceMembership.objects.create(
+            workspace=self.workspace,
+            user=self.admin,
+            role=WorkspaceRole.ADMIN,
+            status=MembershipStatus.ACTIVE
+        )
+        WorkspaceMembership.objects.create(
+            workspace=self.workspace,
+            user=self.contributor,
+            role=WorkspaceRole.CONTRIBUTOR,
+            status=MembershipStatus.ACTIVE
+        )
+
+    def test_admin_can_edit_project_details(self):
+        self.client.login(email="admin.pd@aetherspace.dev", password=self.password)
+        url = reverse('workspaces:project_details', kwargs={'slug': self.workspace.slug})
+
+        response = self.client.post(url, {
+            'name': 'Updated Project Name',
+            'description': 'Updated workspace summary',
+            'tech_stack': 'Python, Django, PostgreSQL, TailwindCSS, Alpine.js',
+            'project_scope': 'Production agile workspace engine',
+            'architecture_notes': 'Django monolithic architecture with Supabase storage',
+            'security_mode': 'STRICT_RBAC',
+            'storage_provider': 'SUPABASE_S3'
+        })
+        self.assertEqual(response.status_code, 302)
+
+        self.workspace.refresh_from_db()
+        self.assertEqual(self.workspace.name, 'Updated Project Name')
+        self.assertEqual(self.workspace.description, 'Updated workspace summary')
+        self.assertEqual(self.workspace.security_mode, 'STRICT_RBAC')
+        self.assertEqual(self.workspace.storage_provider, 'SUPABASE_S3')
+        self.assertIn('PostgreSQL', self.workspace.tech_stack_list)
+
+    def test_contributor_cannot_edit_project_details(self):
+        self.client.login(email="contrib.pd@aetherspace.dev", password=self.password)
+        url = reverse('workspaces:project_details', kwargs={'slug': self.workspace.slug})
+
+        response = self.client.post(url, {
+            'name': 'Hacked Name',
+            'description': 'Hacked description',
+        })
+        self.assertEqual(response.status_code, 403)
+        self.workspace.refresh_from_db()
+        self.assertEqual(self.workspace.name, 'Original Project')
+
+
+import io
+from PIL import Image
+from django.core.files.uploadedfile import SimpleUploadedFile
+
+
+class WorkspaceLogoAndStorageTests(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.password = "SecurePassword123!"
+
+        self.admin = User.objects.create_user(
+            email="admin.logo@aetherspace.dev",
+            password=self.password,
+            full_name="Logo Admin"
+        )
+        self.contributor = User.objects.create_user(
+            email="contrib.logo@aetherspace.dev",
+            password=self.password,
+            full_name="Logo Contributor"
+        )
+        self.workspace = Workspace.objects.create(
+            name="Aether Logo Team",
+            slug="aether-logo-team",
+            description="Testing logo storage",
+            owner=self.admin
+        )
+        WorkspaceMembership.objects.create(
+            workspace=self.workspace,
+            user=self.admin,
+            role=WorkspaceRole.ADMIN,
+            status=MembershipStatus.ACTIVE
+        )
+        WorkspaceMembership.objects.create(
+            workspace=self.workspace,
+            user=self.contributor,
+            role=WorkspaceRole.CONTRIBUTOR,
+            status=MembershipStatus.ACTIVE
+        )
+
+    def _create_test_image(self, size=(200, 200), color=(50, 100, 200), format='PNG'):
+        image = Image.new('RGB', size, color=color)
+        buf = io.BytesIO()
+        image.save(buf, format=format)
+        buf.seek(0)
+        return buf.getvalue()
+
+    def test_workspace_settings_contains_real_logo_upload_ui(self):
+        self.client.login(email="admin.logo@aetherspace.dev", password=self.password)
+        url = reverse('workspaces:settings', kwargs={'slug': self.workspace.slug})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+
+        # Ensure no placeholder alert remains
+        self.assertNotContains(response, "File upload to Supabase Storage will be enabled with the files module.")
+        # Ensure real upload inputs and Supabase indicator are present
+        self.assertContains(response, 'enctype="multipart/form-data"')
+        self.assertContains(response, 'workspace-logo-file-input')
+        self.assertContains(response, 'Supabase Storage')
+
+    def test_workspace_logo_upload_file_success(self):
+        self.client.login(email="admin.logo@aetherspace.dev", password=self.password)
+        url = reverse('workspaces:settings', kwargs={'slug': self.workspace.slug})
+
+        img_bytes = self._create_test_image()
+        upload_file = SimpleUploadedFile("team_logo.png", img_bytes, content_type="image/png")
+
+        response = self.client.post(url, {
+            'name': 'Aether Logo Team',
+            'description': 'Updated description',
+            'max_seats': 15,
+            'storage_quota_mb': 50,
+            'status': 'ACTIVE',
+            'logo_file': upload_file
+        })
+        self.assertEqual(response.status_code, 302)
+
+        self.workspace.refresh_from_db()
+        self.assertTrue(bool(self.workspace.logo))
+        self.assertTrue(bool(self.workspace.logo_url))
+
+    def test_workspace_logo_upload_large_file_rejected(self):
+        self.client.login(email="admin.logo@aetherspace.dev", password=self.password)
+        url = reverse('workspaces:settings', kwargs={'slug': self.workspace.slug})
+
+        # > 2 MB payload
+        large_bytes = b"x" * (2 * 1024 * 1024 + 1024)
+        upload_file = SimpleUploadedFile("huge_logo.png", large_bytes, content_type="image/png")
+
+        response = self.client.post(url, {
+            'name': 'Aether Logo Team',
+            'description': 'Updated description',
+            'max_seats': 15,
+            'storage_quota_mb': 50,
+            'status': 'ACTIVE',
+            'logo_file': upload_file
+        }, follow=True)
+
+        self.workspace.refresh_from_db()
+        self.assertEqual(self.workspace.logo, '')
+        self.assertContains(response, "exceeds the maximum allowed limit of 2 MB")
+
+    def test_workspace_logo_external_url_success(self):
+        self.client.login(email="admin.logo@aetherspace.dev", password=self.password)
+        url = reverse('workspaces:settings', kwargs={'slug': self.workspace.slug})
+
+        test_url = "https://images.unsplash.com/photo-1579546929518-9e396f3cc809"
+        response = self.client.post(url, {
+            'name': 'Aether Logo Team',
+            'description': 'Updated description',
+            'max_seats': 15,
+            'storage_quota_mb': 50,
+            'status': 'ACTIVE',
+            'logo_url': test_url
+        })
+        self.assertEqual(response.status_code, 302)
+
+        self.workspace.refresh_from_db()
+        self.assertEqual(self.workspace.logo, test_url)
+        self.assertEqual(self.workspace.logo_url, test_url)
+
+    def test_workspace_logo_remove_resets_to_default(self):
+        self.workspace.logo = "https://example.com/logo.png"
+        self.workspace.save(update_fields=['logo'])
+
+        self.client.login(email="admin.logo@aetherspace.dev", password=self.password)
+        url = reverse('workspaces:settings', kwargs={'slug': self.workspace.slug})
+
+        response = self.client.post(url, {
+            'action': 'remove_logo'
+        })
+        self.assertEqual(response.status_code, 302)
+
+        self.workspace.refresh_from_db()
+        self.assertEqual(self.workspace.logo, '')
+        self.assertEqual(self.workspace.logo_url, '')
+
+    def test_contributor_cannot_update_workspace_logo(self):
+        self.client.login(email="contrib.logo@aetherspace.dev", password=self.password)
+        url = reverse('workspaces:settings', kwargs={'slug': self.workspace.slug})
+
+        img_bytes = self._create_test_image()
+        upload_file = SimpleUploadedFile("hacked_logo.png", img_bytes, content_type="image/png")
+
+        response = self.client.post(url, {
+            'name': 'Hacked Workspace',
+            'logo_file': upload_file
+        })
+        self.assertEqual(response.status_code, 403)
+        self.workspace.refresh_from_db()
+        self.assertEqual(self.workspace.logo, '')
+
+
+class GlobalAccessRequestSubmissionTest(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.password = "SecurePassword123!"
+
+        self.contributor = User.objects.create_user(
+            email="ramu.test@example.com",
+            password=self.password,
+            full_name="Ramu Contributor",
+            role=UserRole.CONTRIBUTOR,
+            approval_status=ApprovalStatus.APPROVED
+        )
+
+        self.admin = User.objects.create_user(
+            email="admin.test@example.com",
+            password=self.password,
+            full_name="Admin User",
+            role=UserRole.ADMIN,
+            approval_status=ApprovalStatus.APPROVED
+        )
+
+        self.workspace = Workspace.objects.create(
+            name="AetherSpace Core",
+            slug="aetherspace-core",
+            owner=self.admin
+        )
+
+        WorkspaceMembership.objects.create(
+            workspace=self.workspace,
+            user=self.contributor,
+            role=WorkspaceRole.CONTRIBUTOR,
+            status=MembershipStatus.ACTIVE
+        )
+
+    def test_submit_access_request_ajax_resilient_workspace_slug(self):
+        """Even if the user types 'aetherspace  core' with spaces, it resolves cleanly and returns JSON."""
+        self.client.login(email=self.contributor.email, password=self.password)
+        url = reverse('workspaces:submit_access_request')
+
+        response = self.client.post(
+            url,
+            {
+                'workspace_slug': 'aetherspace  core',
+                'action': 'task.create',
+                'reason': 'For assigning tasks to team members',
+                'goal_description': 'Create deliverables for sprint',
+                'urgency': 'URGENT',
+                'requested_duration': 'TODAY'
+            },
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+            HTTP_ACCEPT='application/json'
+        )
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data.get('status'), 'ok')
+        self.assertIn('Access request for', data.get('message', ''))
+
+    def test_submit_access_request_validation_error_returns_json_400(self):
+        """Missing reason returns clean 400 JSON instead of HTML redirect."""
+        self.client.login(email=self.contributor.email, password=self.password)
+        url = reverse('workspaces:submit_access_request')
+
+        response = self.client.post(
+            url,
+            {
+                'workspace_slug': 'aetherspace-core',
+                'action': 'task.create',
+                'reason': '',  # Empty reason
+            },
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+            HTTP_ACCEPT='application/json'
+        )
+
+        self.assertEqual(response.status_code, 400)
+        data = response.json()
+        self.assertEqual(data.get('status'), 'error')
+        self.assertIn('justification reason is required', data.get('message', ''))
+
+
 
 
 

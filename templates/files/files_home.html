@@ -338,9 +338,7 @@
                         <!-- Owner -->
                         <td class="py-3 px-3 whitespace-nowrap">
                             <div class="flex items-center space-x-2">
-                                <div class="w-6 h-6 rounded-full bg-slate-200 dark:bg-zinc-700 text-slate-700 dark:text-zinc-200 flex items-center justify-center font-bold text-[10px]">
-                                    {{ f.uploaded_by.email|slice:":2"|upper }}
-                                </div>
+                                {% include 'components/avatar.html' with user=f.uploaded_by size='w-6 h-6' text_size='text-[10px]' %}
                                 <span class="text-slate-700 dark:text-zinc-300 font-medium truncate max-w-[120px]">
                                     {{ f.uploaded_by.get_full_name|default:f.uploaded_by.username }}
                                 </span>
@@ -456,38 +454,20 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="5" class="py-12 text-center">
-                            <div class="max-w-xs mx-auto space-y-3">
-                                <div class="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-zinc-800 text-slate-400 mx-auto flex items-center justify-center">
-                                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                                    </svg>
-                                </div>
-                                <h4 class="text-sm font-bold text-slate-900 dark:text-zinc-100">No files found</h4>
-                                <p class="text-xs text-slate-500 dark:text-zinc-400">
-                                    {% if query %}
-                                    No files or documents match your search query "{{ query }}".
-                                    {% elif current_tab == 'trash' %}
-                                    The trash folder is completely empty.
-                                    {% elif current_tab == 'favorites' %}
-                                    Star important files to quickly access them here.
-                                    {% elif current_tab == 'shared' %}
-                                    No files have been specifically shared with you yet.
-                                    {% else %}
-                                    Upload documents, design mockups, spreadsheets, or link cloud assets to collaborate with your team.
-                                    {% endif %}
-                                </p>
-                                {% if current_tab != 'trash' %}
-                                <div class="pt-2 flex items-center justify-center space-x-2">
-                                    <a href="{% url 'files:file_upload' slug=workspace.slug %}" class="px-3.5 py-1.5 text-xs font-semibold rounded-xl bg-aether-blue text-white hover:bg-blue-600 shadow-sm transition-all">
-                                        Upload File
-                                    </a>
-                                    <button type="button" @click="newFolderModalOpen = true" class="px-3.5 py-1.5 text-xs font-semibold rounded-xl border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-all">
-                                        New Folder
-                                    </button>
-                                </div>
-                                {% endif %}
-                            </div>
+                        <td colspan="5" class="py-8">
+                            {% url 'files:file_upload' slug=workspace.slug as upload_file_url %}
+                            {% url 'files:files_home' slug=workspace.slug as files_home_url %}
+                            {% if query %}
+                                {% include 'components/empty_states.html' with state_type='no_search_results' title='No Files Found' message='No files or documents match your search query.' query=query secondary_url=files_home_url secondary_text='Clear Search' action_url=upload_file_url action_text='Upload File' %}
+                            {% elif current_tab == 'trash' %}
+                                {% include 'components/empty_states.html' with state_type='no_files' title='Trash is Empty' message='No deleted files or documents in the workspace trash.' secondary_url=files_home_url secondary_text='View All Files' %}
+                            {% elif current_tab == 'favorites' %}
+                                {% include 'components/empty_states.html' with state_type='no_files' title='No Starred Files' message='Star important documents and assets to access them quickly here.' secondary_url=files_home_url secondary_text='View All Files' %}
+                            {% elif current_tab == 'shared' %}
+                                {% include 'components/empty_states.html' with state_type='no_files' title='No Shared Files' message='No files have been specifically shared with you yet.' secondary_url=files_home_url secondary_text='View All Files' %}
+                            {% else %}
+                                {% include 'components/empty_states.html' with state_type='no_files' title='No Files Yet' message='Upload workspace documents, designs, mockups, or spreadsheets to collaborate with your team.' action_url=upload_file_url action_text='Upload File' %}
+                            {% endif %}
                         </td>
                     </tr>
                     {% endfor %}

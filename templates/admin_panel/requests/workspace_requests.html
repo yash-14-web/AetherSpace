@@ -2,43 +2,149 @@
 {% load static %}
 
 {% block admin_content %}
-<div class="space-y-6">
+<div class="space-y-6" x-data="{
+    activeModal: null,
+    selectedRequest: null,
+    openDetail(req) {
+        this.selectedRequest = req;
+        this.activeModal = 'detail';
+    },
+    openApprove(req) {
+        this.selectedRequest = req;
+        this.activeModal = 'approve';
+    },
+    openReject(req) {
+        this.selectedRequest = req;
+        this.activeModal = 'reject';
+    },
+    closeModal() {
+        this.activeModal = null;
+        this.selectedRequest = null;
+    }
+}">
 
-    <!-- Header / Explanation Card -->
+    <!-- Header / Overview Card -->
     <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-            <h2 class="text-xl font-bold text-slate-900 dark:text-zinc-50">Workspace Access Requests</h2>
+            <div class="flex items-center space-x-3">
+                <h2 class="text-xl font-bold text-slate-900 dark:text-zinc-50">Admin Access Request Center</h2>
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800/60">
+                    RBAC Authoritative
+                </span>
+            </div>
             <p class="text-xs text-slate-500 dark:text-zinc-400 mt-1">
-                Review and approve access requests generated when users hit restricted workspaces (403 forbidden flow).
+                Triage, inspect, and approve time-bounded temporary permission grants without permanent role escalation.
             </p>
         </div>
-        <!-- Status Filter Pills -->
-        <div class="flex items-center space-x-2">
-            <a href="?status=PENDING"
-               class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors border
+
+        <!-- Status Filter Tabs with Counts -->
+        <div class="flex items-center space-x-1.5 flex-wrap">
+            <a href="?status=PENDING{% if workspace_filter %}&workspace={{ workspace_filter }}{% endif %}{% if action_filter %}&action={{ action_filter }}{% endif %}{% if urgency_filter %}&urgency={{ urgency_filter }}{% endif %}"
+               class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors border flex items-center space-x-1.5
                {% if status_filter == 'PENDING' %}bg-purple-600 text-white border-purple-600 shadow-sm
                {% else %}bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 border-slate-200 dark:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-700{% endif %}">
-                Pending
+                <span>Pending</span>
+                <span class="px-1.5 py-0.2 rounded-full text-[10px] {% if status_filter == 'PENDING' %}bg-purple-800 text-purple-100{% else %}bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300{% endif %} font-bold">
+                    {{ count_pending }}
+                </span>
             </a>
-            <a href="?status=APPROVED"
-               class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors border
+            <a href="?status=APPROVED{% if workspace_filter %}&workspace={{ workspace_filter }}{% endif %}{% if action_filter %}&action={{ action_filter }}{% endif %}{% if urgency_filter %}&urgency={{ urgency_filter }}{% endif %}"
+               class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors border flex items-center space-x-1.5
                {% if status_filter == 'APPROVED' %}bg-purple-600 text-white border-purple-600 shadow-sm
                {% else %}bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 border-slate-200 dark:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-700{% endif %}">
-                Approved
+                <span>Approved</span>
+                <span class="px-1.5 py-0.2 rounded-full text-[10px] {% if status_filter == 'APPROVED' %}bg-purple-800 text-purple-100{% else %}bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300{% endif %} font-bold">
+                    {{ count_approved }}
+                </span>
             </a>
-            <a href="?status=REJECTED"
-               class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors border
+            <a href="?status=REJECTED{% if workspace_filter %}&workspace={{ workspace_filter }}{% endif %}{% if action_filter %}&action={{ action_filter }}{% endif %}{% if urgency_filter %}&urgency={{ urgency_filter }}{% endif %}"
+               class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors border flex items-center space-x-1.5
                {% if status_filter == 'REJECTED' %}bg-purple-600 text-white border-purple-600 shadow-sm
                {% else %}bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 border-slate-200 dark:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-700{% endif %}">
-                Rejected
+                <span>Rejected</span>
+                <span class="px-1.5 py-0.2 rounded-full text-[10px] {% if status_filter == 'REJECTED' %}bg-purple-800 text-purple-100{% else %}bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300{% endif %} font-bold">
+                    {{ count_rejected }}
+                </span>
             </a>
-            <a href="?status=ALL"
-               class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors border
+            <a href="?status=EXPIRED{% if workspace_filter %}&workspace={{ workspace_filter }}{% endif %}{% if action_filter %}&action={{ action_filter }}{% endif %}{% if urgency_filter %}&urgency={{ urgency_filter }}{% endif %}"
+               class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors border flex items-center space-x-1.5
+               {% if status_filter == 'EXPIRED' %}bg-purple-600 text-white border-purple-600 shadow-sm
+               {% else %}bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 border-slate-200 dark:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-700{% endif %}">
+                <span>Expired</span>
+                <span class="px-1.5 py-0.2 rounded-full text-[10px] {% if status_filter == 'EXPIRED' %}bg-purple-800 text-purple-100{% else %}bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300{% endif %} font-bold">
+                    {{ count_expired }}
+                </span>
+            </a>
+            <a href="?status=ALL{% if workspace_filter %}&workspace={{ workspace_filter }}{% endif %}{% if action_filter %}&action={{ action_filter }}{% endif %}{% if urgency_filter %}&urgency={{ urgency_filter }}{% endif %}"
+               class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors border flex items-center space-x-1.5
                {% if status_filter == 'ALL' %}bg-purple-600 text-white border-purple-600 shadow-sm
                {% else %}bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 border-slate-200 dark:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-700{% endif %}">
-                All
+                <span>All</span>
+                <span class="px-1.5 py-0.2 rounded-full text-[10px] {% if status_filter == 'ALL' %}bg-purple-800 text-purple-100{% else %}bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300{% endif %} font-bold">
+                    {{ count_all }}
+                </span>
             </a>
         </div>
+    </div>
+
+    <!-- Filter Toolbar -->
+    <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl p-4 shadow-sm">
+        <form method="GET" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 text-xs">
+            <input type="hidden" name="status" value="{{ status_filter }}">
+
+            <!-- Search Query -->
+            <div>
+                <label class="block font-semibold text-slate-600 dark:text-zinc-400 mb-1">Search Requester / ID</label>
+                <input type="text" name="q" value="{{ q }}" placeholder="Name, email, ID..."
+                       class="w-full text-xs rounded-lg bg-slate-50 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 p-2 text-slate-900 dark:text-zinc-100 focus:ring-2 focus:ring-purple-500 focus:outline-none">
+            </div>
+
+            <!-- Workspace Filter -->
+            <div>
+                <label class="block font-semibold text-slate-600 dark:text-zinc-400 mb-1">Workspace</label>
+                <select name="workspace"
+                        class="w-full text-xs rounded-lg bg-slate-50 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 p-2 text-slate-900 dark:text-zinc-100 focus:ring-2 focus:ring-purple-500 focus:outline-none">
+                    <option value="">All Workspaces</option>
+                    {% for ws in all_workspaces %}
+                    <option value="{{ ws.slug }}" {% if workspace_filter == ws.slug %}selected{% endif %}>{{ ws.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Action Filter -->
+            <div>
+                <label class="block font-semibold text-slate-600 dark:text-zinc-400 mb-1">Action</label>
+                <select name="action"
+                        class="w-full text-xs rounded-lg bg-slate-50 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 p-2 text-slate-900 dark:text-zinc-100 focus:ring-2 focus:ring-purple-500 focus:outline-none">
+                    <option value="">All Actions</option>
+                    {% for act_val, act_lbl in actions %}
+                    <option value="{{ act_val }}" {% if action_filter == act_val %}selected{% endif %}>{{ act_lbl }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Urgency Filter -->
+            <div>
+                <label class="block font-semibold text-slate-600 dark:text-zinc-400 mb-1">Urgency</label>
+                <select name="urgency"
+                        class="w-full text-xs rounded-lg bg-slate-50 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 p-2 text-slate-900 dark:text-zinc-100 focus:ring-2 focus:ring-purple-500 focus:outline-none">
+                    <option value="">All Urgencies</option>
+                    {% for urg_val, urg_lbl in urgencies %}
+                    <option value="{{ urg_val }}" {% if urgency_filter == urg_val %}selected{% endif %}>{{ urg_lbl }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Filter Buttons -->
+            <div class="flex items-end space-x-2">
+                <button type="submit" class="w-full py-2 px-3 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-semibold transition-colors cursor-pointer text-center">
+                    Apply Filter
+                </button>
+                <a href="?status={{ status_filter }}" class="py-2 px-3 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-600 dark:text-zinc-300 font-semibold transition-colors text-center">
+                    Reset
+                </a>
+            </div>
+        </form>
     </div>
 
     <!-- Requests Table -->
@@ -47,85 +153,149 @@
             <table class="w-full text-left border-collapse">
                 <thead>
                     <tr class="border-b border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-950/50 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">
-                        <th class="px-6 py-3">Applicant User</th>
-                        <th class="px-6 py-3">Target Workspace</th>
+                        <th class="px-6 py-3">Requester</th>
+                        <th class="px-6 py-3">Workspace</th>
+                        <th class="px-6 py-3">Requested Action</th>
+                        <th class="px-6 py-3">Urgency</th>
+                        <th class="px-6 py-3">Duration</th>
                         <th class="px-6 py-3">Status</th>
-                        <th class="px-6 py-3">Requested At</th>
-                        <th class="px-6 py-3 text-right">Decision Actions</th>
+                        <th class="px-6 py-3 text-right">Actions</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-200/70 dark:divide-zinc-800/70 text-xs">
                     {% for req in requests_page %}
                     <tr class="hover:bg-slate-50/50 dark:hover:bg-zinc-800/30 transition-colors">
-                        <td class="px-6 py-4 flex items-center space-x-3">
-                            <div class="w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-950/70 text-purple-700 dark:text-purple-300 font-bold flex items-center justify-center shrink-0">
-                                {{ req.user.email|slice:":1"|upper }}
-                            </div>
-                            <div>
-                                <a href="{% url 'admin_panel:user_details' user_id=req.user.id %}" class="font-semibold text-slate-900 dark:text-zinc-100 hover:text-purple-600 transition-colors">
-                                    {{ req.user.full_name|default:req.user.email }}
-                                </a>
-                                <p class="text-[11px] text-slate-400 dark:text-zinc-500">{{ req.user.email }}</p>
+                        <!-- Requester -->
+                        <td class="px-6 py-4">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-950/70 text-purple-700 dark:text-purple-300 font-bold flex items-center justify-center shrink-0">
+                                    {{ req.user.email|slice:":1"|upper }}
+                                </div>
+                                <div>
+                                    <span class="font-bold text-slate-900 dark:text-zinc-100 block">
+                                        {{ req.user.full_name|default:req.user.email }}
+                                    </span>
+                                    <span class="text-[11px] text-slate-400 dark:text-zinc-500 font-mono">
+                                        ID: {{ req.user.contributor_id|default:"CONTRIB" }} • {{ req.user.email }}
+                                    </span>
+                                </div>
                             </div>
                         </td>
+
+                        <!-- Workspace -->
                         <td class="px-6 py-4 font-medium text-slate-800 dark:text-zinc-200">
+                            {% if req.workspace %}
                             <a href="{% url 'admin_panel:workspace_details' slug=req.workspace.slug %}" class="hover:text-purple-600 transition-colors">
                                 {{ req.workspace.name }}
                             </a>
                             <p class="text-[11px] text-slate-400 dark:text-zinc-500 font-mono">/{{ req.workspace.slug }}/</p>
+                            {% else %}
+                            <span class="text-slate-500 dark:text-zinc-400 italic">Global Platform</span>
+                            {% endif %}
                         </td>
+
+                        <!-- Action & Target Resource -->
+                        <td class="px-6 py-4">
+                            <span class="font-semibold text-slate-900 dark:text-zinc-100 block">
+                                {{ req.get_action_display }}
+                            </span>
+                            {% if req.target_resource_id %}
+                            <span class="text-[11px] text-purple-600 dark:text-purple-400 font-mono block">
+                                Resource: {{ req.target_resource_id }}
+                            </span>
+                            {% endif %}
+                        </td>
+
+                        <!-- Urgency -->
+                        <td class="px-6 py-4">
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider
+                                {% if req.urgency == 'EMERGENCY' %}bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300
+                                {% elif req.urgency == 'URGENT' %}bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300
+                                {% else %}bg-slate-100 text-slate-700 dark:bg-zinc-800 dark:text-zinc-300{% endif %}">
+                                {{ req.get_urgency_display }}
+                            </span>
+                        </td>
+
+                        <!-- Duration -->
+                        <td class="px-6 py-4 text-slate-600 dark:text-zinc-400">
+                            {{ req.get_requested_duration_display }}
+                        </td>
+
+                        <!-- Status -->
                         <td class="px-6 py-4">
                             <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold
                                 {% if req.status == 'PENDING' %}bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60
                                 {% elif req.status == 'APPROVED' %}bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60
+                                {% elif req.status == 'EXPIRED' %}bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 border border-slate-200 dark:border-zinc-700
                                 {% else %}bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800/60{% endif %}">
                                 {{ req.get_status_display }}
                             </span>
-                        </td>
-                        <td class="px-6 py-4 text-slate-500 dark:text-zinc-400 text-xs">
-                            {{ req.created_at|date:"M d, Y H:i" }}
-                        </td>
-                        <td class="px-6 py-4 text-right">
-                            {% if req.status == 'PENDING' %}
-                            <div class="flex items-center justify-end space-x-2">
-                                <!-- Approve Form -->
-                                <form method="post" action="{% url 'admin_panel:decide_workspace_request' request_id=req.id %}" class="inline-flex items-center space-x-1.5">
-                                    {% csrf_token %}
-                                    <input type="hidden" name="decision" value="APPROVE">
-                                    <select name="role" class="text-xs py-1 px-2 rounded border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-800 dark:text-zinc-200">
-                                        <option value="CONTRIBUTOR" selected>Contributor</option>
-                                        <option value="MANAGER">Manager</option>
-                                        <option value="ADMIN">Admin</option>
-                                    </select>
-                                    <button type="submit" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-semibold shadow-sm transition-colors">
-                                        Approve
-                                    </button>
-                                </form>
-                                <!-- Reject Form -->
-                                <form method="post" action="{% url 'admin_panel:decide_workspace_request' request_id=req.id %}" class="inline">
-                                    {% csrf_token %}
-                                    <input type="hidden" name="decision" value="REJECT">
-                                    <button type="submit" onclick="return confirm('Reject this access request?');"
-                                            class="px-2.5 py-1 bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 dark:bg-zinc-800 dark:hover:bg-rose-950/50 dark:text-zinc-400 dark:hover:text-rose-400 rounded text-xs font-semibold border border-slate-200 dark:border-zinc-700 transition-colors">
-                                        Reject
-                                    </button>
-                                </form>
-                            </div>
-                            {% else %}
-                            <span class="text-slate-400 dark:text-zinc-600 text-xs italic">
-                                Decided
+                            <span class="block text-[10px] text-slate-400 dark:text-zinc-500 mt-0.5">
+                                {{ req.created_at|date:"M d, H:i" }}
                             </span>
-                            {% endif %}
+                        </td>
+
+                        <!-- Actions -->
+                        <td class="px-6 py-4 text-right">
+                            <div class="flex items-center justify-end space-x-1.5">
+                                <!-- Inspect Detail Button -->
+                                <button type="button"
+                                        @click="openDetail({
+                                            id: '{{ req.id }}',
+                                            requester: '{{ req.user.email }}',
+                                            requester_name: '{{ req.user.full_name|default:req.user.email }}',
+                                            contributor_id: '{{ req.user.contributor_id|default:'CONTRIB' }}',
+                                            workspace: '{{ req.workspace.name|default:'Global' }}',
+                                            action: '{{ req.get_action_display }}',
+                                            target: '{{ req.target_resource_id|default:'—' }}',
+                                            urgency: '{{ req.get_urgency_display }}',
+                                            duration: '{{ req.get_requested_duration_display }}',
+                                            reason: '{{ req.reason|escapejs }}',
+                                            goal: '{{ req.goal_description|escapejs }}',
+                                            evidence_url: '{{ req.evidence_url }}',
+                                            evidence_file: '{{ req.evidence_file }}',
+                                            created_at: '{{ req.created_at|date:'M d, Y H:i' }}'
+                                        })"
+                                        class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-300 rounded text-xs font-semibold transition-colors cursor-pointer">
+                                    Details
+                                </button>
+
+                                {% if req.status == 'PENDING' %}
+                                <!-- Approve Button -->
+                                <button type="button"
+                                        @click="openApprove({
+                                            id: '{{ req.id }}',
+                                            requester: '{{ req.user.email }}',
+                                            action: '{{ req.get_action_display }}',
+                                            workspace: '{{ req.workspace.name|default:'Global' }}',
+                                            duration: '{{ req.requested_duration }}'
+                                        })"
+                                        class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-semibold shadow-sm transition-colors cursor-pointer">
+                                    Approve
+                                </button>
+
+                                <!-- Reject Button -->
+                                <button type="button"
+                                        @click="openReject({
+                                            id: '{{ req.id }}',
+                                            requester: '{{ req.user.email }}',
+                                            action: '{{ req.get_action_display }}'
+                                        })"
+                                        class="px-2.5 py-1 bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 dark:bg-zinc-800 dark:hover:bg-rose-950/50 dark:text-zinc-400 dark:hover:text-rose-400 rounded text-xs font-semibold border border-slate-200 dark:border-zinc-700 transition-colors cursor-pointer">
+                                    Reject
+                                </button>
+                                {% endif %}
+                            </div>
                         </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="5" class="px-6 py-12 text-center text-slate-400 dark:text-zinc-500">
+                        <td colspan="7" class="px-6 py-12 text-center text-slate-400 dark:text-zinc-500">
                             <svg class="w-12 h-12 mx-auto text-slate-300 dark:text-zinc-700 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                             </svg>
-                            <p class="font-medium">No workspace access requests found.</p>
-                            <p class="text-xs text-slate-400 dark:text-zinc-600 mt-1">Requests appear when uninvited users request workspace access.</p>
+                            <p class="font-bold text-slate-700 dark:text-zinc-300 text-sm">No access requests found.</p>
+                            <p class="text-xs text-slate-400 dark:text-zinc-500 mt-1">Requests appear when users encounter access limits or request temporary privileges.</p>
                         </td>
                     </tr>
                     {% endfor %}
@@ -139,14 +309,182 @@
             <span>Showing {{ requests_page.start_index }} to {{ requests_page.end_index }} of {{ requests_page.paginator.count }} requests</span>
             <div class="flex items-center space-x-1">
                 {% if requests_page.has_previous %}
-                <a href="?page={{ requests_page.previous_page_number }}&status={{ status_filter }}" class="px-2.5 py-1 rounded bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-700 font-semibold">Previous</a>
+                <a href="?page={{ requests_page.previous_page_number }}&status={{ status_filter }}{% if workspace_filter %}&workspace={{ workspace_filter }}{% endif %}{% if action_filter %}&action={{ action_filter }}{% endif %}{% if urgency_filter %}&urgency={{ urgency_filter }}{% endif %}{% if q %}&q={{ q }}{% endif %}"
+                   class="px-2.5 py-1 rounded border border-slate-300 dark:border-zinc-700 hover:bg-slate-100 dark:hover:bg-zinc-800 font-semibold">Previous</a>
                 {% endif %}
+                <span class="px-2">Page {{ requests_page.number }} of {{ requests_page.paginator.num_pages }}</span>
                 {% if requests_page.has_next %}
-                <a href="?page={{ requests_page.next_page_number }}&status={{ status_filter }}" class="px-2.5 py-1 rounded bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-700 font-semibold">Next</a>
+                <a href="?page={{ requests_page.next_page_number }}&status={{ status_filter }}{% if workspace_filter %}&workspace={{ workspace_filter }}{% endif %}{% if action_filter %}&action={{ action_filter }}{% endif %}{% if urgency_filter %}&urgency={{ urgency_filter }}{% endif %}{% if q %}&q={{ q }}{% endif %}"
+                   class="px-2.5 py-1 rounded border border-slate-300 dark:border-zinc-700 hover:bg-slate-100 dark:hover:bg-zinc-800 font-semibold">Next</a>
                 {% endif %}
             </div>
         </div>
         {% endif %}
+    </div>
+
+    <!-- 1. Detail Inspection Modal -->
+    <div x-show="activeModal === 'detail'"
+         class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm"
+         style="display: none;">
+        <div @click.away="closeModal()"
+             class="w-full max-w-lg bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-zinc-800 p-6 space-y-4 text-xs">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-zinc-800">
+                <h3 class="text-base font-bold text-slate-900 dark:text-zinc-50 flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-purple-500"></span>
+                    Access Request Dossier
+                </h3>
+                <button type="button" @click="closeModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200">✕</button>
+            </div>
+
+            <template x-if="selectedRequest">
+                <div class="space-y-3">
+                    <div class="grid grid-cols-2 gap-2 p-3 bg-slate-50 dark:bg-zinc-950/60 rounded-xl border border-slate-200/60 dark:border-zinc-800">
+                        <div>
+                            <span class="text-slate-400 block text-[10px] uppercase font-bold">Requester</span>
+                            <span class="font-bold text-slate-800 dark:text-zinc-200" x-text="selectedRequest.requester_name"></span>
+                            <span class="text-[11px] text-slate-400 font-mono block" x-text="selectedRequest.requester"></span>
+                        </div>
+                        <div>
+                            <span class="text-slate-400 block text-[10px] uppercase font-bold">Workspace</span>
+                            <span class="font-bold text-slate-800 dark:text-zinc-200" x-text="selectedRequest.workspace"></span>
+                        </div>
+                        <div>
+                            <span class="text-slate-400 block text-[10px] uppercase font-bold">Requested Action</span>
+                            <span class="font-bold text-purple-600 dark:text-purple-400" x-text="selectedRequest.action"></span>
+                        </div>
+                        <div>
+                            <span class="text-slate-400 block text-[10px] uppercase font-bold">Urgency / Duration</span>
+                            <span class="font-semibold text-slate-800 dark:text-zinc-200" x-text="selectedRequest.urgency + ' • ' + selectedRequest.duration"></span>
+                        </div>
+                    </div>
+
+                    <div>
+                        <span class="font-bold text-slate-700 dark:text-zinc-300 block mb-1">Reason for Request:</span>
+                        <div class="p-3 rounded-lg bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-slate-800 dark:text-zinc-200 leading-relaxed font-normal"
+                             x-text="selectedRequest.reason"></div>
+                    </div>
+
+                    <div x-show="selectedRequest.goal">
+                        <span class="font-bold text-slate-700 dark:text-zinc-300 block mb-1">Goal Description / Accomplishment Objective:</span>
+                        <div class="p-3 rounded-lg bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-slate-800 dark:text-zinc-200 leading-relaxed font-normal"
+                             x-text="selectedRequest.goal"></div>
+                    </div>
+
+                    <div x-show="selectedRequest.evidence_url">
+                        <span class="font-bold text-slate-700 dark:text-zinc-300 block mb-1">Evidence URL:</span>
+                        <a :href="selectedRequest.evidence_url" target="_blank" class="text-purple-600 dark:text-purple-400 hover:underline font-mono break-all" x-text="selectedRequest.evidence_url"></a>
+                    </div>
+
+                    <div x-show="selectedRequest.evidence_file">
+                        <span class="font-bold text-slate-700 dark:text-zinc-300 block mb-1">Uploaded Evidence:</span>
+                        <span class="text-slate-600 dark:text-zinc-400 font-mono text-[11px]" x-text="selectedRequest.evidence_file"></span>
+                    </div>
+                </div>
+            </template>
+
+            <div class="pt-2 border-t border-slate-100 dark:border-zinc-800 flex justify-end">
+                <button type="button" @click="closeModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-300 font-semibold rounded-lg">
+                    Close Dossier
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. Approve Modal -->
+    <div x-show="activeModal === 'approve'"
+         class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm"
+         style="display: none;">
+        <div @click.away="closeModal()"
+             class="w-full max-w-md bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-zinc-800 p-6 space-y-4 text-xs">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-zinc-800">
+                <h3 class="text-base font-bold text-slate-900 dark:text-zinc-50 flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                    Approve Temporary Access Grant
+                </h3>
+                <button type="button" @click="closeModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200">✕</button>
+            </div>
+
+            <template x-if="selectedRequest">
+                <form :action="'/admin-panel/requests/' + selectedRequest.id + '/decision/'" method="POST" class="space-y-4">
+                    {% csrf_token %}
+                    <input type="hidden" name="decision" value="APPROVE">
+
+                    <p class="text-slate-600 dark:text-zinc-300">
+                        Grant temporary authorization for <strong class="text-slate-900 dark:text-zinc-100" x-text="selectedRequest.requester"></strong>
+                        to perform <strong class="text-purple-600 dark:text-purple-400" x-text="selectedRequest.action"></strong> in <span x-text="selectedRequest.workspace"></span>.
+                    </p>
+
+                    <div>
+                        <label class="block font-semibold text-slate-700 dark:text-zinc-300 mb-1">Grant Expiration Window</label>
+                        <select name="duration" class="w-full text-xs rounded-lg bg-slate-50 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 p-2 text-slate-900 dark:text-zinc-100 focus:ring-2 focus:ring-purple-500 focus:outline-none">
+                            <option value="1_HOUR" selected>1 Hour</option>
+                            <option value="4_HOURS">4 Hours</option>
+                            <option value="TODAY">Until Midnight Today</option>
+                            <option value="ONE_TIME">One-Time Action (30 mins)</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block font-semibold text-slate-700 dark:text-zinc-300 mb-1">Admin Approval Note (Optional)</label>
+                        <textarea name="admin_note" rows="2" placeholder="Audit note regarding granted scope..."
+                                  class="w-full text-xs rounded-lg bg-slate-50 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 p-2.5 text-slate-900 dark:text-zinc-100 focus:ring-2 focus:ring-purple-500 focus:outline-none"></textarea>
+                    </div>
+
+                    <div class="pt-2 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-end gap-2">
+                        <button type="button" @click="closeModal()" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-300 font-semibold rounded-lg">
+                            Cancel
+                        </button>
+                        <button type="submit" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg shadow-sm">
+                            Confirm & Issue Grant
+                        </button>
+                    </div>
+                </form>
+            </template>
+        </div>
+    </div>
+
+    <!-- 3. Reject Modal -->
+    <div x-show="activeModal === 'reject'"
+         class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm"
+         style="display: none;">
+        <div @click.away="closeModal()"
+             class="w-full max-w-md bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-zinc-800 p-6 space-y-4 text-xs">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-zinc-800">
+                <h3 class="text-base font-bold text-slate-900 dark:text-zinc-50 flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
+                    Reject Access Request
+                </h3>
+                <button type="button" @click="closeModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200">✕</button>
+            </div>
+
+            <template x-if="selectedRequest">
+                <form :action="'/admin-panel/requests/' + selectedRequest.id + '/decision/'" method="POST" class="space-y-4">
+                    {% csrf_token %}
+                    <input type="hidden" name="decision" value="REJECT">
+
+                    <p class="text-slate-600 dark:text-zinc-300">
+                        Rejecting request from <strong class="text-slate-900 dark:text-zinc-100" x-text="selectedRequest.requester"></strong>.
+                    </p>
+
+                    <div>
+                        <label class="block font-semibold text-slate-700 dark:text-zinc-300 mb-1">
+                            Rejection Reason <span class="text-rose-500 font-bold">*</span>
+                        </label>
+                        <textarea name="rejection_reason" required rows="3" placeholder="Provide clear explanation why this access request cannot be approved..."
+                                  class="w-full text-xs rounded-lg bg-slate-50 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 p-2.5 text-slate-900 dark:text-zinc-100 focus:ring-2 focus:ring-rose-500 focus:outline-none"></textarea>
+                    </div>
+
+                    <div class="pt-2 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-end gap-2">
+                        <button type="button" @click="closeModal()" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-300 font-semibold rounded-lg">
+                            Cancel
+                        </button>
+                        <button type="submit" class="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-semibold rounded-lg shadow-sm">
+                            Confirm Rejection
+                        </button>
+                    </div>
+                </form>
+            </template>
+        </div>
     </div>
 
 </div>

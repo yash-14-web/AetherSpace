@@ -28,6 +28,12 @@
     <!-- Compiled Tailwind Styles with Cache-Buster -->
     <link rel="stylesheet" href="{% static 'css/dist/styles.css' %}?v={% now 'U' %}">
 
+    <!-- Central Markdown & Live Preview Engine -->
+    <script>
+        window.AETHER_MARKDOWN_PREVIEW_URL = "{% url 'core:markdown_preview' %}";
+    </script>
+    <script src="{% static 'js/aether_markdown.js' %}?v={% now 'U' %}"></script>
+
     <!-- Alpine.js -->
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
 
@@ -54,6 +60,8 @@
         {% include 'components/messages.html' %}
     {% endif %}
 
+    {% include 'components/connection_status.html' %}
+
     {% block layout %}
         <div class="flex h-full overflow-hidden">
             {% block sidebar %}
@@ -73,6 +81,12 @@
             </div>
         </div>
     {% endblock %}
+
+    {% include 'components/universal_hover_card.html' %}
+    {% include 'components/incoming_call_modal.html' %}
+    {% if user.is_authenticated %}
+        {% include 'components/request_access_modal.html' %}
+    {% endif %}
 
     {% block extra_js %}{% endblock %}
 </body>

@@ -124,9 +124,7 @@
                         <!-- Opened By -->
                         <td class="py-3 px-3 whitespace-nowrap">
                             <div class="flex items-center space-x-2">
-                                <div class="w-6 h-6 rounded-full bg-slate-200 dark:bg-zinc-700 text-slate-700 dark:text-zinc-200 flex items-center justify-center font-bold text-[10px]">
-                                    {{ f.last_accessed_by.email|default:f.uploaded_by.email|slice:":2"|upper }}
-                                </div>
+                                {% include 'components/avatar.html' with user=f.last_accessed_by|default:f.uploaded_by size='w-6 h-6' text_size='text-[10px]' %}
                                 <span class="text-slate-700 dark:text-zinc-300 font-medium truncate max-w-[120px]">
                                     {{ f.last_accessed_by.get_full_name|default:f.last_accessed_by.username|default:f.uploaded_by.username }}
                                 </span>

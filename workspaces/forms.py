@@ -66,6 +66,21 @@ class WorkspaceCreateForm(forms.ModelForm):
 
 
 class WorkspaceUpdateForm(forms.ModelForm):
+    logo_file = forms.FileField(
+        required=False,
+        widget=forms.FileInput(attrs={
+            'accept': 'image/png,image/jpeg,image/webp,image/svg+xml,image/gif',
+            'class': 'hidden',
+            'id': 'workspace-logo-file-input',
+        })
+    )
+    logo_url = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={
+            'placeholder': 'https://example.com/logo.png or Supabase storage link',
+            'class': INPUT_CLASSES,
+        })
+    )
     storage_quota_mb = forms.IntegerField(
         required=False,
         min_value=5,

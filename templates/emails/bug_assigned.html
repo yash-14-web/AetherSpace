@@ -1,0 +1,33 @@
+{% extends 'emails/base_email.html' %}
+
+{% block email_content %}
+    <span class="badge badge-amber">Defect Assignment</span>
+    <h1>You have been assigned a bug</h1>
+    <p>
+        Hello <strong>{{ user.full_name|default:user.email }}</strong>,
+    </p>
+    <p>
+        {% if actor %}<strong>{{ actor.full_name|default:actor.email }}</strong> has assigned you{% else %}You have been assigned{% endif %} to defect:
+    </p>
+
+    <div style="background-color: #09090b; border: 1px solid #27272a; border-radius: 12px; padding: 16px; margin: 20px 0;">
+        <div style="font-family: monospace; font-size: 13px; font-weight: bold; color: #f59e0b; margin-bottom: 6px;">
+            {{ bug.bug_code }} &bull; {{ bug.get_severity_display }} &bull; {{ bug.get_priority_display }} Priority
+        </div>
+        <div style="font-size: 16px; font-weight: bold; color: #ffffff; margin-bottom: 8px;">
+            {{ bug.title }}
+        </div>
+        {% if bug.module %}
+            <div style="font-size: 12px; color: #60a5fa; margin-bottom: 6px;">
+                Module: {{ bug.module.name }}
+            </div>
+        {% endif %}
+        {% if bug.description %}
+            <p style="font-size: 13px; color: #a1a1aa; margin: 0;">{{ bug.description|truncatechars:200 }}</p>
+        {% endif %}
+    </div>
+
+    <a href="{{ site_url|default:'http://127.0.0.1:8000' }}{{ action_url }}" class="btn">
+        View Defect in AetherSpace &rarr;
+    </a>
+{% endblock %}

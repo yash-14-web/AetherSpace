@@ -165,11 +165,21 @@
         <div class="p-4 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 shadow-sm space-y-2">
             <span class="text-xs font-bold text-slate-800 dark:text-zinc-200 block">Quick Add</span>
             <div class="grid grid-cols-2 gap-1.5 text-xs font-semibold">
+                {% if can_create_task %}
                 <a href="{% url 'tasks:task_create' slug=workspace.slug %}" 
                    class="flex items-center space-x-1.5 p-2 rounded-xl bg-slate-50 dark:bg-zinc-900/60 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 border border-slate-200 dark:border-zinc-800 transition">
                     <span>🟢</span>
                     <span>Task</span>
                 </a>
+                {% else %}
+                <button type="button"
+                        @click="$dispatch('open-access-request', { action: 'task.create', workspaceSlug: '{{ workspace.slug }}', workspaceName: '{{ workspace.name }}', workspaceId: '{{ workspace.id }}' })"
+                        class="flex items-center space-x-1.5 p-2 rounded-xl bg-slate-50 dark:bg-zinc-900/40 text-slate-400 dark:text-zinc-500 hover:text-purple-500 border border-slate-200 dark:border-zinc-800 transition cursor-pointer text-left"
+                        title="You don't currently have permission. Request temporary access.">
+                    <span>🔒</span>
+                    <span>Task (Req)</span>
+                </button>
+                {% endif %}
                 <a href="{% url 'bugs:bug_create' slug=workspace.slug %}" 
                    class="flex items-center space-x-1.5 p-2 rounded-xl bg-slate-50 dark:bg-zinc-900/60 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 border border-slate-200 dark:border-zinc-800 transition">
                     <span>🔴</span>
@@ -194,11 +204,15 @@
 
         <!-- User Role Profile Chip (Screen 1) -->
         <div class="p-3 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 flex items-center space-x-3 shadow-sm">
-            <div class="w-8 h-8 rounded-full bg-blue-600 text-white font-bold text-xs flex items-center justify-center shrink-0">
-                {{ user.get_full_name|default:user.username|slice:":2"|upper }}
-            </div>
+            {% if user.avatar and not user.avatar|slice:":7" == "preset:" %}
+                <img src="{{ user.avatar }}" alt="{{ user.full_name|default:user.get_full_name }}" class="w-8 h-8 rounded-full object-cover shrink-0">
+            {% else %}
+                <div class="w-8 h-8 rounded-full bg-blue-600 text-white font-bold text-xs flex items-center justify-center shrink-0">
+                    {{ user.full_name|default:user.get_full_name|slice:":2"|upper }}
+                </div>
+            {% endif %}
             <div class="min-w-0">
-                <div class="text-xs font-bold text-slate-800 dark:text-zinc-200 truncate">{{ user.get_full_name|default:user.username }}</div>
+                <div class="text-xs font-bold text-slate-800 dark:text-zinc-200 truncate">{{ user.full_name|default:user.get_full_name }}</div>
                 <div class="text-[10px] font-semibold text-slate-400 dark:text-zinc-500 uppercase">{{ membership.get_role_display }}</div>
             </div>
         </div>
@@ -233,50 +247,247 @@
         <!-- Controls Bar: Nav, Month Display, View Switcher (Screen 1) -->
         <div class="flex flex-wrap items-center justify-between gap-3 bg-white dark:bg-[#0c1322] p-4 rounded-2xl border border-slate-200 dark:border-zinc-800 shadow-sm">
             
-            <!-- Month Nav & Today Button -->
+            <!-- Date Nav & Today Button -->
             <div class="flex items-center space-x-2">
-                <a href="?year={{ today.year }}&month={{ today.month }}&view={{ active_view }}" 
+                <a href="?{% if active_view == 'week' or active_view == 'day' %}date={{ today|date:'Y-m-d' }}&view={{ active_view }}{% else %}year={{ today.year }}&month={{ today.month }}&view=month{% endif %}" 
                    class="px-3 py-1.5 text-xs font-semibold rounded-xl border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition">
                     Today
                 </a>
                 <div class="flex items-center space-x-1">
-                    <a href="?year={{ prev_year }}&month={{ prev_month }}&view={{ active_view }}" 
-                       class="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-zinc-800 transition" title="Previous Month">
-                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
-                        </svg>
-                    </a>
-                    <a href="?year={{ next_year }}&month={{ next_month }}&view={{ active_view }}" 
-                       class="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-zinc-800 transition" title="Next Month">
-                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                        </svg>
-                    </a>
+                    {% if active_view == 'week' or active_view == 'day' %}
+                        <a href="?date={{ prev_date|date:'Y-m-d' }}&view={{ active_view }}" 
+                           class="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-zinc-800 transition" title="Previous">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                            </svg>
+                        </a>
+                        <a href="?date={{ next_date|date:'Y-m-d' }}&view={{ active_view }}" 
+                           class="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-zinc-800 transition" title="Next">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                            </svg>
+                        </a>
+                    {% else %}
+                        <a href="?year={{ prev_year }}&month={{ prev_month }}&view=month" 
+                           class="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-zinc-800 transition" title="Previous Month">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                            </svg>
+                        </a>
+                        <a href="?year={{ next_year }}&month={{ next_month }}&view=month" 
+                           class="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-zinc-800 transition" title="Next Month">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                            </svg>
+                        </a>
+                    {% endif %}
                 </div>
-                <h2 class="text-sm sm:text-base font-bold text-slate-800 dark:text-zinc-100 ml-2">{{ month_name }} {{ year }}</h2>
+                <h2 class="text-sm sm:text-base font-bold text-slate-800 dark:text-zinc-100 ml-2">
+                    {% if active_view == 'week' %}
+                        {{ week_data.start_date|date:"M j" }} – {{ week_data.end_date|date:"M j, Y" }}
+                    {% elif active_view == 'day' %}
+                        {{ target_date|date:"l, F j, Y" }}
+                    {% else %}
+                        {{ month_name }} {{ year }}
+                    {% endif %}
+                </h2>
             </div>
 
             <!-- View Switcher Pills (Month, Week, Day, Agenda) -->
             <div class="flex items-center p-1 bg-slate-100 dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-800 text-xs font-semibold">
-                <a href="?year={{ year }}&month={{ month }}&view=month" 
+                <a href="?year={{ target_date.year }}&month={{ target_date.month }}&date={{ target_date|date:'Y-m-d' }}&view=month" 
                    class="px-3 py-1 rounded-lg transition-colors {% if active_view == 'month' %}bg-white dark:bg-[#0c1322] text-blue-600 dark:text-blue-400 shadow-xs{% else %}text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200{% endif %}">
                     Month
                 </a>
-                <a href="?year={{ year }}&month={{ month }}&view=week" 
+                <a href="?date={{ target_date|date:'Y-m-d' }}&view=week" 
                    class="px-3 py-1 rounded-lg transition-colors {% if active_view == 'week' %}bg-white dark:bg-[#0c1322] text-blue-600 dark:text-blue-400 shadow-xs{% else %}text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200{% endif %}">
                     Week
                 </a>
-                <a href="?year={{ year }}&month={{ month }}&view=day" 
+                <a href="?date={{ target_date|date:'Y-m-d' }}&view=day" 
                    class="px-3 py-1 rounded-lg transition-colors {% if active_view == 'day' %}bg-white dark:bg-[#0c1322] text-blue-600 dark:text-blue-400 shadow-xs{% else %}text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200{% endif %}">
                     Day
                 </a>
-                <a href="{% url 'calendars:agenda_view' slug=workspace.slug %}" 
+                <a href="{% url 'calendars:agenda_view' slug=workspace.slug %}?date={{ target_date|date:'Y-m-d' }}" 
                    class="px-3 py-1 rounded-lg transition-colors {% if active_view == 'agenda' %}bg-white dark:bg-[#0c1322] text-blue-600 dark:text-blue-400 shadow-xs{% else %}text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200{% endif %}">
                     Agenda
                 </a>
             </div>
         </div>
 
+        {% if active_view == 'week' %}
+        <!-- 7-COLUMN WEEK VIEW GRID -->
+        <div class="flex-1 bg-white dark:bg-[#0c1322] rounded-2xl border border-slate-200 dark:border-zinc-800 shadow-sm overflow-hidden flex flex-col">
+            <!-- Week Header Row -->
+            <div class="grid grid-cols-7 border-b border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900/50 text-center text-xs">
+                {% for day in week_data.days %}
+                    <div class="py-3 px-1 border-r border-slate-100 dark:border-zinc-800/60 last:border-r-0 {% if day.is_today %}bg-blue-50/50 dark:bg-blue-950/20{% endif %}">
+                        <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500">{{ day.day_name|slice:":3" }}</span>
+                        <span class="inline-flex items-center justify-center text-xs font-bold mt-1 {% if day.is_today %}w-6 h-6 rounded-full bg-blue-600 text-white shadow-xs{% else %}text-slate-800 dark:text-zinc-200{% endif %}">
+                            {{ day.date|date:"j" }}
+                        </span>
+                    </div>
+                {% endfor %}
+            </div>
+
+            <!-- Week Columns Content -->
+            <div class="grid grid-cols-7 flex-1 divide-x divide-slate-100 dark:divide-zinc-800/60 text-xs min-h-[420px]">
+                {% for day in week_data.days %}
+                    <div class="p-2 flex flex-col justify-between transition-colors group cursor-pointer hover:bg-slate-50/80 dark:hover:bg-zinc-900/40 {% if day.is_today %}bg-blue-50/20 dark:bg-blue-950/10{% endif %}"
+                         onclick="window.location.href='{% url 'calendars:event_create' slug=workspace.slug %}?date={{ day.date|date:'Y-m-d' }}'">
+                        
+                        <!-- Top Action Row -->
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-[10px] font-semibold text-slate-400 dark:text-zinc-500">
+                                {{ day.items|length }} item{% if day.items|length != 1 %}s{% endif %}
+                            </span>
+                            <span class="opacity-0 group-hover:opacity-100 text-[10px] font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/50 px-1.5 py-0.5 rounded transition">
+                                + Add
+                            </span>
+                        </div>
+
+                        <!-- Items List -->
+                        <div class="space-y-1.5 flex-1 overflow-y-auto max-h-[500px]">
+                            {% for item in day.items %}
+                                <a href="{{ item.detail_url }}" 
+                                   onclick="event.stopPropagation();"
+                                   class="block px-2.5 py-1.5 rounded-lg text-[10px] font-semibold truncate transition-transform hover:scale-[1.02] shadow-2xs
+                                   {% if item.color == 'amber' %}
+                                       bg-amber-100 dark:bg-amber-950/70 border border-amber-300 dark:border-amber-800/80 text-amber-900 dark:text-amber-200
+                                   {% elif item.color == 'emerald' %}
+                                       bg-emerald-100 dark:bg-emerald-950/70 border border-emerald-300 dark:border-emerald-800/80 text-emerald-900 dark:text-emerald-200
+                                   {% elif item.color == 'purple' %}
+                                       bg-purple-100 dark:bg-purple-950/70 border border-purple-300 dark:border-purple-800/80 text-purple-900 dark:text-purple-200
+                                   {% elif item.color == 'rose' %}
+                                       bg-rose-100 dark:bg-rose-950/70 border border-rose-300 dark:border-rose-800/80 text-rose-900 dark:text-rose-200
+                                   {% else %}
+                                       bg-blue-100 dark:bg-blue-950/70 border border-blue-300 dark:border-blue-800/80 text-blue-900 dark:text-blue-200
+                                   {% endif %}"
+                                   title="{{ item.category_label }}: {{ item.title }} ({{ item.time_display }})">
+                                    <div class="flex items-center space-x-1 truncate">
+                                        <span class="w-1.5 h-1.5 rounded-full shrink-0 
+                                            {% if item.color == 'amber' %}bg-amber-500{% elif item.color == 'emerald' %}bg-emerald-500{% elif item.color == 'purple' %}bg-purple-500{% elif item.color == 'rose' %}bg-rose-500{% else %}bg-blue-500{% endif %}">
+                                        </span>
+                                        <span class="truncate">
+                                            {% if item.code %}<strong class="font-mono text-[9px] mr-0.5">{{ item.code }}</strong>{% endif %}
+                                            {{ item.title }}
+                                        </span>
+                                    </div>
+                                    <div class="text-[9px] opacity-75 mt-0.5 truncate pl-2.5">
+                                        {{ item.time_display }}
+                                    </div>
+                                </a>
+                            {% empty %}
+                                <div class="h-28 flex items-center justify-center text-center p-2 text-slate-300 dark:text-zinc-700 text-[10px]">
+                                    Click to schedule
+                                </div>
+                            {% endfor %}
+                        </div>
+
+                    </div>
+                {% endfor %}
+            </div>
+
+            <!-- Bottom Category Legend -->
+            <div class="p-3.5 bg-slate-50 dark:bg-zinc-900/60 border-t border-slate-200 dark:border-zinc-800 flex flex-wrap items-center justify-center sm:justify-start gap-4 text-xs font-semibold text-slate-600 dark:text-zinc-400">
+                <span class="flex items-center space-x-1.5"><span class="w-2 h-2 rounded-full bg-emerald-500"></span><span>Tasks</span></span>
+                <span class="flex items-center space-x-1.5"><span class="w-2 h-2 rounded-full bg-rose-500"></span><span>Bugs</span></span>
+                <span class="flex items-center space-x-1.5"><span class="w-2 h-2 rounded-full bg-purple-500"></span><span>Meetings</span></span>
+                <span class="flex items-center space-x-1.5"><span class="w-2 h-2 rounded-full bg-amber-500"></span><span>Milestones</span></span>
+                <span class="flex items-center space-x-1.5"><span class="w-2 h-2 rounded-full bg-blue-500"></span><span>Events</span></span>
+            </div>
+        </div>
+
+        {% elif active_view == 'day' %}
+        <!-- DAY TIMELINE HOURLY VIEW -->
+        <div class="flex-1 bg-white dark:bg-[#0c1322] rounded-2xl border border-slate-200 dark:border-zinc-800 shadow-sm overflow-hidden flex flex-col">
+            <!-- Day Header Banner -->
+            <div class="p-4 border-b border-slate-200 dark:border-zinc-800 bg-slate-50/70 dark:bg-zinc-900/40 flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <span class="inline-flex items-center justify-center w-9 h-9 rounded-xl {% if day_data.is_today %}bg-blue-600 text-white font-black shadow-sm{% else %}bg-slate-200 dark:bg-zinc-800 text-slate-800 dark:text-zinc-200 font-bold{% endif %} text-base">
+                        {{ day_data.date|date:"j" }}
+                    </span>
+                    <div>
+                        <h3 class="text-sm font-bold text-slate-800 dark:text-zinc-100">{{ day_data.day_name }}, {{ day_data.date|date:"F j, Y" }}</h3>
+                        <p class="text-[11px] text-slate-500 dark:text-zinc-400">{{ day_data.all_items|length }} schedule event{% if day_data.all_items|length != 1 %}s{% endif %} planned</p>
+                    </div>
+                </div>
+                <a href="{% url 'calendars:event_create' slug=workspace.slug %}?date={{ day_data.date|date:'Y-m-d' }}" 
+                   class="px-3.5 py-1.5 text-xs font-bold rounded-xl bg-blue-600 hover:bg-blue-700 text-white transition flex items-center space-x-1.5">
+                    <span>+ Add Event</span>
+                </a>
+            </div>
+
+            <!-- All Day / Full Day Deadlines Bar -->
+            {% if day_data.all_day_items %}
+            <div class="p-3 border-b border-slate-200 dark:border-zinc-800 bg-blue-50/30 dark:bg-blue-950/20">
+                <span class="text-[10px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400 block mb-2">All Day & Deadlines</span>
+                <div class="flex flex-wrap gap-2">
+                    {% for item in day_data.all_day_items %}
+                        <a href="{{ item.detail_url }}" 
+                           class="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold
+                           {% if item.color == 'amber' %}bg-amber-100 dark:bg-amber-950/80 border border-amber-300 text-amber-900 dark:text-amber-200
+                           {% elif item.color == 'emerald' %}bg-emerald-100 dark:bg-emerald-950/80 border border-emerald-300 text-emerald-900 dark:text-emerald-200
+                           {% elif item.color == 'purple' %}bg-purple-100 dark:bg-purple-950/80 border border-purple-300 text-purple-900 dark:text-purple-200
+                           {% elif item.color == 'rose' %}bg-rose-100 dark:bg-rose-950/80 border border-rose-300 text-rose-900 dark:text-rose-200
+                           {% else %}bg-blue-100 dark:bg-blue-950/80 border border-blue-300 text-blue-900 dark:text-blue-200{% endif %}">
+                            <span class="w-2 h-2 rounded-full {% if item.color == 'amber' %}bg-amber-500{% elif item.color == 'emerald' %}bg-emerald-500{% elif item.color == 'purple' %}bg-purple-500{% elif item.color == 'rose' %}bg-rose-500{% else %}bg-blue-500{% endif %}"></span>
+                            <span>{{ item.title }}</span>
+                        </a>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Hourly Slots Grid -->
+            <div class="flex-1 divide-y divide-slate-100 dark:divide-zinc-800/60 overflow-y-auto max-h-[600px]">
+                {% for slot in day_data.hourly_slots %}
+                    <div class="flex min-h-[60px] group cursor-pointer hover:bg-slate-50/80 dark:hover:bg-zinc-900/30 transition-colors"
+                         onclick="window.location.href='{% url 'calendars:event_create' slug=workspace.slug %}?date={{ day_data.date|date:'Y-m-d' }}&time={{ slot.hour }}:00'">
+                        
+                        <!-- Time Column -->
+                        <div class="w-20 shrink-0 p-3 text-right border-r border-slate-100 dark:border-zinc-800/60 text-[11px] font-semibold text-slate-400 dark:text-zinc-500 select-none">
+                            {{ slot.time_label }}
+                        </div>
+
+                        <!-- Content Slot -->
+                        <div class="flex-1 p-2 flex flex-wrap items-center gap-2 relative">
+                            {% for item in slot.items %}
+                                <a href="{{ item.detail_url }}" 
+                                   onclick="event.stopPropagation();"
+                                   class="px-3 py-1.5 rounded-xl text-xs font-medium flex items-center space-x-2 transition-transform hover:scale-[1.01] shadow-2xs
+                                   {% if item.color == 'amber' %}bg-amber-100 dark:bg-amber-950/70 border border-amber-300 dark:border-amber-800/80 text-amber-900 dark:text-amber-200
+                                   {% elif item.color == 'emerald' %}bg-emerald-100 dark:bg-emerald-950/70 border border-emerald-300 dark:border-emerald-800/80 text-emerald-900 dark:text-emerald-200
+                                   {% elif item.color == 'purple' %}bg-purple-100 dark:bg-purple-950/70 border border-purple-300 dark:border-purple-800/80 text-purple-900 dark:text-purple-200
+                                   {% elif item.color == 'rose' %}bg-rose-100 dark:bg-rose-950/70 border border-rose-300 dark:border-rose-800/80 text-rose-900 dark:text-rose-200
+                                   {% else %}bg-blue-100 dark:bg-blue-950/70 border border-blue-300 dark:border-blue-800/80 text-blue-900 dark:text-blue-200{% endif %}">
+                                    <span class="w-2 h-2 rounded-full shrink-0 {% if item.color == 'amber' %}bg-amber-500{% elif item.color == 'emerald' %}bg-emerald-500{% elif item.color == 'purple' %}bg-purple-500{% elif item.color == 'rose' %}bg-rose-500{% else %}bg-blue-500{% endif %}"></span>
+                                    <span class="font-bold">
+                                        {% if item.code %}[{{ item.code }}]{% endif %} {{ item.title }}
+                                    </span>
+                                    <span class="text-[10px] opacity-75">({{ item.time_display }})</span>
+                                </a>
+                            {% empty %}
+                                <span class="opacity-0 group-hover:opacity-100 text-[10px] text-slate-400 dark:text-zinc-500 pl-2 transition">
+                                    + Click to add event at {{ slot.time_label }}
+                                </span>
+                            {% endfor %}
+                        </div>
+
+                    </div>
+                {% endfor %}
+            </div>
+
+            <!-- Bottom Category Legend -->
+            <div class="p-3.5 bg-slate-50 dark:bg-zinc-900/60 border-t border-slate-200 dark:border-zinc-800 flex flex-wrap items-center justify-center sm:justify-start gap-4 text-xs font-semibold text-slate-600 dark:text-zinc-400">
+                <span class="flex items-center space-x-1.5"><span class="w-2 h-2 rounded-full bg-emerald-500"></span><span>Tasks</span></span>
+                <span class="flex items-center space-x-1.5"><span class="w-2 h-2 rounded-full bg-rose-500"></span><span>Bugs</span></span>
+                <span class="flex items-center space-x-1.5"><span class="w-2 h-2 rounded-full bg-purple-500"></span><span>Meetings</span></span>
+                <span class="flex items-center space-x-1.5"><span class="w-2 h-2 rounded-full bg-amber-500"></span><span>Milestones</span></span>
+                <span class="flex items-center space-x-1.5"><span class="w-2 h-2 rounded-full bg-blue-500"></span><span>Events</span></span>
+            </div>
+        </div>
+
+        {% else %}
         <!-- 7-COLUMN CALENDAR MONTH GRID (Screen 1) -->
         <div class="flex-1 bg-white dark:bg-[#0c1322] rounded-2xl border border-slate-200 dark:border-zinc-800 shadow-sm overflow-hidden flex flex-col">
             
@@ -295,7 +506,9 @@
             <div class="grid grid-cols-7 flex-1 divide-x divide-y divide-slate-100 dark:divide-zinc-800/60 text-xs">
                 {% for week in weeks %}
                     {% for day in week %}
-                        <div class="min-h-[110px] p-2 flex flex-col justify-between transition-colors {% if not day.is_current_month %}bg-slate-50/50 dark:bg-zinc-950/40 text-slate-300 dark:text-zinc-600{% else %}bg-white dark:bg-[#0c1322] hover:bg-slate-50/50 dark:hover:bg-zinc-900/30{% endif %}">
+                        <div class="min-h-[110px] p-2 flex flex-col justify-between transition-colors group cursor-pointer {% if not day.is_current_month %}bg-slate-50/50 dark:bg-zinc-950/40 text-slate-300 dark:text-zinc-600{% else %}bg-white dark:bg-[#0c1322] hover:bg-blue-50/20 dark:hover:bg-zinc-900/40{% endif %}"
+                             onclick="window.location.href='{% url 'calendars:event_create' slug=workspace.slug %}?date={{ day.date|date:'Y-m-d' }}'"
+                             title="Click to schedule event on {{ day.date|date:'M d, Y' }}">
                             
                             <!-- Day Number & New Action -->
                             <div class="flex items-center justify-between mb-1">
@@ -303,17 +516,16 @@
                                     {{ day.day_number }}
                                 </span>
                                 
-                                <a href="{% url 'calendars:event_create' slug=workspace.slug %}?date={{ day.date|date:'Y-m-d' }}" 
-                                   class="opacity-0 hover:opacity-100 focus:opacity-100 text-[10px] font-bold text-blue-600 dark:text-blue-400 transition" 
-                                   title="Add event on {{ day.date|date:'M d' }}">
-                                    +
-                                </a>
+                                <span class="opacity-0 group-hover:opacity-100 text-[10px] font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/50 px-1 py-0.5 rounded transition">
+                                    + Add
+                                </span>
                             </div>
 
                             <!-- Schedule Items Chips -->
                             <div class="space-y-1 flex-1 overflow-y-auto max-h-[120px]">
                                 {% for item in day.items|slice:":3" %}
                                     <a href="{{ item.detail_url }}" 
+                                       onclick="event.stopPropagation();"
                                        class="block px-2 py-1 rounded-md text-[10px] font-semibold truncate transition-transform hover:scale-[1.02] shadow-2xs
                                        {% if item.color == 'amber' %}
                                            bg-amber-100 dark:bg-amber-950/70 border border-amber-300 dark:border-amber-800/80 text-amber-900 dark:text-amber-200
@@ -341,6 +553,7 @@
 
                                 {% if day.items|length > 3 %}
                                     <a href="{% url 'calendars:agenda_view' slug=workspace.slug %}?date={{ day.date|date:'Y-m-d' }}" 
+                                       onclick="event.stopPropagation();"
                                        class="block text-[10px] font-bold text-slate-500 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-blue-400 pl-1">
                                         +{{ day.items|slice_remaining:3 }} more
                                     </a>
@@ -377,6 +590,7 @@
             </div>
 
         </div>
+        {% endif %}
 
     </main>
 

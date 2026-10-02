@@ -282,6 +282,20 @@ class Message(models.Model):
     def has_attachments(self):
         return self.attachments.exists()
 
+    @property
+    def grouped_reactions(self):
+        """
+        Group reactions by emoji with total count and participant IDs for Google Chat styling.
+        """
+        from collections import defaultdict
+        groups = defaultdict(lambda: {'emoji': '', 'count': 0, 'user_ids': []})
+        for r in self.reactions.all():
+            g = groups[r.emoji]
+            g['emoji'] = r.emoji
+            g['count'] += 1
+            g['user_ids'].append(r.user_id)
+        return list(groups.values())
+
 
 class MessageAttachment(models.Model):
     """

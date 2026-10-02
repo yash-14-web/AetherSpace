@@ -152,6 +152,75 @@
                     {% endif %}
                 </div>
 
+                <!-- Role & Responsibility Ribbon: { Designation Role • Tagging Role • Workspace Name } -->
+                <div class="py-2 px-3.5 rounded-xl bg-slate-50 dark:bg-zinc-800/60 border border-slate-200/80 dark:border-zinc-700/60 shadow-2xs flex items-center justify-between flex-wrap gap-2.5 my-2.5">
+                    <div class="flex items-center gap-2 flex-wrap text-xs">
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500 flex items-center gap-1">
+                            <svg class="w-3.5 h-3.5 text-blue-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                            </svg>
+                            <span>Scope:</span>
+                        </span>
+
+                        <!-- Designation (e.g. Engineering Lead, Full Stack Developer, Backend Developer, QA / Test Engineer) -->
+                        <span class="font-bold text-sm text-slate-900 dark:text-zinc-100">
+                            {{ primary_role.designation|default:profile_user.get_role_display|default:profile_user.role }}
+                        </span>
+
+                        <!-- Bullet separator -->
+                        {% if primary_role.role_tag %}
+                            <span class="text-slate-300 dark:text-zinc-600 font-black text-[11px]">&bull;</span>
+                            <!-- Tagging Role Badge (e.g. Management, Backend, Full Stack, QA, Frontend) -->
+                            <span class="px-2.5 py-0.5 rounded-lg text-[11px] font-bold tracking-wide bg-purple-50 dark:bg-purple-950/70 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800/60">
+                                {{ primary_role.role_tag }}
+                            </span>
+                        {% endif %}
+
+                        <!-- Bullet separator -->
+                        {% if primary_role.workspace_name %}
+                            <span class="text-slate-300 dark:text-zinc-600 font-black text-[11px]">&bull;</span>
+                            <!-- Workspace Name Badge (e.g. AetherSpace Core) -->
+                            <a href="{% url 'workspaces:workspace_dashboard' slug=primary_role.workspace_slug %}" 
+                               class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-[11px] font-semibold text-slate-700 dark:text-zinc-200 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 hover:text-blue-600 dark:hover:text-blue-400 hover:border-blue-400 transition-colors shadow-2xs">
+                                <svg class="w-3.5 h-3.5 text-blue-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                                </svg>
+                                <span>{{ primary_role.workspace_name }}</span>
+                            </a>
+                        {% endif %}
+
+                        {% if primary_role.is_owner %}
+                            <span class="px-2 py-0.5 text-[10px] font-bold rounded-md bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400 border border-amber-200 dark:border-amber-900/60 uppercase">
+                                Workspace Owner
+                            </span>
+                        {% endif %}
+                    </div>
+
+                    <!-- Right side: Reports To Supervisor or Direct Reports -->
+                    {% if primary_role.reporting_to_name and not primary_role.is_owner %}
+                        <div class="flex items-center gap-1.5 text-xs text-slate-500 dark:text-zinc-400">
+                            <span class="text-[10px] font-medium text-slate-400 dark:text-zinc-500 uppercase tracking-wider">Reports to:</span>
+                            <div class="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-white dark:bg-zinc-900 border border-slate-200/80 dark:border-zinc-700">
+                                {% if primary_role.reporting_to_user %}
+                                    {% include 'components/avatar.html' with user=primary_role.reporting_to_user size="w-4 h-4" rounded="rounded-full" text_size="text-[9px]" %}
+                                {% endif %}
+                                <span class="font-bold text-slate-800 dark:text-zinc-200">
+                                    {{ primary_role.reporting_to_name }}
+                                </span>
+                                {% if primary_role.reporting_to_role %}
+                                    <span class="text-[10px] text-slate-400 dark:text-zinc-500">({{ primary_role.reporting_to_role }})</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% elif primary_role.direct_reports_count > 0 %}
+                        <div class="flex items-center gap-1 text-xs text-slate-500 dark:text-zinc-400">
+                            <span class="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60">
+                                Supervises {{ primary_role.direct_reports_count }} Contributor{{ primary_role.direct_reports_count|pluralize }}
+                            </span>
+                        </div>
+                    {% endif %}
+                </div>
+
                 <!-- Professional Headline -->
                 <p class="text-sm font-medium text-slate-600 dark:text-zinc-300">
                     {{ profile.headline|default:"Platform Contributor & Team Collaborator" }}
@@ -191,6 +260,7 @@
                 </div>
             </div>
 
+            {% if is_own_profile %}
             <!-- 4 High-Level Metric Cards (Responsive Grid) -->
             <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-4 border-t border-slate-100 dark:border-zinc-800/80">
                 <!-- Metric 1: Assigned Tasks -->
@@ -233,9 +303,11 @@
                     <p class="text-[10px] text-slate-400 dark:text-zinc-500 mt-0.5">Actions recorded</p>
                 </div>
             </div>
+            {% endif %}
         </div>
     </div>
 
+    {% if is_own_profile %}
     <!-- 3. Sub-Navigation Tabs Bar (Screens 53 - 58) -->
     <div class="flex items-center space-x-1 border-b border-slate-200 dark:border-zinc-800 overflow-x-auto no-scrollbar">
         <!-- Tab 1: Overview (Screen 53) -->
@@ -334,6 +406,7 @@
             </a>
         {% endif %}
     </div>
+    {% endif %}
 
     <!-- 4. Profile Tab Specific Content -->
     {% block profile_content %}{% endblock %}

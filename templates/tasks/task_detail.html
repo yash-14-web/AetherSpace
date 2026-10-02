@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load rich_text %}
 
 {% block title %}T-{{ task.task_code }} {{ task.title }} • {{ workspace.name }} — AetherSpace{% endblock %}
 
@@ -7,6 +8,7 @@
     activeTab: (new URLSearchParams(window.location.search).get('tab') || '{{ initial_tab|default:'overview' }}'), 
     showDeleteModal: false, 
     showActionDropdown: false,
+    showCodeReviewModal: false,
     subtaskCount: {{ subtasks|length }},
     completedCount: {{ task.completed_subtask_count }}
 }">
@@ -139,20 +141,11 @@
             {% endif %}
         </div>
 
-        <!-- Assignee with Profile Picture / Avatar -->
+        <!-- Assignee with Hover Profile Card -->
         <div class="flex items-center space-x-2 sm:pl-6 pt-2 sm:pt-0">
             <span class="text-slate-400 dark:text-zinc-500 font-medium">Assignee:</span>
             {% if task.assignee %}
-                <div class="flex items-center space-x-2">
-                    {% if task.assignee.avatar %}
-                        <img src="{{ task.assignee.avatar }}" alt="{{ task.assignee.full_name|default:task.assignee.email }}" class="w-6 h-6 rounded-full object-cover shrink-0 ring-1 ring-slate-300 dark:ring-zinc-700">
-                    {% else %}
-                        <div class="w-6 h-6 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-bold text-[10px] flex items-center justify-center shrink-0">
-                            {{ task.assignee.full_name|default:task.assignee.email|slice:":1"|upper }}
-                        </div>
-                    {% endif %}
-                    <span class="text-slate-900 dark:text-zinc-100 font-bold">{{ task.assignee.full_name|default:task.assignee.email }}</span>
-                </div>
+                {% include 'components/people_hover_card.html' with target_user=task.assignee workspace_slug=workspace.slug show_name=True %}
             {% else %}
                 <span class="text-slate-400 dark:text-zinc-500 italic">Unassigned</span>
             {% endif %}
@@ -195,7 +188,12 @@
             <button @click="activeTab = 'attachments'" 
                     :class="activeTab === 'attachments' ? 'border-aether-blue text-aether-blue dark:text-sky-400' : 'border-transparent text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-300 hover:border-slate-300'"
                     class="py-3 px-1 border-b-2 font-bold text-xs sm:text-sm transition-colors">
-                Attachments <span class="ml-1 px-1.5 py-0.5 rounded-full text-[10px] bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400">2</span>
+                Attachments <span class="ml-1 px-1.5 py-0.5 rounded-full text-[10px] bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400">{{ attachments|length }}</span>
+            </button>
+            <button @click="activeTab = 'code_reviews'" 
+                    :class="activeTab === 'code_reviews' ? 'border-purple-500 text-purple-600 dark:text-purple-400' : 'border-transparent text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-300 hover:border-slate-300'"
+                    class="py-3 px-1 border-b-2 font-bold text-xs sm:text-sm transition-colors">
+                Code Reviews <span class="ml-1 px-1.5 py-0.5 rounded-full text-[10px] {% if code_reviews|length > 0 %}bg-purple-100 dark:bg-purple-950/80 text-purple-700 dark:text-purple-300 font-bold{% else %}bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400{% endif %}">{{ code_reviews|length }}</span>
             </button>
             <button @click="activeTab = 'comments'" 
                     :class="activeTab === 'comments' ? 'border-aether-blue text-aether-blue dark:text-sky-400' : 'border-transparent text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-300 hover:border-slate-300'"
@@ -229,8 +227,8 @@
                         Description
                     </h3>
                     {% if task.description %}
-                        <div class="prose dark:prose-invert max-w-none text-sm leading-relaxed text-slate-800 dark:text-zinc-200 whitespace-pre-line font-sans">
-                            {{ task.description }}
+                        <div class="prose dark:prose-invert max-w-none text-sm leading-relaxed text-slate-800 dark:text-zinc-200 font-sans">
+                            {{ task.description|render_rich_text }}
                         </div>
                     {% else %}
                         <p class="text-xs text-slate-400 dark:text-zinc-500 italic">
@@ -239,49 +237,104 @@
                     {% endif %}
                 </div>
 
-                <!-- Acceptance Criteria Checklist (Panel 3 Reference - Fully Interactive with Dynamic Count & Persistence) -->
+                <!-- Subtasks Checklist (Connected to Database & Real-time Persistence) -->
                 <div class="aether-card p-6 space-y-4" x-data="{
-                    criteria: JSON.parse(localStorage.getItem('task_criteria_{{ task.task_code }}') || JSON.stringify([
-                        { id: 1, text: 'User authentication flow implemented with session cookie handling', completed: true },
-                        { id: 2, text: 'RBAC permission checks enforced server-side for workspace roles', completed: true },
-                        { id: 3, text: 'Assignee avatar preview integrated across list, board, and details views', completed: false },
-                        { id: 4, text: 'Unit tests passing with 90%+ branch coverage', completed: false }
-                    ])),
-                    newCriteriaText: '',
+                    items: [
+                        {% for st in subtasks %}
+                        { id: '{{ st.id }}', title: '{{ st.title|escapejs }}', is_completed: {% if st.is_completed %}true{% else %}false{% endif %} }{% if not forloop.last %},{% endif %}
+                        {% endfor %}
+                    ],
+                    newTitle: '',
                     showAddForm: false,
-                    toggleCriteria(item) {
-                        item.completed = !item.completed;
-                        localStorage.setItem('task_criteria_{{ task.task_code }}', JSON.stringify(this.criteria));
-                    },
-                    addCriteria() {
-                        const trimmed = this.newCriteriaText.trim();
-                        if (!trimmed) return;
-                        this.criteria.push({ id: Date.now(), text: trimmed, completed: false });
-                        this.newCriteriaText = '';
-                        this.showAddForm = false;
-                        localStorage.setItem('task_criteria_{{ task.task_code }}', JSON.stringify(this.criteria));
-                    },
-                    removeCriteria(index) {
-                        this.criteria.splice(index, 1);
-                        localStorage.setItem('task_criteria_{{ task.task_code }}', JSON.stringify(this.criteria));
-                    },
+                    isSubmitting: false,
                     get completedCount() {
-                        return this.criteria.filter(i => i.completed).length;
+                        return this.items.filter(i => i.is_completed).length;
                     },
                     get totalCount() {
-                        return this.criteria.length;
+                        return this.items.length;
                     },
                     get remainingCount() {
                         return this.totalCount - this.completedCount;
                     },
                     get progressPercent() {
                         return this.totalCount > 0 ? Math.round((this.completedCount / this.totalCount) * 100) : 0;
+                    },
+                    async toggleSubtask(item) {
+                        const original = item.is_completed;
+                        item.is_completed = !item.is_completed;
+                        completedCount = this.completedCount;
+                        subtaskCount = this.totalCount;
+                        try {
+                            const url = `{% url 'tasks:subtask_toggle' slug=workspace.slug task_code=task.task_code subtask_id='00000000-0000-0000-0000-000000000000' %}`.replace('00000000-0000-0000-0000-000000000000', item.id);
+                            const resp = await fetch(url, {
+                                method: 'POST',
+                                headers: {
+                                    'X-CSRFToken': '{{ csrf_token }}',
+                                    'X-Requested-With': 'XMLHttpRequest'
+                                }
+                            });
+                            if (!resp.ok) {
+                                item.is_completed = original;
+                                completedCount = this.completedCount;
+                            }
+                        } catch (e) {
+                            item.is_completed = original;
+                            completedCount = this.completedCount;
+                        }
+                    },
+                    async addSubtask() {
+                        const trimmed = this.newTitle.trim();
+                        if (!trimmed || this.isSubmitting) return;
+                        this.isSubmitting = true;
+                        try {
+                            const resp = await fetch('{% url 'tasks:subtask_create' slug=workspace.slug task_code=task.task_code %}', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-CSRFToken': '{{ csrf_token }}',
+                                    'X-Requested-With': 'XMLHttpRequest'
+                                },
+                                body: JSON.stringify({ title: trimmed })
+                            });
+                            const data = await resp.json();
+                            if (data.success && data.subtask) {
+                                this.items.push(data.subtask);
+                                this.newTitle = '';
+                                this.showAddForm = false;
+                                subtaskCount = this.totalCount;
+                                completedCount = this.completedCount;
+                            }
+                        } catch (e) {
+                            console.error('Failed to create subtask', e);
+                        } finally {
+                            this.isSubmitting = false;
+                        }
+                    },
+                    async deleteSubtask(item, index) {
+                        if (!confirm(`Delete subtask '${item.title}'?`)) return;
+                        try {
+                            const url = `{% url 'tasks:subtask_delete' slug=workspace.slug task_code=task.task_code subtask_id='00000000-0000-0000-0000-000000000000' %}`.replace('00000000-0000-0000-0000-000000000000', item.id);
+                            const resp = await fetch(url, {
+                                method: 'POST',
+                                headers: {
+                                    'X-CSRFToken': '{{ csrf_token }}',
+                                    'X-Requested-With': 'XMLHttpRequest'
+                                }
+                            });
+                            if (resp.ok) {
+                                this.items.splice(index, 1);
+                                subtaskCount = this.totalCount;
+                                completedCount = this.completedCount;
+                            }
+                        } catch (e) {
+                            console.error('Failed to delete subtask', e);
+                        }
                     }
                 }">
                     <div class="flex items-center justify-between">
                         <div class="flex items-center space-x-2">
                             <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500">
-                                Acceptance Criteria
+                                Subtasks & Acceptance Checklist
                             </h3>
                             <button type="button" @click="showAddForm = !showAddForm" 
                                     class="text-[11px] font-semibold text-aether-blue hover:underline">
@@ -297,18 +350,18 @@
                     </div>
 
                     <!-- Progress bar -->
-                    <div class="w-full bg-slate-100 dark:bg-zinc-800 h-1.5 rounded-full overflow-hidden">
+                    <div class="w-full bg-slate-100 dark:bg-zinc-800 h-1.5 rounded-full overflow-hidden" x-show="totalCount > 0">
                         <div class="h-full bg-emerald-500 transition-all duration-300 rounded-full" 
                              :style="`width: ${progressPercent}%`"></div>
                     </div>
 
                     <!-- Inline Add Form -->
                     <div x-show="showAddForm" style="display: none;" class="flex items-center space-x-2 p-2 rounded-xl bg-slate-50 dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800">
-                        <input type="text" x-model="newCriteriaText" @keydown.enter.prevent="addCriteria()"
-                               placeholder="Add acceptance criterion (press Enter)..." 
+                        <input type="text" x-model="newTitle" @keydown.enter.prevent="addSubtask()"
+                               placeholder="Add subtask / checklist item (press Enter)..." 
                                class="flex-1 px-3 py-1.5 text-xs rounded-lg bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 text-slate-800 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-aether-blue">
-                        <button type="button" @click="addCriteria()" 
-                                class="px-3 py-1.5 text-xs font-bold rounded-lg bg-aether-blue text-white hover:bg-blue-600 transition">
+                        <button type="button" @click="addSubtask()" :disabled="isSubmitting"
+                                class="px-3 py-1.5 text-xs font-bold rounded-lg bg-aether-blue text-white hover:bg-blue-600 transition disabled:opacity-50">
                             Add
                         </button>
                         <button type="button" @click="showAddForm = false" 
@@ -319,25 +372,28 @@
 
                     <!-- Criteria list -->
                     <div class="space-y-2">
-                        <template x-for="(item, idx) in criteria" :key="item.id">
+                        <template x-for="(item, idx) in items" :key="item.id">
                             <div class="group flex items-center justify-between p-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-zinc-800/40 transition">
                                 <label class="flex items-start space-x-3 flex-1 cursor-pointer select-none">
                                     <input type="checkbox" 
-                                           :checked="item.completed" 
-                                           @change="toggleCriteria(item)"
+                                           :checked="item.is_completed" 
+                                           @change="toggleSubtask(item)"
                                            class="mt-0.5 rounded border-slate-300 dark:border-zinc-700 text-aether-blue focus:ring-aether-blue cursor-pointer">
                                     <span class="text-xs transition leading-relaxed"
-                                          :class="item.completed ? 'text-slate-400 dark:text-zinc-500 line-through' : 'text-slate-800 dark:text-zinc-200 font-medium'"
-                                          x-text="item.text">
+                                          :class="item.is_completed ? 'text-slate-400 dark:text-zinc-500 line-through' : 'text-slate-800 dark:text-zinc-200 font-medium'"
+                                          x-text="item.title">
                                     </span>
                                 </label>
-                                <button type="button" @click="removeCriteria(idx)" 
+                                <button type="button" @click="deleteSubtask(item, idx)" 
                                         title="Remove item" 
                                         class="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-rose-500 transition px-1.5 py-0.5 text-xs">
                                     &times;
                                 </button>
                             </div>
                         </template>
+                        <div x-show="totalCount === 0" class="text-center py-4 border border-dashed border-slate-200 dark:border-zinc-800 rounded-xl">
+                            <p class="text-xs text-slate-400 dark:text-zinc-500">No subtasks added yet.</p>
+                        </div>
                     </div>
                 </div>
 
@@ -354,16 +410,17 @@
                     {% if activities %}
                         <div class="space-y-3">
                             {% for act in activities|slice:":3" %}
-                                <div class="flex items-start space-x-3 text-xs">
-                                    <div class="w-6 h-6 rounded-full bg-slate-100 dark:bg-zinc-800 flex items-center justify-center font-bold text-slate-600 dark:text-zinc-400 shrink-0">
-                                        {{ act.actor.full_name|default:act.actor.email|slice:":1"|upper }}
-                                    </div>
+                                <div class="flex items-start space-x-2.5 text-xs">
                                     <div class="flex-1 min-w-0">
-                                        <p class="text-slate-800 dark:text-zinc-200">
-                                            <span class="font-bold">{{ act.actor.full_name|default:act.actor.email }}</span>
-                                            {{ act.message }}
-                                        </p>
-                                        <span class="text-[11px] text-slate-400 dark:text-zinc-500">{{ act.created_at|timesince }} ago</span>
+                                        <div class="flex items-center space-x-1.5 flex-wrap">
+                                            {% if act.actor %}
+                                                {% include 'components/people_hover_card.html' with target_user=act.actor workspace_slug=workspace.slug show_name=True avatar_size='w-5 h-5' %}
+                                            {% else %}
+                                                <span class="font-bold text-slate-800 dark:text-zinc-200">System</span>
+                                            {% endif %}
+                                            <span class="text-slate-700 dark:text-zinc-300">{{ act.message }}</span>
+                                        </div>
+                                        <span class="text-[11px] text-slate-400 dark:text-zinc-500 block mt-0.5">{{ act.created_at|timesince }} ago</span>
                                     </div>
                                 </div>
                             {% endfor %}
@@ -547,118 +604,674 @@
                 </div>
             </div>
 
-            <!-- Tab: ATTACHMENTS -->
-            <div x-show="activeTab === 'attachments'" style="display: none;" class="aether-card p-6 space-y-4">
+            <!-- Tab: ATTACHMENTS (Supabase Storage Backed) -->
+            <div x-show="activeTab === 'attachments'" style="display: none;" class="aether-card p-6 space-y-4" x-data="{ showUploadModal: false }">
                 <div class="flex items-center justify-between">
-                    <h3 class="text-sm font-bold text-slate-900 dark:text-zinc-100">Files & Specifications</h3>
-                    <button class="text-xs font-bold text-aether-blue hover:underline">+ Upload File</button>
-                </div>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div class="p-3 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-[#0c1322] flex items-center space-x-3">
-                        <div class="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-950/60 text-aether-blue flex items-center justify-center font-bold text-xs">
-                            PDF
-                        </div>
-                        <div class="min-w-0 flex-1">
-                            <p class="text-xs font-bold text-slate-800 dark:text-zinc-200 truncate">auth-flow-v2.pdf</p>
-                            <span class="text-[10px] text-slate-400 dark:text-zinc-500">1.4 MB • Oct 20</span>
-                        </div>
+                    <div>
+                        <h3 class="text-sm font-bold text-slate-900 dark:text-zinc-100">Files & Attachments</h3>
+                        <p class="text-xs text-slate-500 dark:text-zinc-400">{{ attachments|length }} file{{ attachments|length|pluralize }} attached</p>
                     </div>
-                    <div class="p-3 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-[#0c1322] flex items-center space-x-3">
-                        <div class="w-10 h-10 rounded-lg bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 flex items-center justify-center font-bold text-xs">
-                            PNG
-                        </div>
-                        <div class="min-w-0 flex-1">
-                            <p class="text-xs font-bold text-slate-800 dark:text-zinc-200 truncate">wireframe-tokens.png</p>
-                            <span class="text-[10px] text-slate-400 dark:text-zinc-500">820 KB • Oct 21</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Tab: COMMENTS -->
-            <div x-show="activeTab === 'comments'" style="display: none;" class="aether-card p-6 space-y-6">
-                <div class="flex items-center justify-between border-b border-slate-100 dark:border-zinc-800 pb-3">
-                    <h3 class="text-sm font-bold text-slate-900 dark:text-zinc-100">Task Discussion</h3>
-                    <span class="text-xs text-slate-400 dark:text-zinc-500">{{ comments|length }} comment{{ comments|length|pluralize }}</span>
+                    <button type="button" @click="showUploadModal = !showUploadModal" 
+                            class="inline-flex items-center space-x-1.5 px-3 py-1.5 text-xs font-bold rounded-xl bg-aether-blue text-white hover:bg-blue-600 shadow-sm transition">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                        <span>Upload File</span>
+                    </button>
                 </div>
 
-                <!-- Add Comment Input Box -->
-                <form method="post" action="{% url 'tasks:task_comment_add' slug=workspace.slug task_code=task.task_code %}" class="space-y-3">
-                    {% csrf_token %}
-                    <div class="flex items-start space-x-3">
-                        <div class="w-8 h-8 rounded-full bg-indigo-600 text-white font-bold text-xs flex items-center justify-center shrink-0">
-                            {{ request.user.full_name|default:request.user.email|slice:":1"|upper }}
-                        </div>
-                        <div class="flex-1">
-                            <textarea name="content" rows="3" required placeholder="Leave a comment or discussion update..." 
-                                      class="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-[#0c1322] text-slate-800 dark:text-zinc-200 placeholder-slate-400 dark:placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-aether-blue transition"></textarea>
-                            <div class="mt-2 flex items-center justify-between">
-                                <span class="text-[11px] text-slate-400 dark:text-zinc-500">Supports text updates & notes</span>
-                                <button type="submit" class="inline-flex items-center space-x-1 px-4 py-1.5 text-xs font-bold rounded-xl bg-aether-blue text-white hover:bg-blue-600 shadow-sm transition">
-                                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
-                                    </svg>
-                                    <span>Comment</span>
-                                </button>
+                <!-- Upload Form Dropzone -->
+                <div x-show="showUploadModal" style="display: none;" class="p-4 rounded-xl border border-blue-200 dark:border-blue-900/50 bg-blue-50/40 dark:bg-blue-950/20 space-y-3">
+                    <form method="post" action="{% url 'tasks:task_attachment_upload' slug=workspace.slug task_code=task.task_code %}" enctype="multipart/form-data" class="space-y-3">
+                        {% csrf_token %}
+                        <div class="flex flex-col sm:flex-row items-center gap-3">
+                            <input type="file" name="file" required class="text-xs text-slate-600 dark:text-zinc-300 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700 cursor-pointer flex-1">
+                            <div class="flex items-center space-x-2">
+                                <button type="submit" class="px-4 py-1.5 text-xs font-bold rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition">Upload to Task</button>
+                                <button type="button" @click="showUploadModal = false" class="px-3 py-1.5 text-xs font-medium text-slate-500 hover:text-slate-700 dark:text-zinc-400">Cancel</button>
                             </div>
                         </div>
-                    </div>
-                </form>
+                        <p class="text-[11px] text-slate-500 dark:text-zinc-400">Supported formats: PDF, PNG, JPG, WEBP, ZIP, DOCX, TXT. Max size: 25MB. Files are securely stored in Supabase Storage.</p>
+                    </form>
+                </div>
 
-                <!-- Comments Thread List -->
-                <div class="space-y-4 pt-2">
-                    {% if comments %}
-                        <div class="space-y-5 divide-y divide-slate-100 dark:divide-zinc-800/80">
-                            {% for comment in comments %}
-                                <div class="pt-4 first:pt-0 flex items-start space-x-3">
-                                    <!-- Author Avatar -->
-                                    <div class="w-8 h-8 rounded-full bg-slate-200 dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 font-bold text-xs flex items-center justify-center shrink-0 mt-0.5">
-                                        {{ comment.author.full_name|default:comment.author.email|slice:":1"|upper }}
+                <!-- Attachments Grid -->
+                {% if attachments %}
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {% for att in attachments %}
+                            <div class="p-3 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-[#0c1322] flex items-center justify-between space-x-3 group hover:border-slate-300 dark:hover:border-zinc-700 transition">
+                                <div class="flex items-center space-x-3 min-w-0">
+                                    <div class="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-950/60 text-aether-blue flex items-center justify-center font-bold text-xs uppercase shrink-0">
+                                        {{ att.file.extension|default:'FILE'|slice:":4" }}
                                     </div>
-
-                                    <!-- Comment Content & Meta -->
-                                    <div class="flex-1 space-y-1 min-w-0">
-                                        <div class="flex items-center justify-between">
-                                            <div class="flex items-center space-x-2">
-                                                <span class="text-xs font-bold text-slate-900 dark:text-zinc-100">
-                                                    {{ comment.author.full_name|default:comment.author.email }}
-                                                </span>
-                                                <span class="text-slate-400 dark:text-zinc-500 text-[11px]">
-                                                    {{ comment.created_at|timesince }} ago
-                                                </span>
-                                            </div>
-
-                                            {% if request.user == comment.author or membership.can_manage_content %}
-                                                <form method="post" action="{% url 'tasks:task_comment_delete' slug=workspace.slug task_code=task.task_code comment_id=comment.id %}" onsubmit="return confirm('Delete this comment?');">
-                                                    {% csrf_token %}
-                                                    <button type="submit" title="Delete comment" class="text-slate-400 hover:text-rose-500 transition p-1 text-xs">
-                                                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                        </svg>
-                                                    </button>
-                                                </form>
-                                            {% endif %}
-                                        </div>
-
-                                        <p class="text-xs text-slate-700 dark:text-zinc-300 leading-relaxed break-words whitespace-pre-line">{{ comment.content }}</p>
+                                    <div class="min-w-0 flex-1">
+                                        <a href="{% url 'files:file_detail' slug=workspace.slug file_id=att.file.id %}" target="_blank" class="text-xs font-bold text-slate-800 dark:text-zinc-200 hover:text-aether-blue dark:hover:text-blue-400 transition truncate block" title="{{ att.file.filename }}">{{ att.file.filename }}</a>
+                                        <span class="text-[10px] text-slate-400 dark:text-zinc-500">
+                                            {{ att.file.size_display }} • {{ att.created_at|date:"M d, Y" }}
+                                        </span>
                                     </div>
                                 </div>
-                            {% endfor %}
-                        </div>
+                                <div class="flex items-center space-x-1 shrink-0">
+                                    <a href="{{ att.file.file_url }}" target="_blank" download title="Download" class="p-1.5 text-slate-400 hover:text-aether-blue transition">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                                    </a>
+                                    {% if request.user == att.file.uploaded_by or membership.can_manage_content %}
+                                        <form method="post" action="{% url 'tasks:task_attachment_delete' slug=workspace.slug task_code=task.task_code attachment_id=att.id %}" onsubmit="return confirm('Remove this attachment?');" class="inline">
+                                            {% csrf_token %}
+                                            <button type="submit" title="Delete attachment" class="p-1.5 text-slate-400 hover:text-rose-500 transition">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                            </button>
+                                        </form>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-8 rounded-xl border border-dashed border-slate-200 dark:border-zinc-800 text-slate-400 dark:text-zinc-500 text-xs space-y-2">
+                        <svg class="w-8 h-8 mx-auto opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
+                        <p>No attachments uploaded yet. Attach specs, mocks, or logs.</p>
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Tab: CODE REVIEWS -->
+            <div x-show="activeTab === 'code_reviews'" style="display: none;" class="space-y-4">
+                <div class="aether-card p-5 flex items-center justify-between border-b border-slate-100 dark:border-zinc-800">
+                    <div class="flex items-center space-x-2.5">
+                        <h3 class="text-sm font-bold text-slate-900 dark:text-zinc-100">Code Review Requests</h3>
+                        <span class="text-xs px-2.5 py-0.5 rounded-full font-bold bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800/60">
+                            {{ code_reviews|length }} request{{ code_reviews|length|pluralize }}
+                        </span>
+                    </div>
+                    <button type="button" @click="showCodeReviewModal = true"
+                            class="inline-flex items-center space-x-1.5 px-3.5 py-1.5 text-xs font-bold rounded-xl bg-purple-600 text-white hover:bg-purple-700 shadow-sm transition">
+                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                        </svg>
+                        <span>Request Code Review</span>
+                    </button>
+                </div>
+
+                <!-- Code Reviews List -->
+                <div class="space-y-4 w-full">
+                    {% if code_reviews %}
+                        {% for cr in code_reviews %}
+                            {% include 'components/code_review_card.html' with cr=cr %}
+                        {% endfor %}
                     {% else %}
-                        <div class="text-center py-8 rounded-xl border border-dashed border-slate-200 dark:border-zinc-800 text-slate-400 dark:text-zinc-500 text-xs">
-                            <svg class="w-8 h-8 mx-auto mb-2 opacity-40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                            </svg>
-                            <p>No comments yet. Start the discussion above.</p>
+                        <div class="text-center py-12 rounded-xl border border-dashed border-slate-200 dark:border-zinc-800 text-slate-400 dark:text-zinc-500 text-xs bg-white dark:bg-[#18181b] space-y-3">
+                            <div class="w-12 h-12 rounded-2xl bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 flex items-center justify-center mx-auto">
+                                <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                                </svg>
+                            </div>
+                            <div class="space-y-1">
+                                <p class="text-sm font-bold text-slate-800 dark:text-zinc-200">No code review requests yet</p>
+                                <p class="text-slate-400 dark:text-zinc-500">Connect a GitHub Pull Request to request a peer review on this task.</p>
+                            </div>
+                            <button type="button" @click="showCodeReviewModal = true"
+                                    class="inline-flex items-center space-x-1.5 px-3.5 py-1.5 text-xs font-bold rounded-xl bg-purple-600 text-white hover:bg-purple-700 transition shadow-xs">
+                                <span>+ Request First Code Review</span>
+                            </button>
                         </div>
                     {% endif %}
                 </div>
             </div>
 
+            <!-- Tab: COMMENTS (Clean Rectangular Message Cards) -->
+            <div x-show="activeTab === 'comments'" style="display: none;" class="space-y-4 flex flex-col"
+                 x-data="{ sortNewestFirst: true }">
+                <div class="aether-card p-5 flex items-center justify-between border-b border-slate-100 dark:border-zinc-800">
+                    <h3 class="text-sm font-bold text-slate-900 dark:text-zinc-100">Task Discussion</h3>
+                    <div class="flex items-center space-x-2.5">
+                        <button type="button" @click="sortNewestFirst = !sortNewestFirst" 
+                                class="inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg text-xs font-medium border border-slate-200 dark:border-zinc-700 hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-700 dark:text-zinc-300 transition"
+                                title="Toggle comment order">
+                            <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"/>
+                            </svg>
+                            <span x-text="sortNewestFirst ? 'Newest First' : 'Oldest First'">Newest First</span>
+                        </button>
+                        <span class="text-xs text-slate-400 dark:text-zinc-500">{{ comments|length }} comment{{ comments|length|pluralize }}</span>
+                    </div>
+                </div>
+
+                <!-- Top Comment Composer -->
+                <div class="py-4 border-b border-slate-100 dark:border-zinc-800"
+                      x-data="{
+                          content: '',
+                          composerTab: 'write',
+                          composerPreviewHtml: '',
+                          showMentions: false,
+                          mentionQuery: '',
+                          people: [],
+                          files: [],
+                          activeIndex: 0,
+                          cursorPos: 0,
+                          applyFormat(type) {
+                              const el = this.$refs.commentInput;
+                              if (!el) return;
+                              const start = el.selectionStart || 0;
+                              const end = el.selectionEnd || 0;
+                              const val = this.content || '';
+                              const selected = val.substring(start, end);
+                              let before = val.substring(0, start);
+                              let after = val.substring(end);
+                              let replacement = '';
+                              let newCursor = start;
+
+                              switch(type) {
+                                  case 'bold':
+                                      replacement = `**${selected || 'bold text'}**`;
+                                      newCursor = selected ? start + replacement.length : start + 2;
+                                      break;
+                                  case 'italic':
+                                      replacement = `*${selected || 'italic text'}*`;
+                                      newCursor = selected ? start + replacement.length : start + 1;
+                                      break;
+                                  case 'strike':
+                                      replacement = `~~${selected || 'strikethrough'}~~`;
+                                      newCursor = selected ? start + replacement.length : start + 2;
+                                      break;
+                                  case 'code':
+                                      replacement = `\`${selected || 'code'}\``;
+                                      newCursor = selected ? start + replacement.length : start + 1;
+                                      break;
+                                  case 'codeblock':
+                                      replacement = `\n\`\`\`\n${selected || 'code block'}\n\`\`\`\n`;
+                                      newCursor = selected ? start + replacement.length : start + 5;
+                                      break;
+                                  case 'quote':
+                                      replacement = `\n> ${selected || 'quote'}\n`;
+                                      newCursor = selected ? start + replacement.length : start + 3;
+                                      break;
+                                  case 'bullet':
+                                      replacement = `\n- ${selected || 'list item'}\n`;
+                                      newCursor = selected ? start + replacement.length : start + 3;
+                                      break;
+                                  case 'number':
+                                      replacement = `\n1. ${selected || 'list item'}\n`;
+                                      newCursor = selected ? start + replacement.length : start + 4;
+                                      break;
+                                  case 'link':
+                                      replacement = selected ? `[${selected}](https://)` : `[link text](https://)`;
+                                      newCursor = selected ? start + replacement.length - 1 : start + 1;
+                                      break;
+                                  case 'mention':
+                                      replacement = '@';
+                                      newCursor = start + 1;
+                                      this.content = before + replacement + after;
+                                      this.$nextTick(() => {
+                                          el.focus();
+                                          el.setSelectionRange(newCursor, newCursor);
+                                          this.cursorPos = newCursor;
+                                          this.mentionQuery = '';
+                                          this.searchMentions('');
+                                      });
+                                      return;
+                              }
+                              this.content = before + replacement + after;
+                              this.$nextTick(() => {
+                                  el.focus();
+                                  el.setSelectionRange(newCursor, newCursor);
+                              });
+                          },
+                          onInput(e) {
+                              const val = e.target.value;
+                              const pos = e.target.selectionStart;
+                              this.cursorPos = pos;
+                              const beforeCursor = val.slice(0, pos);
+                              const match = beforeCursor.match(/@([a-zA-Z0-9._-]*)$/);
+                              if (match) {
+                                  this.mentionQuery = match[1];
+                                  this.searchMentions(this.mentionQuery);
+                              } else {
+                                  this.showMentions = false;
+                              }
+                          },
+                          async searchMentions(q) {
+                              try {
+                                  const res = await fetch(`{% url 'workspaces:api_workspace_mentions' slug=workspace.slug %}?q=${encodeURIComponent(q)}`);
+                                  if (res.ok) {
+                                      const data = await res.json();
+                                      this.people = data.people || [];
+                                      this.files = data.files || [];
+                                      const total = this.people.length + this.files.length;
+                                      this.showMentions = total > 0;
+                                      this.activeIndex = 0;
+                                  }
+                              } catch (err) {}
+                          },
+                          navigate(dir) {
+                              const total = this.people.length + this.files.length;
+                              if (total === 0) return;
+                              this.activeIndex = (this.activeIndex + dir + total) % total;
+                          },
+                          selectActive() {
+                              const total = this.people.length + this.files.length;
+                              if (total === 0) return;
+                              if (this.activeIndex < this.people.length) {
+                                  this.selectMention(this.people[this.activeIndex]);
+                              } else {
+                                  this.selectMention(this.files[this.activeIndex - this.people.length]);
+                              }
+                          },
+                          selectMention(item) {
+                              const textarea = this.$refs.commentInput;
+                              const text = this.content;
+                              const beforeCursor = text.slice(0, this.cursorPos);
+                              const afterCursor = text.slice(this.cursorPos);
+                              let insertText = '';
+                              if (item.type === 'file') {
+                                  insertText = `[${item.name}](${item.url}) `;
+                              } else {
+                                  const displayName = (item.full_name || item.name || (item.username && !item.username.includes('@') ? item.username : item.email.split('@')[0])).trim();
+                                  insertText = `@${displayName} `;
+                              }
+                              const newBefore = beforeCursor.replace(/@([a-zA-Z0-9._\s-]*)$/, insertText);
+                              this.content = newBefore + afterCursor;
+                              this.showMentions = false;
+                              this.$nextTick(() => {
+                                  textarea.focus();
+                                  const nextPos = newBefore.length;
+                                  textarea.setSelectionRange(nextPos, nextPos);
+                              });
+                          }
+                      }">
+                     <form method="post" action="{% url 'tasks:task_comment_add' slug=workspace.slug task_code=task.task_code %}" class="space-y-3 relative">
+                         {% csrf_token %}
+
+                         {% if code_reviews %}
+                             <div class="flex items-center gap-2 pl-11">
+                                 <label class="text-[11px] font-bold text-slate-500 dark:text-zinc-400 shrink-0">
+                                     Feedback on Code Review:
+                                 </label>
+                                 <select name="code_review_id" class="px-2.5 py-1 text-xs rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#18181b] text-slate-800 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-aether-blue">
+                                     <option value="">-- General Task Comment --</option>
+                                     {% for cr in code_reviews %}
+                                         <option value="{{ cr.id }}">Review Feedback: {{ cr.review_code }} ({{ cr.get_status_display }})</option>
+                                     {% endfor %}
+                                 </select>
+                             </div>
+                         {% endif %}
+
+                         <div class="flex items-start space-x-3">
+                             <div class="shrink-0 mt-1">
+                                 {% include 'components/people_hover_card.html' with target_user=request.user workspace_slug=workspace.slug show_name=False avatar_size='w-8 h-8' %}
+                             </div>
+                             <div class="flex-1 relative">
+                                 <div class="rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-[#0c1322] overflow-hidden focus-within:ring-2 focus-within:ring-aether-blue transition">
+                                     <!-- Format Options Toolbar & Write/Preview Tabs -->
+                                     <div class="comment-toolbar px-2.5 py-1.5 flex items-center flex-wrap gap-1 text-xs select-none border-b border-slate-200/60 dark:border-zinc-800/80 bg-slate-100/60 dark:bg-zinc-900/60">
+                                         <div class="flex items-center space-x-1 mr-2 border-r border-slate-200 dark:border-zinc-700 pr-2">
+                                             <button type="button" @click="composerTab = 'write'" :class="composerTab === 'write' ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-zinc-100 font-bold shadow-xs' : 'text-slate-500 hover:text-slate-700 dark:hover:text-zinc-300'" class="px-2 py-0.5 rounded text-xs transition">Write</button>
+                                             <button type="button" @click="composerTab = 'preview'; AetherMarkdown.render(content, h => composerPreviewHtml = h)" :class="composerTab === 'preview' ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-zinc-100 font-bold shadow-xs' : 'text-slate-500 hover:text-slate-700 dark:hover:text-zinc-300'" class="px-2 py-0.5 rounded text-xs transition">Preview</button>
+                                         </div>
+                                         <button type="button" @click="applyFormat('bold')" class="px-2 py-0.5 rounded font-bold transition" title="Bold (Ctrl+B)">B</button>
+                                         <button type="button" @click="applyFormat('italic')" class="px-2 py-0.5 rounded italic font-serif transition" title="Italic (Ctrl+I)">I</button>
+                                         <button type="button" @click="applyFormat('strike')" class="px-2 py-0.5 rounded line-through transition" title="Strikethrough (~~text~~)">S</button>
+                                         <span class="opacity-30 select-none text-xs">|</span>
+                                         <button type="button" @click="applyFormat('code')" class="px-2 py-0.5 rounded text-[11px] font-mono transition" title="Inline Code (`code`)">&lt;/&gt;</button>
+                                         <button type="button" @click="applyFormat('codeblock')" class="px-2 py-0.5 rounded font-mono transition" title="Code Block (```)">&lbrace; &rbrace;</button>
+                                         <button type="button" @click="applyFormat('quote')" class="px-2 py-0.5 rounded font-serif transition" title="Quote (> text)">&ldquo;</button>
+                                         <span class="opacity-30 select-none text-xs">|</span>
+                                         <button type="button" @click="applyFormat('bullet')" class="px-2 py-0.5 rounded transition" title="Bullet List (- item)">&bull; List</button>
+                                         <button type="button" @click="applyFormat('number')" class="px-2 py-0.5 rounded transition" title="Numbered List (1. item)">1. List</button>
+                                         <button type="button" @click="applyFormat('link')" class="px-2 py-0.5 rounded transition" title="Link (Ctrl+K)">🔗</button>
+                                         <button type="button" @click="applyFormat('mention')" class="ml-auto px-2 py-0.5 rounded-lg bg-blue-500/15 hover:bg-blue-500/25 text-blue-600 dark:text-blue-400 font-bold transition flex items-center space-x-1" title="Mention teammate (@)">
+                                             <span>@ Mention</span>
+                                         </button>
+                                     </div>
+
+                                     <div x-show="composerTab === 'write'">
+                                         <textarea x-ref="commentInput" x-model="content" 
+                                                   @input="onInput($event)"
+                                                   @keydown.ctrl.b.prevent="applyFormat('bold')"
+                                                   @keydown.meta.b.prevent="applyFormat('bold')"
+                                                   @keydown.ctrl.i.prevent="applyFormat('italic')"
+                                                   @keydown.meta.i.prevent="applyFormat('italic')"
+                                                   @keydown.ctrl.k.prevent="applyFormat('link')"
+                                                   @keydown.meta.k.prevent="applyFormat('link')"
+                                                   @keydown.arrow-down.prevent="if (showMentions) navigate(1)"
+                                                   @keydown.arrow-up.prevent="if (showMentions) navigate(-1)"
+                                                   @keydown.enter="if (showMentions) { $event.preventDefault(); selectActive(); }"
+                                                   @keydown.escape="showMentions = false"
+                                                   name="content" rows="3" required 
+                                                   placeholder="Leave a comment... Type @ to mention, or use formatting options above" 
+                                                   class="w-full px-3 py-2.5 text-xs bg-transparent text-slate-800 dark:text-zinc-200 placeholder-slate-400 dark:placeholder-zinc-600 focus:outline-none border-0 transition resize-y"></textarea>
+                                     </div>
+
+                                     <div x-show="composerTab === 'preview'" style="display: none;" class="p-3.5 min-h-[90px] text-xs prose dark:prose-invert max-w-none text-slate-800 dark:text-zinc-200 bg-white dark:bg-[#18181b]" x-html="composerPreviewHtml || '<p class=\'text-slate-400 dark:text-zinc-500 italic text-xs\'>Nothing to preview</p>'"></div>
+                                 </div>
+
+                                <!-- Mention Popup Dropdown (Image 1 Parity: People & Files) -->
+                                <div x-show="showMentions" @click.outside="showMentions = false" style="display: none;"
+                                     class="absolute top-full left-0 mt-2 w-80 max-h-80 overflow-y-auto rounded-2xl shadow-2xl bg-white dark:bg-[#18181b] border border-slate-200 dark:border-zinc-800 z-50 py-1.5 focus:outline-none">
+                                    
+                                    <!-- PEOPLE SECTION -->
+                                    <template x-if="people.length > 0">
+                                        <div>
+                                            <div class="px-3 pt-2 pb-1 text-[10px] font-bold tracking-wider text-slate-400 dark:text-zinc-500 uppercase">
+                                                People
+                                            </div>
+                                            <template x-for="(p, pIdx) in people" :key="'p-' + p.id">
+                                                <div @click="selectMention(p)"
+                                                     @mouseenter="activeIndex = pIdx"
+                                                     :class="activeIndex === pIdx ? 'bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-zinc-50' : 'text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800/60'"
+                                                     class="px-3 py-2 flex items-center space-x-2.5 cursor-pointer transition-colors text-xs">
+                                                    <template x-if="p.avatar">
+                                                        <img :src="p.avatar" class="w-7 h-7 rounded-full object-cover ring-1 ring-slate-200 dark:ring-zinc-700 shrink-0">
+                                                    </template>
+                                                    <template x-if="!p.avatar">
+                                                        <div class="w-7 h-7 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-bold text-[10px] flex items-center justify-center shrink-0 shadow-xs">
+                                                            <span x-text="p.initials"></span>
+                                                        </div>
+                                                    </template>
+                                                    <div class="min-w-0 flex-1">
+                                                        <div class="flex items-center justify-between gap-1">
+                                                            <span class="font-bold truncate text-slate-900 dark:text-zinc-100 text-xs" x-text="p.full_name"></span>
+                                                            <template x-if="p.contributor_id">
+                                                                <span class="font-mono text-[9px] font-bold text-blue-600 dark:text-blue-400 px-1 py-0.2 rounded bg-blue-50 dark:bg-blue-950/60 shrink-0" x-text="p.contributor_id"></span>
+                                                            </template>
+                                                        </div>
+                                                        <span class="text-[11px] text-slate-400 dark:text-zinc-400 truncate block" x-text="p.email"></span>
+                                                    </div>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </template>
+
+                                    <!-- FILES SECTION -->
+                                    <template x-if="files.length > 0">
+                                        <div class="mt-1 border-t border-slate-100 dark:border-zinc-800">
+                                            <div class="px-3 pt-2 pb-1 text-[10px] font-bold tracking-wider text-slate-400 dark:text-zinc-500 uppercase">
+                                                Files
+                                            </div>
+                                            <template x-for="(f, fIdx) in files" :key="'f-' + f.id">
+                                                <div @click="selectMention(f)"
+                                                     @mouseenter="activeIndex = (people.length + fIdx)"
+                                                     :class="activeIndex === (people.length + fIdx) ? 'bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-zinc-50' : 'text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800/60'"
+                                                     class="px-3 py-2 flex items-center space-x-2.5 cursor-pointer transition-colors text-xs">
+                                                    <div class="w-7 h-7 rounded-lg bg-slate-100 dark:bg-zinc-800 flex items-center justify-center text-slate-500 dark:text-zinc-400 shrink-0 border border-slate-200 dark:border-zinc-700">
+                                                        <svg class="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                                                        </svg>
+                                                    </div>
+                                                    <div class="min-w-0 flex-1">
+                                                        <span class="font-medium truncate text-slate-800 dark:text-zinc-200 text-xs block" x-text="f.name"></span>
+                                                        <span class="text-[10px] text-slate-400 dark:text-zinc-500 block" x-text="f.size"></span>
+                                                    </div>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </template>
+
+                                    <!-- FOOTER -->
+                                    <div class="mt-1 pt-1.5 pb-1 text-center border-t border-slate-100 dark:border-zinc-800/80">
+                                        <span class="text-[10px] text-slate-400 dark:text-zinc-500 tracking-wide">No more results</span>
+                                    </div>
+                                </div>
+
+                                <div class="mt-2 flex items-center justify-between">
+                                    <span class="text-[11px] text-slate-400 dark:text-zinc-500">Supports Markdown formatting & @mentions</span>
+                                    <button type="submit" class="inline-flex items-center space-x-1 px-4 py-1.5 text-xs font-bold rounded-xl bg-aether-blue text-white hover:bg-blue-600 shadow-sm transition">
+                                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+                                        </svg>
+                                        <span>Post Comment</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Clean Rectangular Comments Cards (No Cramped Chat Bubbles, Medium Typography, Auto Height) -->
+                <div class="w-full space-y-3.5">
+                    {% if comments %}
+                        <div class="w-full flex flex-col space-y-3.5"
+                             :style="sortNewestFirst ? 'display: flex !important; flex-direction: column-reverse !important; gap: 0.875rem; width: 100%;' : 'display: flex !important; flex-direction: column !important; gap: 0.875rem; width: 100%;'">
+                            {% for comment in comments %}
+                                {% if comment.is_system %}
+                                    <!-- Structured System-Generated Comment Card -->
+                                    <div class="system-comment-card aether-card p-5 space-y-3 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#18181b] shadow-xs w-full transition-colors">
+                                        {% if comment.system_event_type == 'TASK_CREATED' %}
+                                            <div class="border-l-4 border-emerald-500 pl-4 space-y-2.5">
+                                                <div class="flex items-center justify-between gap-2 flex-wrap">
+                                                    <div class="flex items-center space-x-2">
+                                                        <span class="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Task Created</span>
+                                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 border border-slate-200 dark:border-zinc-700">System</span>
+                                                    </div>
+                                                    <span class="text-[11px] text-slate-400 dark:text-zinc-500">{{ comment.created_at|date:"d M Y • g:i A" }}</span>
+                                                </div>
+                                                <div>
+                                                    <span class="font-mono text-xs font-bold text-aether-blue dark:text-sky-400">#{{ comment.metadata.task_code|default:task.task_code }}</span>
+                                                    <h4 class="text-sm font-bold text-slate-900 dark:text-zinc-100 mt-0.5">{{ comment.metadata.title|default:task.title }}</h4>
+                                                </div>
+                                                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 text-xs">
+                                                    <div><span class="text-slate-400 dark:text-zinc-500">Priority:</span> <span class="font-semibold text-slate-700 dark:text-zinc-300">{{ comment.metadata.priority|default:task.get_priority_display }}</span></div>
+                                                    <div><span class="text-slate-400 dark:text-zinc-500">Status:</span> <span class="font-semibold text-slate-700 dark:text-zinc-300">{{ comment.metadata.status|default:task.get_status_display }}</span></div>
+                                                    <div><span class="text-slate-400 dark:text-zinc-500">Requester:</span> <span class="font-semibold text-slate-700 dark:text-zinc-300">{{ comment.metadata.requester|default:task.reporter.username|default:"System" }}</span></div>
+                                                    <div><span class="text-slate-400 dark:text-zinc-500">Assignee:</span> <span class="font-semibold text-slate-700 dark:text-zinc-300">{{ comment.metadata.assignee|default:task.assignee.username|default:"Unassigned" }}</span></div>
+                                                </div>
+                                                {% if comment.metadata.description or task.description %}
+                                                    <div class="pt-2 border-t border-slate-100 dark:border-zinc-800/80 text-xs text-slate-600 dark:text-zinc-300">
+                                                        <span class="font-bold text-slate-400 dark:text-zinc-500 block mb-1">Description</span>
+                                                        <div class="prose dark:prose-invert max-w-none text-xs leading-relaxed">
+                                                            {{ comment.metadata.description|default:task.description|render_rich_text }}
+                                                        </div>
+                                                    </div>
+                                                {% endif %}
+                                            </div>
+
+                                        {% elif comment.system_event_type == 'BUG_ATTACHED' %}
+                                            <div class="border-l-4 border-rose-500 pl-4 space-y-2.5">
+                                                <div class="flex items-center justify-between gap-2 flex-wrap">
+                                                    <div class="flex items-center space-x-2">
+                                                        <span class="text-xs font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider">🐛 Bug Attached</span>
+                                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 border border-slate-200 dark:border-zinc-700">System</span>
+                                                    </div>
+                                                    <span class="text-[11px] text-slate-400 dark:text-zinc-500">{{ comment.created_at|date:"d M Y • g:i A" }}</span>
+                                                </div>
+                                                <p class="text-xs text-slate-600 dark:text-zinc-300">
+                                                    Bug <strong class="font-mono text-rose-600 dark:text-rose-400">{{ comment.metadata.bug_code|default:comment.bug.bug_code }}</strong> has been attached to this task.
+                                                </p>
+                                                <div class="p-3.5 rounded-xl bg-rose-50/50 dark:bg-rose-950/20 border border-rose-100 dark:border-rose-900/30 space-y-2">
+                                                    <h5 class="text-xs font-bold text-slate-900 dark:text-zinc-100">{{ comment.metadata.title|default:comment.bug.title }}</h5>
+                                                    <div class="flex items-center flex-wrap gap-4 text-xs">
+                                                        <div><span class="text-slate-400 dark:text-zinc-500">Priority:</span> <span class="font-semibold text-slate-700 dark:text-zinc-300">{{ comment.metadata.priority|default:comment.bug.get_priority_display }}</span></div>
+                                                        <div><span class="text-slate-400 dark:text-zinc-500">Severity:</span> <span class="font-semibold text-slate-700 dark:text-zinc-300">{{ comment.metadata.severity|default:comment.bug.get_severity_display }}</span></div>
+                                                        <div><span class="text-slate-400 dark:text-zinc-500">Status:</span> <span class="font-semibold text-slate-700 dark:text-zinc-300">{{ comment.metadata.status|default:comment.bug.get_status_display }}</span></div>
+                                                    </div>
+                                                    <div class="pt-1.5">
+                                                        <a href="{% url 'bugs:bug_detail' slug=workspace.slug bug_code=comment.metadata.bug_code|default:comment.bug.bug_code %}" 
+                                                           class="inline-flex items-center space-x-1 text-xs font-bold text-rose-600 dark:text-rose-400 hover:underline">
+                                                            <span>[ View Bug ]</span>
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                        {% elif comment.system_event_type == 'BUG_DETACHED' %}
+                                            <div class="border-l-4 border-amber-500 pl-4 space-y-1.5">
+                                                <div class="flex items-center justify-between gap-2 flex-wrap">
+                                                    <div class="flex items-center space-x-2">
+                                                        <span class="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">🐛 Bug Detached</span>
+                                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 border border-slate-200 dark:border-zinc-700">System</span>
+                                                    </div>
+                                                    <span class="text-[11px] text-slate-400 dark:text-zinc-500">{{ comment.created_at|date:"d M Y • g:i A" }}</span>
+                                                </div>
+                                                <p class="text-xs text-slate-600 dark:text-zinc-300">
+                                                    Bug <strong class="font-mono text-amber-600 dark:text-amber-400">{{ comment.metadata.bug_code }}</strong> was detached from this task.
+                                                </p>
+                                            </div>
+
+                                        {% elif comment.system_event_type == 'CODE_REVIEW_REQUESTED' %}
+                                            <div class="border-l-4 border-purple-500 pl-4 space-y-2.5">
+                                                <div class="flex items-center justify-between gap-2 flex-wrap">
+                                                    <div class="flex items-center space-x-2">
+                                                        <span class="text-xs font-bold text-purple-600 dark:text-purple-400 uppercase tracking-wider">🔵 Code Review Requested</span>
+                                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 border border-slate-200 dark:border-zinc-700">System</span>
+                                                    </div>
+                                                    <span class="text-[11px] text-slate-400 dark:text-zinc-500">{{ comment.created_at|date:"d M Y • g:i A" }}</span>
+                                                </div>
+                                                <div>
+                                                    <span class="font-mono text-xs font-bold text-purple-600 dark:text-purple-400">{{ comment.metadata.review_code|default:comment.code_review.review_code }}</span>
+                                                    <div class="text-xs text-slate-600 dark:text-zinc-400 mt-0.5">
+                                                        Task: <span class="font-mono font-semibold text-slate-800 dark:text-zinc-200">#{{ task.task_code }}</span> {{ task.title }}
+                                                    </div>
+                                                </div>
+                                                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
+                                                    <div><span class="text-slate-400 dark:text-zinc-500">Requester:</span> <span class="font-semibold text-slate-700 dark:text-zinc-300">{{ comment.metadata.requester|default:comment.code_review.requester.full_name|default:comment.code_review.requester.username }}</span></div>
+                                                    <div><span class="text-slate-400 dark:text-zinc-500">Reviewer:</span> <span class="font-semibold text-slate-700 dark:text-zinc-300">{{ comment.metadata.reviewer|default:comment.code_review.reviewer.full_name|default:comment.code_review.reviewer.username|default:"Unassigned" }}</span></div>
+                                                    <div><span class="text-slate-400 dark:text-zinc-500">Status:</span> <span class="font-semibold text-slate-700 dark:text-zinc-300">{{ comment.metadata.status|default:comment.code_review.get_status_display }}</span></div>
+                                                </div>
+                                                <div class="flex items-center gap-3 pt-2">
+                                                    {% if comment.metadata.github_pr_url or comment.code_review.github_pr_url %}
+                                                        <a href="{{ comment.metadata.github_pr_url|default:comment.code_review.github_pr_url }}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center space-x-1 text-xs font-bold text-purple-600 dark:text-purple-400 hover:underline">
+                                                            <span>[ View Pull Request ]</span>
+                                                        </a>
+                                                    {% endif %}
+                                                    <button type="button" @click="activeTab = 'code_reviews'" class="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline">
+                                                        [ Open Review ]
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                        {% elif comment.system_event_type == 'CODE_REVIEW_STATUS_CHANGED' %}
+                                            <div class="border-l-4 border-indigo-500 pl-4 space-y-2">
+                                                <div class="flex items-center justify-between gap-2 flex-wrap">
+                                                    <div class="flex items-center space-x-2">
+                                                        <span class="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">🔵 Code Review Updated</span>
+                                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 border border-slate-200 dark:border-zinc-700">System</span>
+                                                    </div>
+                                                    <span class="text-[11px] text-slate-400 dark:text-zinc-500">{{ comment.created_at|date:"d M Y • g:i A" }}</span>
+                                                </div>
+                                                <div>
+                                                    <span class="font-mono text-xs font-bold text-purple-600 dark:text-purple-400">{{ comment.metadata.review_code|default:comment.code_review.review_code }}</span>
+                                                </div>
+                                                <div class="text-xs text-slate-700 dark:text-zinc-300">
+                                                    Status changed: <span class="font-semibold text-slate-500">{{ comment.metadata.old_status }}</span> &rarr; <span class="font-bold text-indigo-600 dark:text-indigo-400">{{ comment.metadata.new_status }}</span>
+                                                    {% if comment.metadata.changed_by %}
+                                                        <span class="text-slate-400 dark:text-zinc-500 ml-1">by {{ comment.metadata.changed_by }}</span>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+
+                                        {% else %}
+                                            <!-- Fallback Generic System Event -->
+                                            <div class="border-l-4 border-slate-400 pl-4 space-y-1.5">
+                                                <div class="flex items-center justify-between gap-2 flex-wrap">
+                                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 border border-slate-200 dark:border-zinc-700">System</span>
+                                                    <span class="text-[11px] text-slate-400 dark:text-zinc-500">{{ comment.created_at|date:"d M Y • g:i A" }}</span>
+                                                </div>
+                                                <div class="text-xs text-slate-800 dark:text-zinc-200 leading-relaxed font-sans">
+                                                    {{ comment.content|render_rich_text }}
+                                                </div>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+
+                                {% else %}
+                                    <!-- Normal User Comment Card (Comfortable medium typography, auto height, collapsible) -->
+                                    <div class="comment-card aether-card p-5 space-y-3 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#18181b] shadow-xs w-full"
+                                         x-data="{ expanded: false, isLong: false, isEditing: false, editContent: '{{ comment.content|escapejs }}', editTab: 'write', editPreviewHtml: '' }"
+                                         x-init="$nextTick(() => { const el = $refs.commentText_{{ comment.id }}; if (el && el.scrollHeight > 160) isLong = true; })">
+                                        <!-- Comment Header -->
+                                        <div class="flex items-center justify-between gap-2 border-b border-slate-100 dark:border-zinc-800/80 pb-2.5">
+                                            <div class="flex items-center space-x-2.5 min-w-0 flex-wrap">
+                                                {% include 'components/people_hover_card.html' with target_user=comment.author workspace_slug=workspace.slug show_name=True avatar_size='w-7 h-7' %}
+                                                <span class="text-slate-400 dark:text-zinc-500 text-xs shrink-0">
+                                                    commented {{ comment.created_at|timesince }} ago ({{ comment.created_at|date:"M d, Y H:i" }})
+                                                </span>
+                                                {% if comment.code_review %}
+                                                    <span class="inline-flex items-center space-x-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800/40">
+                                                        🔵 Reviewer Feedback ({{ comment.code_review.review_code }})
+                                                    </span>
+                                                {% endif %}
+                                            </div>
+
+                                            {% if request.user == comment.author or membership.can_manage_content %}
+                                                <div class="flex items-center space-x-1 shrink-0">
+                                                    <!-- Edit Comment Button -->
+                                                    <button type="button" @click="isEditing = !isEditing; if(isEditing) { editTab = 'write'; }" title="Edit comment" class="text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200 transition p-1 text-xs">
+                                                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                        </svg>
+                                                    </button>
+
+                                                    <!-- Delete Comment Button -->
+                                                    <form method="post" action="{% url 'tasks:task_comment_delete' slug=workspace.slug task_code=task.task_code comment_id=comment.id %}" onsubmit="return confirm('Delete this comment?');" class="shrink-0">
+                                                        {% csrf_token %}
+                                                        <button type="submit" title="Delete comment" class="text-slate-400 hover:text-rose-500 transition p-1 text-xs">
+                                                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                            </svg>
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            {% endif %}
+                                        </div>
+
+                                        <!-- Edit Mode Form (If user clicked Edit) -->
+                                        <div x-show="isEditing" style="display: none;" class="space-y-3 pt-1">
+                                            <form method="post" action="{% url 'tasks:task_comment_edit' slug=workspace.slug task_code=task.task_code comment_id=comment.id %}" class="space-y-2">
+                                                {% csrf_token %}
+                                                <div class="flex items-center justify-between border-b border-slate-100 dark:border-zinc-800 pb-1.5">
+                                                    <span class="text-xs font-bold text-slate-600 dark:text-zinc-400">Edit Comment (Markdown)</span>
+                                                    <div class="flex items-center space-x-1 text-xs">
+                                                        <button type="button" @click="editTab = 'write'" :class="editTab === 'write' ? 'bg-slate-200 dark:bg-zinc-700 text-slate-900 dark:text-zinc-100 font-bold' : 'text-slate-500 hover:text-slate-700 dark:hover:text-zinc-300'" class="px-2 py-0.5 rounded">Write</button>
+                                                        <button type="button" @click="editTab = 'preview'; AetherMarkdown.render(editContent, h => editPreviewHtml = h)" :class="editTab === 'preview' ? 'bg-slate-200 dark:bg-zinc-700 text-slate-900 dark:text-zinc-100 font-bold' : 'text-slate-500 hover:text-slate-700 dark:hover:text-zinc-300'" class="px-2 py-0.5 rounded">Preview</button>
+                                                    </div>
+                                                </div>
+                                                <div x-show="editTab === 'write'">
+                                                    <textarea name="content" x-model="editContent" rows="4" required class="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-zinc-700 bg-slate-50 dark:bg-[#0c1322] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-aether-blue resize-y font-sans"></textarea>
+                                                </div>
+                                                <div x-show="editTab === 'preview'" class="min-h-[70px] p-3 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-[#0c1322] text-xs prose dark:prose-invert max-w-none" x-html="editPreviewHtml || '<p class=\'text-slate-400 italic text-xs\'>Nothing to preview</p>'"></div>
+                                                <div class="flex items-center justify-end space-x-2 pt-1">
+                                                    <button type="button" @click="isEditing = false" class="px-3 py-1 text-xs font-semibold rounded-lg border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800">Cancel</button>
+                                                    <button type="submit" class="px-3 py-1 text-xs font-bold rounded-lg bg-aether-blue text-white hover:bg-blue-600 shadow-xs">Save Changes</button>
+                                                </div>
+                                            </form>
+                                        </div>
+
+                                        <!-- Normal Comment Content (Comfortable medium typography, auto height, collapsible) -->
+                                        <div x-show="!isEditing" class="relative">
+                                            <div x-ref="commentText_{{ comment.id }}"
+                                                 :class="{ 'max-h-36 overflow-hidden': !expanded && isLong }"
+                                                 class="prose dark:prose-invert max-w-none text-sm text-slate-800 dark:text-zinc-200 leading-relaxed font-sans break-words transition-all duration-200">
+                                                {{ comment.content|render_rich_text }}
+                                            </div>
+                                            <template x-if="isLong">
+                                                <button type="button" 
+                                                        @click="expanded = !expanded" 
+                                                        class="mt-1.5 text-xs font-bold text-aether-blue dark:text-sky-400 hover:underline flex items-center space-x-1">
+                                                    <span x-text="expanded ? 'Show less' : 'Show full comment'"></span>
+                                                    <svg class="w-3 h-3 transition-transform" :class="{ 'rotate-180': expanded }" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                                                    </svg>
+                                                </button>
+                                            </template>
+                                        </div>
+                                    </div>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center py-10 rounded-xl border border-dashed border-slate-200 dark:border-zinc-800 text-slate-400 dark:text-zinc-500 text-xs bg-white dark:bg-[#18181b]">
+                            <svg class="w-8 h-8 mx-auto mb-2 opacity-40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                            </svg>
+                            <p class="font-medium text-slate-600 dark:text-zinc-300">No comments yet.</p>
+                            <p class="text-[11px] mt-0.5">Start the technical discussion using the composer above.</p>
+                        </div>
+                    {% endif %}
+                </div>
+
+            </div>
+
             <!-- Tab: DEFECTS & BUGS -->
             <div x-show="activeTab === 'defects'" style="display: none;" class="aether-card p-6 space-y-4">
-                <div class="flex items-center justify-between border-b border-slate-100 dark:border-zinc-800 pb-3">
+                <div class="flex items-center justify-between border-b border-slate-100 dark:border-zinc-800 pb-3 flex-wrap gap-2">
                     <div class="flex items-center space-x-2">
                         <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500">
                             Linked Defects & Bugs
@@ -667,16 +1280,36 @@
                             {{ related_bugs|length }}
                         </span>
                     </div>
-                    <a href="{% url 'bugs:bug_create' slug=workspace.slug %}?linked_task={{ task.id }}" 
-                       class="text-xs font-bold text-rose-600 dark:text-rose-400 hover:underline flex items-center space-x-1">
-                        <span>+ Raise Bug For This Task</span>
-                    </a>
+                    <div class="flex items-center space-x-3">
+                        <a href="{% url 'bugs:bug_create' slug=workspace.slug %}?linked_task={{ task.id }}" 
+                           class="text-xs font-bold text-rose-600 dark:text-rose-400 hover:underline flex items-center space-x-1">
+                            <span>+ Raise Bug For This Task</span>
+                        </a>
+                    </div>
                 </div>
+
+                {% if available_bugs %}
+                    <div class="p-3.5 rounded-xl border border-dashed border-rose-200 dark:border-rose-900/40 bg-rose-50/30 dark:bg-rose-950/10 space-y-2">
+                        <span class="text-xs font-bold text-slate-700 dark:text-zinc-300 block">Attach Existing Unlinked Bug</span>
+                        <form method="post" action="{% url 'tasks:task_bug_attach' slug=workspace.slug task_code=task.task_code %}" class="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                            {% csrf_token %}
+                            <select name="bug_code" required class="flex-1 min-w-[200px] px-3 py-1.5 text-xs rounded-xl border border-slate-300 dark:border-zinc-700 bg-white dark:bg-[#18181b] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-rose-500">
+                                <option value="">-- Select an open unlinked bug to attach --</option>
+                                {% for ab in available_bugs %}
+                                    <option value="{{ ab.bug_code }}">{{ ab.bug_code }} - {{ ab.title }} ({{ ab.get_severity_display }}, {{ ab.get_status_display }})</option>
+                                {% endfor %}
+                            </select>
+                            <button type="submit" class="px-3.5 py-1.5 text-xs font-bold rounded-xl bg-rose-600 text-white hover:bg-rose-700 transition shrink-0 shadow-xs">
+                                Attach Bug
+                            </button>
+                        </form>
+                    </div>
+                {% endif %}
 
                 {% if related_bugs %}
                     <div class="divide-y divide-slate-100 dark:divide-zinc-800/80">
                         {% for b in related_bugs %}
-                            <div class="py-3 flex items-center justify-between gap-3">
+                            <div class="py-3 flex items-center justify-between gap-3 flex-wrap sm:flex-nowrap">
                                 <div class="flex items-center space-x-3 min-w-0">
                                     <a href="{% url 'bugs:bug_detail' slug=workspace.slug bug_code=b.bug_code %}" 
                                        class="font-mono text-xs font-black text-rose-600 dark:text-rose-400 hover:underline shrink-0">
@@ -699,6 +1332,14 @@
                                     <span class="px-2 py-0.5 rounded text-[11px] font-semibold {% if b.status == 'RESOLVED' or b.status == 'CLOSED' %}bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400{% elif b.status == 'IN_PROGRESS' %}bg-blue-50 dark:bg-blue-950/60 text-aether-blue{% else %}bg-amber-50 dark:bg-amber-950/60 text-amber-600{% endif %}">
                                         {{ b.get_status_display }}
                                     </span>
+
+                                    <!-- Detach Bug Button -->
+                                    <form method="post" action="{% url 'tasks:task_bug_detach' slug=workspace.slug task_code=task.task_code bug_code=b.bug_code %}" onsubmit="return confirm('Detach bug {{ b.bug_code }} from this task?');" class="inline">
+                                        {% csrf_token %}
+                                        <button type="submit" title="Detach bug from task" class="text-xs font-semibold text-rose-500 hover:text-rose-700 hover:underline px-2 py-1">
+                                            Detach
+                                        </button>
+                                    </form>
                                 </div>
                             </div>
                         {% endfor %}
@@ -718,32 +1359,49 @@
                 {% endif %}
             </div>
 
-            <!-- Tab: ACTIVITY -->
-            <div x-show="activeTab === 'activity'" style="display: none;" class="aether-card p-6 space-y-4">
-                <div class="flex items-center justify-between border-b border-slate-100 dark:border-zinc-800 pb-3">
-                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500">
+            <!-- Tab: ACTIVITY (Clean Rectangular Message Cards) -->
+            <div x-show="activeTab === 'activity'" style="display: none;" class="space-y-4">
+                <div class="aether-card p-5 flex items-center justify-between border-b border-slate-100 dark:border-zinc-800">
+                    <h3 class="text-sm font-bold text-slate-900 dark:text-zinc-100">
                         Full Activity & Audit History
                     </h3>
-                    <span class="text-xs text-slate-400 dark:text-zinc-500">{{ activities|length }} events</span>
+                    <span class="text-xs px-2.5 py-0.5 rounded-full font-bold bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400">
+                        {{ activities|length }} event{{ activities|length|pluralize }}
+                    </span>
                 </div>
 
                 {% if activities %}
-                    <div class="relative pl-6 space-y-6 before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200 dark:before:bg-zinc-800">
+                    <div class="space-y-3 w-full">
                         {% for act in activities %}
-                            <div class="relative group">
-                                <span class="absolute -left-[27px] top-1 w-3 h-3 rounded-full border-2 border-white dark:border-obsidian-900 {% if act.action == 'CREATED' %}bg-emerald-500{% elif act.action == 'STATUS_CHANGED' %}bg-aether-blue{% elif act.action == 'ASSIGNED' %}bg-purple-500{% else %}bg-slate-400{% endif %}"></span>
-
-                                <div class="space-y-1">
-                                    <div class="flex items-center space-x-2 text-xs">
-                                        <span class="font-bold text-slate-900 dark:text-zinc-100">
-                                            {{ act.actor.full_name|default:act.actor.email|default:"System" }}
-                                        </span>
-                                        <span class="text-slate-400 dark:text-zinc-500">•</span>
-                                        <span class="text-[11px] text-slate-500 dark:text-zinc-400">
+                            <div class="activity-card aether-card p-4 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#18181b] shadow-xs flex items-start space-x-3.5 w-full">
+                                <div class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 {% if act.action == 'CREATED' %}bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600{% elif act.action == 'STATUS_CHANGED' %}bg-blue-100 dark:bg-blue-950/60 text-blue-600{% elif act.action == 'ASSIGNED' %}bg-purple-100 dark:bg-purple-950/60 text-purple-600{% else %}bg-slate-100 dark:bg-zinc-800 text-slate-500{% endif %}">
+                                    {% if act.action == 'CREATED' %}
+                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                                    {% elif act.action == 'STATUS_CHANGED' %}
+                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                                    {% elif act.action == 'ASSIGNED' %}
+                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                                    {% else %}
+                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                    {% endif %}
+                                </div>
+                                <div class="flex-1 min-w-0 space-y-1">
+                                    <div class="flex items-center justify-between gap-2 flex-wrap sm:flex-nowrap">
+                                        <div class="flex items-center space-x-2 text-xs">
+                                            {% if act.actor %}
+                                                {% include 'components/people_hover_card.html' with target_user=act.actor workspace_slug=workspace.slug show_name=True avatar_size='w-5 h-5' %}
+                                            {% else %}
+                                                <span class="font-bold text-slate-900 dark:text-zinc-100">System</span>
+                                            {% endif %}
+                                            <span class="px-2 py-0.5 rounded text-[10px] font-bold {% if act.action == 'CREATED' %}bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400{% elif act.action == 'STATUS_CHANGED' %}bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-400{% else %}bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400{% endif %}">
+                                                {{ act.get_action_display }}
+                                            </span>
+                                        </div>
+                                        <span class="text-[11px] text-slate-400 dark:text-zinc-500 shrink-0">
                                             {{ act.created_at|timesince }} ago ({{ act.created_at|date:"M d, Y H:i" }})
                                         </span>
                                     </div>
-                                    <p class="text-xs text-slate-700 dark:text-zinc-300">
+                                    <p class="text-sm text-slate-800 dark:text-zinc-200 leading-relaxed font-sans">
                                         {{ act.message }}
                                     </p>
                                 </div>
@@ -751,7 +1409,9 @@
                         {% endfor %}
                     </div>
                 {% else %}
-                    <p class="text-xs text-slate-400 dark:text-zinc-500 italic">No activity recorded yet.</p>
+                    <div class="p-8 text-center rounded-xl border border-dashed border-slate-200 dark:border-zinc-800 text-slate-400 dark:text-zinc-500 text-xs bg-white dark:bg-[#18181b]">
+                        <p class="font-medium text-slate-600 dark:text-zinc-300">No activity recorded yet.</p>
+                    </div>
                 {% endif %}
             </div>
 
@@ -791,28 +1451,14 @@
                     Details
                 </h3>
 
-                <!-- Created By (Reporter with Avatar) -->
+                <!-- Created By (Reporter with Hover Card) -->
                 <div class="flex items-center justify-between text-xs">
                     <span class="text-slate-500 dark:text-zinc-400 font-medium">Created By</span>
-                    <div class="flex items-center space-x-2">
+                    <div>
                         {% if task.reporter %}
-                            {% if task.reporter.avatar %}
-                                <img src="{{ task.reporter.avatar }}" alt="{{ task.reporter.full_name|default:task.reporter.email }}" class="w-5 h-5 rounded-full object-cover">
-                            {% else %}
-                                <div class="w-5 h-5 rounded-full bg-slate-200 dark:bg-zinc-700 text-slate-700 dark:text-zinc-300 font-bold text-[9px] flex items-center justify-center">
-                                    {{ task.reporter.full_name|default:task.reporter.email|slice:":1"|upper }}
-                                </div>
-                            {% endif %}
-                            <span class="text-slate-800 dark:text-zinc-200 font-semibold truncate max-w-[120px]">
-                                {{ task.reporter.full_name|default:task.reporter.email }}
-                            </span>
+                            {% include 'components/people_hover_card.html' with target_user=task.reporter workspace_slug=workspace.slug show_name=True %}
                         {% else %}
-                            <div class="w-5 h-5 rounded-full bg-slate-200 dark:bg-zinc-700 text-slate-700 dark:text-zinc-300 font-bold text-[9px] flex items-center justify-center">
-                                S
-                            </div>
-                            <span class="text-slate-800 dark:text-zinc-200 font-semibold truncate max-w-[120px]">
-                                System
-                            </span>
+                            <span class="text-slate-800 dark:text-zinc-200 font-semibold">System</span>
                         {% endif %}
                     </div>
                 </div>
@@ -845,7 +1491,7 @@
                 <div class="flex items-center justify-between text-xs">
                     <span class="text-slate-500 dark:text-zinc-400 font-medium">Time Spent</span>
                     <span class="text-slate-800 dark:text-zinc-200 font-medium">
-                        12 hrs logged
+                        {{ task.total_logged_hours_display }}
                     </span>
                 </div>
 
@@ -874,6 +1520,23 @@
                         </button>
                     {% else %}
                         <span class="text-emerald-500 font-semibold text-[11px]">0 defects</span>
+                    {% endif %}
+                </div>
+
+                <!-- Code Reviews -->
+                <div class="flex items-center justify-between text-xs">
+                    <span class="text-slate-500 dark:text-zinc-400 font-medium">Code Reviews</span>
+                    {% if code_reviews|length > 0 %}
+                        <button type="button" @click="activeTab = 'code_reviews'" class="inline-flex items-center space-x-1 font-bold text-purple-600 dark:text-purple-400 hover:underline">
+                            <span>{{ code_reviews|length }} review{{ code_reviews|length|pluralize }}</span>
+                            <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                            </svg>
+                        </button>
+                    {% else %}
+                        <button type="button" @click="showCodeReviewModal = true" class="text-purple-600 dark:text-purple-400 font-semibold text-[11px] hover:underline">
+                            + Request Review
+                        </button>
                     {% endif %}
                 </div>
 
@@ -912,5 +1575,105 @@
 
     </div>
 
+    <!-- Request Code Review Modal Dialog -->
+    <div x-show="showCodeReviewModal" 
+         x-transition.opacity
+         style="display: none;" 
+         class="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+        <div @click.away="showCodeReviewModal = false" 
+             class="bg-white dark:bg-[#18181b] rounded-2xl border border-slate-200 dark:border-zinc-800 shadow-2xl max-w-lg w-full p-6 space-y-5 text-slate-900 dark:text-zinc-100">
+            <div class="flex items-center justify-between border-b border-slate-100 dark:border-zinc-800 pb-3">
+                <div class="flex items-center space-x-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-purple-100 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center font-bold">
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-bold">Request Code Review</h3>
+                        <p class="text-xs text-slate-400 dark:text-zinc-500">Connect a GitHub Pull Request to Task {{ task.display_code }}</p>
+                    </div>
+                </div>
+                <button type="button" @click="showCodeReviewModal = false" class="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+
+            <form method="post" action="{% url 'tasks:code_review_create' slug=workspace.slug task_code=task.task_code %}" class="space-y-4">
+                {% csrf_token %}
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 dark:text-zinc-400 mb-1">Task ID</label>
+                        <input type="text" value="{{ task.display_code }}" readonly class="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-100 dark:bg-zinc-800/80 text-slate-500 font-mono cursor-not-allowed">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 dark:text-zinc-400 mb-1">Task Title</label>
+                        <input type="text" value="{{ task.title }}" readonly class="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-100 dark:bg-zinc-800/80 text-slate-500 cursor-not-allowed truncate">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1">Review Request Title <span class="text-rose-500">*</span></label>
+                    <input type="text" name="title" required value="Code Review: {{ task.title }}" placeholder="e.g. Code Review: {{ task.title }}" class="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300 dark:border-zinc-700 bg-white dark:bg-[#0c1322] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-purple-500">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1">GitHub Pull Request URL <span class="text-rose-500">*</span></label>
+                    <input type="url" name="github_pr_url" required placeholder="https://github.com/org/repo/pull/123" class="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300 dark:border-zinc-700 bg-white dark:bg-[#0c1322] text-slate-900 dark:text-zinc-100 font-mono focus:outline-none focus:ring-2 focus:ring-purple-500">
+                    <p class="text-[11px] text-slate-400 dark:text-zinc-500 mt-1">Must be an active GitHub Pull Request (e.g. https://github.com/owner/repo/pull/42).</p>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 items-start">
+                    <div class="sm:col-span-1">
+                        <label class="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1">Requester</label>
+                        <div class="flex items-center space-x-2 px-3 py-2.5 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-100 dark:bg-zinc-800/80 text-slate-700 dark:text-zinc-300 text-xs">
+                            {% include 'components/avatar.html' with user=request.user size='w-6 h-6' text_size='text-[10px]' %}
+                            <span class="font-semibold truncate">{{ request.user.get_full_name|default:request.user.username }}</span>
+                        </div>
+                    </div>
+                    <div class="sm:col-span-2">
+                        <label class="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1">Assigned Reviewer <span class="text-slate-400 font-normal">(Optional)</span></label>
+                        {% include 'components/people_search_select.html' with initial_user=None field_name='reviewer' workspace_slug=workspace.slug required=False placeholder='Search reviewer by name, contributor ID, or email...' %}
+                    </div>
+                </div>
+
+                <div x-data="{ crTab: 'write', crDesc: '', crPreviewHtml: '' }">
+                    <div class="flex items-center justify-between mb-1">
+                        <label class="block text-xs font-bold text-slate-700 dark:text-zinc-300">
+                            Notes / Instructions for Reviewers (Markdown)
+                        </label>
+                        <div class="flex items-center space-x-1 text-xs">
+                            <button type="button" @click="crTab = 'write'" :class="crTab === 'write' ? 'bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 font-bold' : 'text-slate-500 hover:text-slate-800 dark:hover:text-zinc-200'" class="px-2 py-0.5 rounded transition">Write</button>
+                            <button type="button" @click="crTab = 'preview'; AetherMarkdown.render(crDesc, h => crPreviewHtml = h)" :class="crTab === 'preview' ? 'bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 font-bold' : 'text-slate-500 hover:text-slate-800 dark:hover:text-zinc-200'" class="px-2 py-0.5 rounded transition">Preview</button>
+                        </div>
+                    </div>
+                    <div x-show="crTab === 'write'">
+                        <textarea name="description" x-model="crDesc" rows="3" placeholder="Context, files to review, testing instructions..." class="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300 dark:border-zinc-700 bg-white dark:bg-[#0c1322] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-y font-mono"></textarea>
+                    </div>
+                    <div x-show="crTab === 'preview'" style="display: none;" class="p-3.5 min-h-[70px] text-xs prose dark:prose-invert max-w-none text-slate-800 dark:text-zinc-200 bg-slate-50 dark:bg-[#0c1322] rounded-xl border border-slate-200 dark:border-zinc-800" x-html="crPreviewHtml || '<p class=\'text-xs text-slate-400 dark:text-zinc-500 italic\'>Nothing to preview</p>'"></div>
+                </div>
+
+                <div class="flex items-center justify-end space-x-2 pt-2 border-t border-slate-100 dark:border-zinc-800">
+                    <button type="button" @click="showCodeReviewModal = false" class="px-4 py-2 text-xs font-semibold rounded-xl border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800">
+                        Cancel
+                    </button>
+                    <button type="submit" class="px-4 py-2 text-xs font-bold rounded-xl bg-purple-600 text-white hover:bg-purple-700 shadow-sm transition">
+                        Submit Request
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
 </div>
+
+<script>
+// Delegate to unified AetherMarkdown pipeline
+function renderSafeMarkdown(text) {
+    if (window.AetherMarkdown && window.AetherMarkdown.fallbackClientRender) {
+        return window.AetherMarkdown.fallbackClientRender(text);
+    }
+    return text || '';
+}
+</script>
 {% endblock %}

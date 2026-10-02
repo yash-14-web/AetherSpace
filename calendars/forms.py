@@ -1,3 +1,4 @@
+import json
 from datetime import datetime, time
 from django import forms
 from django.utils import timezone
@@ -48,12 +49,16 @@ class CalendarEventForm(forms.ModelForm):
         required=False,
         widget=forms.CheckboxSelectMultiple
     )
+    reference_links_raw = forms.CharField(
+        required=False,
+        widget=forms.HiddenInput()
+    )
 
     class Meta:
         model = CalendarEvent
         fields = [
             'title', 'event_type', 'calendar_category', 'is_all_day',
-            'repeat', 'location', 'meeting_link', 'description',
+            'repeat', 'location', 'meeting_link', 'description', 'agenda',
             'linked_task', 'linked_bug', 'linked_meeting'
         ]
         widgets = {
@@ -72,7 +77,7 @@ class CalendarEventForm(forms.ModelForm):
                 'class': 'w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-800 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition'
             }),
             'location': forms.TextInput(attrs={
-                'placeholder': 'Add location or meeting link',
+                'placeholder': 'Add location or room',
                 'class': 'w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-800 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition'
             }),
             'meeting_link': forms.URLInput(attrs={
@@ -80,9 +85,14 @@ class CalendarEventForm(forms.ModelForm):
                 'class': 'w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-800 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition'
             }),
             'description': forms.Textarea(attrs={
-                'rows': 4,
-                'placeholder': 'Add event description...',
+                'rows': 3,
+                'placeholder': 'Brief description or summary of this event...',
                 'class': 'w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-800 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition'
+            }),
+            'agenda': forms.Textarea(attrs={
+                'rows': 5,
+                'placeholder': 'Formatted meeting agenda, topics, discussion items, or notes...',
+                'class': 'w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-800 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500 font-sans leading-relaxed'
             }),
             'linked_task': forms.Select(attrs={
                 'class': 'w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-800 dark:text-zinc-100'
@@ -147,6 +157,10 @@ class CalendarEventForm(forms.ModelForm):
             attending_user_ids = self.instance.attendees.values_list('user_id', flat=True)
             self.fields['invitees'].initial = attending_user_ids
 
+            # Populate reference links
+            if self.instance.reference_links:
+                self.fields['reference_links_raw'].initial = json.dumps(self.instance.reference_links)
+
     def clean(self):
         cleaned_data = super().clean()
         start_date = cleaned_data.get('start_date')
@@ -181,5 +195,19 @@ class CalendarEventForm(forms.ModelForm):
 
         if not cleaned_data.get('calendar_category'):
             cleaned_data['calendar_category'] = CalendarCategory.WORKSPACE
+
+        # Parse reference links
+        raw_links = cleaned_data.get('reference_links_raw', '').strip()
+        if raw_links:
+            try:
+                parsed = json.loads(raw_links)
+                if isinstance(parsed, list):
+                    cleaned_data['reference_links'] = parsed
+                else:
+                    cleaned_data['reference_links'] = []
+            except Exception:
+                cleaned_data['reference_links'] = []
+        else:
+            cleaned_data['reference_links'] = []
 
         return cleaned_data

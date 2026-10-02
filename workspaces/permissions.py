@@ -111,3 +111,39 @@ def workspace_manager_required(view_func):
         return view_func(request, slug, *args, **kwargs)
 
     return _wrapped_view
+
+
+def can_user_perform_action(user, workspace, action, target_resource_id=None):
+    """
+    Evaluates whether a user is authorized to perform an action in a workspace.
+    Authoritatively checks:
+    1. Superuser / Platform Admin
+    2. Active TemporaryAccessGrant for this specific action & workspace
+    3. Active WorkspaceMembership role permissions
+    """
+    if not user or not user.is_authenticated:
+        return False
+    if user.is_superuser or getattr(user, 'is_admin_role', False):
+        return True
+
+    # Check active temporary grant first
+    from .models import TemporaryAccessGrant
+    if TemporaryAccessGrant.has_active_grant(user, workspace, action, target_resource_id):
+        return True
+
+    # Check workspace membership
+    membership = workspace.memberships.filter(user=user, status=MembershipStatus.ACTIVE).first() if workspace else None
+    if not membership:
+        return False
+
+    if action in ['bug.create', 'file.upload', 'calendar.create', 'meeting.create']:
+        return True
+    elif action in ['task.create', 'task.delete', 'bug.delete', 'sprint.manage']:
+        return membership.role in [WorkspaceRole.ADMIN, WorkspaceRole.MANAGER]
+    elif action in ['task.edit', 'bug.edit']:
+        return True
+    elif action in ['workspace.manage', 'member.manage', 'workspace.delete']:
+        return membership.role == WorkspaceRole.ADMIN
+
+    return False
+

@@ -73,22 +73,20 @@
         </button>
     </div>
 
-    <!-- Validation Errors -->
+    <!-- Validation & Storage Error States -->
     {% if form.errors %}
-    <div class="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 text-xs text-rose-700 dark:text-rose-300 space-y-1">
-        <p class="font-bold flex items-center space-x-1.5">
-            <svg class="w-4 h-4 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-            </svg>
-            <span>Please correct the errors below:</span>
-        </p>
-        <ul class="list-disc list-inside space-y-0.5 pl-5">
-            {% for field, errors in form.errors.items %}
-                {% for error in errors %}
-                    <li>{{ error }}</li>
-                {% endfor %}
+    <div class="space-y-3">
+        {% for field, errors in form.errors.items %}
+            {% for error in errors %}
+                {% if "exceeds" in error|lower or "size" in error|lower %}
+                    {% include 'components/error_states.html' with component_type='file_too_large' error_title='File Too Large' error_message=error %}
+                {% elif "storage" in error|lower or "quota" in error|lower %}
+                    {% include 'components/error_states.html' with component_type='storage_reached' error_title='Storage Limit Reached' error_message=error %}
+                {% else %}
+                    {% include 'components/error_states.html' with component_type='upload_failed' error_title='Upload Error' error_message=error %}
+                {% endif %}
             {% endfor %}
-        </ul>
+        {% endfor %}
     </div>
     {% endif %}
 

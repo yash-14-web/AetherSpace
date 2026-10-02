@@ -1,0 +1,50 @@
+<!-- AetherSpace Global Network / Connection Monitor -->
+<div x-data="{
+    isOnline: navigator.onLine,
+    reconnecting: false,
+    init() {
+        window.addEventListener('online', () => {
+            this.isOnline = true;
+            this.reconnecting = false;
+        });
+        window.addEventListener('offline', () => {
+            this.isOnline = false;
+            this.reconnecting = false;
+        });
+    },
+    testConnection() {
+        this.reconnecting = true;
+        fetch('/api/search/?q=ping', { method: 'HEAD', cache: 'no-store' })
+            .then(res => {
+                this.isOnline = res.ok || res.status === 404 || res.status === 200;
+                this.reconnecting = false;
+            })
+            .catch(() => {
+                this.isOnline = false;
+                this.reconnecting = false;
+            });
+    }
+}"
+x-show="!isOnline"
+x-transition:enter="transition ease-out duration-300 transform"
+x-transition:enter-start="-translate-y-full opacity-0"
+x-transition:enter-end="translate-y-0 opacity-100"
+x-transition:leave="transition ease-in duration-200 transform"
+x-transition:leave-start="translate-y-0 opacity-100"
+x-transition:leave-end="-translate-y-full opacity-0"
+class="fixed top-0 left-0 right-0 z-[100] bg-rose-600 dark:bg-rose-900 text-white px-4 py-2 text-xs font-medium shadow-md flex items-center justify-between"
+style="display: none;">
+    <div class="flex items-center gap-2">
+        <span class="w-2 h-2 rounded-full bg-white animate-ping"></span>
+        <span>
+            <strong>Connection Lost</strong> — We couldn't connect to AetherSpace right now. Real-time updates paused.
+        </span>
+    </div>
+    <div class="flex items-center gap-2">
+        <button type="button" @click="testConnection()" :disabled="reconnecting"
+                class="px-3 py-1 rounded bg-white text-rose-700 hover:bg-rose-50 text-xs font-bold transition disabled:opacity-50">
+            <span x-show="!reconnecting">Retry</span>
+            <span x-show="reconnecting">Checking...</span>
+        </button>
+    </div>
+</div>

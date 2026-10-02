@@ -4,6 +4,33 @@
 {% block title %}{{ meeting.title }} ({{ meeting_code_formatted|default:meeting.meeting_code }}) — AetherSpace Meet{% endblock %}
 
 {% block layout %}
+<style>
+@keyframes meetReactionFloat {
+    0% {
+        transform: translateY(0) scale(0.6);
+        opacity: 0;
+    }
+    15% {
+        transform: translateY(-40px) scale(1.2);
+        opacity: 1;
+    }
+    50% {
+        transform: translateY(-160px) scale(1.05) rotate(4deg);
+        opacity: 0.9;
+    }
+    80% {
+        transform: translateY(-260px) scale(0.95) rotate(-4deg);
+        opacity: 0.6;
+    }
+    100% {
+        transform: translateY(-340px) scale(0.85);
+        opacity: 0;
+    }
+}
+.floating-meet-reaction {
+    animation: meetReactionFloat 2.2s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+</style>
 <div class="fixed inset-0 z-50 flex flex-col h-screen w-screen bg-[#131314] text-white overflow-hidden font-sans select-none" 
      id="meeting-room-viewport"
      x-data="googleMeetRoomState()">
@@ -81,21 +108,29 @@
                 {% endif %}
                 <span class="font-medium text-xs" x-text="totalParticipantsCount">1</span>
             </button>
-
-            <!-- Visual effects / sparkle button ✨ -->
-            <button @click="toggleEffects()" 
-                    class="p-2 rounded-full text-zinc-300 hover:text-white hover:bg-[#202124] transition relative"
-                    title="Apply visual effects">
-                <svg class="w-4 h-4 text-zinc-300 hover:text-amber-300 transition" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
-                </svg>
-            </button>
         </div>
     </header>
 
     <!-- Main Conference Stage: Responsive Video Tile Canvas matching Screenshot 1 -->
     <main class="relative flex-1 flex overflow-hidden p-3 sm:p-5 pb-24">
         
+        <!-- Connection / Permission Status Banner -->
+        <div x-show="connectionStatus === 'reconnecting' || connectionStatus === 'failed' || permissionError"
+             class="absolute top-3 left-1/2 -translate-x-1/2 z-40 max-w-lg px-4 py-2 rounded-full text-xs font-medium shadow-2xl flex items-center space-x-2 transition"
+             :class="{
+                 'bg-amber-900/90 text-amber-200 border border-amber-600': connectionStatus === 'reconnecting',
+                 'bg-rose-900/90 text-rose-200 border border-rose-600': connectionStatus === 'failed',
+                 'bg-zinc-800/95 text-zinc-200 border border-zinc-700': permissionError && connectionStatus === 'connected'
+             }">
+            <span class="w-2 h-2 rounded-full animate-ping"
+                  :class="{
+                      'bg-amber-400': connectionStatus === 'reconnecting',
+                      'bg-rose-400': connectionStatus === 'failed',
+                      'bg-sky-400': permissionError && connectionStatus === 'connected'
+                  }"></span>
+            <span x-text="connectionStatus === 'reconnecting' ? 'Reconnecting to conference signaling server...' : (connectionStatus === 'failed' ? 'Signaling connection lost. Please refresh.' : permissionError)"></span>
+        </div>
+
         <!-- Video Grid Area -->
         <div class="flex-1 flex items-center justify-center w-full h-full">
             
@@ -117,6 +152,7 @@
                     <video id="screen-video" 
                            autoplay 
                            playsinline 
+                           muted
                            x-show="screenSharing"
                            class="w-full h-full object-contain rounded-3xl bg-black"></video>
 
@@ -172,11 +208,23 @@
                     </div>
                 </div>
 
-                <!-- Remote Connected Participants Dynamic Tiles -->
+                <!-- Remote Connected Participants Dynamic Tiles (Full WebRTC Media Elements) -->
                 <template x-for="peer in remoteParticipants" :key="peer.id">
                     <div class="relative w-full h-full aspect-video rounded-3xl bg-[#282d22] border border-black/30 overflow-hidden shadow-2xl flex items-center justify-center group select-none">
-                        <!-- Avatar -->
-                        <div class="flex flex-col items-center justify-center">
+                        
+                        <!-- Remote Live Camera/Screen Video Element -->
+                        <video :id="'remote-video-' + peer.id" 
+                               autoplay 
+                               playsinline 
+                               x-show="peer.is_camera_on || peer.screen_sharing"
+                               class="w-full h-full object-cover rounded-3xl"></video>
+
+                        <!-- Dedicated Remote Audio Element -->
+                        <audio :id="'remote-audio-' + peer.id" 
+                               autoplay></audio>
+
+                        <!-- Avatar Fallback when camera is OFF and not screen sharing -->
+                        <div x-show="!peer.is_camera_on && !peer.screen_sharing" class="flex flex-col items-center justify-center">
                             <template x-if="peer.avatar">
                                 <img :src="peer.avatar" :alt="peer.name" class="w-24 h-24 sm:w-28 sm:h-28 rounded-full object-cover shadow-2xl ring-1 ring-black/20">
                             </template>
@@ -196,17 +244,27 @@
 
                         <!-- Top-Right Mic Indicator -->
                         <div class="absolute top-4 right-4 z-10">
-                            <div class="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400">
+                            <div x-show="peer.is_muted" 
+                                 class="w-8 h-8 rounded-full bg-[#1b2016]/85 backdrop-blur-xs flex items-center justify-center text-[#7e8574] border border-white/5 shadow-sm"
+                                 title="Microphone is off">
+                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M19 11h-1.7c0 .74-.16 1.43-.43 2.05l1.23 1.23c.56-.98.9-2.09.9-3.28zm-4.02.17c0-.06.02-.11.02-.17V5c0-1.66-1.34-3-3-3S9 3.34 9 5v.18l5.98 5.99zM4.27 3L3 4.27l6.01 6.01V11c0 1.66 1.33 3 2.99 3 .22 0 .44-.03.65-.08l1.66 1.66c-.71.33-1.5.52-2.31.52-2.76 0-5.3-2.1-5.3-5.1H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c.91-.13 1.77-.45 2.54-.9L19.73 21 21 19.73 4.27 3z"/>
+                                </svg>
+                            </div>
+                            <div x-show="!peer.is_muted" 
+                                 class="w-8 h-8 rounded-full bg-emerald-500/20 backdrop-blur-xs flex items-center justify-center text-emerald-400 border border-emerald-500/30"
+                                 title="Microphone is active">
                                 <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                                     <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5-3c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
                                 </svg>
                             </div>
                         </div>
 
-                        <!-- Bottom-Left Name -->
+                        <!-- Bottom-Left Name & Screen Sharing Indicator -->
                         <div class="absolute bottom-4 left-4 z-10 flex items-center space-x-2">
                             <span class="text-sm font-medium text-white tracking-wide drop-shadow-md" x-text="peer.name"></span>
                             <span class="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-black/40 text-zinc-300" x-text="peer.role === 'Meeting host' ? 'Host' : ''" x-show="peer.role === 'Meeting host'"></span>
+                            <span class="text-[10px] bg-blue-600/80 text-white font-medium px-2 py-0.5 rounded-full" x-show="peer.screen_sharing">Sharing screen</span>
                         </div>
                     </div>
                 </template>
@@ -239,8 +297,8 @@
             <!-- Floating Emoji Reactions Canvas Animation -->
             <div class="pointer-events-none fixed inset-0 z-40 overflow-hidden">
                 <template x-for="r in floatingReactions" :key="r.id">
-                    <div class="absolute text-4xl animate-bounce"
-                         :style="`bottom: 90px; left: ${r.left}%; transition: all 2s ease-out; transform: translateY(-${r.offset}px); opacity: ${r.opacity};`"
+                    <div class="absolute text-4xl floating-meet-reaction pointer-events-none select-none drop-shadow-lg"
+                         :style="`bottom: 90px; left: ${r.left}%;`"
                          x-text="r.emoji"></div>
                 </template>
             </div>
@@ -535,12 +593,16 @@
                 </template>
 
                 <template x-for="msg in chatMessages" :key="msg.id">
-                    <div class="space-y-1">
-                        <div class="flex items-center justify-between text-[11px]">
-                            <span class="font-semibold text-blue-400" x-text="msg.sender"></span>
-                            <span class="text-zinc-500" x-text="msg.time"></span>
+                    <div class="flex flex-col space-y-1" :class="(String(msg.sender_id) === String(selfId) || msg.is_self) ? 'items-end' : 'items-start'">
+                        <div class="flex items-center space-x-1.5 px-1">
+                            <span x-show="!(String(msg.sender_id) === String(selfId) || msg.is_self)" class="text-[11px] font-semibold text-blue-400" x-text="msg.sender"></span>
+                            <span class="text-[10px] text-zinc-500" x-text="msg.time"></span>
                         </div>
-                        <div class="p-2.5 rounded-2xl bg-[#282a2d] text-xs text-zinc-200" x-text="msg.text"></div>
+                        <div class="max-w-[85%] px-3.5 py-2 text-xs leading-relaxed shadow-sm break-words"
+                             :class="(String(msg.sender_id) === String(selfId) || msg.is_self) 
+                                ? 'bg-blue-600 text-white rounded-2xl rounded-tr-xs font-normal' 
+                                : 'bg-[#282a2d] text-zinc-100 rounded-2xl rounded-tl-xs border border-zinc-700/50'"
+                             x-text="msg.text"></div>
                     </div>
                 </template>
             </div>
@@ -728,12 +790,6 @@
                         </svg>
                         <span>Copy meeting link</span>
                     </button>
-                    <button @click="toggleEffects(); openMore = false" class="w-full px-4 py-2.5 text-left text-zinc-200 hover:bg-zinc-700/60 flex items-center space-x-2.5 transition">
-                        <svg class="w-4 h-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/>
-                        </svg>
-                        <span>Apply visual effects</span>
-                    </button>
                     {% if is_host %}
                     <div class="my-1 border-t border-zinc-700/60"></div>
                     <button @click="showHostDrawer = true; openMore = false" class="w-full px-4 py-2.5 text-left text-zinc-200 hover:bg-zinc-700/60 flex items-center space-x-2.5 transition">
@@ -769,24 +825,7 @@
                 </svg>
             </button>
 
-            <!-- 2. Activities / Grid Button ▦ -->
-            <button @click="toggleActivities()" 
-                    class="p-2.5 rounded-full text-zinc-300 hover:text-white hover:bg-zinc-800 transition flex items-center justify-center"
-                    title="Activities">
-                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                    <circle cx="6" cy="6" r="2"/>
-                    <circle cx="12" cy="6" r="2"/>
-                    <circle cx="18" cy="6" r="2"/>
-                    <circle cx="6" cy="12" r="2"/>
-                    <circle cx="12" cy="12" r="2"/>
-                    <circle cx="18" cy="12" r="2"/>
-                    <circle cx="6" cy="18" r="2"/>
-                    <circle cx="12" cy="18" r="2"/>
-                    <circle cx="18" cy="18" r="2"/>
-                </svg>
-            </button>
-
-            <!-- 3. Host Controls Lock Button 🔒 (Screenshot 1 bottom-right) -->
+            <!-- 2. Host Controls Lock Button 🔒 (Screenshot 1 bottom-right) -->
             <button @click="showHostDrawer = !showHostDrawer; showPeopleDrawer = false; showChatDrawer = false" 
                     :class="showHostDrawer ? 'bg-[#a8c7fa] text-[#041e49]' : 'text-zinc-300 hover:text-white hover:bg-zinc-800'"
                     class="p-2.5 rounded-full transition flex items-center justify-center"
@@ -806,6 +845,7 @@
 <script>
 function googleMeetRoomState() {
     return {
+        // Timers and UI State
         timerSeconds: 0,
         timerInterval: null,
         currentTimeStr: '',
@@ -821,20 +861,26 @@ function googleMeetRoomState() {
         handRaised: false,
         speechSupported: ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window),
         liveCaptionText: '',
+        captionClearTimer: null,
         speechRecognition: null,
         copiedShareNotice: false,
         peopleSearchQuery: '',
-        
-        // Host management settings (Screenshot 3)
+        permissionError: '',
+        connectionStatus: 'connecting', // 'connecting' | 'connected' | 'reconnecting' | 'failed'
+
+        // Host settings (Screenshot 3)
         hostManagementEnabled: true,
         allowScreenShare: true,
         allowReactions: true,
         allowMicrophone: true,
         allowVideo: true,
+        isHost: {{ is_host|yesno:"true,false" }},
 
+        // Participant Identifiers & Roster
+        selfId: "{{ user_id_str }}",
         participants: {{ participants_json|safe|default:'[]' }},
         get remoteParticipants() {
-            return this.participants.filter(p => !p.is_self);
+            return this.participants.filter(p => !p.is_self && String(p.id) !== String(this.selfId));
         },
         get filteredParticipants() {
             if (!this.peopleSearchQuery.trim()) {
@@ -847,19 +893,28 @@ function googleMeetRoomState() {
             return this.participants.length || 1;
         },
 
+        // WebRTC & Media Engine
         localStream: null,
         screenStream: null,
+        ws: null,
+        wsConnected: false,
+        rtcConfig: { iceServers: {{ ice_servers_json|safe|default:'[]' }} },
+        peerConnections: {},    // peerId -> RTCPeerConnection
+        iceCandidatesQueue: {}, // peerId -> Array of RTCIceCandidate
+        remoteStreams: {},      // peerId -> MediaStream
+
+        // Chat & Floating Reactions
         floatingReactions: [],
         reactionCounter: 0,
         newChatMessage: '',
         chatMessages: [],
 
         async init() {
-            // Live clock time (Screenshot 1 e.g. 1:33 AM)
+            // Live clock time
             this.updateClock();
             setInterval(() => this.updateClock(), 1000);
 
-            // Elapsed meeting duration timer
+            // Elapsed duration timer
             const startedAt = new Date("{{ meeting.started_at|default:meeting.created_at|date:'c' }}");
             const now = new Date();
             this.timerSeconds = Math.max(0, Math.floor((now - startedAt) / 1000));
@@ -867,25 +922,19 @@ function googleMeetRoomState() {
                 this.timerSeconds++;
             }, 1000);
 
-            // Fullscreen events
             document.addEventListener('fullscreenchange', () => {
                 this.isFullscreen = !!document.fullscreenElement;
             });
 
-            // Heartbeat presence ping every 12s
-            setInterval(() => {
-                this.sendPing();
-            }, 12000);
+            // 1. Connect immediately to Django Channels signaling WebSocket (<50ms presence)
+            this.initWebSocket();
 
-            // Cleanup on unload
+            // 2. Concurrently acquire local microphone and webcam
+            this.initLocalMedia();
+
+            // 3. Cleanup on tab close / reload
             window.addEventListener('beforeunload', () => {
-                if (this.localStream) {
-                    this.localStream.getTracks().forEach(t => t.stop());
-                }
-                if (this.screenStream) {
-                    this.screenStream.getTracks().forEach(t => t.stop());
-                }
-                this.sendLeaveBeacon();
+                this.cleanupMediaAndPeers();
             });
         },
 
@@ -899,169 +948,6 @@ function googleMeetRoomState() {
             this.currentTimeStr = `${hours}:${minutes} ${ampm}`;
         },
 
-        async toggleMute() {
-            if (this.isMuted) {
-                // Unmuting: Acquire mic stream if not present
-                if (!this.localStream || !this.localStream.getAudioTracks().length) {
-                    try {
-                        const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                        const audioTrack = audioStream.getAudioTracks()[0];
-                        if (this.localStream) {
-                            this.localStream.addTrack(audioTrack);
-                        } else {
-                            this.localStream = audioStream;
-                        }
-                        this.isMuted = false;
-                    } catch (err) {
-                        console.warn("Could not acquire microphone:", err);
-                        alert("Could not access microphone. Please check browser permissions.");
-                        this.isMuted = true;
-                    }
-                } else {
-                    this.localStream.getAudioTracks().forEach(t => t.enabled = true);
-                    this.isMuted = false;
-                }
-            } else {
-                // Muting: disable audio track
-                if (this.localStream) {
-                    this.localStream.getAudioTracks().forEach(t => t.enabled = false);
-                }
-                this.isMuted = true;
-            }
-        },
-
-        async toggleCamera() {
-            if (this.isCameraOn) {
-                // Turning Camera OFF:
-                // Stop the track so the physical green LED indicator turns OFF immediately.
-                if (this.localStream) {
-                    this.localStream.getVideoTracks().forEach(track => {
-                        track.stop();
-                        this.localStream.removeTrack(track);
-                    });
-                }
-                const videoEl = document.getElementById('local-video');
-                if (videoEl && this.localStream) {
-                    videoEl.srcObject = this.localStream;
-                }
-                this.isCameraOn = false;
-            } else {
-                // Turning Camera ON:
-                try {
-                    const videoStream = await navigator.mediaDevices.getUserMedia({ video: true });
-                    const videoTrack = videoStream.getVideoTracks()[0];
-                    if (videoTrack) {
-                        if (this.localStream) {
-                            this.localStream.addTrack(videoTrack);
-                        } else {
-                            this.localStream = videoStream;
-                        }
-                        const videoEl = document.getElementById('local-video');
-                        if (videoEl) {
-                            videoEl.srcObject = this.localStream;
-                        }
-                        this.isCameraOn = true;
-                    }
-                } catch (err) {
-                    console.warn("Could not access camera device:", err);
-                    alert("Could not access camera. Please check device permissions.");
-                    this.isCameraOn = false;
-                }
-            }
-        },
-
-        async toggleScreenShare() {
-            if (!this.screenSharing) {
-                try {
-                    this.screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
-                    const screenVideo = document.getElementById('screen-video');
-                    if (screenVideo) {
-                        screenVideo.srcObject = this.screenStream;
-                    }
-                    this.screenSharing = true;
-                    this.screenStream.getVideoTracks()[0].onended = () => {
-                        this.screenSharing = false;
-                    };
-                } catch (err) {
-                    console.warn("Screen share cancelled:", err);
-                }
-            } else {
-                if (this.screenStream) {
-                    this.screenStream.getTracks().forEach(t => t.stop());
-                }
-                this.screenSharing = false;
-            }
-        },
-
-        triggerReaction(emoji) {
-            const id = ++this.reactionCounter;
-            const left = 30 + Math.random() * 40;
-            const reaction = { id, emoji, left, offset: 0, opacity: 1 };
-            this.floatingReactions.push(reaction);
-            
-            setTimeout(() => {
-                reaction.offset = 240;
-                reaction.opacity = 0;
-            }, 50);
-
-            setTimeout(() => {
-                this.floatingReactions = this.floatingReactions.filter(r => r.id !== id);
-            }, 2100);
-        },
-
-        toggleAudioSettings() {
-            alert("Microphone Settings:\nDefault system input device is currently active.");
-        },
-
-        toggleCameraSettings() {
-            alert("Camera Settings:\nDefault system video device is currently active.");
-        },
-
-        toggleEffects() {
-            alert("Visual Effects:\nBackground blur and lighting optimization are active.");
-        },
-
-        toggleActivities() {
-            alert("Activities:\nWhiteboard, Polls, and Breakout Rooms are available for this meeting.");
-        },
-
-        sendChatMessage() {
-            if (!this.newChatMessage.trim()) return;
-            const now = new Date();
-            const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            this.chatMessages.push({
-                id: Date.now(),
-                sender: '{{ user_display_name }}',
-                text: this.newChatMessage.trim(),
-                time: timeStr
-            });
-            this.newChatMessage = '';
-            this.$nextTick(() => {
-                const c = document.getElementById('chat-messages-container');
-                if (c) c.scrollTop = c.scrollHeight;
-            });
-        },
-
-        toggleFullscreen() {
-            const el = document.documentElement;
-            if (!document.fullscreenElement) {
-                if (el.requestFullscreen) el.requestFullscreen();
-            } else {
-                if (document.exitFullscreen) document.exitFullscreen();
-            }
-        },
-
-        copyMeetingCode(code) {
-            navigator.clipboard.writeText(code);
-            alert("Meeting code copied: " + code);
-        },
-
-        copyShareLink() {
-            navigator.clipboard.writeText(window.location.href);
-            this.copiedShareNotice = true;
-            setTimeout(() => this.copiedShareNotice = false, 3000);
-        },
-
         formatTimer(sec) {
             const h = String(Math.floor(sec / 3600)).padStart(2, '0');
             const m = String(Math.floor((sec % 3600) / 60)).padStart(2, '0');
@@ -1069,52 +955,677 @@ function googleMeetRoomState() {
             return `${h}:${m}:${s}`;
         },
 
-        toggleHandRaise() {
-            this.handRaised = !this.handRaised;
-            fetch("{% url 'meetings:meeting_ping_api' slug=workspace.slug meeting_code=meeting.meeting_code %}", {
-                method: "POST",
-                headers: {
-                    "X-CSRFToken": "{{ csrf_token }}",
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({ 
-                    action: this.handRaised ? 'raise_hand' : 'lower_hand',
-                    hand_raised: this.handRaised
-                })
-            }).then(r => r.json()).then(data => {
-                if (data && data.status === 'removed') {
-                    alert(data.error || "You have been removed from this meeting by the host.");
-                    window.location.href = data.redirect_url || "{% url 'meetings:meet_hub' slug=workspace.slug %}";
-                    return;
-                }
-                if (data && data.participants && Array.isArray(data.participants)) {
-                    this.participants = data.participants;
-                }
-            }).catch(err => console.error("Error toggling hand raise:", err));
-        },
+        // ------------------------------------------------------------------
+        // Media Stream Initialization
+        // ------------------------------------------------------------------
 
-        removeParticipant(userId, userName) {
-            if (!confirm(`Are you sure you want to remove ${userName || 'this participant'} from the meeting?`)) {
-                return;
-            }
-            fetch("{% url 'meetings:meeting_remove_participant_api' slug=workspace.slug meeting_code=meeting.meeting_code %}", {
-                method: "POST",
-                headers: {
-                    "X-CSRFToken": "{{ csrf_token }}",
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({ user_id: userId })
-            }).then(r => r.json()).then(data => {
-                if (data.status === 'ok') {
-                    this.sendPing();
-                } else {
-                    alert(data.error || "Could not remove participant.");
+        async initLocalMedia() {
+            try {
+                this.localStream = await navigator.mediaDevices.getUserMedia({
+                    audio: true,
+                    video: { width: { ideal: 1280 }, height: { ideal: 720 } }
+                });
+                this.isMuted = false;
+                this.isCameraOn = true;
+                const localVideo = document.getElementById('local-video');
+                if (localVideo) {
+                    localVideo.srcObject = this.localStream;
                 }
-            }).catch(err => {
-                console.error("Error removing participant:", err);
-                alert("Failed to remove participant.");
+            } catch (err) {
+                console.warn("Could not acquire default video/audio stream:", err);
+                try {
+                    // Fallback to audio only if webcam is unavailable
+                    this.localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    this.isMuted = false;
+                    this.isCameraOn = false;
+                } catch (aErr) {
+                    console.warn("Microphone also denied:", aErr);
+                    this.isMuted = true;
+                    this.isCameraOn = false;
+                    this.permissionError = "Microphone and camera permissions were denied. You are in listening mode.";
+                }
+            }
+
+            // If any RTCPeerConnections were created during parallel join, attach local tracks
+            if (this.localStream) {
+                this.localStream.getTracks().forEach(track => {
+                    Object.values(this.peerConnections).forEach(pc => {
+                        const vt = pc.getTransceivers().find(t => t.receiver && t.receiver.track && t.receiver.track.kind === track.kind);
+                        if (vt && vt.sender) {
+                            vt.sender.replaceTrack(track);
+                        } else {
+                            try { pc.addTrack(track, this.localStream); } catch(e){}
+                        }
+                    });
+                });
+            }
+
+            // Sync media state to all peers
+            this.sendWs({
+                type: 'media_state',
+                is_muted: this.isMuted,
+                is_camera_on: this.isCameraOn,
+                screen_sharing: this.screenSharing,
+                is_hand_raised: this.handRaised
             });
         },
+
+        // ------------------------------------------------------------------
+        // WebSocket Signaling
+        // ------------------------------------------------------------------
+
+        initWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws/meetings/{{ workspace.slug }}/{{ meeting.meeting_code }}/`;
+
+            try {
+                this.ws = new WebSocket(wsUrl);
+
+                this.ws.onopen = () => {
+                    this.wsConnected = true;
+                    this.connectionStatus = 'connected';
+                    // Broadcast initial local media status
+                    this.sendWs({
+                        type: 'media_state',
+                        is_muted: this.isMuted,
+                        is_camera_on: this.isCameraOn,
+                        screen_sharing: this.screenSharing,
+                        is_hand_raised: this.handRaised
+                    });
+                };
+
+                this.ws.onmessage = async (event) => {
+                    try {
+                        const data = JSON.parse(event.data);
+                        await this.handleWsMessage(data);
+                    } catch (e) {
+                        console.error("Error processing signaling message:", e);
+                    }
+                };
+
+                this.ws.onerror = (err) => {
+                    console.warn("Meeting signaling WebSocket error:", err);
+                };
+
+                this.ws.onclose = (event) => {
+                    this.wsConnected = false;
+                    if (event.code === 4001 || event.code === 4003) {
+                        this.connectionStatus = 'failed';
+                    } else if (event.code !== 1000) {
+                        this.connectionStatus = 'reconnecting';
+                        setTimeout(() => {
+                            this.initWebSocket();
+                        }, 3000);
+                    }
+                };
+            } catch (err) {
+                console.error("Could not construct WebSocket:", err);
+                this.connectionStatus = 'failed';
+            }
+        },
+
+        sendWs(payload) {
+            if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                this.ws.send(JSON.stringify(payload));
+            }
+        },
+
+        async handleWsMessage(data) {
+            switch (data.type) {
+                case 'room_state':
+                    if (Array.isArray(data.peers)) {
+                        data.peers.forEach(peer => {
+                            this.upsertPeer(peer);
+                        });
+                    }
+                    break;
+
+                case 'peer_joined':
+                    const newPeer = data.peer;
+                    if (String(newPeer.id) !== String(this.selfId)) {
+                        this.upsertPeer(newPeer);
+                        // Active participant initiates SDP offer to newly arrived peer
+                        await this.callPeer(newPeer.id);
+                    }
+                    break;
+
+                case 'peer_left':
+                    this.removePeer(data.peer_id);
+                    break;
+
+                case 'signal_offer':
+                    await this.handleOffer(data.sender_id, data.sdp);
+                    break;
+
+                case 'signal_answer':
+                    await this.handleAnswer(data.sender_id, data.sdp);
+                    break;
+
+                case 'signal_ice':
+                    await this.handleIceCandidate(data.sender_id, data.candidate);
+                    break;
+
+                case 'media_state':
+                    this.updatePeerMediaState(data.sender_id, data.media_state);
+                    break;
+
+                case 'meeting_chat':
+                    // Avoid duplicating message if user already rendered optimistic push
+                    if (String(data.message.sender_id) === String(this.selfId)) {
+                        const existing = this.chatMessages.find(m => m.text === data.message.text && (m.is_self || String(m.sender_id) === String(this.selfId)));
+                        if (existing) break;
+                    }
+                    this.chatMessages.push(data.message);
+                    this.$nextTick(() => {
+                        const c = document.getElementById('chat-messages-container');
+                        if (c) c.scrollTop = c.scrollHeight;
+                    });
+                    break;
+
+                case 'meeting_reaction':
+                    this.renderFloatingReaction(data.emoji);
+                    break;
+
+                case 'caption_broadcast':
+                    this.liveCaptionText = `${data.sender_name}: ${data.text}`;
+                    if (this.captionClearTimer) clearTimeout(this.captionClearTimer);
+                    this.captionClearTimer = setTimeout(() => {
+                        this.liveCaptionText = '';
+                    }, 4000);
+                    break;
+
+                case 'kicked':
+                    alert(data.message || "You have been removed from this meeting by the host.");
+                    window.location.href = "{% url 'meetings:meet_hub' slug=workspace.slug %}";
+                    break;
+
+                case 'meeting_ended':
+                    alert(data.message || "The meeting has been ended by the host.");
+                    window.location.href = "{% url 'meetings:meet_hub' slug=workspace.slug %}";
+                    break;
+            }
+        },
+
+        upsertPeer(peer) {
+            if (String(peer.id) === String(this.selfId)) return;
+            const existing = this.participants.find(p => String(p.id) === String(peer.id));
+            if (existing) {
+                Object.assign(existing, peer);
+            } else {
+                this.participants.push({
+                    id: String(peer.id),
+                    name: peer.name,
+                    initials: peer.initials,
+                    email: peer.email || '',
+                    avatar: peer.avatar || '',
+                    role: peer.role || 'Contributor',
+                    is_self: false,
+                    is_muted: peer.is_muted !== undefined ? peer.is_muted : false,
+                    is_camera_on: peer.is_camera_on !== undefined ? peer.is_camera_on : true,
+                    screen_sharing: peer.screen_sharing || false,
+                    is_hand_raised: peer.is_hand_raised || false,
+                });
+            }
+        },
+
+        removePeer(peerId) {
+            const pid = String(peerId);
+            if (this.peerConnections[pid]) {
+                try {
+                    this.peerConnections[pid].close();
+                } catch(e){}
+                delete this.peerConnections[pid];
+            }
+            delete this.iceCandidatesQueue[pid];
+            delete this.remoteStreams[pid];
+
+            this.participants = this.participants.filter(p => String(p.id) !== pid);
+        },
+
+        updatePeerMediaState(peerId, state) {
+            const peer = this.participants.find(p => String(p.id) === String(peerId));
+            if (peer && state) {
+                if (state.is_muted !== undefined) peer.is_muted = state.is_muted;
+                if (state.is_camera_on !== undefined) peer.is_camera_on = state.is_camera_on;
+                if (state.screen_sharing !== undefined) peer.screen_sharing = state.screen_sharing;
+                if (state.is_hand_raised !== undefined) peer.is_hand_raised = state.is_hand_raised;
+            }
+        },
+
+        // ------------------------------------------------------------------
+        // Full-Mesh WebRTC RTCPeerConnection Lifecycle
+        // ------------------------------------------------------------------
+
+        createPeerConnection(peerId) {
+            const pid = String(peerId);
+            if (this.peerConnections[pid]) {
+                return this.peerConnections[pid];
+            }
+
+            const pc = new RTCPeerConnection(this.rtcConfig);
+            this.peerConnections[pid] = pc;
+            this.iceCandidatesQueue[pid] = [];
+
+            // Add dedicated transceivers for audio and video
+            // This guarantees SDP offer/answer negotiate both m-lines immediately
+            try {
+                pc.addTransceiver('audio', { direction: 'sendrecv' });
+                pc.addTransceiver('video', { direction: 'sendrecv' });
+            } catch(e) {
+                console.warn("Transceiver initialization notice:", e);
+            }
+
+            // If local tracks are already active, attach them to transceivers
+            if (this.screenSharing && this.screenStream) {
+                const screenTrack = this.screenStream.getVideoTracks()[0];
+                if (screenTrack) {
+                    const vt = pc.getTransceivers().find(t => t.receiver && t.receiver.track && t.receiver.track.kind === 'video');
+                    if (vt && vt.sender) {
+                        vt.sender.replaceTrack(screenTrack);
+                    } else {
+                        pc.addTrack(screenTrack, this.screenStream);
+                    }
+                }
+            } else if (this.localStream) {
+                this.localStream.getTracks().forEach(track => {
+                    const transceiver = pc.getTransceivers().find(t => t.receiver && t.receiver.track && t.receiver.track.kind === track.kind);
+                    if (transceiver && transceiver.sender) {
+                        transceiver.sender.replaceTrack(track);
+                    } else {
+                        pc.addTrack(track, this.localStream);
+                    }
+                });
+            }
+
+            // ICE candidate exchange
+            pc.onicecandidate = (event) => {
+                if (event.candidate) {
+                    this.sendWs({
+                        type: 'signal_ice',
+                        target_id: pid,
+                        candidate: event.candidate
+                    });
+                }
+            };
+
+            // Remote Track Arrival
+            pc.ontrack = (event) => {
+                if (!this.remoteStreams[pid]) {
+                    this.remoteStreams[pid] = new MediaStream();
+                }
+                this.remoteStreams[pid].addTrack(event.track);
+
+                this.$nextTick(() => {
+                    const videoEl = document.getElementById('remote-video-' + pid);
+                    const audioEl = document.getElementById('remote-audio-' + pid);
+                    if (videoEl && event.track.kind === 'video') {
+                        videoEl.srcObject = this.remoteStreams[pid];
+                        videoEl.play().catch(e => console.warn("Video autoplay note:", e));
+                    }
+                    if (audioEl && event.track.kind === 'audio') {
+                        audioEl.srcObject = this.remoteStreams[pid];
+                        audioEl.play().catch(e => console.warn("Audio autoplay note:", e));
+                    }
+                });
+
+                event.track.onmute = () => {
+                    const peer = this.participants.find(p => String(p.id) === pid);
+                    if (peer && event.track.kind === 'video') {
+                        peer.is_camera_on = false;
+                    }
+                };
+                event.track.onunmute = () => {
+                    const peer = this.participants.find(p => String(p.id) === pid);
+                    if (peer && event.track.kind === 'video') {
+                        peer.is_camera_on = true;
+                    }
+                };
+            };
+
+            pc.onconnectionstatechange = () => {
+                if (pc.connectionState === 'failed') {
+                    console.warn(`ICE connection failed with peer ${pid}, attempting restart...`);
+                    if (pc.restartIce) {
+                        pc.restartIce();
+                    }
+                }
+            };
+
+            return pc;
+        },
+
+        async callPeer(peerId) {
+            const pid = String(peerId);
+            try {
+                const pc = this.createPeerConnection(pid);
+                const offer = await pc.createOffer({
+                    offerToReceiveAudio: true,
+                    offerToReceiveVideo: true
+                });
+                await pc.setLocalDescription(offer);
+                this.sendWs({
+                    type: 'signal_offer',
+                    target_id: pid,
+                    sdp: offer
+                });
+            } catch (err) {
+                console.error("Error creating WebRTC offer:", err);
+            }
+        },
+
+        async handleOffer(senderId, sdp) {
+            const pid = String(senderId);
+            try {
+                const pc = this.createPeerConnection(pid);
+                await pc.setRemoteDescription(new RTCSessionDescription(sdp));
+
+                // Process queued ICE candidates
+                if (this.iceCandidatesQueue[pid]) {
+                    while (this.iceCandidatesQueue[pid].length > 0) {
+                        const cand = this.iceCandidatesQueue[pid].shift();
+                        try {
+                            await pc.addIceCandidate(new RTCIceCandidate(cand));
+                        } catch(e){}
+                    }
+                }
+
+                const answer = await pc.createAnswer();
+                await pc.setLocalDescription(answer);
+                this.sendWs({
+                    type: 'signal_answer',
+                    target_id: pid,
+                    sdp: answer
+                });
+            } catch (err) {
+                console.error("Error handling WebRTC offer:", err);
+            }
+        },
+
+        async handleAnswer(senderId, sdp) {
+            const pid = String(senderId);
+            try {
+                const pc = this.peerConnections[pid];
+                if (pc) {
+                    await pc.setRemoteDescription(new RTCSessionDescription(sdp));
+                    if (this.iceCandidatesQueue[pid]) {
+                        while (this.iceCandidatesQueue[pid].length > 0) {
+                            const cand = this.iceCandidatesQueue[pid].shift();
+                            try {
+                                await pc.addIceCandidate(new RTCIceCandidate(cand));
+                            } catch(e){}
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error("Error handling WebRTC answer:", err);
+            }
+        },
+
+        async handleIceCandidate(senderId, candidate) {
+            const pid = String(senderId);
+            try {
+                const pc = this.peerConnections[pid];
+                if (pc && pc.remoteDescription && pc.remoteDescription.type) {
+                    await pc.addIceCandidate(new RTCIceCandidate(candidate));
+                } else {
+                    if (!this.iceCandidatesQueue[pid]) {
+                        this.iceCandidatesQueue[pid] = [];
+                    }
+                    this.iceCandidatesQueue[pid].push(candidate);
+                }
+            } catch (err) {
+                console.error("Error handling ICE candidate:", err);
+            }
+        },
+
+        // ------------------------------------------------------------------
+        // Media Controls: Microphone, Camera, Screen Share
+        // ------------------------------------------------------------------
+
+        async toggleMute() {
+            if (this.isMuted) {
+                // Unmuting
+                if (!this.localStream || !this.localStream.getAudioTracks().length) {
+                    try {
+                        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                        const track = stream.getAudioTracks()[0];
+                        if (this.localStream) {
+                            this.localStream.addTrack(track);
+                        } else {
+                            this.localStream = stream;
+                        }
+                        // Add track to all active peer connections
+                        Object.values(this.peerConnections).forEach(pc => {
+                            pc.addTrack(track, this.localStream);
+                        });
+                        this.isMuted = false;
+                    } catch (err) {
+                        alert("Could not access microphone: " + err.message);
+                        this.isMuted = true;
+                        return;
+                    }
+                } else {
+                    this.localStream.getAudioTracks().forEach(t => t.enabled = true);
+                    this.isMuted = false;
+                }
+            } else {
+                // Muting
+                if (this.localStream) {
+                    this.localStream.getAudioTracks().forEach(t => t.enabled = false);
+                }
+                this.isMuted = true;
+            }
+
+            this.sendWs({
+                type: 'media_state',
+                is_muted: this.isMuted,
+                is_camera_on: this.isCameraOn,
+                screen_sharing: this.screenSharing,
+                is_hand_raised: this.handRaised
+            });
+        },
+
+        async toggleCamera() {
+            if (this.isCameraOn) {
+                // Turning Camera OFF
+                if (this.localStream) {
+                    this.localStream.getVideoTracks().forEach(track => {
+                        track.stop();
+                        this.localStream.removeTrack(track);
+                    });
+                }
+                // Replace video track with null on all peer connections
+                Object.values(this.peerConnections).forEach(pc => {
+                    const vt = pc.getTransceivers().find(t => t.receiver && t.receiver.track && t.receiver.track.kind === 'video');
+                    if (vt && vt.sender) {
+                        vt.sender.replaceTrack(null);
+                    }
+                });
+                const videoEl = document.getElementById('local-video');
+                if (videoEl) videoEl.srcObject = null;
+                this.isCameraOn = false;
+            } else {
+                // Turning Camera ON
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({
+                        video: { width: { ideal: 1280 }, height: { ideal: 720 } }
+                    });
+                    const newVideoTrack = stream.getVideoTracks()[0];
+                    if (this.localStream) {
+                        this.localStream.addTrack(newVideoTrack);
+                    } else {
+                        this.localStream = stream;
+                    }
+                    const videoEl = document.getElementById('local-video');
+                    if (videoEl) videoEl.srcObject = this.localStream;
+
+                    // If not currently screen sharing, broadcast new camera track to all peers
+                    if (!this.screenSharing) {
+                        Object.values(this.peerConnections).forEach(pc => {
+                            const vt = pc.getTransceivers().find(t => t.receiver && t.receiver.track && t.receiver.track.kind === 'video');
+                            if (vt && vt.sender) {
+                                vt.sender.replaceTrack(newVideoTrack);
+                            } else {
+                                try { pc.addTrack(newVideoTrack, this.localStream); } catch(e){}
+                            }
+                        });
+                    }
+                    this.isCameraOn = true;
+                } catch (err) {
+                    alert("Could not access camera device: " + err.message);
+                    this.isCameraOn = false;
+                    return;
+                }
+            }
+
+            this.sendWs({
+                type: 'media_state',
+                is_muted: this.isMuted,
+                is_camera_on: this.isCameraOn,
+                screen_sharing: this.screenSharing,
+                is_hand_raised: this.handRaised
+            });
+        },
+
+        async toggleScreenShare() {
+            if (!this.screenSharing) {
+                try {
+                    this.screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+                    const screenTrack = this.screenStream.getVideoTracks()[0];
+                    const screenVideo = document.getElementById('screen-video');
+                    if (screenVideo) {
+                        screenVideo.srcObject = this.screenStream;
+                    }
+                    this.screenSharing = true;
+
+                    // Replace video transceiver sender track on all RTCPeerConnections
+                    Object.values(this.peerConnections).forEach(pc => {
+                        const vt = pc.getTransceivers().find(t => t.receiver && t.receiver.track && t.receiver.track.kind === 'video');
+                        if (vt && vt.sender) {
+                            vt.sender.replaceTrack(screenTrack);
+                        } else {
+                            try { pc.addTrack(screenTrack, this.screenStream); } catch(e){}
+                        }
+                    });
+
+                    // Browser native "Stop Sharing" floating toolbar event
+                    screenTrack.onended = () => {
+                        this.stopScreenShare();
+                    };
+
+                    this.sendWs({
+                        type: 'media_state',
+                        is_muted: this.isMuted,
+                        is_camera_on: this.isCameraOn,
+                        screen_sharing: true,
+                        is_hand_raised: this.handRaised
+                    });
+                } catch (err) {
+                    console.warn("Screen share cancelled or rejected:", err);
+                    this.screenSharing = false;
+                }
+            } else {
+                this.stopScreenShare();
+            }
+        },
+
+        stopScreenShare() {
+            if (this.screenStream) {
+                this.screenStream.getTracks().forEach(t => t.stop());
+                this.screenStream = null;
+            }
+            this.screenSharing = false;
+
+            // Restore camera track if camera was ON, or null if camera was OFF
+            const cameraTrack = (this.isCameraOn && this.localStream) ? this.localStream.getVideoTracks()[0] : null;
+            Object.values(this.peerConnections).forEach(pc => {
+                const vt = pc.getTransceivers().find(t => t.receiver && t.receiver.track && t.receiver.track.kind === 'video');
+                if (vt && vt.sender) {
+                    vt.sender.replaceTrack(cameraTrack);
+                }
+            });
+
+            this.sendWs({
+                type: 'media_state',
+                is_muted: this.isMuted,
+                is_camera_on: this.isCameraOn,
+                screen_sharing: false,
+                is_hand_raised: this.handRaised
+            });
+        },
+
+        toggleHandRaise() {
+            this.handRaised = !this.handRaised;
+            this.sendWs({
+                type: 'media_state',
+                is_muted: this.isMuted,
+                is_camera_on: this.isCameraOn,
+                screen_sharing: this.screenSharing,
+                is_hand_raised: this.handRaised
+            });
+        },
+
+        // ------------------------------------------------------------------
+        // In-Call Chat & Floating Reactions
+        // ------------------------------------------------------------------
+
+        sendChatMessage() {
+            const text = this.newChatMessage.trim();
+            if (!text) return;
+            const now = new Date();
+            let hours = now.getHours();
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            hours = hours % 12 || 12;
+            const timeStr = `${hours}:${minutes} ${ampm}`;
+            const tempId = 'msg-' + Date.now();
+
+            // Optimistic 0ms UI push for instant feel
+            this.chatMessages.push({
+                id: tempId,
+                sender_id: String(this.selfId),
+                sender: "{{ user_display_name }}",
+                avatar: "{{ user_avatar }}",
+                text: text,
+                time: timeStr,
+                is_self: true
+            });
+
+            this.sendWs({
+                type: 'meeting_chat',
+                text: text,
+                client_temp_id: tempId
+            });
+
+            this.newChatMessage = '';
+            this.$nextTick(() => {
+                const c = document.getElementById('chat-messages-container');
+                if (c) c.scrollTop = c.scrollHeight;
+            });
+        },
+
+        triggerReaction(emoji) {
+            this.renderFloatingReaction(emoji);
+            this.sendWs({
+                type: 'meeting_reaction',
+                emoji: emoji
+            });
+        },
+
+        renderFloatingReaction(emoji) {
+            const id = ++this.reactionCounter;
+            const left = 20 + Math.random() * 60;
+            const reaction = { id, emoji, left };
+            this.floatingReactions.push(reaction);
+
+            setTimeout(() => {
+                this.floatingReactions = this.floatingReactions.filter(r => r.id !== id);
+            }, 2300);
+        },
+
+        // ------------------------------------------------------------------
+        // Closed Captions (Web Speech API)
+        // ------------------------------------------------------------------
 
         toggleCaptions() {
             this.captionsEnabled = !this.captionsEnabled;
@@ -1138,7 +1649,17 @@ function googleMeetRoomState() {
                     for (let i = event.resultIndex; i < event.results.length; ++i) {
                         interim += event.results[i][0].transcript;
                     }
-                    this.liveCaptionText = interim;
+                    if (interim.trim()) {
+                        this.liveCaptionText = `You: ${interim}`;
+                        if (this.captionClearTimer) clearTimeout(this.captionClearTimer);
+                        this.captionClearTimer = setTimeout(() => {
+                            this.liveCaptionText = '';
+                        }, 4000);
+                        this.sendWs({
+                            type: 'caption_broadcast',
+                            text: interim
+                        });
+                    }
                 };
                 this.speechRecognition.onerror = (event) => {
                     console.warn('Speech recognition notice:', event.error);
@@ -1162,44 +1683,68 @@ function googleMeetRoomState() {
             this.liveCaptionText = '';
         },
 
-        sendPing() {
-            fetch("{% url 'meetings:meeting_ping_api' slug=workspace.slug meeting_code=meeting.meeting_code %}", {
-                method: "POST",
-                headers: {
-                    "X-CSRFToken": "{{ csrf_token }}",
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({ 
-                    action: 'ping',
-                    hand_raised: this.handRaised
-                })
-            }).then(r => r.json()).then(data => {
-                if (data && data.status === 'removed') {
-                    alert(data.error || "You have been removed from this meeting by the host.");
-                    window.location.href = data.redirect_url || "{% url 'meetings:meet_hub' slug=workspace.slug %}";
-                    return;
-                }
-                if (data && data.participants && Array.isArray(data.participants)) {
-                    this.participants = data.participants;
-                }
-            }).catch(() => {});
+        // ------------------------------------------------------------------
+        // Host Management & Utility Actions
+        // ------------------------------------------------------------------
+
+        removeParticipant(userId, userName) {
+            if (!confirm(`Are you sure you want to remove ${userName || 'this participant'} from the meeting?`)) {
+                return;
+            }
+            this.sendWs({
+                type: 'kick_participant',
+                target_id: userId
+            });
         },
 
-        sendLeaveBeacon() {
-            const url = "{% url 'meetings:meeting_end_api' slug=workspace.slug meeting_code=meeting.meeting_code %}";
-            if (navigator.sendBeacon) {
-                const formData = new FormData();
-                formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
-                navigator.sendBeacon(url, formData);
+        toggleFullscreen() {
+            const el = document.documentElement;
+            if (!document.fullscreenElement) {
+                if (el.requestFullscreen) el.requestFullscreen();
+            } else {
+                if (document.exitFullscreen) document.exitFullscreen();
             }
         },
 
-        leaveOrEndMeeting() {
+        copyMeetingCode(code) {
+            navigator.clipboard.writeText(code);
+            alert("Meeting code copied: " + code);
+        },
+
+        copyShareLink() {
+            navigator.clipboard.writeText(window.location.href);
+            this.copiedShareNotice = true;
+            setTimeout(() => this.copiedShareNotice = false, 3000);
+        },
+
+        toggleAudioSettings() {
+            alert("Microphone Settings:\nDefault system input device is currently active.");
+        },
+
+        toggleCameraSettings() {
+            alert("Camera Settings:\nDefault system video device is currently active.");
+        },
+
+        cleanupMediaAndPeers() {
             if (this.localStream) {
                 this.localStream.getTracks().forEach(t => t.stop());
             }
             if (this.screenStream) {
                 this.screenStream.getTracks().forEach(t => t.stop());
+            }
+            Object.values(this.peerConnections).forEach(pc => {
+                try { pc.close(); } catch(e){}
+            });
+            if (this.ws) {
+                try { this.ws.close(); } catch(e){}
+            }
+        },
+
+        leaveOrEndMeeting() {
+            this.cleanupMediaAndPeers();
+
+            if (this.isHost) {
+                this.sendWs({ type: 'end_meeting' });
             }
 
             const endUrl = "{% url 'meetings:meeting_end_api' slug=workspace.slug meeting_code=meeting.meeting_code %}";
@@ -1210,10 +1755,8 @@ function googleMeetRoomState() {
                     "X-Requested-With": "XMLHttpRequest",
                     "Content-Type": "application/json"
                 },
-                body: JSON.stringify({ action: 'end' })
-            }).then(r => r.json()).then(data => {
-                window.location.href = data.redirect_url || "{% url 'meetings:meet_hub' slug=workspace.slug %}";
-            }).catch(() => {
+                body: JSON.stringify({ action: this.isHost ? 'end' : 'leave' })
+            }).finally(() => {
                 window.location.href = "{% url 'meetings:meet_hub' slug=workspace.slug %}";
             });
         }

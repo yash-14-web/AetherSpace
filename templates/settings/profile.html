@@ -8,6 +8,8 @@
     avatarMode: 'url',
     bannerPreview: '{{ profile.banner|default:"" }}',
     bannerPreset: '{{ profile.banner|slice:"7:"|default:"" }}',
+    bannerUrlInput: '{% if profile.banner and profile.banner|slice:":7" != "preset:" and profile.banner|slice:":7" != "/media/" %}{{ profile.banner }}{% endif %}',
+    avatarUrlInput: '{% if user.avatar and user.avatar|slice:":7" != "preset:" and user.avatar|slice:":7" != "/media/" %}{{ user.avatar }}{% endif %}',
     avatarPreview: '{{ user.avatar|default:"" }}',
     bannerFileName: '',
     bannerFileSizeKB: null,
@@ -30,8 +32,19 @@
     setBannerPreset(presetId) {
         this.bannerPreset = presetId;
         this.bannerPreview = 'preset:' + presetId;
+        this.bannerUrlInput = '';
+    },
+
+    handleBannerUrlInput(e) {
+        const val = e.target.value.trim();
+        this.bannerUrlInput = val;
+        if (val) {
+            this.bannerPreview = val;
+            this.bannerPreset = '';
+        }
     }
 }">
+
 
     <div class="aether-card p-6 border border-slate-200 dark:border-zinc-800 space-y-6">
         <div>
@@ -155,7 +168,7 @@
                             Banner Image URL / CDN Link
                         </label>
                         <div class="flex space-x-2">
-                            <input type="url" name="banner_url" x-model="bannerPreview" 
+                            <input type="text" name="banner_url" x-model="bannerUrlInput" @input="handleBannerUrlInput"
                                    placeholder="https://images.unsplash.com/... or https://supabase.co/storage/..."
                                    class="flex-1 px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] text-slate-900 dark:text-zinc-100 text-sm focus:outline-none focus:ring-2 focus:ring-aether-blue">
                         </div>
@@ -199,7 +212,10 @@
                 <div class="flex flex-col sm:flex-row sm:items-center gap-4 p-4 rounded-xl bg-slate-50 dark:bg-zinc-900/40 border border-slate-200/80 dark:border-zinc-800">
                     <div class="shrink-0">
                         {% if user.avatar and user.avatar|slice:":7" != "preset:" %}
-                            <img src="{{ user.avatar }}" alt="{{ user.full_name }}" class="w-16 h-16 rounded-2xl object-cover border border-slate-200 dark:border-zinc-700 shadow-sm">
+                            <img src="{{ user.avatar }}" alt="{{ user.full_name }}" class="w-16 h-16 rounded-2xl object-cover border border-slate-200 dark:border-zinc-700 shadow-sm" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                            <div style="display:none;" class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-purple-600 to-indigo-700 text-white font-bold text-lg items-center justify-center shadow-sm">
+                                {{ user.full_name|default:user.email|slice:":2"|upper }}
+                            </div>
                         {% else %}
                             <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-purple-600 to-indigo-700 text-white font-bold text-lg flex items-center justify-center shadow-sm">
                                 {{ user.full_name|default:user.email|slice:":2"|upper }}
@@ -220,13 +236,17 @@
                                 <label class="block text-[11px] font-bold text-slate-700 dark:text-zinc-300 mb-1">
                                     Or Paste Avatar URL / Link
                                 </label>
-                                <input type="url" name="avatar_url" value="{{ user.avatar }}" placeholder="https://example.com/photo.jpg"
+                                <input type="text" name="avatar_url" x-model="avatarUrlInput" placeholder="https://example.com/photo.jpg"
                                        class="w-full px-3 py-1.5 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] text-slate-900 dark:text-zinc-100 text-xs focus:outline-none focus:ring-2 focus:ring-aether-blue">
+                                {% if form.avatar_url.errors %}
+                                    <p class="text-[11px] text-rose-500 font-medium mt-1">{{ form.avatar_url.errors.0 }}</p>
+                                {% endif %}
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
+
 
             <!-- 3. Professional Details Form -->
             <div class="pt-4 border-t border-slate-100 dark:border-zinc-800/80 space-y-4">

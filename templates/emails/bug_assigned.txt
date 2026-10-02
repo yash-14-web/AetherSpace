@@ -1,0 +1,16 @@
+Hello {{ user.full_name|default:user.email }},
+
+{% if actor %}{{ actor.full_name|default:actor.email }} has assigned you{% else %}You have been assigned{% endif %} to defect {{ bug.bug_code }}:
+
+Bug: {{ bug.title }}
+Severity: {{ bug.get_severity_display }}
+Priority: {{ bug.get_priority_display }}
+Workspace: {{ bug.workspace.name }}
+{% if bug.module %}Module: {{ bug.module.name }}{% endif %}
+{% if bug.description %}Description: {{ bug.description|truncatechars:200 }}{% endif %}
+
+View Defect in AetherSpace:
+{{ site_url|default:'http://127.0.0.1:8000' }}{{ action_url }}
+
+--
+AetherSpace Team Collaboration Platform

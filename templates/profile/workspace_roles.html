@@ -58,6 +58,24 @@
                             </p>
                         </div>
 
+                        <!-- Scope Strip: { Designation Role • Tagging Role • Workspace } -->
+                        <div class="mt-3 p-2.5 rounded-xl bg-slate-50 dark:bg-zinc-800/50 border border-slate-200/60 dark:border-zinc-800 space-y-1">
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500 block">
+                                Assigned Scope & Role
+                            </span>
+                            <div class="flex items-center gap-1.5 flex-wrap text-xs">
+                                <span class="font-bold text-slate-900 dark:text-zinc-100">
+                                    {{ item.functional_role|default:item.role_display }}
+                                </span>
+                                {% if item.role_tag %}
+                                    <span class="text-slate-300 dark:text-zinc-600 font-black text-[9px]">&bull;</span>
+                                    <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-50 dark:bg-purple-950/70 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800/60">
+                                        {{ item.role_tag }}
+                                    </span>
+                                {% endif %}
+                            </div>
+                        </div>
+
                         <div class="mt-3 pt-3 border-t border-slate-100 dark:border-zinc-800/80 text-[11px] text-slate-500 dark:text-zinc-400 space-y-1.5">
                             <div class="flex justify-between">
                                 <span>Status:</span>
@@ -67,6 +85,17 @@
                                 <span>Joined:</span>
                                 <span class="font-medium text-slate-700 dark:text-zinc-300">{{ item.joined_at|date:"M d, Y" }}</span>
                             </div>
+                            {% if item.reporting_to and not item.is_owner %}
+                                <div class="flex justify-between items-center pt-1 border-t border-slate-100/60 dark:border-zinc-800/40">
+                                    <span>Reports to:</span>
+                                    <div class="flex items-center gap-1">
+                                        {% include 'components/avatar.html' with user=item.reporting_to.user size="w-4 h-4" rounded="rounded-full" text_size="text-[8px]" %}
+                                        <span class="font-semibold text-slate-700 dark:text-zinc-300">
+                                            {{ item.reporting_to.user.full_name|default:item.reporting_to.user.email }}
+                                        </span>
+                                    </div>
+                                </div>
+                            {% endif %}
                         </div>
                     </div>
 

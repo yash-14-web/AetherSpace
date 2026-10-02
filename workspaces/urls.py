@@ -14,6 +14,8 @@ urlpatterns = [
     path('w/<slug:slug>/team/invite/', views.invite_member, name='invite_member'),
     path('w/<slug:slug>/team/direct-add/', views.direct_add_member, name='direct_add_member'),
     path('w/<slug:slug>/team/api/people-search/', views.api_workspace_people_search, name='api_workspace_people_search'),
+    path('w/<slug:slug>/api/members-search/', views.api_workspace_members_search, name='api_workspace_members_search'),
+    path('w/<slug:slug>/api/mentions/', views.api_workspace_mentions, name='api_workspace_mentions'),
     path('w/<slug:slug>/team/members/<uuid:member_id>/role/', views.update_member_role, name='update_member_role'),
     path('w/<slug:slug>/team/members/<uuid:member_id>/remove/', views.remove_member, name='remove_member'),
     path('w/<slug:slug>/settings/', views.workspace_settings, name='settings'),
@@ -25,4 +27,5 @@ urlpatterns = [
     path('w/<slug:slug>/modules/<uuid:module_id>/edit/', views.workspace_module_edit, name='module_edit'),
     path('w/<slug:slug>/modules/<uuid:module_id>/delete/', views.workspace_module_delete, name='module_delete'),
     path('w/<slug:slug>/request-access/', views.request_access, name='request_access'),
+    path('access-request/submit/', views.submit_access_request, name='submit_access_request'),
 ]

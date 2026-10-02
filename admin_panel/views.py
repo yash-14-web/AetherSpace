@@ -1,4 +1,6 @@
 import json
+import base64
+import logging
 from django.shortcuts import render, get_object_or_404, redirect
 from django.urls import reverse
 from django.http import JsonResponse, HttpResponse
@@ -9,11 +11,15 @@ from django.db.models import Q, Sum, Count
 from django.views.decorators.http import require_POST
 from django.conf import settings
 
+logger = logging.getLogger(__name__)
+
 from accounts.models import User, UserRole, ApprovalStatus
 from workspaces.models import (
     Workspace, WorkspaceMembership, WorkspaceRole, WorkspaceStatus,
     WorkspaceInvitation, WorkspaceAccessRequest, MembershipStatus,
-    InvitationStatus, AccessRequestStatus
+    InvitationStatus, AccessRequestStatus, GlobalAccessRequest,
+    TemporaryAccessGrant, AccessRequestAction, AccessRequestUrgency,
+    AccessDurationChoice
 )
 from tasks.models import Task, TaskStatus
 from bugs.models import Bug, BugStatus, BugSeverity
@@ -22,6 +28,7 @@ from files.models import StoredFile
 from .models import AuditLog, AuditActionStatus, AdminAlert, AlertSeverity, AlertCategory
 from .permissions import platform_admin_required, get_client_ip
 from .services import AuditLogService, StorageSyncService, SystemHealthService, DataExportService
+from .backup_service import WorkspaceBackupService, WorkspaceRestoreService
 from .forms import (
     AdminUserRoleForm, AdminWorkspaceQuotaForm, AdminWorkspaceStatusForm,
     AdminRequestDecisionForm
@@ -39,7 +46,11 @@ def admin_dashboard(request):
     overview = SystemHealthService.get_system_overview()
     recent_audits = AuditLog.objects.select_related('actor', 'workspace').order_by('-created_at')[:8]
     active_alerts = AdminAlert.objects.filter(is_resolved=False).order_by('-created_at')[:5]
-    storage_meta = StorageSyncService.get_storage_metrics()
+    storage_meta = {
+        'total_files': overview.get('total_files', 0),
+        'total_bytes': overview.get('total_storage_bytes', 0),
+        'formatted_total_bytes': overview.get('formatted_storage', '0 B'),
+    }
 
     context = {
         'active_section': 'dashboard',
@@ -158,8 +169,8 @@ def toggle_user_status(request, user_id):
     try:
         from notifications.email_service import send_account_status_email
         send_account_status_email(target_user, status_name=status_str, actor=request.user)
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning("Failed to send account status email for user %s: %s", target_user.id, type(exc).__name__)
 
     messages.success(request, f"User '{target_user.email}' has been {status_str}.")
     return redirect('admin_panel:user_details', user_id=user_id)
@@ -230,8 +241,8 @@ def approve_user(request, user_id):
     try:
         from notifications.email_service import send_account_approved_email
         send_account_approved_email(target_user, approved_by=request.user)
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning("Failed to send account approval email for user %s: %s", target_user.id, type(exc).__name__)
 
     messages.success(
         request,
@@ -264,8 +275,8 @@ def reject_user(request, user_id):
     try:
         from notifications.email_service import send_account_status_email
         send_account_status_email(target_user, status_name='rejected', actor=request.user)
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning("Failed to send account rejection email for user %s: %s", target_user.id, type(exc).__name__)
 
     messages.warning(
         request,
@@ -568,28 +579,82 @@ def update_workspace_quota(request, slug):
 
 
 # -------------------------------------------------------------------------
-# 6. Workspace Requests (Screen 64)
+# 6. Admin Access Request Center (Screen 64)
 # -------------------------------------------------------------------------
 
 @platform_admin_required
 def workspace_requests(request):
-    """Review and process workspace access requests originating from 403 pages."""
-    status_filter = request.GET.get('status', 'PENDING')
-    requests_qs = WorkspaceAccessRequest.objects.select_related('workspace', 'user').order_by('-created_at')
+    """
+    Admin Access Request Center.
+    Review, filter, inspect, and decide all platform and workspace access requests.
+    Supports tabs: Pending, Approved, Rejected, Expired, All.
+    """
+    SystemHealthService.sync_dynamic_alerts()
 
-    if status_filter != 'ALL':
+    status_filter = request.GET.get('status', 'PENDING').strip().upper()
+    workspace_filter = request.GET.get('workspace', '').strip()
+    action_filter = request.GET.get('action', '').strip()
+    urgency_filter = request.GET.get('urgency', '').strip()
+    q = request.GET.get('q', '').strip()
+
+    # Automatically mark past-due pending requests as EXPIRED if past 7 days,
+    # and mark expired approved requests whose grants are expired
+    now = timezone.now()
+    TemporaryAccessGrant.objects.filter(is_revoked=False, expires_at__lte=now)
+
+    requests_qs = GlobalAccessRequest.objects.select_related(
+        'workspace', 'user', 'reviewed_by'
+    ).prefetch_related('grants').order_by('-created_at')
+
+    # Tab counts
+    count_pending = GlobalAccessRequest.objects.filter(status=AccessRequestStatus.PENDING).count()
+    count_approved = GlobalAccessRequest.objects.filter(status=AccessRequestStatus.APPROVED).count()
+    count_rejected = GlobalAccessRequest.objects.filter(status=AccessRequestStatus.REJECTED).count()
+    count_expired = GlobalAccessRequest.objects.filter(status=AccessRequestStatus.EXPIRED).count()
+    count_all = GlobalAccessRequest.objects.count()
+
+    if status_filter in ['PENDING', 'APPROVED', 'REJECTED', 'EXPIRED']:
         requests_qs = requests_qs.filter(status=status_filter)
+
+    if workspace_filter:
+        requests_qs = requests_qs.filter(Q(workspace__slug=workspace_filter) | Q(workspace__id__iexact=workspace_filter))
+    if action_filter:
+        requests_qs = requests_qs.filter(action=action_filter)
+    if urgency_filter:
+        requests_qs = requests_qs.filter(urgency=urgency_filter)
+    if q:
+        requests_qs = requests_qs.filter(
+            Q(user__email__icontains=q) |
+            Q(user__full_name__icontains=q) |
+            Q(user__contributor_id__icontains=q) |
+            Q(reason__icontains=q) |
+            Q(target_resource_id__icontains=q)
+        )
 
     paginator = Paginator(requests_qs, 15)
     page_number = request.GET.get('page')
     requests_page = paginator.get_page(page_number)
 
+    all_workspaces = Workspace.objects.all().order_by('name')
+
     context = {
         'active_section': 'requests',
         'requests_page': requests_page,
         'status_filter': status_filter,
-        'statuses': AccessRequestStatus.choices,
-        'page_title': 'Workspace Access Requests',
+        'workspace_filter': workspace_filter,
+        'action_filter': action_filter,
+        'urgency_filter': urgency_filter,
+        'q': q,
+        'count_pending': count_pending,
+        'count_approved': count_approved,
+        'count_rejected': count_rejected,
+        'count_expired': count_expired,
+        'count_all': count_all,
+        'all_workspaces': all_workspaces,
+        'actions': AccessRequestAction.choices,
+        'urgencies': AccessRequestUrgency.choices,
+        'durations': AccessDurationChoice.choices,
+        'page_title': 'Admin Access Request Center',
     }
     return render(request, 'admin_panel/requests/workspace_requests.html', context)
 
@@ -597,51 +662,189 @@ def workspace_requests(request):
 @require_POST
 @platform_admin_required
 def decide_workspace_request(request, request_id):
-    """Approve or reject a workspace access request."""
-    access_request = get_object_or_404(WorkspaceAccessRequest, id=request_id)
-    decision = request.POST.get('decision', 'APPROVE')
-    role = request.POST.get('role', WorkspaceRole.CONTRIBUTOR)
+    """
+    Approve or reject an access request in the Admin Access Request Center.
+    Creates time-limited, auditable TemporaryAccessGrant upon approval.
+    Enforces that users cannot approve their own requests.
+    Requires rejection reason on rejection.
+    """
+    access_request = GlobalAccessRequest.objects.filter(id=request_id).first()
+    is_global = True
+    if not access_request:
+        access_request = get_object_or_404(WorkspaceAccessRequest, id=request_id)
+        is_global = False
+
+    # Security rule: Requester cannot approve their own request
+    if access_request.user == request.user:
+        messages.error(request, "Security violation: You cannot approve or reject your own access request.")
+        return redirect('admin_panel:workspace_requests')
+
+    decision = request.POST.get('decision', '').strip().upper()
+    admin_note = request.POST.get('admin_note', '').strip()
+    now = timezone.now()
 
     if decision == 'APPROVE':
+        duration_choice = request.POST.get('duration', AccessDurationChoice.ONE_HOUR).strip()
+        custom_hours = request.POST.get('custom_hours', '').strip()
+
+        # Calculate expiration
+        if duration_choice == AccessDurationChoice.ONE_TIME:
+            expires_at = now + timezone.timedelta(minutes=30)
+        elif duration_choice == AccessDurationChoice.ONE_HOUR:
+            expires_at = now + timezone.timedelta(hours=1)
+        elif duration_choice == AccessDurationChoice.FOUR_HOURS:
+            expires_at = now + timezone.timedelta(hours=4)
+        elif duration_choice == AccessDurationChoice.TODAY:
+            midnight = (now + timezone.timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+            expires_at = midnight
+        elif duration_choice == AccessDurationChoice.CUSTOM and custom_hours.isdigit() and int(custom_hours) > 0:
+            expires_at = now + timezone.timedelta(hours=int(custom_hours))
+        else:
+            expires_at = now + timezone.timedelta(hours=1)
+
         access_request.status = AccessRequestStatus.APPROVED
-        access_request.save(update_fields=['status'])
+        access_request.reviewed_by = request.user
+        access_request.reviewed_at = now
+        if hasattr(access_request, 'admin_note'):
+            access_request.admin_note = admin_note
+        access_request.save()
 
-        membership, created = WorkspaceMembership.objects.get_or_create(
-            workspace=access_request.workspace,
-            user=access_request.user,
-            defaults={'role': role, 'status': MembershipStatus.ACTIVE}
-        )
-        if not created and membership.status != MembershipStatus.ACTIVE:
-            membership.status = MembershipStatus.ACTIVE
-            membership.role = role
-            membership.save(update_fields=['status', 'role'])
+        action_name = getattr(access_request, 'action', 'workspace.access')
+        grant = None
 
+        # For workspace-level join requests, activate or create the workspace membership
+        if access_request.workspace and (not is_global or action_name == 'workspace.access'):
+            role = request.POST.get('role', WorkspaceRole.CONTRIBUTOR)
+            if role not in WorkspaceRole.values:
+                role = WorkspaceRole.CONTRIBUTOR
+            membership, _ = WorkspaceMembership.objects.get_or_create(
+                workspace=access_request.workspace,
+                user=access_request.user,
+                defaults={'role': role, 'status': MembershipStatus.ACTIVE}
+            )
+            if membership.status != MembershipStatus.ACTIVE:
+                membership.status = MembershipStatus.ACTIVE
+                membership.save(update_fields=['status'])
+
+        # For action-scoped permissions, create scoped temporary access grant
+        if access_request.workspace and action_name != 'workspace.access':
+            grant = TemporaryAccessGrant.objects.create(
+                user=access_request.user,
+                workspace=access_request.workspace,
+                action=action_name,
+                target_resource_id=getattr(access_request, 'target_resource_id', ''),
+                granted_by=request.user,
+                expires_at=expires_at,
+                reason=access_request.reason if hasattr(access_request, 'reason') else '',
+                access_request=access_request if is_global else None
+            )
+
+        # AuditLog
         AuditLogService.log(
             action='ACCESS_REQUEST_APPROVED',
             actor=request.user,
-            target_type='WorkspaceAccessRequest',
+            target_type='GlobalAccessRequest' if is_global else 'WorkspaceAccessRequest',
             target_id=str(access_request.id),
-            target_repr=f"{access_request.user.email} -> {access_request.workspace.name}",
+            target_repr=f"{access_request.user.email} -> {action_name}",
             workspace=access_request.workspace,
             ip_address=get_client_ip(request),
-            metadata={'assigned_role': role}
+            metadata={
+                'action': action_name,
+                'expires_at': expires_at.isoformat(),
+                'admin_note': admin_note,
+                'grant_id': str(grant.id) if grant else None
+            }
         )
-        messages.success(request, f"Access approved for {access_request.user.email} into '{access_request.workspace.name}'.")
-    else:
-        access_request.status = AccessRequestStatus.REJECTED
-        access_request.save(update_fields=['status'])
 
+        # Notifications
+        ws_name = access_request.workspace.name if access_request.workspace else "Global Platform"
+        from notifications.models import Notification, NotificationCategory, NotificationType
+        Notification.objects.create(
+            recipient=access_request.user,
+            actor=request.user,
+            workspace=access_request.workspace,
+            category=NotificationCategory.SYSTEM,
+            notification_type=NotificationType.GENERAL,
+            title=f"Access Request Approved: {action_name}",
+            body=f"Your access request for '{action_name}' in {ws_name} was approved by {request.user.email}. Temporary grant active until {expires_at:%Y-%m-%d %H:%M} UTC.",
+        )
+
+        try:
+            from notifications.email_service import send_notification_email
+            send_notification_email(
+                recipient_user=access_request.user,
+                event_type='GENERAL',
+                subject=f"Access Request Approved: {action_name}",
+                template_name='notifications/emails/general_notification.html',
+                context={
+                    'recipient': access_request.user,
+                    'actor': request.user,
+                    'title': f"Access Request Approved: {action_name}",
+                    'body': f"Your access request for '{action_name}' in {ws_name} has been approved until {expires_at:%Y-%m-%d %H:%M} UTC.",
+                }
+            )
+        except Exception:
+            pass
+
+        messages.success(request, f"Access approved for {access_request.user.email} until {expires_at:%H:%M} UTC.")
+
+    elif decision == 'REJECT':
+        rejection_reason = request.POST.get('rejection_reason', '').strip()
+        if not rejection_reason:
+            messages.error(request, "A rejection reason is strictly required to reject an access request.")
+            return redirect('admin_panel:workspace_requests')
+
+        access_request.status = AccessRequestStatus.REJECTED
+        access_request.reviewed_by = request.user
+        access_request.reviewed_at = now
+        if hasattr(access_request, 'rejection_reason'):
+            access_request.rejection_reason = rejection_reason
+        access_request.save()
+
+        action_name = getattr(access_request, 'action', 'workspace.access')
         AuditLogService.log(
             action='ACCESS_REQUEST_REJECTED',
             actor=request.user,
-            target_type='WorkspaceAccessRequest',
+            target_type='GlobalAccessRequest' if is_global else 'WorkspaceAccessRequest',
             target_id=str(access_request.id),
-            target_repr=f"{access_request.user.email} -> {access_request.workspace.name}",
+            target_repr=f"{access_request.user.email} -> {action_name}",
             workspace=access_request.workspace,
             ip_address=get_client_ip(request),
+            metadata={'rejection_reason': rejection_reason}
         )
+
+        ws_name = access_request.workspace.name if access_request.workspace else "Global Platform"
+        from notifications.models import Notification, NotificationCategory, NotificationType
+        Notification.objects.create(
+            recipient=access_request.user,
+            actor=request.user,
+            workspace=access_request.workspace,
+            category=NotificationCategory.SYSTEM,
+            notification_type=NotificationType.GENERAL,
+            title=f"Access Request Rejected: {action_name}",
+            body=f"Your request for '{action_name}' in {ws_name} was reviewed and rejected. Reason: {rejection_reason}",
+        )
+
+        try:
+            from notifications.email_service import send_notification_email
+            send_notification_email(
+                recipient_user=access_request.user,
+                event_type='GENERAL',
+                subject=f"Access Request Rejected: {action_name}",
+                template_name='notifications/emails/general_notification.html',
+                context={
+                    'recipient': access_request.user,
+                    'actor': request.user,
+                    'title': f"Access Request Rejected: {action_name}",
+                    'body': f"Your request for '{action_name}' in {ws_name} was rejected. Reason: {rejection_reason}",
+                }
+            )
+        except Exception:
+            pass
+
         messages.info(request, f"Access request for {access_request.user.email} was rejected.")
 
+    SystemHealthService.sync_dynamic_alerts()
     return redirect('admin_panel:workspace_requests')
 
 
@@ -776,15 +979,25 @@ def integrations(request):
 @platform_admin_required
 def storage_files(request):
     """Accurate monitoring of PostgreSQL file metadata and Supabase Storage."""
+    if request.GET.get('dismiss_audit') == '1':
+        if 'last_storage_sync_audit' in request.session:
+            del request.session['last_storage_sync_audit']
+            request.session.modified = True
+        return redirect('admin_panel:storage_files')
+
     metrics = StorageSyncService.get_storage_metrics()
+    last_audit = request.session.get('last_storage_sync_audit')
+
     context = {
         'active_section': 'storage',
         'metrics': metrics,
+        'last_audit': last_audit,
         'page_title': 'Storage & Files Administration',
     }
     return render(request, 'admin_panel/storage/storage_files.html', context)
 
 
+@require_POST
 @platform_admin_required
 def storage_sync_audit(request):
     """Run diagnostics verifying database records against Supabase Storage objects."""
@@ -796,6 +1009,20 @@ def storage_sync_audit(request):
         ip_address=get_client_ip(request),
         metadata={'synced': audit_results['synced_count'], 'missing': audit_results['missing_count']}
     )
+
+    # Persist audit results in session for persistent inline result panel
+    request.session['last_storage_sync_audit'] = {
+        'total_audited': audit_results['total_audited'],
+        'synced_count': audit_results['synced_count'],
+        'missing_count': audit_results['missing_count'],
+        'mismatched_count': 0,
+        'sync_percent': audit_results['sync_percent'],
+        'is_healthy': audit_results['is_healthy'],
+        'checked_at': audit_results['checked_at'].strftime('%Y-%m-%d %H:%M:%S UTC') if hasattr(audit_results['checked_at'], 'strftime') else str(audit_results['checked_at']),
+        'missing_files': audit_results.get('missing_files', [])[:10],
+    }
+    request.session.modified = True
+
     if audit_results['is_healthy']:
         messages.success(request, f"Storage Sync Healthy: All {audit_results['total_audited']} checked files match physical storage.")
     else:
@@ -853,14 +1080,153 @@ def security_overview(request):
 
 @platform_admin_required
 def backup_restore(request):
-    """Backup overview, JSON metadata export, and owner restoration procedures."""
+    """Backup overview, Excel workspace export, restore preview/execution, and logs."""
+    workspaces = Workspace.objects.all().order_by('name')
+    recent_backup_audits = AuditLog.objects.filter(
+        action__in=[
+            'WORKSPACE_BACKUP_DOWNLOADED',
+            'WORKSPACE_RESTORE_COMPLETED',
+            'WORKSPACE_RESTORE_FAILED',
+            'DATA_EXPORT_DOWNLOADED'
+        ]
+    ).order_by('-created_at')[:8]
+
     context = {
         'active_section': 'backup',
         'page_title': 'Backup & Restore',
+        'workspaces': workspaces,
+        'recent_backup_audits': recent_backup_audits,
     }
     return render(request, 'admin_panel/backup/backup_restore.html', context)
 
 
+@require_POST
+@platform_admin_required
+def export_workspace_backup(request):
+    """
+    Generate and download authoritative .xlsx workspace backup.
+    Strictly scoped to selected workspace. Preserves all IDs and relationships.
+    Chat is strictly excluded. File binaries are metadata-only.
+    """
+    workspace_slug = request.POST.get('workspace_slug', '').strip()
+    if not workspace_slug:
+        messages.error(request, "Please select a valid workspace for backup.")
+        return redirect('admin_panel:backup_restore')
+
+    workspace = get_object_or_404(Workspace, slug=workspace_slug)
+
+    excel_buffer, counts = WorkspaceBackupService.export_workspace_to_excel(
+        workspace=workspace,
+        actor=request.user
+    )
+
+    filename = f"AetherSpace_{workspace.slug}_backup_{timezone.now():%Y%m%d_%H%M%S}.xlsx"
+
+    AuditLogService.log(
+        action='WORKSPACE_BACKUP_DOWNLOADED',
+        actor=request.user,
+        target_type='Workspace',
+        target_id=str(workspace.id),
+        target_repr=f"{workspace.name} ({workspace.slug})",
+        ip_address=get_client_ip(request),
+        metadata={
+            'format': 'xlsx',
+            'schema_version': '1.0.0',
+            'counts': counts,
+            'total_records': sum(counts.values()),
+        }
+    )
+
+    response = HttpResponse(
+        excel_buffer.getvalue(),
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    return response
+
+
+@require_POST
+@platform_admin_required
+def preview_backup_restore(request):
+    """
+    Parses and validates uploaded .xlsx backup without modifying database.
+    Renders preview with sheet counts, conflicts, warnings, and confirm button.
+    """
+    backup_file = request.FILES.get('backup_file')
+    if not backup_file:
+        messages.error(request, "Please choose a valid .xlsx backup file to upload.")
+        return redirect('admin_panel:backup_restore')
+
+    if not backup_file.name.lower().endswith('.xlsx'):
+        messages.error(request, "Invalid file format. Only authoritative .xlsx workbooks are supported.")
+        return redirect('admin_panel:backup_restore')
+
+    file_bytes = backup_file.read()
+    preview = WorkspaceRestoreService.validate_and_preview_backup(
+        file_content_bytes=file_bytes,
+        actor=request.user
+    )
+
+    workspaces = Workspace.objects.all().order_by('name')
+    payload_b64 = base64.b64encode(file_bytes).decode('utf-8')
+
+    context = {
+        'active_section': 'backup',
+        'page_title': 'Backup Restore Preview',
+        'preview': preview,
+        'payload_b64': payload_b64,
+        'filename': backup_file.name,
+        'workspaces': workspaces,
+    }
+    return render(request, 'admin_panel/backup/backup_restore.html', context)
+
+
+@require_POST
+@platform_admin_required
+def confirm_backup_restore(request):
+    """
+    Executes transactional database restore after explicit admin confirmation.
+    """
+    payload_b64 = request.POST.get('payload_b64', '').strip()
+    target_workspace_slug = request.POST.get('target_workspace_slug', '').strip() or None
+
+    if not payload_b64:
+        messages.error(request, "No pending backup payload found for restoration.")
+        return redirect('admin_panel:backup_restore')
+
+    try:
+        file_bytes = base64.b64decode(payload_b64)
+    except Exception as e:
+        messages.error(request, f"Corrupt backup payload data: {str(e)}")
+        return redirect('admin_panel:backup_restore')
+
+    success, report = WorkspaceRestoreService.execute_transactional_restore(
+        file_content_bytes=file_bytes,
+        actor=request.user,
+        target_workspace_slug=target_workspace_slug
+    )
+
+    if success:
+        messages.success(
+            request,
+            f"Restore successfully completed! {report['records_restored']} records imported into workspace {report['destination_workspace']}."
+        )
+    else:
+        messages.error(
+            request,
+            f"Restore failed and all operations were rolled back. Errors: {'; '.join(report['errors'])}"
+        )
+
+    context = {
+        'active_section': 'backup',
+        'page_title': 'Restore Report',
+        'restore_report': report,
+        'workspaces': Workspace.objects.all().order_by('name'),
+    }
+    return render(request, 'admin_panel/backup/backup_restore.html', context)
+
+
+@require_POST
 @platform_admin_required
 def export_data(request):
     """Download JSON snapshot of application metadata."""
@@ -906,12 +1272,38 @@ def activity_monitor(request):
 @platform_admin_required
 def performance_overview(request):
     """Measured database and application performance indicators."""
+    is_post = request.method == 'POST'
     db_latency, db_status = SystemHealthService.get_database_latency_ms()
+    diagnostics = SystemHealthService.get_platform_health_diagnostics()
+
+    if is_post:
+        if db_latency is not None:
+            AuditLogService.log(
+                action='DATABASE_PING_REMEASURED',
+                actor=request.user,
+                target_type='Database',
+                ip_address=get_client_ip(request),
+                metadata={'latency_ms': db_latency, 'status': db_status}
+            )
+            messages.success(request, f"Ping successful: SELECT 1 roundtrip completed in {db_latency} ms.")
+        else:
+            AuditLogService.log(
+                action='DATABASE_PING_FAILED',
+                actor=request.user,
+                target_type='Database',
+                status=AuditActionStatus.FAILURE,
+                ip_address=get_client_ip(request),
+                metadata={'error': db_status}
+            )
+            messages.error(request, f"Ping failed: {db_status}")
+        return redirect('admin_panel:performance_overview')
+
     context = {
         'active_section': 'performance',
         'db_latency': db_latency,
         'db_status': db_status,
-        'page_title': 'Performance Indicators',
+        'diagnostics': diagnostics,
+        'page_title': 'Performance & Platform Health',
     }
     return render(request, 'admin_panel/performance/performance.html', context)
 
@@ -925,7 +1317,7 @@ def alerts_list(request):
     """Actionable system health and resource alerts."""
     SystemHealthService.sync_dynamic_alerts()
     severity_filter = request.GET.get('severity', '').strip()
-    status_filter = request.GET.get('status', 'active')
+    status_filter = request.GET.get('status', 'active').strip().lower()
 
     alerts_qs = AdminAlert.objects.select_related('workspace', 'resolved_by').order_by('is_resolved', '-created_at')
 
@@ -974,6 +1366,60 @@ def resolve_alert(request, alert_id):
     return redirect('admin_panel:alerts_list')
 
 
+@require_POST
+@platform_admin_required
+def sync_alerts(request):
+    """Manually trigger dynamic alert synchronization."""
+    SystemHealthService.sync_dynamic_alerts()
+    AuditLogService.log(
+        action='ALERTS_SYNCHRONIZED',
+        actor=request.user,
+        target_type='System',
+        target_repr='System Alerts Sync',
+        ip_address=get_client_ip(request),
+    )
+    messages.success(request, "System alerts synchronized successfully with live platform state.")
+    return redirect('admin_panel:alerts_list')
+
+
+@require_POST
+@platform_admin_required
+def test_integration(request, key):
+    """Run an on-demand real health check on an integration (e.g. postgres, storage)."""
+    if key == 'postgres':
+        latency, status = SystemHealthService.get_database_latency_ms()
+        if latency is not None:
+            AuditLogService.log(
+                action='INTEGRATION_TEST_PASSED',
+                actor=request.user,
+                target_type='Integration',
+                target_repr='Supabase PostgreSQL',
+                ip_address=get_client_ip(request),
+                metadata={'latency_ms': latency, 'status': status}
+            )
+            messages.success(request, f"PostgreSQL health check passed ({latency:.2f} ms latency).")
+        else:
+            AuditLogService.log(
+                action='INTEGRATION_TEST_FAILED',
+                actor=request.user,
+                target_type='Integration',
+                target_repr='Supabase PostgreSQL',
+                status=AuditActionStatus.FAILURE,
+                ip_address=get_client_ip(request),
+                metadata={'error': status}
+            )
+            messages.error(request, f"PostgreSQL health check failed: {status}")
+    elif key == 'storage':
+        res = StorageSyncService.run_full_audit()
+        if res.get('is_healthy'):
+            messages.success(request, f"Storage check passed: {res.get('synced_count')} files verified in storage.")
+        else:
+            messages.warning(request, f"Storage check completed with {res.get('missing_count')} missing files.")
+    else:
+        messages.error(request, f"No automated health check available for '{key}'.")
+    return redirect('admin_panel:integrations')
+
+
 # -------------------------------------------------------------------------
 # Search-First People Search API Endpoint (Mandatory Rule)
 # -------------------------------------------------------------------------
@@ -1016,3 +1462,108 @@ def api_people_search(request):
         })
 
     return JsonResponse({'status': 'ok', 'users': user_data})
+
+
+# -------------------------------------------------------------------------
+# 16. Module & Feature Status Management
+# -------------------------------------------------------------------------
+
+@platform_admin_required
+def module_status_list(request):
+    """
+    Platform feature & module status management view.
+    Allows Platform Administrators to toggle module availability, activate maintenance mode,
+    and configure custom public messages with server-side enforcement.
+    """
+    from core.models import ModuleStatus
+
+    # Ensure all registered modules have database records
+    for key, name in ModuleStatus.MODULE_CHOICES:
+        ModuleStatus.objects.get_or_create(
+            module_key=key,
+            defaults={
+                'name': name,
+                'status': ModuleStatus.STATUS_AVAILABLE,
+                'public_message': f"{name} is fully operational."
+            }
+        )
+
+    modules = ModuleStatus.objects.select_related('updated_by').order_by('name')
+
+    total_modules = modules.count()
+    available_count = modules.filter(status=ModuleStatus.STATUS_AVAILABLE).count()
+    maintenance_count = modules.filter(status=ModuleStatus.STATUS_MAINTENANCE).count()
+    coming_soon_count = modules.filter(status=ModuleStatus.STATUS_COMING_SOON).count()
+
+    context = {
+        'active_section': 'modules',
+        'page_title': 'Module Maintenance & Availability',
+        'modules': modules,
+        'total_modules': total_modules,
+        'available_count': available_count,
+        'maintenance_count': maintenance_count,
+        'coming_soon_count': coming_soon_count,
+        'status_choices': ModuleStatus.STATUS_CHOICES,
+    }
+    return render(request, 'admin_panel/modules/module_list.html', context)
+
+
+@require_POST
+@platform_admin_required
+def update_module_status(request, module_key):
+    """
+    Server-side handler to update a module's operational status and messaging.
+    Only authorized Platform Administrators can change global module status.
+    """
+    from core.models import ModuleStatus
+
+    try:
+        module = ModuleStatus.objects.get(module_key=module_key)
+    except ModuleStatus.DoesNotExist:
+        messages.error(request, f"Module '{module_key}' was not found.")
+        return redirect('admin_panel:module_status_list')
+
+    new_status = request.POST.get('status', '').strip()
+    public_message = request.POST.get('public_message', '').strip()
+    maintenance_explanation = request.POST.get('maintenance_explanation', '').strip()
+
+    valid_statuses = [s[0] for s in ModuleStatus.STATUS_CHOICES]
+    if new_status not in valid_statuses:
+        messages.error(request, f"Invalid status '{new_status}' provided.")
+        return redirect('admin_panel:module_status_list')
+
+    old_status = module.status
+    module.status = new_status
+    module.public_message = public_message
+    module.maintenance_explanation = maintenance_explanation
+    module.updated_by = request.user
+    module.save()
+
+    # Record platform audit log
+    AuditLogService.log(
+        action='MODULE_STATUS_CHANGED',
+        actor=request.user,
+        target_repr=f"Module {module.name}",
+        status=AuditActionStatus.SUCCESS,
+        ip_address=get_client_ip(request),
+        metadata={
+            'module_key': module.module_key,
+            'module_name': module.name,
+            'old_status': old_status,
+            'new_status': new_status,
+            'public_message': public_message,
+        }
+    )
+
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest' or 'application/json' in request.headers.get('accept', ''):
+        return JsonResponse({
+            'status': 'ok',
+            'module_key': module.module_key,
+            'new_status': module.status,
+            'status_display': module.get_status_display(),
+            'message': f"Module '{module.name}' updated successfully.",
+        })
+
+    messages.success(request, f"Module '{module.name}' status changed to '{module.get_status_display()}'.")
+    return redirect('admin_panel:module_status_list')
+

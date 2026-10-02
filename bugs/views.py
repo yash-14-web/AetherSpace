@@ -10,10 +10,14 @@ from workspaces.permissions import workspace_member_required
 from workspaces.models import Workspace, WorkspaceMembership, MembershipStatus, WorkspaceRole, WorkspaceModule
 from .models import (
     Bug, BugActivity, BugComment, BugStatus, BugPriority,
-    BugSeverity, BugEnvironment
+    BugSeverity, BugEnvironment, BugAttachment
 )
 from .forms import BugForm, BugFilterForm
 from .services import create_bug, update_bug, change_bug_status
+from files.models import StoredFile
+from files.services import (
+    SupabaseStorageService, compute_sha256, detect_file_category, MAX_FILE_SIZE_BYTES
+)
 
 
 @login_required
@@ -227,13 +231,17 @@ def bug_detail_view(request, slug, bug_code):
         clean_code = f"B-{clean_code.lstrip('#')}"
 
     bug = get_object_or_404(
-        Bug.objects.select_related('workspace', 'assignee', 'reporter', 'module', 'linked_task'),
+        Bug.objects.select_related('workspace', 'assignee', 'reporter', 'module', 'linked_task').prefetch_related(
+            'attachments__file',
+            'attachments__file__uploaded_by'
+        ),
         workspace=workspace,
         bug_code=clean_code
     )
 
     activities = bug.activities.select_related('actor').order_by('-created_at')
     comments = bug.comments.select_related('author').order_by('created_at')
+    attachments = bug.attachments.select_related('file', 'file__uploaded_by').all()
 
     context = {
         'workspace': workspace,
@@ -241,6 +249,7 @@ def bug_detail_view(request, slug, bug_code):
         'bug': bug,
         'activities': activities,
         'comments': comments,
+        'attachments': attachments,
         'initial_tab': request.GET.get('tab', 'overview'),
         'BugStatus': BugStatus,
         'BugPriority': BugPriority,
@@ -448,9 +457,112 @@ def bug_comment_add_view(request, slug, bug_code):
             action=BugActivity.Action.COMMENTED,
             message=f'Added a comment: "{snippet}"'
         )
+
+        # Scan for mentions and notify
+        import re
+        from accounts.models import User
+        from notifications.services import create_notification
+        from notifications.models import NotificationCategory, NotificationType
+        from notifications.email_service import send_mention_email
+
+        active_members = [
+            m.user for m in WorkspaceMembership.objects.filter(
+                workspace=workspace,
+                status=MembershipStatus.ACTIVE
+            ).select_related('user').exclude(user=request.user)
+        ]
+
+        mentioned_users = set()
+
+        for match in re.finditer(r'@\[([^\]]+)\]\((\d{5}[A-Za-z])\)', content):
+            cid = match.group(2)
+            for u in active_members:
+                if u.contributor_id == cid:
+                    mentioned_users.add(u)
+
+        for match in re.finditer(r'@(\d{5}[A-Za-z])\b', content):
+            cid = match.group(1)
+            for u in active_members:
+                if u.contributor_id == cid:
+                    mentioned_users.add(u)
+
+        for u in active_members:
+            if u.full_name and f"@{u.full_name}" in content:
+                mentioned_users.add(u)
+            elif u.username and f"@{u.username}" in content:
+                mentioned_users.add(u)
+            elif u.contributor_id and f"@{u.contributor_id}" in content:
+                mentioned_users.add(u)
+
+        if mentioned_users:
+            actor_name = request.user.full_name or request.user.email
+            for u in mentioned_users:
+                try:
+                    create_notification(
+                        recipient=u,
+                        category=NotificationCategory.BUG,
+                        notification_type=NotificationType.BUG_ASSIGNED,
+                        title=f"{actor_name} mentioned you in Bug {bug.bug_code}",
+                        body=f"{actor_name} mentioned you in a comment on '{bug.title}'",
+                        workspace=workspace,
+                        actor=request.user,
+                        action_url=f"/bugs/w/{workspace.slug}/{bug.bug_code}/?tab=comments"
+                    )
+                except Exception:
+                    pass
+
+                try:
+                    send_mention_email(
+                        user=u,
+                        actor=request.user,
+                        context_type="Defect",
+                        context_title=f"{bug.bug_code} - {bug.title}",
+                        snippet=snippet,
+                        action_url=f"/bugs/w/{workspace.slug}/{bug.bug_code}/?tab=comments"
+                    )
+                except Exception:
+                    pass
+
         messages.success(request, "Comment posted successfully.")
     else:
         messages.error(request, "Comment cannot be empty.")
+
+    return redirect(f"{reverse('bugs:bug_detail', kwargs={'slug': slug, 'bug_code': bug.bug_code})}?tab=comments")
+
+
+@workspace_member_required
+def bug_comment_edit_view(request, slug, bug_code, comment_id):
+    """
+    Edit a bug discussion comment (author or Admin/Manager only).
+    """
+    workspace = request.workspace
+    membership = request.membership
+
+    clean_code = bug_code.strip()
+    if not clean_code.startswith('B-'):
+        clean_code = f"B-{clean_code.lstrip('#')}"
+
+    bug = get_object_or_404(Bug, workspace=workspace, bug_code=clean_code)
+    comment = get_object_or_404(BugComment, id=comment_id, bug=bug)
+
+    if request.user != comment.author and not membership.can_manage_content:
+        raise PermissionDenied("You do not have permission to edit this comment.")
+
+    if request.method == 'POST':
+        content = request.POST.get('content', '').strip()
+        if not content:
+            messages.error(request, "Comment content cannot be empty.")
+        else:
+            comment.content = content
+            comment.save(update_fields=['content', 'updated_at'])
+            snippet = content[:60] + ('...' if len(content) > 60 else '')
+            BugActivity.objects.create(
+                bug=bug,
+                actor=request.user,
+                action=BugActivity.Action.UPDATED,
+                message=f'Edited comment: "{snippet}"'
+            )
+            messages.success(request, "Comment updated successfully.")
 
     return redirect(f"{reverse('bugs:bug_detail', kwargs={'slug': slug, 'bug_code': bug.bug_code})}?tab=comments")
 
@@ -544,3 +656,109 @@ def my_bugs_view(request):
         'BugPriority': BugPriority,
     }
     return render(request, 'bugs/my_bugs.html', context)
+
+
+@workspace_member_required
+def bug_attachment_upload_view(request, slug, bug_code):
+    """
+    Handle defect attachments.
+    Uploads to Supabase Storage (with local fallback), persists metadata in StoredFile & BugAttachment,
+    and logs activity.
+    """
+    workspace = request.workspace
+    clean_code = bug_code.strip()
+    if not clean_code.startswith('B-'):
+        clean_code = f"B-{clean_code.lstrip('#')}"
+    bug = get_object_or_404(Bug, workspace=workspace, bug_code=clean_code)
+
+    if request.method != 'POST':
+        from django.http import HttpResponseBadRequest
+        return HttpResponseBadRequest("POST required")
+
+    file_obj = request.FILES.get('file')
+    if not file_obj:
+        messages.error(request, "Please select a file to upload.")
+        return redirect(f"{reverse('bugs:bug_detail', kwargs={'slug': slug, 'bug_code': bug.bug_code})}?tab=attachments")
+
+    if file_obj.size > MAX_FILE_SIZE_BYTES:
+        messages.error(request, f"File size exceeds limit ({MAX_FILE_SIZE_BYTES // (1024 * 1024)}MB).")
+        return redirect(f"{reverse('bugs:bug_detail', kwargs={'slug': slug, 'bug_code': bug.bug_code})}?tab=attachments")
+
+    try:
+        import mimetypes
+        original_name = file_obj.name
+        checksum = compute_sha256(file_obj)
+        mime_type, _ = mimetypes.guess_type(original_name)
+        mime_type = mime_type or file_obj.content_type or 'application/octet-stream'
+        category = detect_file_category(original_name, mime_type)
+
+        storage_path = SupabaseStorageService.upload_file(
+            file_obj=file_obj,
+            workspace_id=workspace.id,
+            filename=original_name,
+            content_type=mime_type
+        )
+
+        stored_file = StoredFile.objects.create(
+            workspace=workspace,
+            uploaded_by=request.user,
+            name=original_name,
+            original_name=original_name,
+            storage_path=storage_path,
+            mime_type=mime_type,
+            category=category,
+            size_bytes=file_obj.size,
+            checksum=checksum,
+            description=f"Attached to defect {bug.bug_code}"
+        )
+
+        BugAttachment.objects.create(bug=bug, file=stored_file)
+
+        BugActivity.objects.create(
+            bug=bug,
+            actor=request.user,
+            action=BugActivity.Action.ATTACHMENT_ADDED,
+            message=f"Attached file '{original_name}' ({stored_file.formatted_size})"
+        )
+
+        messages.success(request, f"File '{original_name}' uploaded successfully.")
+    except Exception as e:
+        messages.error(request, f"File upload failed: {str(e)}")
+
+    return redirect(f"{reverse('bugs:bug_detail', kwargs={'slug': slug, 'bug_code': bug.bug_code})}?tab=attachments")
+
+
+@workspace_member_required
+def bug_attachment_delete_view(request, slug, bug_code, attachment_id):
+    """
+    Remove an attachment from a defect.
+    """
+    if request.method != 'POST':
+        from django.http import HttpResponseBadRequest
+        return HttpResponseBadRequest("POST required")
+
+    workspace = request.workspace
+    membership = request.membership
+    clean_code = bug_code.strip()
+    if not clean_code.startswith('B-'):
+        clean_code = f"B-{clean_code.lstrip('#')}"
+    bug = get_object_or_404(Bug, workspace=workspace, bug_code=clean_code)
+    attachment = get_object_or_404(BugAttachment, id=attachment_id, bug=bug)
+
+    can_delete = (request.user == attachment.file.uploaded_by) or membership.can_manage_content
+    if not can_delete:
+        raise PermissionDenied("You do not have permission to delete this attachment.")
+
+    file_name = attachment.file.name
+    attachment.delete()
+
+    BugActivity.objects.create(
+        bug=bug,
+        actor=request.user,
+        action=BugActivity.Action.UPDATED,
+        message=f"Removed attachment '{file_name}'"
+    )
+
+    messages.success(request, f"Attachment '{file_name}' removed.")
+    return redirect(f"{reverse('bugs:bug_detail', kwargs={'slug': slug, 'bug_code': bug.bug_code})}?tab=attachments")
+

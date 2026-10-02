@@ -158,6 +158,9 @@ class Phase15WorkflowAndCorrectionsTests(TestCase):
 
     def test_meeting_raise_hand_and_remove_participant(self):
         """Meeting API supports hand raising toggle and host participant removal."""
+        from core.models import ModuleStatus
+        ModuleStatus.objects.filter(module_key='meetings').update(status=ModuleStatus.STATUS_AVAILABLE)
+
         WorkspaceMembership.objects.create(
             workspace=self.workspace,
             user=self.approved_user,

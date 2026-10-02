@@ -1,4 +1,5 @@
 import calendar as py_calendar
+import mimetypes
 from datetime import datetime, date, time, timedelta
 from django.utils import timezone
 from django.urls import reverse
@@ -7,7 +8,12 @@ from django.db.models import Q
 from tasks.models import Task, TaskStatus
 from bugs.models import Bug, BugStatus
 from meetings.models import Meeting, MeetingStatus
-from .models import CalendarEvent, CalendarEventType, CalendarEventAttendee, EventStatus
+from files.models import StoredFile, FileCategory
+from files.services import SupabaseStorageService, compute_sha256, detect_file_category, sanitize_filename
+from .models import (
+    CalendarEvent, CalendarEventType, CalendarEventAttendee,
+    EventStatus, CalendarEventAttachment
+)
 
 
 def get_unified_schedule_items(workspace, start_date, end_date, categories=None, member_id=None):
@@ -260,6 +266,96 @@ def build_month_calendar_matrix(workspace, year, month, categories=None, member_
     }
 
 
+def build_week_calendar_matrix(workspace, target_date, categories=None, member_id=None):
+    """
+    Builds a 7-day week column matrix (Sunday through Saturday) containing all events and schedule items.
+    """
+    today = timezone.localdate()
+    days_since_sunday = (target_date.weekday() + 1) % 7
+    start_of_week = target_date - timedelta(days=days_since_sunday)
+    end_of_week = start_of_week + timedelta(days=6)
+
+    items = get_unified_schedule_items(
+        workspace=workspace,
+        start_date=start_of_week,
+        end_date=end_of_week,
+        categories=categories,
+        member_id=member_id
+    )
+
+    days = []
+    for i in range(7):
+        cur_date = start_of_week + timedelta(days=i)
+        day_items = [it for it in items if it['date'] == cur_date]
+        days.append({
+            'date': cur_date,
+            'day_name': cur_date.strftime('%a'),
+            'day_full_name': cur_date.strftime('%A'),
+            'day_number': cur_date.day,
+            'is_today': (cur_date == today),
+            'items': day_items,
+            'items_count': len(day_items),
+        })
+
+    prev_week_date = target_date - timedelta(days=7)
+    next_week_date = target_date + timedelta(days=7)
+
+    return {
+        'days': days,
+        'start_of_week': start_of_week,
+        'end_of_week': end_of_week,
+        'target_date': target_date,
+        'prev_week_date': prev_week_date,
+        'next_week_date': next_week_date,
+        'total_items_count': len(items),
+    }
+
+
+def build_day_calendar_matrix(workspace, target_date, categories=None, member_id=None):
+    """
+    Builds a single-day timeline schedule with all-day items banner and hourly time slots (8:00 AM - 8:00 PM).
+    """
+    today = timezone.localdate()
+    items = get_unified_schedule_items(
+        workspace=workspace,
+        start_date=target_date,
+        end_date=target_date,
+        categories=categories,
+        member_id=member_id
+    )
+
+    all_day_items = [it for it in items if it.get('is_all_day')]
+    timed_items = [it for it in items if not it.get('is_all_day')]
+
+    hourly_slots = []
+    for h in range(8, 21):
+        slot_label = datetime(2000, 1, 1, h, 0).strftime('%I:00 %p')
+        slot_items = []
+        for it in timed_items:
+            dt = it.get('dt_sort')
+            if dt and dt.hour == h:
+                slot_items.append(it)
+        hourly_slots.append({
+            'hour': h,
+            'label': slot_label,
+            'items': slot_items
+        })
+
+    prev_day = target_date - timedelta(days=1)
+    next_day = target_date + timedelta(days=1)
+
+    return {
+        'target_date': target_date,
+        'prev_day': prev_day,
+        'next_day': next_day,
+        'is_today': (target_date == today),
+        'all_day_items': all_day_items,
+        'timed_items': timed_items,
+        'hourly_slots': hourly_slots,
+        'total_items_count': len(items),
+    }
+
+
 def build_agenda_stream(workspace, target_date, categories=None, member_id=None, days_ahead=14):
     """
     Builds a chronological agenda stream grouped by date starting from target_date.
@@ -320,7 +416,7 @@ def build_agenda_stream(workspace, target_date, categories=None, member_id=None,
 def build_upcoming_deadlines(workspace, timeframe_days=30, category_filter='all'):
     """
     Aggregates all deadlines and scheduled items into Today, Tomorrow, Next 7 Days,
-    and Later sections with overdue calculation and summary chips.
+    Next 14 Days, Next 30 Days, and Later sections with overdue calculation and summary chips.
     """
     today = timezone.localdate()
     end_date = today + timedelta(days=timeframe_days)
@@ -336,14 +432,18 @@ def build_upcoming_deadlines(workspace, timeframe_days=30, category_filter='all'
         categories=cats
     )
 
-    # Group into Today, Tomorrow, Next 7 Days, and Later
+    # Group into Today, Tomorrow, Next 7 Days, Next 14 Days, Next 30 Days, and Later
     group_today = []
     group_tomorrow = []
     group_next_7 = []
+    group_next_14 = []
+    group_next_30 = []
     group_later = []
 
     tomorrow = today + timedelta(days=1)
     day_7 = today + timedelta(days=7)
+    day_14 = today + timedelta(days=14)
+    day_30 = today + timedelta(days=30)
 
     for it in items:
         d = it['date']
@@ -353,6 +453,10 @@ def build_upcoming_deadlines(workspace, timeframe_days=30, category_filter='all'
             group_tomorrow.append(it)
         elif today < d <= day_7:
             group_next_7.append(it)
+        elif day_7 < d <= day_14:
+            group_next_14.append(it)
+        elif day_14 < d <= day_30:
+            group_next_30.append(it)
         else:
             group_later.append(it)
 
@@ -408,6 +512,8 @@ def build_upcoming_deadlines(workspace, timeframe_days=30, category_filter='all'
         'today': group_today,
         'tomorrow': group_tomorrow,
         'next_7_days': group_next_7,
+        'next_14_days': group_next_14,
+        'next_30_days': group_next_30,
         'later': group_later,
         'overdue_items': overdue_items,
         'deadline_summary': deadline_summary,
@@ -415,7 +521,41 @@ def build_upcoming_deadlines(workspace, timeframe_days=30, category_filter='all'
     }
 
 
-def create_calendar_event(workspace, user, data, invitees=None):
+def attach_file_to_event(event, file_obj, user):
+    """
+    Saves an uploaded document attachment and links it to CalendarEvent.
+    """
+    original_name = sanitize_filename(file_obj.name)
+    checksum = compute_sha256(file_obj)
+    mime_type, _ = mimetypes.guess_type(original_name)
+    mime_type = mime_type or getattr(file_obj, 'content_type', 'application/octet-stream')
+    category = detect_file_category(original_name, mime_type)
+
+    storage_path = SupabaseStorageService.upload_file(
+        file_obj=file_obj,
+        workspace_id=event.workspace_id,
+        filename=original_name,
+        content_type=mime_type
+    )
+
+    stored_file = StoredFile.objects.create(
+        workspace=event.workspace,
+        uploaded_by=user,
+        name=original_name,
+        original_name=original_name,
+        storage_path=storage_path,
+        mime_type=mime_type,
+        category=category,
+        size_bytes=file_obj.size,
+        checksum=checksum,
+        description=f"Attached to event '{event.title}'"
+    )
+
+    return CalendarEventAttachment.objects.create(event=event, file=stored_file)
+
+
+
+def create_calendar_event(workspace, user, data, invitees=None, uploaded_files=None):
     """
     Creates a new CalendarEvent and registers attendee relationships.
     """
@@ -456,6 +596,8 @@ def create_calendar_event(workspace, user, data, invitees=None):
         workspace=workspace,
         title=data['title'],
         description=data.get('description', ''),
+        agenda=data.get('agenda', ''),
+        reference_links=data.get('reference_links', []),
         event_type=data.get('event_type', CalendarEventType.GENERAL),
         calendar_category=data.get('calendar_category', 'WORKSPACE'),
         start_at=data['computed_start_at'],
@@ -470,6 +612,15 @@ def create_calendar_event(workspace, user, data, invitees=None):
         created_by=user
     )
     event.save()
+
+    # Process file attachments if provided
+    if uploaded_files:
+        for f in uploaded_files:
+            try:
+                attach_file_to_event(event, f, user)
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).warning(f"Error attaching file to event: {e}")
 
     # Add creator as accepted attendee
     CalendarEventAttendee.objects.create(

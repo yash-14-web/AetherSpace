@@ -217,6 +217,15 @@ class UserSettingsTests(TestCase):
         data4 = res4.json()
         self.assertTrue(any(i['code'] == 'B-882316' for i in data4['results']))
 
+        # Search by person name and contributor_id
+        res5 = self.client.get(reverse('core:global_search_api') + '?q=Alice')
+        self.assertEqual(res5.status_code, 200)
+        data5 = res5.json()
+        person_results = [i for i in data5['results'] if i['type'] == 'person']
+        self.assertTrue(len(person_results) > 0)
+        self.assertEqual(person_results[0]['title'], self.user.full_name)
+
+
     def test_integrations_settings_renders_without_reverse_error(self):
         """Settings Integrations view renders cleanly without NoReverseMatch errors."""
         self.client.login(email=self.user.email, password=self.password)

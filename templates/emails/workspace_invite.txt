@@ -1,0 +1,9 @@
+Hello,
+
+{% if invitation.invited_by %}{{ invitation.invited_by.full_name|default:invitation.invited_by.email }} has invited you{% else %}You have been invited{% endif %} to join the '{{ invitation.workspace.name }}' agile workspace on AetherSpace as a {{ invitation.get_role_display }}.
+
+Accept Workspace Invitation:
+{{ site_url|default:'http://127.0.0.1:8000' }}{{ action_url }}
+
+--
+AetherSpace Team Collaboration Platform

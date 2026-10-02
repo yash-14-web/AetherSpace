@@ -2,6 +2,7 @@ import uuid
 import secrets
 from django.db import models
 from django.conf import settings
+from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 
 
@@ -154,6 +155,9 @@ class Bug(models.Model):
     def __str__(self):
         return f"{self.bug_code} {self.title}"
 
+    def get_absolute_url(self):
+        return reverse('bugs:bug_detail', kwargs={'slug': self.workspace.slug, 'bug_code': self.bug_code})
+
     @property
     def is_overdue(self):
         if self.due_date and self.status not in (BugStatus.RESOLVED, BugStatus.CLOSED):
@@ -233,3 +237,25 @@ class BugComment(models.Model):
     def __str__(self):
         author_name = self.author.full_name if self.author else "Anonymous"
         return f"Comment by {author_name} on {self.bug.bug_code}"
+
+
+class BugAttachment(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    bug = models.ForeignKey(
+        Bug,
+        on_delete=models.CASCADE,
+        related_name='attachments'
+    )
+    file = models.ForeignKey(
+        'files.StoredFile',
+        on_delete=models.CASCADE,
+        related_name='bug_attachments'
+    )
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Attachment {self.file.name} on {self.bug.bug_code}"
+

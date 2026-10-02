@@ -7,93 +7,416 @@
     <!-- Header Description Card -->
     <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-            <h2 class="text-xl font-bold text-slate-900 dark:text-zinc-50">Disaster Recovery & Data Export</h2>
+            <div class="flex items-center space-x-2">
+                <h2 class="text-xl font-bold text-slate-900 dark:text-zinc-50">Authoritative Backup & Disaster Recovery</h2>
+                <span class="px-2 py-0.5 text-[11px] font-semibold rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                    Schema v1.0.0
+                </span>
+            </div>
             <p class="text-xs text-slate-500 dark:text-zinc-400 mt-1">
-                Download structured JSON snapshots of workspace metadata and review authoritative PostgreSQL restoration procedures.
+                Workspace-scoped multi-sheet Excel (.xlsx) backups with relationship preservation, dry-run preview validation, and transactional rollback.
             </p>
         </div>
 
-        <a href="{% url 'admin_panel:export_data' %}"
-           class="inline-flex items-center px-4 py-2 text-xs font-semibold rounded-lg bg-purple-600 hover:bg-purple-700 text-white transition-colors shadow-sm">
-            <svg class="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-            </svg>
-            Download JSON Snapshot (.json)
-        </a>
+        <div class="flex items-center space-x-2 shrink-0">
+            <!-- Legacy JSON Snapshot -->
+            <form method="POST" action="{% url 'admin_panel:export_data' %}" class="inline">
+                {% csrf_token %}
+                <button type="submit"
+                        class="inline-flex items-center px-3 py-2 text-xs font-medium rounded-lg bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-300 transition-colors cursor-pointer"
+                        title="Download raw metadata JSON snapshot (sanitized)">
+                    <svg class="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    Raw JSON Snapshot
+                </button>
+            </form>
+        </div>
     </div>
 
-    <!-- Backup Capabilities Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <!-- Active Restoration Preview (if preview is in context) -->
+    {% if preview %}
+    <div class="bg-white dark:bg-zinc-900 border-2 {% if preview.is_valid %}border-purple-500/80 dark:border-purple-600/80{% else %}border-rose-500/80 dark:border-rose-600/80{% endif %} rounded-xl p-6 shadow-md space-y-6">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-200 dark:border-zinc-800 gap-3">
+            <div>
+                <span class="text-xs font-bold uppercase tracking-wider text-purple-600 dark:text-purple-400">Step 1 Completed: Backup Analysis & Dry-Run Preview</span>
+                <h3 class="text-lg font-bold text-slate-900 dark:text-zinc-50 mt-0.5">
+                    Inspecting: {{ filename }}
+                </h3>
+            </div>
+            <div>
+                {% if preview.is_valid %}
+                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
+                    <svg class="w-3.5 h-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                    Validated — Ready for Confirmation
+                </span>
+                {% else %}
+                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 border border-rose-300 dark:border-rose-800">
+                    <svg class="w-3.5 h-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    Validation Failed
+                </span>
+                {% endif %}
+            </div>
+        </div>
 
-        <!-- Application Metadata Export -->
-        <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl p-6 shadow-sm space-y-4">
+        <!-- Preview KPI Cards -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div class="p-3.5 rounded-lg bg-slate-50 dark:bg-zinc-800/60 border border-slate-200 dark:border-zinc-800">
+                <span class="text-[11px] text-slate-500 dark:text-zinc-400 block font-medium">Source Workspace</span>
+                <span class="text-sm font-bold text-slate-900 dark:text-zinc-100 truncate block mt-0.5">
+                    {{ preview.source_workspace.name|default:"Unknown" }} ({{ preview.source_workspace.slug|default:"-" }})
+                </span>
+            </div>
+            <div class="p-3.5 rounded-lg bg-slate-50 dark:bg-zinc-800/60 border border-slate-200 dark:border-zinc-800">
+                <span class="text-[11px] text-slate-500 dark:text-zinc-400 block font-medium">Schema Version</span>
+                <span class="text-sm font-bold text-slate-900 dark:text-zinc-100 truncate block mt-0.5">
+                    {{ preview.schema_version|default:"-" }}
+                </span>
+            </div>
+            <div class="p-3.5 rounded-lg bg-slate-50 dark:bg-zinc-800/60 border border-slate-200 dark:border-zinc-800">
+                <span class="text-[11px] text-slate-500 dark:text-zinc-400 block font-medium">Total Entities Found</span>
+                <span class="text-sm font-bold text-purple-600 dark:text-purple-400 truncate block mt-0.5">
+                    {{ preview.total_records }} records
+                </span>
+            </div>
+            <div class="p-3.5 rounded-lg bg-slate-50 dark:bg-zinc-800/60 border border-slate-200 dark:border-zinc-800">
+                <span class="text-[11px] text-slate-500 dark:text-zinc-400 block font-medium">Chat & Files Posture</span>
+                <span class="text-[11px] font-semibold text-slate-700 dark:text-zinc-300 truncate block mt-0.5">
+                    Chat Excluded • Metadata Only
+                </span>
+            </div>
+        </div>
+
+        <!-- Errors or Warnings list -->
+        {% if preview.errors %}
+        <div class="p-4 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 space-y-2">
+            <h4 class="text-xs font-bold text-rose-800 dark:text-rose-300 uppercase tracking-wider flex items-center">
+                <svg class="w-4 h-4 mr-1.5 text-rose-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                Fatal Validation Errors (Restore Prevented)
+            </h4>
+            <ul class="text-xs text-rose-700 dark:text-rose-300 space-y-1 list-disc list-inside">
+                {% for err in preview.errors %}
+                <li>{{ err }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        {% if preview.conflicts %}
+        <div class="p-4 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 space-y-2">
+            <h4 class="text-xs font-bold text-amber-800 dark:text-amber-300 uppercase tracking-wider flex items-center">
+                <svg class="w-4 h-4 mr-1.5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                Detected ID Conflicts (Safe Non-Destructive Handling)
+            </h4>
+            <ul class="text-xs text-amber-700 dark:text-amber-300 space-y-1 list-disc list-inside">
+                {% for c in preview.conflicts %}
+                <li>{{ c }}</li>
+                {% endfor %}
+            </ul>
+            <p class="text-[11px] text-amber-600 dark:text-amber-400 mt-1">
+                Note: Non-destructive policy active. Existing records with identical IDs in the database will NOT be overwritten.
+            </p>
+        </div>
+        {% endif %}
+
+        {% if preview.warnings %}
+        <div class="p-3.5 rounded-lg bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/60 space-y-1">
+            <span class="text-[11px] font-bold text-blue-800 dark:text-blue-300 uppercase tracking-wider">System Architectural Disclosures</span>
+            <ul class="text-xs text-blue-700 dark:text-blue-300 space-y-1">
+                {% for w in preview.warnings %}
+                <li>• {{ w }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        <!-- Sheet Record Count Breakdown -->
+        <div>
+            <h4 class="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-zinc-300 mb-2">Worksheet Entity Inventory</h4>
+            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
+                {% for sheet, count in preview.record_counts.items %}
+                <div class="p-2 rounded bg-slate-50 dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-800 flex items-center justify-between text-xs">
+                    <span class="text-slate-600 dark:text-zinc-400 truncate pr-1 font-mono text-[11px]">{{ sheet }}</span>
+                    <span class="font-bold {% if count > 0 %}text-purple-600 dark:text-purple-400{% else %}text-slate-400 dark:text-zinc-600{% endif %}">{{ count }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Step 2: Confirm Restore Form -->
+        {% if preview.is_valid %}
+        <div class="pt-4 border-t border-slate-200 dark:border-zinc-800">
+            <form method="POST" action="{% url 'admin_panel:confirm_backup_restore' %}" class="space-y-4">
+                {% csrf_token %}
+                <input type="hidden" name="payload_b64" value="{{ payload_b64 }}">
+
+                <div class="p-4 rounded-xl bg-purple-50/80 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800/80 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div class="space-y-1">
+                        <strong class="text-xs font-bold text-purple-950 dark:text-purple-200 block">
+                            Confirm Transactional Restoration
+                        </strong>
+                        <p class="text-xs text-purple-800/80 dark:text-purple-300">
+                            Restore will be executed atomically inside <code class="font-mono text-purple-700 dark:text-purple-300">transaction.atomic()</code>.
+                            If any database constraint fails, all records roll back immediately.
+                        </p>
+                    </div>
+
+                    <div class="flex items-center space-x-3 shrink-0">
+                        <div class="text-right">
+                            <label class="text-[11px] font-semibold text-slate-600 dark:text-zinc-400 block mb-0.5">Target Workspace</label>
+                            <select name="target_workspace_slug" class="px-2.5 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-800 dark:text-zinc-100">
+                                <option value="{{ preview.source_workspace.slug }}">{{ preview.source_workspace.name }} (Original / Default)</option>
+                                {% for ws in workspaces %}
+                                {% if ws.slug != preview.source_workspace.slug %}
+                                <option value="{{ ws.slug }}">{{ ws.name }} ({{ ws.slug }})</option>
+                                {% endif %}
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <button type="submit"
+                                onclick="return confirm('CRITICAL CONFIRMATION:\n\nAre you sure you want to execute transactional restoration for this workspace backup?');"
+                                class="px-5 py-2.5 text-xs font-bold rounded-lg bg-purple-600 hover:bg-purple-700 text-white shadow-sm transition-all cursor-pointer">
+                            Confirm &amp; Execute Restore
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Restore Report (if completed restore is in context) -->
+    {% if restore_report %}
+    <div class="bg-white dark:bg-zinc-900 border-2 {% if restore_report.verification_result == 'PASSED' %}border-emerald-500/80 dark:border-emerald-600/80{% else %}border-rose-500/80 dark:border-rose-600/80{% endif %} rounded-xl p-6 shadow-md space-y-4">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+                <span class="w-3 h-3 rounded-full {% if restore_report.verification_result == 'PASSED' %}bg-emerald-500 animate-pulse{% else %}bg-rose-500{% endif %}"></span>
+                <h3 class="text-base font-bold text-slate-900 dark:text-zinc-50">
+                    Restoration Operation Report: #{{ restore_report.restore_operation_id|slice:":8" }}
+                </h3>
+            </div>
+            <span class="text-xs font-semibold px-2.5 py-1 rounded-full {% if restore_report.verification_result == 'PASSED' %}bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300{% else %}bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300{% endif %}">
+                Verification Result: {{ restore_report.verification_result }}
+            </span>
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+            <div class="p-3 rounded-lg bg-slate-50 dark:bg-zinc-800/80">
+                <span class="text-slate-400 block font-medium">Destination</span>
+                <span class="font-bold text-slate-900 dark:text-zinc-100 mt-0.5 block truncate">{{ restore_report.destination_workspace }}</span>
+            </div>
+            <div class="p-3 rounded-lg bg-slate-50 dark:bg-zinc-800/80">
+                <span class="text-slate-400 block font-medium">Records Restored</span>
+                <span class="font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 block">{{ restore_report.records_restored }}</span>
+            </div>
+            <div class="p-3 rounded-lg bg-slate-50 dark:bg-zinc-800/80">
+                <span class="text-slate-400 block font-medium">Records Skipped</span>
+                <span class="font-bold text-slate-700 dark:text-zinc-300 mt-0.5 block">{{ restore_report.records_skipped }}</span>
+            </div>
+            <div class="p-3 rounded-lg bg-slate-50 dark:bg-zinc-800/80">
+                <span class="text-slate-400 block font-medium">Conflicts Handled</span>
+                <span class="font-bold text-amber-600 dark:text-amber-400 mt-0.5 block">{{ restore_report.conflicts_encountered }}</span>
+            </div>
+        </div>
+
+        {% if restore_report.errors %}
+        <div class="p-3 rounded bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-300 text-xs">
+            <strong>Errors encountered:</strong>
+            <ul class="list-disc list-inside mt-1">
+                {% for err in restore_report.errors %}
+                <li>{{ err }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        <div class="pt-2 text-right">
+            <a href="{% url 'admin_panel:audit_logs' %}" class="text-xs font-semibold text-purple-600 dark:text-purple-400 hover:underline">
+                View Autoritative Audit Log Entry →
+            </a>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Core Two-Column Backup & Restore Action Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        <!-- Column 1: Create Workspace Backup (.xlsx) -->
+        <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl p-6 shadow-sm space-y-5">
             <div class="flex items-center space-x-3">
-                <div class="w-10 h-10 rounded-lg bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center font-bold">
+                <div class="w-10 h-10 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold">
                     <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
                 </div>
                 <div>
-                    <h3 class="text-base font-bold text-slate-900 dark:text-zinc-100">Metadata JSON Export</h3>
-                    <span class="text-xs text-slate-400 dark:text-zinc-500">Live serialized application snapshot</span>
+                    <h3 class="text-base font-bold text-slate-900 dark:text-zinc-100">Create Workspace Backup</h3>
+                    <span class="text-xs text-slate-400 dark:text-zinc-500">Authoritative multi-sheet Excel (.xlsx) workbook</span>
                 </div>
             </div>
+
             <p class="text-xs text-slate-600 dark:text-zinc-300 leading-relaxed">
-                Produces a sanitized JSON package containing active users, workspaces, membership trees, 6-digit tasks (#619347), bug reports (B-882316), and stored file metadata. Sensitive password hashes and secret tokens are stripped automatically.
+                Exports all 19 relational entities for the selected workspace with zero 500-record limits.
+                Preserves foreign keys, 6-digit Task IDs (#619347), Bug IDs (B-882316), Sprints, and stored file metadata.
             </p>
-            <div class="pt-2">
-                <a href="{% url 'admin_panel:export_data' %}" class="text-xs font-semibold text-purple-600 dark:text-purple-400 hover:underline">
-                    Trigger Export Download →
-                </a>
-            </div>
+
+            <form method="POST" action="{% url 'admin_panel:export_workspace_backup' %}" class="space-y-4 pt-2">
+                {% csrf_token %}
+                <div class="space-y-1.5">
+                    <label class="text-xs font-semibold text-slate-700 dark:text-zinc-300 block">Select Workspace to Export:</label>
+                    <select name="workspace_slug" required class="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-slate-900 dark:text-zinc-100 focus:ring-1 focus:ring-purple-500">
+                        {% for ws in workspaces %}
+                        <option value="{{ ws.slug }}">{{ ws.name }} ({{ ws.slug }}) — {{ ws.seats_assigned }}/{{ ws.max_seats }} seats</option>
+                        {% empty %}
+                        <option value="" disabled>No workspaces available</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="p-3 rounded-lg bg-slate-50 dark:bg-zinc-950/60 border border-slate-200/80 dark:border-zinc-800 text-[11px] text-slate-500 dark:text-zinc-400 space-y-1">
+                    <div class="flex items-center text-slate-700 dark:text-zinc-300 font-semibold">
+                        <svg class="w-3.5 h-3.5 mr-1.5 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        Included Entities (19 Worksheets):
+                    </div>
+                    <p class="leading-relaxed">
+                        Export_Metadata, Workspace, Members, Modules, Tasks, Task_Comments, Task_Activity, Bugs, Bug_Comments, Bug_Activity, Sprints, Sprint_Tasks, Code_Reviews, Code_Review_Feedback, Calendar_Events, Meetings, Notifications, Time_Entries, Files_Metadata.
+                    </p>
+                    <p class="text-amber-600 dark:text-amber-400 font-medium pt-1">
+                        • Team Chat is excluded by system architectural design.<br>
+                        • File payloads are metadata-only (physical binaries remain secured in Supabase bucket).
+                    </p>
+                </div>
+
+                <button type="submit"
+                        class="w-full inline-flex items-center justify-center px-4 py-2.5 text-xs font-semibold rounded-lg bg-purple-600 hover:bg-purple-700 text-white shadow-sm transition-all cursor-pointer">
+                    <svg class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    Generate &amp; Download Workspace Backup (.xlsx)
+                </button>
+            </form>
         </div>
 
-        <!-- PostgreSQL Database Dump -->
-        <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl p-6 shadow-sm space-y-4">
+        <!-- Column 2: Upload Backup for Analysis & Restore -->
+        <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl p-6 shadow-sm space-y-5">
             <div class="flex items-center space-x-3">
                 <div class="w-10 h-10 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold">
                     <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m4-8l-4-4m0 0L8 8m4-4v12" />
                     </svg>
                 </div>
                 <div>
-                    <h3 class="text-base font-bold text-slate-900 dark:text-zinc-100">PostgreSQL Live Backups</h3>
-                    <span class="text-xs text-slate-400 dark:text-zinc-500">Supabase Managed Physical Backups</span>
+                    <h3 class="text-base font-bold text-slate-900 dark:text-zinc-100">Restore from Backup</h3>
+                    <span class="text-xs text-slate-400 dark:text-zinc-500">2-Step Dry-Run Preview &amp; Transactional Restore</span>
                 </div>
             </div>
+
             <p class="text-xs text-slate-600 dark:text-zinc-300 leading-relaxed">
-                Supabase automatically maintains point-in-time recovery (PITR) and daily write-ahead log (WAL) archives on the hosted PostgreSQL cluster. For local development dumps, execute standard CLI operations.
+                Upload an AetherSpace .xlsx backup workbook. Uploading will <strong>never modify the database immediately</strong>.
+                The system performs schema validation, ID integrity checks, and conflict detection before showing you a full preview.
             </p>
-            <div class="pt-2 text-xs font-mono text-slate-500 dark:text-zinc-400 bg-slate-50 dark:bg-zinc-950 p-2.5 rounded border border-slate-200 dark:border-zinc-800">
-                pg_dump -h db.supabase.co -U postgres -d postgres > backup.sql
-            </div>
+
+            <form method="POST" action="{% url 'admin_panel:preview_backup_restore' %}" enctype="multipart/form-data" class="space-y-4 pt-2">
+                {% csrf_token %}
+                <div class="space-y-1.5">
+                    <label class="text-xs font-semibold text-slate-700 dark:text-zinc-300 block">Select .xlsx Backup Workbook:</label>
+                    <input type="file" name="backup_file" accept=".xlsx" required
+                           class="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-50 dark:file:bg-blue-950/60 file:text-blue-700 dark:file:text-blue-300 hover:file:bg-blue-100 dark:hover:file:bg-blue-900/60 border border-slate-200 dark:border-zinc-800 rounded-lg p-1 bg-white dark:bg-zinc-950">
+                </div>
+
+                <div class="p-3 rounded-lg bg-blue-50/60 dark:bg-blue-950/30 border border-blue-200/80 dark:border-blue-900/40 text-[11px] text-blue-800 dark:text-blue-300 space-y-1">
+                    <div class="font-bold">Two-Step Safe Restoration Workflow:</div>
+                    <ol class="list-decimal list-inside space-y-0.5 text-blue-700/90 dark:text-blue-300/90">
+                        <li><strong>Validate &amp; Preview:</strong> Validates 19 sheets, checks UUID integrity, scans for ID collisions.</li>
+                        <li><strong>Admin Confirmation:</strong> Explicit confirmation triggers transactional import under <code class="font-mono">transaction.atomic()</code>.</li>
+                    </ol>
+                </div>
+
+                <button type="submit"
+                        class="w-full inline-flex items-center justify-center px-4 py-2.5 text-xs font-semibold rounded-lg bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition-all cursor-pointer">
+                    <svg class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Inspect &amp; Preview Backup
+                </button>
+            </form>
         </div>
 
     </div>
 
-    <!-- Authoritative Restoration Runbook Card -->
+    <!-- Technical Architecture & Authoritative Restoration Runbook -->
     <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl p-6 shadow-sm space-y-4">
         <h3 class="text-base font-bold text-slate-900 dark:text-zinc-100 flex items-center">
             <svg class="w-5 h-5 text-purple-600 dark:text-purple-400 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
-            Restoration Runbook & Step-by-Step Recovery
+            Disaster Recovery &amp; Infrastructure Runbook
         </h3>
-        <div class="space-y-3 text-xs text-slate-600 dark:text-zinc-300">
-            <div class="p-3 rounded-lg bg-slate-50 dark:bg-zinc-950/60 border border-slate-200/80 dark:border-zinc-800">
-                <strong class="text-slate-900 dark:text-zinc-100 block mb-1">Step 1: Database Migration & Schema Prep</strong>
-                <p>Run standard migrations to construct schemas: <code class="font-mono text-purple-600">python manage.py migrate</code></p>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs text-slate-600 dark:text-zinc-300">
+            <div class="p-3.5 rounded-lg bg-slate-50 dark:bg-zinc-950/60 border border-slate-200/80 dark:border-zinc-800 space-y-1.5">
+                <strong class="text-slate-900 dark:text-zinc-100 block">1. Application vs PostgreSQL PITR</strong>
+                <p class="leading-relaxed text-[11px]">
+                    This workbook system operates at the <strong>application entity level</strong>, enabling cross-workspace migration, granular recovery, and audit trails. Physical disaster recovery is separately managed via Supabase PostgreSQL Point-in-Time Recovery (PITR).
+                </p>
             </div>
-            <div class="p-3 rounded-lg bg-slate-50 dark:bg-zinc-950/60 border border-slate-200/80 dark:border-zinc-800">
-                <strong class="text-slate-900 dark:text-zinc-100 block mb-1">Step 2: Database Restoration</strong>
-                <p>Restore SQL dump into target database: <code class="font-mono text-purple-600">psql -h db.supabase.co -U postgres -d postgres &lt; backup.sql</code></p>
+            <div class="p-3.5 rounded-lg bg-slate-50 dark:bg-zinc-950/60 border border-slate-200/80 dark:border-zinc-800 space-y-1.5">
+                <strong class="text-slate-900 dark:text-zinc-100 block">2. Chat Exclusion Policy</strong>
+                <p class="leading-relaxed text-[11px]">
+                    Team Chat and direct messages are intentionally excluded from Excel backups to safeguard member privacy, prevent token leaks, and maintain lean backup sizes suitable for rapid workspace migrations.
+                </p>
             </div>
-            <div class="p-3 rounded-lg bg-slate-50 dark:bg-zinc-950/60 border border-slate-200/80 dark:border-zinc-800">
-                <strong class="text-slate-900 dark:text-zinc-100 block mb-1">Step 3: Storage Object Verification</strong>
-                <p>After database recovery, navigate to <a href="{% url 'admin_panel:storage_files' %}" class="text-purple-600 hover:underline font-semibold">Storage & Files</a> and click <em>Run Storage Sync Audit</em> to ensure all records match physical objects.</p>
+            <div class="p-3.5 rounded-lg bg-slate-50 dark:bg-zinc-950/60 border border-slate-200/80 dark:border-zinc-800 space-y-1.5">
+                <strong class="text-slate-900 dark:text-zinc-100 block">3. Supabase Storage Integrity</strong>
+                <p class="leading-relaxed text-[11px]">
+                    StoredFile rows record canonical Supabase storage paths and metadata. After performing a restore, use the <a href="{% url 'admin_panel:storage_files' %}" class="text-purple-600 dark:text-purple-400 font-semibold hover:underline">Storage &amp; Files</a> console to execute a storage sync audit.
+                </p>
             </div>
         </div>
     </div>
+
+    <!-- Recent Backup & Restore Audits -->
+    {% if recent_backup_audits %}
+    <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl p-6 shadow-sm space-y-4">
+        <div class="flex items-center justify-between">
+            <h3 class="text-sm font-bold uppercase tracking-wider text-slate-700 dark:text-zinc-300">
+                Recent Backup &amp; Recovery Audit Events
+            </h3>
+            <a href="{% url 'admin_panel:audit_logs' %}" class="text-xs font-semibold text-purple-600 dark:text-purple-400 hover:underline">
+                View All Audits →
+            </a>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+                <thead>
+                    <tr class="border-b border-slate-200 dark:border-zinc-800 text-slate-400 font-semibold">
+                        <th class="py-2">Timestamp</th>
+                        <th class="py-2">Action</th>
+                        <th class="py-2">Actor</th>
+                        <th class="py-2">Target</th>
+                        <th class="py-2">Status</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 dark:divide-zinc-800">
+                    {% for audit in recent_backup_audits %}
+                    <tr>
+                        <td class="py-2 font-mono text-[11px] text-slate-500">{{ audit.created_at|date:"Y-m-d H:i:s" }}</td>
+                        <td class="py-2 font-semibold text-slate-800 dark:text-zinc-200">{{ audit.get_action_display }}</td>
+                        <td class="py-2 text-slate-600 dark:text-zinc-400">{{ audit.actor_email }}</td>
+                        <td class="py-2 text-slate-700 dark:text-zinc-300">{{ audit.target_repr|truncatechars:40 }}</td>
+                        <td class="py-2">
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold {% if audit.status == 'SUCCESS' %}bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400{% else %}bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-400{% endif %}">
+                                {{ audit.status }}
+                            </span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
 
 </div>
 {% endblock %}

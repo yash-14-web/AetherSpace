@@ -1,0 +1,77 @@
+{% extends 'errors/base_error.html' %}
+
+{% block error_title_tag %}429 — Too Many Requests{% endblock %}
+
+{% block status_code %}429{% endblock %}
+{% block status_code_color %}text-pink-500 dark:text-pink-400{% endblock %}
+{% block glow_color %}bg-pink-500{% endblock %}
+
+{% block headline %}Too Many Requests{% endblock %}
+{% block description %}
+You've made too many requests in a short period. Rate limits protect system stability for your team. Please wait a moment and try again.
+{% endblock %}
+
+{% block illustration %}
+<svg class="w-full h-full drop-shadow-[0_10px_25px_rgba(236,72,153,0.35)]" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Velocity tachometer gauge in redline zone illustration">
+    <!-- Starfield -->
+    <circle cx="30" cy="45" r="1.5" fill="#fbcfe8" opacity="0.6"/>
+    <circle cx="170" cy="40" r="1.5" fill="#fbcfe8" opacity="0.6"/>
+    <circle cx="175" cy="125" r="1.2" fill="#ec4899" opacity="0.4"/>
+
+    <!-- Tachometer Main Arc Track -->
+    <path d="M45 135 A65 65 0 1 1 155 135" stroke="#1e293b" stroke-width="16" stroke-linecap="round" fill="none"/>
+    
+    <!-- Normal Zone (Cyan to Purple) -->
+    <path d="M45 135 A65 65 0 0 1 100 35" stroke="url(#normalGaugeGrad)" stroke-width="12" stroke-linecap="round" fill="none"/>
+    
+    <!-- Redline / Overload Zone (Pink to Red) -->
+    <path d="M100 35 A65 65 0 0 1 155 135" stroke="url(#redlineGaugeGrad)" stroke-width="12" stroke-linecap="round" fill="none"/>
+
+    <!-- Tick Markers -->
+    <line x1="45" y1="135" x2="55" y2="130" stroke="#64748b" stroke-width="2"/>
+    <line x1="60" y1="85" x2="68" y2="90" stroke="#64748b" stroke-width="2"/>
+    <line x1="100" y1="35" x2="100" y2="47" stroke="#ec4899" stroke-width="2"/>
+    <line x1="140" y1="85" x2="132" y2="90" stroke="#f43f5e" stroke-width="2"/>
+    <line x1="155" y1="135" x2="145" y2="130" stroke="#f43f5e" stroke-width="2"/>
+
+    <!-- Gauge Center Hub -->
+    <circle cx="100" cy="115" r="14" fill="#0f172a" stroke="#db2777" stroke-width="3"/>
+    <circle cx="100" cy="115" r="5" fill="#f472b6"/>
+
+    <!-- Gauge Needle (Pushed deep into redline zone) -->
+    <line x1="100" y1="115" x2="142" y2="60" stroke="#f43f5e" stroke-width="4" stroke-linecap="round"/>
+
+    <!-- Speed Sparks Around Needle -->
+    <circle cx="152" cy="52" r="2.5" fill="#f472b6"/>
+    <circle cx="138" cy="42" r="1.5" fill="#fbcfe8"/>
+    <circle cx="160" cy="72" r="2" fill="#fda4af"/>
+
+    <!-- Gauge Base Frame Bar -->
+    <path d="M60 148 H140" stroke="#334155" stroke-width="4" stroke-linecap="round"/>
+
+    <defs>
+        <linearGradient id="normalGaugeGrad" x1="45" y1="135" x2="100" y2="35" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#3b82f6"/>
+            <stop offset="1" stop-color="#a855f7"/>
+        </linearGradient>
+        <linearGradient id="redlineGaugeGrad" x1="100" y1="35" x2="155" y2="135" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#ec4899"/>
+            <stop offset="0.7" stop-color="#f43f5e"/>
+            <stop offset="1" stop-color="#e11d48"/>
+        </linearGradient>
+    </defs>
+</svg>
+{% endblock %}
+
+{% block primary_button_style %}bg-pink-600 hover:bg-pink-500 focus:ring-pink-500 shadow-pink-500/20{% endblock %}
+{% block primary_button_text %}Try Again{% endblock %}
+{% block action_buttons %}
+    <button type="button" onclick="window.location.reload()"
+            class="w-full sm:w-auto px-6 py-2.5 rounded-lg text-sm font-semibold text-white shadow-lg bg-pink-600 hover:bg-pink-500 focus:ring-pink-500 shadow-pink-500/20 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2">
+        Try Again
+    </button>
+    <a href="{% if user.is_authenticated %}{% url 'workspaces:dashboard' %}{% else %}{% url 'core:landing' %}{% endif %}"
+       class="w-full sm:w-auto px-6 py-2.5 rounded-lg text-sm font-medium aether-error-btn-secondary bg-slate-100 dark:bg-zinc-800 text-slate-800 dark:text-zinc-100 border border-slate-300 dark:border-zinc-700 hover:bg-slate-200 dark:hover:bg-zinc-700 shadow-sm transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-slate-400 dark:focus:ring-zinc-600">
+        Go to Dashboard
+    </a>
+{% endblock %}

@@ -1,0 +1,180 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}AetherSpace — Error & Empty States Showcase{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto space-y-12 pb-16">
+    <!-- Header -->
+    <div class="border-b border-slate-200 dark:border-zinc-800 pb-6">
+        <div class="flex items-center gap-3 mb-2">
+            <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                Phase 17 — Showcase
+            </span>
+            <span class="text-xs text-slate-400 dark:text-zinc-500">Design Reference: a_high_resolution_dark_ui_graphic_design_showcase.png</span>
+        </div>
+        <h1 class="text-3xl font-black tracking-tight text-slate-900 dark:text-zinc-50">
+            AetherSpace — Error & Empty States System
+        </h1>
+        <p class="text-sm text-slate-500 dark:text-zinc-400 mt-1">
+            Comprehensive audit of full-page HTTP errors, component-level micro-states, file/calendar validations, and connection telemetry.
+        </p>
+    </div>
+
+    <!-- 1. FULL PAGE ERROR STATES NAVIGATION -->
+    <div class="space-y-4">
+        <h2 class="text-lg font-bold text-slate-900 dark:text-zinc-100 flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
+            1. Full-Page Error States
+        </h2>
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+            <a href="{% url 'core:test_404' %}" target="_blank"
+               class="p-4 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:border-blue-500 transition-colors flex flex-col items-center text-center space-y-1 shadow-sm">
+                <span class="text-2xl font-black text-blue-500 font-mono">404</span>
+                <span class="text-xs font-bold text-slate-900 dark:text-zinc-100">Page Not Found</span>
+                <span class="text-[10px] text-slate-400">UFO Tractor Beam</span>
+            </a>
+
+            <a href="{% url 'core:test_403' %}" target="_blank"
+               class="p-4 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:border-purple-500 transition-colors flex flex-col items-center text-center space-y-1 shadow-sm">
+                <span class="text-2xl font-black text-purple-500 font-mono">403</span>
+                <span class="text-xs font-bold text-slate-900 dark:text-zinc-100">Access Restricted</span>
+                <span class="text-[10px] text-slate-400">Padlock Shield</span>
+            </a>
+
+            <a href="{% url 'core:test_500' %}" target="_blank"
+               class="p-4 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:border-red-500 transition-colors flex flex-col items-center text-center space-y-1 shadow-sm">
+                <span class="text-2xl font-black text-red-500 font-mono">500</span>
+                <span class="text-xs font-bold text-slate-900 dark:text-zinc-100">Server Error</span>
+                <span class="text-[10px] text-slate-400">Sparking Satellite</span>
+            </a>
+
+            <a href="{% url 'core:test_503' %}" target="_blank"
+               class="p-4 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:border-amber-500 transition-colors flex flex-col items-center text-center space-y-1 shadow-sm">
+                <span class="text-2xl font-black text-amber-500 font-mono">503</span>
+                <span class="text-xs font-bold text-slate-900 dark:text-zinc-100">Unavailable</span>
+                <span class="text-[10px] text-slate-400">Radar Dish</span>
+            </a>
+
+            <a href="{% url 'core:test_network' %}" target="_blank"
+               class="p-4 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:border-rose-500 transition-colors flex flex-col items-center text-center space-y-1 shadow-sm">
+                <span class="text-2xl font-black text-rose-500 font-mono">OFFLINE</span>
+                <span class="text-xs font-bold text-slate-900 dark:text-zinc-100">Connection Lost</span>
+                <span class="text-[10px] text-slate-400">Signal Wifi Alert</span>
+            </a>
+
+            <a href="{% url 'core:test_400' %}" target="_blank"
+               class="p-4 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:border-amber-500 transition-colors flex flex-col items-center text-center space-y-1 shadow-sm">
+                <span class="text-2xl font-black text-amber-500 font-mono">400</span>
+                <span class="text-xs font-bold text-slate-900 dark:text-zinc-100">Bad Request</span>
+                <span class="text-[10px] text-slate-400">Parameter Wrench</span>
+            </a>
+
+            <a href="{% url 'core:test_401' %}" target="_blank"
+               class="p-4 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:border-cyan-500 transition-colors flex flex-col items-center text-center space-y-1 shadow-sm">
+                <span class="text-2xl font-black text-cyan-500 font-mono">401</span>
+                <span class="text-xs font-bold text-slate-900 dark:text-zinc-100">Unauthorized</span>
+                <span class="text-[10px] text-slate-400">Security Keycard</span>
+            </a>
+
+            <a href="{% url 'core:test_408' %}" target="_blank"
+               class="p-4 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:border-orange-500 transition-colors flex flex-col items-center text-center space-y-1 shadow-sm">
+                <span class="text-2xl font-black text-orange-500 font-mono">408</span>
+                <span class="text-xs font-bold text-slate-900 dark:text-zinc-100">Timed Out</span>
+                <span class="text-[10px] text-slate-400">Latency Stopwatch</span>
+            </a>
+
+            <a href="{% url 'core:test_429' %}" target="_blank"
+               class="p-4 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:border-pink-500 transition-colors flex flex-col items-center text-center space-y-1 shadow-sm">
+                <span class="text-2xl font-black text-pink-500 font-mono">429</span>
+                <span class="text-xs font-bold text-slate-900 dark:text-zinc-100">Too Many Reqs</span>
+                <span class="text-[10px] text-slate-400">Tachometer Redline</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- 2. COMPONENT LEVEL ERROR STATES -->
+    <div class="space-y-4">
+        <h2 class="text-lg font-bold text-slate-900 dark:text-zinc-100 flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+            2. Component-Level Error States (from Showcase Panel 3)
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <!-- Chart Error -->
+            {% include 'components/error_states.html' with component_type='chart_error' error_title='Unable to load chart' error_message='Something went wrong while loading this data.' %}
+            
+            <!-- Table Error -->
+            {% include 'components/error_states.html' with component_type='table_error' error_title='Unable to load data' error_message="We couldn't load the task list. Please try again." %}
+            
+            <!-- Widget Error -->
+            {% include 'components/error_states.html' with component_type='widget_error' error_title='Failed to load storage info' error_message="We couldn't retrieve storage details right now." %}
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+            <!-- Inline API Banner -->
+            {% include 'components/error_states.html' with component_type='api_inline_error' error_title='Failed to fetch data' error_message='API returned an unexpected response.' %}
+            
+            <!-- Action Toast -->
+            {% include 'components/error_states.html' with component_type='action_toast' error_title='Failed to delete task' error_message='Please try again.' %}
+        </div>
+    </div>
+
+    <!-- 3. FILE & CALENDAR ERRORS -->
+    <div class="space-y-4">
+        <h2 class="text-lg font-bold text-slate-900 dark:text-zinc-100 flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+            3. File & Calendar Micro-States (from Showcase Panel 4)
+        </h2>
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+            <div class="p-4 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-center space-y-2">
+                <span class="text-rose-500 font-bold text-xs block">Upload Failed</span>
+                <p class="text-[11px] text-slate-500 dark:text-zinc-400">Project-Spec.pdf could not be saved.</p>
+                <button class="px-3 py-1 text-xs rounded bg-blue-600 text-white hover:bg-blue-500">Try Again</button>
+            </div>
+
+            <div class="p-4 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-center space-y-2">
+                <span class="text-amber-500 font-bold text-xs block">File Too Large</span>
+                <p class="text-[11px] text-slate-500 dark:text-zinc-400">Max size is 25 MB per free-tier limits.</p>
+                <button class="px-3 py-1 text-xs rounded bg-slate-200 dark:bg-zinc-800 text-slate-700 dark:text-zinc-200">Okay</button>
+            </div>
+
+            <div class="p-4 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-center space-y-2">
+                <span class="text-purple-500 font-bold text-xs block">Storage Reached</span>
+                <p class="text-[11px] text-slate-500 dark:text-zinc-400">Workspace quota (50 MB) full.</p>
+                <button class="px-3 py-1 text-xs rounded bg-purple-600 text-white hover:bg-purple-500">Manage</button>
+            </div>
+
+            <div class="p-4 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-center space-y-2">
+                <span class="text-rose-500 font-bold text-xs block">Event Failed</span>
+                <p class="text-[11px] text-slate-500 dark:text-zinc-400">Could not sync calendar invite.</p>
+                <button class="px-3 py-1 text-xs rounded bg-blue-600 text-white hover:bg-blue-500">Try Again</button>
+            </div>
+
+            <div class="p-4 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-center space-y-2">
+                <span class="text-amber-500 font-bold text-xs block">Conflicting Event</span>
+                <p class="text-[11px] text-slate-500 dark:text-zinc-400">Schedule overlaps with Sprint Planning.</p>
+                <button class="px-3 py-1 text-xs rounded bg-amber-600 text-white hover:bg-amber-500">Resolve</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. DESIGN STANDARDS COMPLIANCE CARD -->
+    <div class="p-6 rounded-2xl bg-slate-900 dark:bg-zinc-950 border border-slate-800 dark:border-zinc-800 text-white space-y-3">
+        <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded-full bg-blue-600/30 flex items-center justify-center text-blue-400">
+                ℹ
+            </div>
+            <div>
+                <h3 class="text-sm font-bold text-zinc-100">AetherSpace Error & Resilience Guarantee</h3>
+                <p class="text-xs text-zinc-400">All error templates follow the Obsidian Dark & Clean Slate design systems.</p>
+            </div>
+        </div>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs text-zinc-300 pt-2 border-t border-zinc-800/80">
+            <div>✓ Accessible focus rings & ARIA</div>
+            <div>✓ Zero credential or stack leakage</div>
+            <div>✓ Responsive mobile typography</div>
+            <div>✓ Correlated Error IDs (500)</div>
+        </div>
+    </div>
+</div>
+{% endblock %}

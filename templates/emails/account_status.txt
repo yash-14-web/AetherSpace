@@ -1,0 +1,19 @@
+Hello {{ user.full_name|default:user.email }},
+
+{% if status == 'REJECTED' or status == 'SUSPENDED' %}
+Your AetherSpace account (Contributor ID: {{ user.contributor_id }}) status has been updated to {{ status }}.
+{% if reason %}
+Reason: {{ reason }}
+{% endif %}
+{% else %}
+Welcome to AetherSpace!
+Your AetherSpace account has been approved by a platform Administrator or Workspace Manager.
+
+Your Contributor ID: {{ user.contributor_id }}
+
+You can now sign in using your Contributor ID (or email) and password:
+{{ site_url|default:'http://127.0.0.1:8000' }}{{ action_url }}
+{% endif %}
+
+--
+AetherSpace Team

@@ -12,7 +12,7 @@ from django.core.paginator import Paginator
 from workspaces.models import Workspace, WorkspaceMembership, MembershipStatus, WorkspaceStatus, WorkspaceRole
 from workspaces.permissions import workspace_member_required
 from tasks.models import Task, TaskStatus
-from .models import TimeEntry, TimeEntryType
+from .models import TimeEntry, TimeEntryType, TimerStatus
 from .forms import ManualTimeEntryForm
 
 
@@ -104,12 +104,20 @@ def workspace_timesheet(request, slug):
             started_at__date__gte=start_of_week
         ).aggregate(s=Sum('duration_seconds'))['s'] or 0
 
-    # Check for active running timer for current user
+    # Check for active running or paused timer for current user
     active_timer = TimeEntry.objects.filter(
         workspace=workspace,
         user=request.user,
-        is_running=True
+        status__in=[TimerStatus.RUNNING, TimerStatus.PAUSED]
     ).select_related('task').first()
+
+    if not active_timer:
+        # Fallback check for is_running
+        active_timer = TimeEntry.objects.filter(
+            workspace=workspace,
+            user=request.user,
+            is_running=True
+        ).select_related('task').first()
 
     # Active tasks for stopwatch dropdown & manual entry
     available_tasks = Task.objects.filter(workspace=workspace).exclude(status=TaskStatus.DONE).order_by('-created_at')[:30]
@@ -155,13 +163,21 @@ def workspace_timesheet(request, slug):
 def api_timer_start(request, slug):
     """
     Starts a live stopwatch timer for the current user in this workspace.
-    Stops any previously active timer first.
+    Stops any previously active (running or paused) timer first.
     """
     workspace = request.workspace
 
-    # Stop any existing running timer for this user
-    running_timers = TimeEntry.objects.filter(user=request.user, is_running=True)
-    for t in running_timers:
+    # Stop any existing running or paused timer for this user
+    open_timers = TimeEntry.objects.filter(
+        user=request.user,
+        status__in=[TimerStatus.RUNNING, TimerStatus.PAUSED]
+    )
+    for t in open_timers:
+        t.stop()
+
+    # Legacy is_running cleanup
+    legacy_running = TimeEntry.objects.filter(user=request.user, is_running=True)
+    for t in legacy_running:
         t.stop()
 
     task_id = request.POST.get('task_id', '').strip()
@@ -178,17 +194,111 @@ def api_timer_start(request, slug):
         task=task,
         description=description,
         started_at=now,
+        last_resumed_at=now,
+        status=TimerStatus.RUNNING,
         is_running=True,
         entry_type=TimeEntryType.TIMER
     )
 
+    # When starting tracking, if user's availability status is away/ooo/offline, automatically switch to available
+    user_availability = getattr(request.user, 'availability_status', 'available')
+    if user_availability in ['away', 'ooo', 'offline']:
+        profile = getattr(request.user, 'profile', None)
+        if profile:
+            pref = profile.preferences or {}
+            pref['status'] = 'available'
+            profile.preferences = pref
+            profile.save(update_fields=['preferences', 'updated_at'])
+            user_availability = 'available'
+
     return JsonResponse({
         'status': 'ok',
+        'timer_status': 'running',
         'is_running': True,
         'timer_id': str(entry.id),
         'task_code': f"#{entry.task.task_code}" if entry.task else "",
         'task_title': entry.task.title if entry.task else "",
         'started_at': entry.started_at.isoformat(),
+        'elapsed_seconds': 0,
+        'user_availability': user_availability,
+    })
+
+
+@require_POST
+@workspace_member_required
+def api_timer_pause(request, slug):
+    """
+    Pauses active live timer for current user.
+    Preserves accumulated duration without finalizing the entry.
+    """
+    workspace = request.workspace
+    active_timer = TimeEntry.objects.filter(
+        workspace=workspace,
+        user=request.user,
+        status=TimerStatus.RUNNING
+    ).first()
+
+    if not active_timer:
+        active_timer = TimeEntry.objects.filter(
+            workspace=workspace,
+            user=request.user,
+            is_running=True
+        ).first()
+
+    if not active_timer:
+        return JsonResponse({'status': 'error', 'message': 'No running timer found to pause.'}, status=400)
+
+    active_timer.pause()
+    return JsonResponse({
+        'status': 'ok',
+        'timer_status': 'paused',
+        'is_running': False,
+        'timer_id': str(active_timer.id),
+        'elapsed_seconds': active_timer.current_duration_seconds,
+        'duration_formatted': active_timer.duration_formatted,
+    })
+
+
+@require_POST
+@workspace_member_required
+def api_timer_resume(request, slug):
+    """
+    Resumes a paused timer for current user.
+    Continues elapsed duration from preserved accumulated seconds.
+    """
+    workspace = request.workspace
+    paused_timer = TimeEntry.objects.filter(
+        workspace=workspace,
+        user=request.user,
+        status=TimerStatus.PAUSED
+    ).first()
+
+    if not paused_timer:
+        return JsonResponse({'status': 'error', 'message': 'No paused timer found to resume.'}, status=400)
+
+    paused_timer.resume()
+
+    # When user resumes tracking, automatically switch availability from away/ooo/offline to available
+    user_availability = getattr(request.user, 'availability_status', 'available')
+    if user_availability in ['away', 'ooo', 'offline']:
+        profile = getattr(request.user, 'profile', None)
+        if profile:
+            pref = profile.preferences or {}
+            pref['status'] = 'available'
+            profile.preferences = pref
+            profile.save(update_fields=['preferences', 'updated_at'])
+            user_availability = 'available'
+
+    return JsonResponse({
+        'status': 'ok',
+        'timer_status': 'running',
+        'is_running': True,
+        'timer_id': str(paused_timer.id),
+        'task_code': f"#{paused_timer.task.task_code}" if paused_timer.task else "",
+        'task_title': paused_timer.task.title if paused_timer.task else "",
+        'elapsed_seconds': paused_timer.current_duration_seconds,
+        'duration_formatted': paused_timer.duration_formatted,
+        'user_availability': user_availability,
     })
 
 
@@ -196,21 +306,29 @@ def api_timer_start(request, slug):
 @workspace_member_required
 def api_timer_stop(request, slug):
     """
-    Stops the active live stopwatch timer and finalizes elapsed duration.
+    Stops the active live timer (running or paused) and finalizes elapsed duration.
     """
     workspace = request.workspace
     active_timer = TimeEntry.objects.filter(
         workspace=workspace,
         user=request.user,
-        is_running=True
+        status__in=[TimerStatus.RUNNING, TimerStatus.PAUSED]
     ).first()
 
     if not active_timer:
-        return JsonResponse({'status': 'error', 'message': 'No running timer found.'}, status=400)
+        active_timer = TimeEntry.objects.filter(
+            workspace=workspace,
+            user=request.user,
+            is_running=True
+        ).first()
+
+    if not active_timer:
+        return JsonResponse({'status': 'error', 'message': 'No active timer found to stop.'}, status=400)
 
     active_timer.stop()
     return JsonResponse({
         'status': 'ok',
+        'timer_status': 'completed',
         'is_running': False,
         'duration_seconds': active_timer.duration_seconds,
         'duration_formatted': active_timer.duration_formatted,
@@ -221,20 +339,30 @@ def api_timer_stop(request, slug):
 @workspace_member_required
 def api_timer_status(request, slug):
     """
-    Returns active stopwatch state for live counter synchronization.
+    Returns active timer state (idle, running, paused) for live synchronization.
     """
     workspace = request.workspace
     active_timer = TimeEntry.objects.filter(
         workspace=workspace,
         user=request.user,
-        is_running=True
+        status__in=[TimerStatus.RUNNING, TimerStatus.PAUSED]
     ).select_related('task').first()
 
     if not active_timer:
-        return JsonResponse({'status': 'idle'})
+        active_timer = TimeEntry.objects.filter(
+            workspace=workspace,
+            user=request.user,
+            is_running=True
+        ).select_related('task').first()
 
+    if not active_timer:
+        return JsonResponse({'status': 'idle', 'timer_status': 'idle', 'is_running': False})
+
+    is_paused = (active_timer.status == TimerStatus.PAUSED)
     return JsonResponse({
-        'status': 'running',
+        'status': 'paused' if is_paused else 'running',
+        'timer_status': 'paused' if is_paused else 'running',
+        'is_running': not is_paused,
         'timer_id': str(active_timer.id),
         'task_code': f"#{active_timer.task.task_code}" if active_timer.task else "",
         'task_title': active_timer.task.title if active_timer.task else "",

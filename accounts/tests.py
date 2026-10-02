@@ -3,7 +3,7 @@ from django.urls import reverse
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.http import urlsafe_base64_encode
 from django.utils.encoding import force_bytes
-from .models import User, UserProfile, UserRole
+from .models import User, UserProfile, UserRole, ApprovalStatus
 from .tokens import account_verification_token
 
 
@@ -15,7 +15,8 @@ class AccountsModelAndViewsTest(TestCase):
         self.user = User.objects.create_user(
             email=self.test_email,
             password=self.test_password,
-            full_name="Alex River"
+            full_name="Alex River",
+            approval_status=ApprovalStatus.APPROVED,
         )
         self.profile = UserProfile.objects.create(
             user=self.user,
@@ -28,7 +29,7 @@ class AccountsModelAndViewsTest(TestCase):
         self.assertEqual(self.user.full_name, "Alex River")
         self.assertIsNotNone(self.user.id)
         self.assertTrue(self.user.check_password(self.test_password))
-        self.assertEqual(str(self.user), "Alex River")
+        self.assertEqual(str(self.user), f"Alex River [{self.user.contributor_id}]")
         self.assertEqual(self.user.profile.headline, "Senior Full Stack Engineer")
         self.assertEqual(self.user.role, UserRole.CONTRIBUTOR)
         self.assertTrue(self.user.is_contributor_role)
@@ -56,44 +57,44 @@ class AccountsModelAndViewsTest(TestCase):
     def test_login_view_post_success_with_remember_me(self):
         url = reverse('accounts:login')
         response = self.client.post(url, {
-            'email': self.test_email,
+            'contributor_id': self.user.contributor_id,
             'password': self.test_password,
             'remember_me': 'on',
         })
         self.assertEqual(response.status_code, 302)
-        self.assertRedirects(response, reverse('workspaces:dashboard'), target_status_code=302)
+        self.assertRedirects(response, reverse('workspaces:dashboard'), target_status_code=200)
         self.assertFalse(self.client.session.get_expire_at_browser_close())
         self.assertEqual(self.client.session.get_expiry_age(), 1209600)
 
     def test_login_view_post_success_without_remember_me(self):
         url = reverse('accounts:login')
         response = self.client.post(url, {
-            'email': self.test_email,
+            'contributor_id': self.user.contributor_id,
             'password': self.test_password,
         })
         self.assertEqual(response.status_code, 302)
-        self.assertRedirects(response, reverse('workspaces:dashboard'), target_status_code=302)
+        self.assertRedirects(response, reverse('workspaces:dashboard'), target_status_code=200)
         self.assertTrue(self.client.session.get_expire_at_browser_close())
 
     def test_login_view_post_invalid_password(self):
         url = reverse('accounts:login')
         response = self.client.post(url, {
-            'email': self.test_email,
+            'contributor_id': self.user.contributor_id,
             'password': 'WrongPassword!',
         })
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Invalid email address or password.")
+        self.assertContains(response, "Invalid Contributor ID or password.")
 
     def test_login_view_inactive_user(self):
         self.user.is_active = False
         self.user.save()
         url = reverse('accounts:login')
         response = self.client.post(url, {
-            'email': self.test_email,
+            'contributor_id': self.user.contributor_id,
             'password': self.test_password,
         })
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Invalid email address or password.")
+        self.assertContains(response, "This account is currently disabled.")
 
     def test_register_view_get(self):
         url = reverse('accounts:register')
@@ -111,7 +112,7 @@ class AccountsModelAndViewsTest(TestCase):
             'agree_terms': 'on',
         })
         self.assertEqual(response.status_code, 302)
-        self.assertRedirects(response, reverse('accounts:verification'))
+        self.assertRedirects(response, reverse('accounts:pending_approval'))
         new_user = User.objects.filter(email='morgan@aetherspace.dev').first()
         self.assertIsNotNone(new_user)
         self.assertEqual(new_user.full_name, 'Morgan Vance')
@@ -160,6 +161,22 @@ class AccountsModelAndViewsTest(TestCase):
         response = self.client.get(url)
         self.assertEqual(response.status_code, 302)
         self.assertRedirects(response, reverse('accounts:login'))
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.availability_status, 'offline')
+
+    def test_login_view_sets_status_to_available(self):
+        profile = self.user.profile
+        profile.preferences = {'status': 'offline'}
+        profile.save()
+        self.assertEqual(self.user.availability_status, 'offline')
+
+        response = self.client.post(reverse('accounts:login'), {
+            'contributor_id': self.user.contributor_id,
+            'password': self.test_password
+        })
+        self.assertEqual(response.status_code, 302)
+        profile.refresh_from_db()
+        self.assertEqual(profile.availability_status, 'available')
 
     def test_forgot_password_view_post(self):
         url = reverse('accounts:forgot_password')
@@ -493,7 +510,7 @@ class Phase12ProfileModuleTest(TestCase):
         # Filter by non-matching severity
         resp_none = self.client.get(reverse('accounts:profile_bugs') + "?severity=SEV1")
         self.assertEqual(resp_none.status_code, 200)
-        self.assertNotContains(resp_none, "B-882316")
+        self.assertNotContains(resp_none, "Profile modal z-index glitch")
 
     def test_profile_activity_stream(self):
         self.client.login(email=self.user.email, password=self.password)

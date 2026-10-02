@@ -176,6 +176,27 @@ class MeetingViewsAndRBACTests(TestCase):
             role=WorkspaceRole.CONTRIBUTOR
         )
 
+        from core.models import ModuleStatus
+        ModuleStatus.objects.update_or_create(
+            module_key='meetings',
+            defaults={
+                'name': 'Meet Hub',
+                'status': ModuleStatus.STATUS_AVAILABLE,
+                'public_message': 'Meet Hub is operational.'
+            }
+        )
+
+    def test_meeting_views_blocked_when_under_maintenance(self):
+        from core.models import ModuleStatus
+        try:
+            ModuleStatus.objects.filter(module_key='meetings').update(status=ModuleStatus.STATUS_MAINTENANCE)
+            self.client.force_login(self.owner)
+            resp = self.client.get(reverse('meetings:meeting_start', kwargs={'slug': self.workspace.slug}))
+            self.assertEqual(resp.status_code, 503)
+            self.assertContains(resp, "Meet Hub", status_code=503)
+        finally:
+            ModuleStatus.objects.filter(module_key='meetings').update(status=ModuleStatus.STATUS_AVAILABLE)
+
     def test_meet_hub_access_authenticated_member(self):
         self.client.force_login(self.owner)
         url = reverse('meetings:meet_hub', kwargs={'slug': self.workspace.slug})

@@ -91,13 +91,11 @@
                         <!-- Shared Person -->
                         <td class="py-3 px-3 whitespace-nowrap">
                             <div class="flex items-center space-x-2">
-                                <div class="w-6 h-6 rounded-full bg-slate-200 dark:bg-zinc-700 text-slate-700 dark:text-zinc-200 flex items-center justify-center font-bold text-[10px]">
-                                    {% if filter_tab == 'by_me' %}
-                                    {{ s.shared_with.email|slice:":2"|upper }}
-                                    {% else %}
-                                    {{ s.shared_by.email|slice:":2"|upper }}
-                                    {% endif %}
-                                </div>
+                                {% if filter_tab == 'by_me' %}
+                                    {% include 'components/avatar.html' with user=s.shared_with size='w-6 h-6' text_size='text-[10px]' %}
+                                {% else %}
+                                    {% include 'components/avatar.html' with user=s.shared_by size='w-6 h-6' text_size='text-[10px]' %}
+                                {% endif %}
                                 <span class="text-slate-700 dark:text-zinc-300 font-medium truncate max-w-[120px]">
                                     {% if filter_tab == 'by_me' %}
                                     {{ s.shared_with.get_full_name|default:s.shared_with.username }}

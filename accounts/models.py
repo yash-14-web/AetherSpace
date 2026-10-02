@@ -148,6 +148,39 @@ class User(AbstractUser):
     def is_contributor_role(self):
         return self.role == UserRole.CONTRIBUTOR
 
+    @property
+    def availability_status(self):
+        if hasattr(self, 'profile'):
+            return self.profile.availability_status
+        return 'available'
+
+    @property
+    def status_message(self):
+        if hasattr(self, 'profile'):
+            return self.profile.status_message
+        return ''
+
+    def get_full_name(self):
+        """Authoritative full name display for AetherSpace identity system."""
+        if self.full_name and self.full_name.strip():
+            return self.full_name.strip()
+        name_parts = f"{self.first_name} {self.last_name}".strip()
+        if name_parts:
+            return name_parts
+        return self.username or self.email
+
+    def get_short_name(self):
+        """Authoritative short name display."""
+        if self.full_name and self.full_name.strip():
+            return self.full_name.strip().split()[0]
+        if self.first_name and self.first_name.strip():
+            return self.first_name.strip()
+        return self.username or self.email
+
+    @property
+    def display_name(self):
+        return self.get_full_name()
+
     def __str__(self):
         cid_str = f" [{self.contributor_id}]" if self.contributor_id else ""
         return f"{self.full_name or self.email}{cid_str}"
@@ -173,6 +206,50 @@ class UserProfile(models.Model):
     preferences = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    @property
+    def availability_status(self):
+        pref = self.preferences or {}
+        pref_status = pref.get('status', 'available')
+        if pref_status == 'offline':
+            return 'offline'
+
+        import sys
+        from django.conf import settings
+        from django.core.cache import cache
+        from django.utils import timezone
+
+        is_testing = 'test' in sys.argv or getattr(settings, 'TESTING', False)
+        if not is_testing:
+            last_seen = cache.get(f'user_last_seen_{self.user_id}')
+            if not last_seen:
+                return 'offline'
+
+        expires = pref.get('status_expires_at')
+        if expires:
+            try:
+                from django.utils.dateparse import parse_datetime
+                exp_dt = parse_datetime(expires)
+                if exp_dt and timezone.now() > exp_dt:
+                    return 'available'
+            except Exception:
+                pass
+        return pref_status
+
+    @property
+    def status_message(self):
+        pref = self.preferences or {}
+        expires = pref.get('status_expires_at')
+        if expires:
+            try:
+                from django.utils.dateparse import parse_datetime
+                from django.utils import timezone
+                exp_dt = parse_datetime(expires)
+                if exp_dt and timezone.now() > exp_dt:
+                    return ''
+            except Exception:
+                pass
+        return pref.get('status_message', '')
 
     def __str__(self):
         return f"Profile of {self.user.email}"

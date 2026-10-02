@@ -1,0 +1,243 @@
+{% comment %}
+Reusable Search-First People Picker Component
+Adheres strictly to the AetherSpace Global People-Search Rule:
+1. Profiles (avatar picture, contributor ID, name, email, role) displayed both while selecting and after selection.
+2. Graceful initials fallback with theme preset gradients if user has no photo.
+3. Live autocomplete with fast 200ms debounce against active workspace members.
+4. Clean display of existing assignee on edit.
+{% endcomment %}
+
+<div x-data="{
+    selectedId: '{% if initial_user %}{{ initial_user.id|default:'' }}{% endif %}',
+    selectedName: '{% if initial_user %}{% if initial_user.full_name %}{{ initial_user.full_name|escapejs }}{% elif initial_user.email %}{{ initial_user.email|escapejs }}{% endif %}{% endif %}',
+    selectedContributorId: '{% if initial_user %}{{ initial_user.contributor_id|default:''|escapejs }}{% endif %}',
+    selectedRole: '{{ initial_role|default:''|escapejs }}',
+    selectedInitials: '{% if initial_user %}{% if initial_user.full_name %}{{ initial_user.full_name|slice:':1'|upper }}{% elif initial_user.email %}{{ initial_user.email|slice:':1'|upper }}{% else %}?{% endif %}{% else %}?{% endif %}',
+    selectedAvatar: '{% if initial_user and initial_user.avatar and initial_user.avatar|slice:":7" != "preset:" %}{{ initial_user.avatar|escapejs }}{% endif %}',
+    selectedPreset: '{% if initial_user and initial_user.avatar and initial_user.avatar|slice:":7" == "preset:" %}{{ initial_user.avatar|slice:"7:"|escapejs }}{% endif %}',
+    query: '',
+    results: [],
+    isOpen: false,
+    isLoading: false,
+    activeIndex: -1,
+    searchUrl: '{% url 'workspaces:api_workspace_members_search' slug=workspace_slug|default:workspace.slug %}',
+    debounceTimer: null,
+
+    onInput() {
+        clearTimeout(this.debounceTimer);
+        const q = this.query.trim();
+        this.isLoading = true;
+        this.debounceTimer = setTimeout(() => {
+            this.fetchUsers(q);
+        }, 200);
+    },
+
+    onFocus() {
+        if (this.results.length === 0) {
+            this.fetchUsers(this.query.trim());
+        } else {
+            this.isOpen = true;
+        }
+    },
+
+    async fetchUsers(q) {
+        try {
+            const resp = await fetch(`${this.searchUrl}?q=${encodeURIComponent(q)}`, {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            const data = await resp.json();
+            if (data.status === 'ok') {
+                this.results = data.users || [];
+                this.isOpen = true;
+                this.activeIndex = -1;
+            }
+        } catch (e) {
+            console.error('Member search failed:', e);
+        } finally {
+            this.isLoading = false;
+        }
+    },
+
+    selectUser(u) {
+        this.selectedId = u.id;
+        this.selectedName = u.full_name;
+        this.selectedContributorId = u.contributor_id;
+        this.selectedRole = u.role;
+        this.selectedInitials = u.initials || (u.full_name || u.email).slice(0, 1).toUpperCase();
+        this.selectedAvatar = (u.avatar && !u.avatar.startsWith('preset:')) ? u.avatar : '';
+        this.selectedPreset = (u.avatar_preset || (u.avatar && u.avatar.startsWith('preset:') ? u.avatar.split(':')[1] : '')) || '';
+        this.query = '';
+        this.results = [];
+        this.isOpen = false;
+    },
+
+    clearSelection() {
+        this.selectedId = '';
+        this.selectedName = '';
+        this.selectedContributorId = '';
+        this.selectedRole = '';
+        this.selectedInitials = '?';
+        this.selectedAvatar = '';
+        this.selectedPreset = '';
+        this.query = '';
+        this.results = [];
+        this.isOpen = false;
+        this.$nextTick(() => {
+            if (this.$refs.searchInput) {
+                this.$refs.searchInput.focus();
+            }
+        });
+    },
+
+    navigate(dir) {
+        if (!this.isOpen || this.results.length === 0) return;
+        this.activeIndex = (this.activeIndex + dir + this.results.length) % this.results.length;
+    },
+
+    selectActive() {
+        if (this.activeIndex >= 0 && this.activeIndex < this.results.length) {
+            this.selectUser(this.results[this.activeIndex]);
+        }
+    }
+}" class="relative w-full">
+
+    <!-- Actual form input holding chosen UUID -->
+    <input type="hidden" name="{{ field_name|default:'assignee' }}" :value="selectedId">
+
+    <!-- Selected Member State (After Selection) -->
+    <div x-show="selectedId" class="flex items-center justify-between p-2.5 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-[#0c1322] transition">
+        <div class="flex items-center space-x-3 min-w-0">
+            <!-- Profile Avatar with Real Photo or Theme Gradient Initials -->
+            <div class="relative w-8 h-8 rounded-full overflow-hidden shrink-0 ring-1 ring-slate-200 dark:ring-zinc-700 flex items-center justify-center bg-slate-200 dark:bg-zinc-700">
+                <template x-if="selectedAvatar">
+                    <img :src="selectedAvatar" 
+                         :alt="selectedName" 
+                         class="w-full h-full object-cover" 
+                         @error="selectedAvatar = ''">
+                </template>
+                <template x-if="!selectedAvatar">
+                    <div class="w-full h-full text-white font-bold text-xs flex items-center justify-center shadow-xs"
+                         :class="{
+                             'bg-gradient-to-tr from-teal-500 to-emerald-600': selectedPreset === 'teal',
+                             'bg-gradient-to-tr from-purple-600 to-pink-600': selectedPreset === 'purple',
+                             'bg-gradient-to-tr from-emerald-600 to-green-700': selectedPreset === 'emerald',
+                             'bg-gradient-to-tr from-amber-500 to-orange-600': selectedPreset === 'amber',
+                             'bg-gradient-to-tr from-rose-500 to-pink-600': selectedPreset === 'rose',
+                             'bg-gradient-to-tr from-cyan-500 to-blue-600': selectedPreset === 'cyan',
+                             'bg-gradient-to-tr from-blue-600 to-indigo-600': !selectedPreset
+                         }">
+                        <span x-text="selectedInitials"></span>
+                    </div>
+                </template>
+            </div>
+
+            <div class="min-w-0">
+                <div class="flex items-center space-x-2">
+                    <span class="text-xs font-bold text-slate-900 dark:text-zinc-100 truncate" x-text="selectedName"></span>
+                    <span x-show="selectedContributorId" class="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20" x-text="selectedContributorId"></span>
+                </div>
+                <span class="text-[11px] text-slate-500 dark:text-zinc-400" x-text="selectedRole || 'Workspace Member'"></span>
+            </div>
+        </div>
+        <button type="button" 
+                @click="clearSelection()"
+                title="Change or unassign member"
+                class="px-2.5 py-1 text-xs font-semibold rounded-lg text-slate-500 dark:text-zinc-400 hover:bg-slate-200 dark:hover:bg-zinc-800 hover:text-slate-800 dark:hover:text-zinc-200 transition">
+            Change
+        </button>
+    </div>
+
+    <!-- Search Input State (When no user selected) -->
+    <div x-show="!selectedId" class="relative">
+        <div class="relative flex items-center">
+            <input type="text"
+                   x-ref="searchInput"
+                   x-model="query"
+                   @input="onInput()"
+                   @focus="onFocus()"
+                   @click="onFocus()"
+                   @click.outside="isOpen = false"
+                   @keydown.down.prevent="if(!isOpen) { onFocus(); } else { navigate(1); }"
+                   @keydown.up.prevent="navigate(-1)"
+                   @keydown.enter.prevent="selectActive()"
+                   @keydown.escape="isOpen = false"
+                   placeholder="{{ placeholder|default:'Search by Contributor ID, name, or email...' }}"
+                   autocomplete="off"
+                   class="w-full pl-9 pr-8 py-2.5 rounded-xl border border-slate-300 dark:border-zinc-700 bg-white dark:bg-[#0c1322] text-slate-900 dark:text-zinc-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-aether-blue text-xs transition">
+            <svg class="w-4 h-4 text-slate-400 absolute left-3 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+            </svg>
+            <div x-show="isLoading" class="absolute right-3">
+                <svg class="w-3.5 h-3.5 animate-spin text-aether-blue" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+            </div>
+        </div>
+
+        <!-- Live Server Results Dropdown (While Selecting) -->
+        <div x-show="isOpen"
+             x-transition:enter="transition ease-out duration-100"
+             x-transition:enter-start="opacity-0 scale-95"
+             x-transition:enter-end="opacity-100 scale-100"
+             x-transition:leave="transition ease-in duration-75"
+             x-transition:leave-start="opacity-100 scale-100"
+             x-transition:leave-end="opacity-0 scale-95"
+             style="display: none;"
+             class="absolute z-50 left-0 right-0 mt-1.5 max-h-60 overflow-y-auto rounded-xl bg-white dark:bg-[#121826] border border-slate-200 dark:border-zinc-800 shadow-xl py-1">
+
+            <template x-if="results.length > 0">
+                <div>
+                    <template x-for="(u, idx) in results" :key="u.id">
+                        <button type="button"
+                                @click="selectUser(u)"
+                                @mouseenter="activeIndex = idx"
+                                :class="{ 'bg-slate-100 dark:bg-zinc-800/80': activeIndex === idx }"
+                                class="w-full px-3.5 py-2 flex items-center justify-between text-left hover:bg-slate-50 dark:hover:bg-zinc-800/50 transition cursor-pointer">
+                            <div class="flex items-center space-x-2.5 min-w-0">
+                                <!-- User Avatar in Dropdown (Photo or Preset Gradient) -->
+                                <div class="relative w-7 h-7 rounded-full overflow-hidden shrink-0 ring-1 ring-slate-200 dark:ring-zinc-700 flex items-center justify-center bg-slate-200 dark:bg-zinc-700">
+                                    <template x-if="u.avatar && !u.avatar.startsWith('preset:')">
+                                        <img :src="u.avatar" 
+                                             :alt="u.full_name" 
+                                             class="w-full h-full object-cover"
+                                             @error="$el.style.display='none'; if($el.nextElementSibling) $el.nextElementSibling.style.display='flex'">
+                                    </template>
+                                    <div :style="u.avatar && !u.avatar.startsWith('preset:') ? 'display:none;' : ''"
+                                         class="w-full h-full flex items-center justify-center font-bold text-[11px] text-white shrink-0"
+                                         :class="{
+                                             'bg-gradient-to-tr from-teal-500 to-emerald-600': u.avatar === 'preset:teal' || u.avatar_preset === 'teal',
+                                             'bg-gradient-to-tr from-purple-600 to-pink-600': u.avatar === 'preset:purple' || u.avatar_preset === 'purple',
+                                             'bg-gradient-to-tr from-emerald-600 to-green-700': u.avatar === 'preset:emerald' || u.avatar_preset === 'emerald',
+                                             'bg-gradient-to-tr from-amber-500 to-orange-600': u.avatar === 'preset:amber' || u.avatar_preset === 'amber',
+                                             'bg-gradient-to-tr from-rose-500 to-pink-600': u.avatar === 'preset:rose' || u.avatar_preset === 'rose',
+                                             'bg-gradient-to-tr from-cyan-500 to-blue-600': u.avatar === 'preset:cyan' || u.avatar_preset === 'cyan',
+                                             'bg-gradient-to-tr from-blue-600 to-indigo-600': (!u.avatar || u.avatar === '') && !u.avatar_preset
+                                         }">
+                                        <span x-text="u.initials"></span>
+                                    </div>
+                                </div>
+
+                                <div class="min-w-0">
+                                    <div class="flex items-center space-x-1.5">
+                                        <span class="text-xs font-semibold text-slate-900 dark:text-zinc-100 truncate" x-text="u.full_name"></span>
+                                        <span x-show="u.contributor_id" class="px-1.5 py-0.2 rounded text-[10px] font-mono font-bold bg-blue-500/10 text-blue-600 dark:text-blue-400" x-text="u.contributor_id"></span>
+                                    </div>
+                                    <span class="text-[10px] text-slate-400 dark:text-zinc-500 truncate block" x-text="u.email"></span>
+                                </div>
+                            </div>
+                            <span class="text-[10px] font-medium px-2 py-0.5 rounded bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 shrink-0 ml-2" x-text="u.role"></span>
+                        </button>
+                    </template>
+                </div>
+            </template>
+
+            <template x-if="results.length === 0 && !isLoading && query.trim().length > 0">
+                <div class="px-4 py-3 text-center text-xs text-slate-400 dark:text-zinc-500">
+                    No active workspace members match "<span class="font-medium text-slate-600 dark:text-zinc-400" x-text="query"></span>"
+                </div>
+            </template>
+        </div>
+    </div>
+
+</div>

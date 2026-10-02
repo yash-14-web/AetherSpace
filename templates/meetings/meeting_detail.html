@@ -252,8 +252,15 @@
                                 {% for p in participants %}
                                 <tr>
                                     <td class="py-3 px-3">
-                                        <div class="font-bold meet-title">{{ p.user.get_full_name|default:p.user.username }}</div>
-                                        <div class="text-[11px] meet-sub">{{ p.user.email }}</div>
+                                        <div class="flex items-center space-x-2.5">
+                                            <div class="shrink-0">
+                                                {% include 'components/people_hover_card.html' with target_user=p.user workspace_slug=workspace.slug show_name=False avatar_size='w-7 h-7' %}
+                                            </div>
+                                            <div>
+                                                {% include 'components/people_hover_card.html' with target_user=p.user workspace_slug=workspace.slug show_name=True avatar_size='hidden' %}
+                                                <div class="text-[11px] meet-sub">{{ p.user.email }}</div>
+                                            </div>
+                                        </div>
                                     </td>
                                     <td class="py-3 px-3">
                                         <span class="px-2 py-0.5 rounded font-mono text-[10px] uppercase font-bold bg-slate-100 text-slate-700 dark:bg-zinc-800 dark:text-zinc-300">
@@ -346,11 +353,12 @@
 
             <!-- TAB 5: IN-ROOM CHAT (Screen 6) -->
             <div x-show="activeTab === 'chat'" class="space-y-4" style="display: none;">
+                {% if meeting.status == 'LIVE' or meeting.status == 'SCHEDULED' %}
                 <div class="meet-card p-6 sm:p-7 shadow-xl text-center space-y-3">
                     <div class="w-12 h-12 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center mx-auto text-xl">
                         💬
                     </div>
-                    <h3 class="text-sm font-bold meet-title">Live In-Call Chat Transcript</h3>
+                    <h3 class="text-sm font-bold meet-title">Live In-Call Chat</h3>
                     <p class="text-xs meet-sub max-w-md mx-auto">
                         In-call messages and shared links are delivered live inside the active meeting room drawer.
                     </p>
@@ -361,6 +369,41 @@
                         </a>
                     </div>
                 </div>
+                {% else %}
+                <!-- Ended / Cancelled meeting: chat was ephemeral -->
+                <div class="meet-card p-6 sm:p-7 shadow-xl space-y-4">
+                    <div class="text-center py-6">
+                        <div class="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-zinc-800 flex items-center justify-center mx-auto mb-3">
+                            <svg class="w-7 h-7 text-slate-400 dark:text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+                            </svg>
+                        </div>
+                        <h3 class="text-sm font-bold meet-title mb-1">Chat Transcript Not Available</h3>
+                        <p class="text-xs meet-sub max-w-sm mx-auto leading-relaxed">
+                            In-room chat messages during this meeting were delivered in real time and are not persisted after the meeting ends.
+                        </p>
+
+                        {% if meeting.actual_start and meeting.actual_end %}
+                        <div class="mt-4 inline-flex items-center space-x-3 px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 text-xs">
+                            <div class="flex items-center space-x-1.5">
+                                <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                                <span class="meet-sub">Started:</span>
+                                <span class="font-semibold meet-title">{{ meeting.actual_start|date:"g:i A" }}</span>
+                            </div>
+                            <span class="text-slate-300 dark:text-zinc-700">→</span>
+                            <div class="flex items-center space-x-1.5">
+                                <span class="meet-sub">Ended:</span>
+                                <span class="font-semibold meet-title">{{ meeting.actual_end|date:"g:i A" }}</span>
+                            </div>
+                            <span class="text-slate-300 dark:text-zinc-700">•</span>
+                            <span class="font-bold text-blue-600 dark:text-blue-400">{{ meeting.duration_display }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
             </div>
 
         </div>
@@ -379,14 +422,12 @@
                     <!-- Host Item -->
                     <div class="flex items-center justify-between text-xs">
                         <div class="flex items-center space-x-2.5">
-                            <div class="w-8 h-8 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center">
-                                {{ meeting.host.username|slice:":1"|upper }}
+                            <div class="shrink-0">
+                                {% include 'components/people_hover_card.html' with target_user=meeting.host workspace_slug=workspace.slug show_name=False avatar_size='w-8 h-8' %}
                             </div>
                             <div>
-                                <span class="font-bold meet-title block">
-                                    {{ meeting.host.get_full_name|default:meeting.host.username }}
-                                </span>
-                                <span class="text-[10px] meet-sub">{{ meeting.host.email }}</span>
+                                {% include 'components/people_hover_card.html' with target_user=meeting.host workspace_slug=workspace.slug show_name=True avatar_size='hidden' %}
+                                <span class="text-[10px] meet-sub block">{{ meeting.host.email }}</span>
                             </div>
                         </div>
                         <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-400 border border-blue-200 dark:border-blue-900">
@@ -399,14 +440,12 @@
                     {% if inv.user != meeting.host %}
                     <div class="flex items-center justify-between text-xs">
                         <div class="flex items-center space-x-2.5">
-                            <div class="w-8 h-8 rounded-full bg-indigo-600 text-white text-xs font-bold flex items-center justify-center">
-                                {{ inv.user.username|slice:":1"|upper }}
+                            <div class="shrink-0">
+                                {% include 'components/people_hover_card.html' with target_user=inv.user workspace_slug=workspace.slug show_name=False avatar_size='w-8 h-8' %}
                             </div>
                             <div>
-                                <span class="font-bold meet-title block">
-                                    {{ inv.user.get_full_name|default:inv.user.username }}
-                                </span>
-                                <span class="text-[10px] meet-sub">{{ inv.user.email }}</span>
+                                {% include 'components/people_hover_card.html' with target_user=inv.user workspace_slug=workspace.slug show_name=True avatar_size='hidden' %}
+                                <span class="text-[10px] meet-sub block">{{ inv.user.email }}</span>
                             </div>
                         </div>
                         <span class="px-2 py-0.5 rounded-full text-[10px] font-bold 

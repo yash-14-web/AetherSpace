@@ -1,5 +1,5 @@
 {% extends 'chat/base_chat.html' %}
-{% load static meeting_tags %}
+{% load static meeting_tags rich_text %}
 
 {% block chat_content %}
 <div class="flex-1 flex overflow-hidden" 
@@ -18,19 +18,40 @@
         <!-- 1. DM Header matching Panel 3 -->
         <div class="h-14 px-4 sm:px-6 border-b border-slate-200 dark:border-zinc-800 flex items-center justify-between bg-white dark:bg-[#0c1322] shrink-0 z-10">
             <div class="flex items-center space-x-3 min-w-0">
+                <button type="button" 
+                        @click="toggleChatNav()" 
+                        x-show="chatNavCollapsed"
+                        class="hidden lg:flex items-center space-x-1 px-2 py-1 text-xs font-semibold rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 hover:bg-blue-100 transition mr-1 shrink-0" 
+                        title="Show Channels Sidebar">
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                    </svg>
+                    <span>Channels</span>
+                </button>
                 <div class="relative shrink-0">
-                    <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-purple-600 to-indigo-600 text-white font-bold text-xs flex items-center justify-center">
-                        {{ other_user.first_name|slice:":1"|default:other_user.email|slice:":1"|upper }}
-                    </div>
-                    <span class="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-obsidian-950"></span>
+                    {% include 'components/people_hover_card.html' with target_user=other_user workspace_slug=workspace.slug show_name=False avatar_size='w-8 h-8' %}
+                    <span class="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full ring-2 ring-white dark:ring-obsidian-950 pointer-events-none
+                        {% if other_user.availability_status == 'available' %}bg-emerald-500
+                        {% elif other_user.availability_status == 'busy' %}bg-rose-500
+                        {% elif other_user.availability_status == 'dnd' %}bg-red-600
+                        {% elif other_user.availability_status == 'away' %}bg-amber-400
+                        {% elif other_user.availability_status == 'ooo' %}bg-slate-400
+                        {% elif other_user.availability_status == 'offline' %}bg-zinc-500
+                        {% else %}bg-zinc-500{% endif %}"
+                        title="{{ other_user.availability_status|default:'offline'|capfirst }}"></span>
                 </div>
                 <div class="min-w-0">
                     <div class="flex items-center space-x-2">
-                        <h2 class="text-sm font-bold text-slate-900 dark:text-zinc-100 truncate">
-                            {{ other_user.full_name|default:other_user.email }}
-                        </h2>
-                        <span class="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
-                            Active
+                        {% include 'components/people_hover_card.html' with target_user=other_user workspace_slug=workspace.slug show_name=True avatar_size='hidden' %}
+                        <span class="text-[10px] font-semibold px-1.5 py-0.5 rounded border
+                            {% if other_user.availability_status == 'available' %}bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800
+                            {% elif other_user.availability_status == 'busy' %}bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-800
+                            {% elif other_user.availability_status == 'dnd' %}bg-red-50 dark:bg-red-950/60 text-red-600 dark:text-red-400 border-red-200 dark:border-red-800
+                            {% elif other_user.availability_status == 'away' %}bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800
+                            {% elif other_user.availability_status == 'ooo' %}bg-slate-50 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 border-slate-200 dark:border-zinc-700
+                            {% elif other_user.availability_status == 'offline' %}bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700
+                            {% else %}bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700{% endif %}">
+                            {{ other_user.availability_status|default:'offline'|capfirst }}
                         </span>
                     </div>
                     <p class="text-xs text-slate-500 dark:text-zinc-400 truncate">
@@ -85,209 +106,485 @@
         </div>
 
         <!-- 2. DM Message Stream -->
-        <div class="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4" id="chatDmStream" x-ref="messageBox">
+        <div class="flex-1 overflow-y-auto p-4 sm:p-6" id="chatDmStream" x-ref="messageBox">
             
             <!-- DM Hero Card -->
-            <div class="p-6 rounded-2xl bg-slate-50 dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800 text-center mb-6">
-                <div class="w-12 h-12 rounded-full bg-gradient-to-tr from-purple-600 to-indigo-600 text-white font-bold text-base flex items-center justify-center mx-auto mb-2">
-                    {{ other_user.first_name|slice:":1"|default:other_user.email|slice:":1"|upper }}
+            <div class="p-3.5 sm:p-4 rounded-xl bg-slate-50/70 dark:bg-zinc-900/40 border border-slate-200/80 dark:border-zinc-800/80 text-center mb-3">
+                <div class="flex justify-center mb-1.5">
+                    {% include 'components/people_hover_card.html' with target_user=other_user workspace_slug=workspace.slug show_name=False avatar_size='w-10 h-10' %}
                 </div>
-                <h3 class="text-base font-bold text-slate-900 dark:text-zinc-100">
-                    {{ other_user.full_name|default:other_user.email }}
+                <h3 class="text-xs font-bold text-slate-900 dark:text-zinc-100">
+                    {% include 'components/people_hover_card.html' with target_user=other_user workspace_slug=workspace.slug show_name=True avatar_size='hidden' %}
                 </h3>
-                <p class="text-xs text-slate-500 dark:text-zinc-400 max-w-sm mx-auto mt-1">
+                <p class="text-[11px] text-slate-500 dark:text-zinc-400 max-w-sm mx-auto mt-0.5">
                     This is the start of your direct conversation. Messages between you and {{ other_user.first_name|default:other_user.email }} are private to this workspace.
                 </p>
             </div>
 
             <!-- Existing Server-Rendered Messages -->
             {% for msg in chat_messages %}
-                <div class="flex items-start space-x-3 group relative p-2 -mx-2 rounded-xl hover:bg-slate-50 dark:hover:bg-zinc-800/40 transition-colors" id="msg-{{ msg.id }}">
-                    <!-- Avatar -->
-                    <div class="w-8 h-8 rounded-full {% if msg.sender.id == user.id %}bg-blue-600 text-white{% else %}bg-purple-600 text-white{% endif %} font-bold text-xs flex items-center justify-center shrink-0">
-                        {{ msg.sender.first_name|slice:":1"|default:msg.sender.email|slice:":1"|upper }}
-                    </div>
+                {% if msg.sender.id == user.id or msg.sender == user %}
+                    <!-- Outgoing Message (Sent by Current User -> Right Side) -->
+                    <div class="flex justify-end items-end space-x-1.5 space-x-reverse mb-2 group relative" id="msg-{{ msg.id }}">
+                        <!-- Message Floating Action Menu on the Left of Bubble -->
+                        <div class="hidden group-hover:flex items-center space-x-0.5 bg-white/95 dark:bg-[#111a2e]/95 backdrop-blur-sm border border-slate-200 dark:border-zinc-700 rounded-lg p-0.5 shadow-md z-10 self-center mr-1" x-data="{ showMoreEmojis: false }">
+                            <button type="button" @click="toggleReaction('{{ msg.id }}', '😊')" class="p-1 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-xs transition-transform active:scale-125" title="React 😊">😊</button>
+                            <button type="button" @click="toggleReaction('{{ msg.id }}', '👍')" class="p-1 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-xs transition-transform active:scale-125" title="React 👍">👍</button>
+                            <button type="button" @click="toggleReaction('{{ msg.id }}', '❤️')" class="p-1 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-xs transition-transform active:scale-125" title="React ❤️">❤️</button>
+                            <button type="button" @click="toggleReaction('{{ msg.id }}', '😂')" class="p-1 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-xs transition-transform active:scale-125" title="React 😂">😂</button>
 
-                    <!-- Body -->
-                    <div class="flex-1 min-w-0">
-                        <div class="flex items-baseline space-x-2">
-                            <span class="text-xs font-bold text-slate-900 dark:text-zinc-100">
-                                {{ msg.sender.full_name|default:msg.sender.email }}
-                            </span>
-                            <span class="text-[10px] text-slate-400 dark:text-zinc-500">
-                                {{ msg.created_at|date:"h:i A" }}
-                            </span>
-                            {% if msg.is_pinned %}
-                                <span class="text-[10px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 px-1.5 py-0.2 rounded border border-amber-200 dark:border-amber-900/60 flex items-center space-x-1">
-                                    <span>📌 Pinned</span>
-                                </span>
-                            {% endif %}
+                            <div class="relative">
+                                <button type="button" @click="showMoreEmojis = !showMoreEmojis" class="p-1 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-xs text-slate-500 hover:text-slate-700 dark:hover:text-zinc-200 font-bold" title="More Reactions">➕</button>
+                                <div x-show="showMoreEmojis" @click.outside="showMoreEmojis = false" style="display: none;" class="absolute right-0 bottom-full mb-1 p-1.5 bg-white dark:bg-[#18181b] border border-slate-200 dark:border-zinc-700 rounded-xl shadow-xl flex items-center gap-1 z-30">
+                                    <button type="button" @click="toggleReaction('{{ msg.id }}', '🚀'); showMoreEmojis = false" class="p-1 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-xs active:scale-125" title="🚀">🚀</button>
+                                    <button type="button" @click="toggleReaction('{{ msg.id }}', '🎉'); showMoreEmojis = false" class="p-1 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-xs active:scale-125" title="🎉">🎉</button>
+                                    <button type="button" @click="toggleReaction('{{ msg.id }}', '🔥'); showMoreEmojis = false" class="p-1 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-xs active:scale-125" title="🔥">🔥</button>
+                                    <button type="button" @click="toggleReaction('{{ msg.id }}', '👀'); showMoreEmojis = false" class="p-1 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-xs active:scale-125" title="👀">👀</button>
+                                    <button type="button" @click="toggleReaction('{{ msg.id }}', '👏'); showMoreEmojis = false" class="p-1 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-xs active:scale-125" title="👏">👏</button>
+                                    <button type="button" @click="toggleReaction('{{ msg.id }}', '✅'); showMoreEmojis = false" class="p-1 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-xs active:scale-125" title="✅">✅</button>
+                                </div>
+                            </div>
+
+                            <span class="h-3 w-px bg-slate-200 dark:bg-zinc-700 mx-0.5"></span>
+
+                            <button type="button" @click="setReply('{{ msg.id }}', 'You', '{{ msg.content|truncatechars:80|escapejs }}')" class="flex items-center space-x-1 px-1.5 py-0.5 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-xs text-slate-600 dark:text-zinc-300 transition" title="Reply to message">
+                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/>
+                                </svg>
+                            </button>
+
+                            <button type="button" @click="togglePin('{{ msg.id }}')" class="p-1 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-xs text-slate-500" title="Pin / Unpin">📌</button>
                         </div>
 
-                        <!-- Content text or Call Card (Google Chat style) -->
-                        {% if msg.content|is_call_invite %}
-                            {% with call_info=msg.content|parse_call_invite %}
-                            {% if call_info.is_live %}
-                            <div class="mt-2 p-3.5 rounded-2xl border-2 border-blue-500/30 bg-blue-50/40 dark:bg-blue-950/20 max-w-sm flex items-center justify-between gap-3 shadow-xs">
-                                <div class="flex items-center space-x-3">
-                                    <div class="w-10 h-10 rounded-xl {% if call_info.is_video %}bg-blue-600 text-white{% else %}bg-emerald-600 text-white{% endif %} flex items-center justify-center shrink-0 shadow-md">
-                                        {% if call_info.is_video %}
-                                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
-                                        </svg>
-                                        {% else %}
-                                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/>
-                                        </svg>
-                                        {% endif %}
+                        <!-- Bubble Wrapper -->
+                        <div class="max-w-[80%] sm:max-w-md lg:max-w-lg flex flex-col items-end">
+                            <div class="flex items-center space-x-1 mb-0.5 px-1 text-[10px] text-slate-400 dark:text-zinc-500">
+                                {% if msg.is_pinned %}
+                                    <span class="text-[9px] font-semibold text-amber-500 bg-amber-500/10 px-1.5 py-0.2 rounded border border-amber-500/20">📌 Pinned</span>
+                                {% endif %}
+                                <span>{{ msg.created_at|date:"h:i A" }}</span>
+                                <span>&bull;</span>
+                                <span class="font-medium text-slate-500 dark:text-zinc-400">You</span>
+                            </div>
+
+                            <!-- Content or Call Card -->
+                            {% if msg.content|is_call_invite %}
+                                {% with call_info=msg.content|parse_call_invite %}
+                                    {% if call_info.is_live %}
+                                    <div class="p-3.5 rounded-2xl border-2 border-blue-500/30 bg-blue-50/40 dark:bg-blue-950/20 max-w-sm flex items-center justify-between gap-3 shadow-xs">
+                                        <div class="flex items-center space-x-3">
+                                            <div class="w-10 h-10 rounded-xl {% if call_info.is_video %}bg-blue-600 text-white{% else %}bg-emerald-600 text-white{% endif %} flex items-center justify-center shrink-0 shadow-md">
+                                                {% if call_info.is_video %}
+                                                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                                                {% else %}
+                                                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
+                                                {% endif %}
+                                            </div>
+                                            <div>
+                                                <div class="text-xs font-bold text-slate-900 dark:text-zinc-100">{{ call_info.title }}</div>
+                                                <div class="text-[11px] font-mono text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1.5">
+                                                    <span class="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                                                    <span>Live Now &bull; {{ call_info.code }}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <a href="{% url 'meetings:meeting_room' slug=workspace.slug meeting_code=call_info.code %}" 
+                                           class="px-3.5 py-1.5 text-xs font-bold rounded-xl {% if call_info.is_video %}bg-blue-600 hover:bg-blue-700{% else %}bg-emerald-600 hover:bg-emerald-700{% endif %} text-white shadow-sm transition flex items-center space-x-1">
+                                            <span>Join Call</span>
+                                        </a>
                                     </div>
-                                    <div>
-                                        <div class="text-xs font-bold text-slate-900 dark:text-zinc-100">{{ call_info.title }}</div>
-                                        <div class="text-[11px] font-mono text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1.5">
-                                            <span class="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                                            <span>Live Now &bull; {{ call_info.code }}</span>
+                                    {% else %}
+                                    <div class="p-3.5 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-slate-50/70 dark:bg-zinc-900/50 max-w-sm flex items-center justify-between gap-3 shadow-xs">
+                                        <div class="flex items-center space-x-3">
+                                            <div class="w-10 h-10 rounded-xl bg-slate-200 text-slate-500 dark:bg-zinc-800 dark:text-zinc-400 flex items-center justify-center shrink-0">
+                                                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2M5 3a2 2 0 00-2 2v1c0 8.284 6.716 15 15 15h1a2 2 0 002-2v-3.28a1 1 0 00-.684-.948l-4.493-1.498a1 1 0 00-1.21.502l-1.13 2.257a11.042 11.042 0 01-5.516-5.517l2.257-1.128a1 1 0 00.502-1.21L9.228 3.683A1 1 0 008.279 3H5z"/></svg>
+                                            </div>
+                                            <div>
+                                                <div class="text-xs font-bold text-slate-700 dark:text-zinc-300">{{ call_info.title }}</div>
+                                                <div class="text-[11px] font-mono text-slate-400 dark:text-zinc-500">{{ call_info.code }} &bull; Call ended</div>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-center space-x-1.5">
+                                            <span class="px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-slate-200/80 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400">Ended</span>
+                                            {% if call_info.meeting %}
+                                            <a href="{% url 'meetings:meeting_detail' slug=workspace.slug meeting_code=call_info.code %}" class="px-2.5 py-1 text-[11px] font-medium rounded-lg text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-zinc-800 transition">Logs</a>
+                                            {% endif %}
                                         </div>
                                     </div>
-                                </div>
-                                <a href="{% url 'meetings:meeting_room' slug=workspace.slug meeting_code=call_info.code %}" 
-                                   class="px-3.5 py-1.5 text-xs font-bold rounded-xl {% if call_info.is_video %}bg-blue-600 hover:bg-blue-700{% else %}bg-emerald-600 hover:bg-emerald-700{% endif %} text-white shadow-sm transition flex items-center space-x-1">
-                                    <span>Join Call</span>
-                                </a>
-                            </div>
+                                    {% endif %}
+                                {% endwith %}
                             {% else %}
-                            <div class="mt-2 p-3.5 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-slate-50/70 dark:bg-zinc-900/50 max-w-sm flex items-center justify-between gap-3 shadow-xs">
-                                <div class="flex items-center space-x-3">
-                                    <div class="w-10 h-10 rounded-xl bg-slate-200 text-slate-500 dark:bg-zinc-800 dark:text-zinc-400 flex items-center justify-center shrink-0">
-                                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2M5 3a2 2 0 00-2 2v1c0 8.284 6.716 15 15 15h1a2 2 0 002-2v-3.28a1 1 0 00-.684-.948l-4.493-1.498a1 1 0 00-1.21.502l-1.13 2.257a11.042 11.042 0 01-5.516-5.517l2.257-1.128a1 1 0 00.502-1.21L9.228 3.683A1 1 0 008.279 3H5z"/>
-                                        </svg>
-                                    </div>
-                                    <div>
-                                        <div class="text-xs font-bold text-slate-700 dark:text-zinc-300">{{ call_info.title }}</div>
-                                        <div class="text-[11px] font-mono text-slate-400 dark:text-zinc-500">{{ call_info.code }} &bull; Call ended</div>
+                                <div class="chat-bubble rounded-2xl rounded-tr-xs px-3 py-1.5 bg-blue-600 text-white shadow-xs inline-block max-w-full text-left">
+                                    <div class="text-xs sm:text-[13px] text-white break-words leading-relaxed font-normal [&_p]:m-0 [&_p]:inline [&_p+p]:block [&_p+p]:mt-1">
+                                        {{ msg.content|render_rich_text }}
                                     </div>
                                 </div>
-                                <div class="flex items-center space-x-1.5">
-                                    <span class="px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-slate-200/80 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400">
-                                        Ended
-                                    </span>
-                                    {% if call_info.meeting %}
-                                    <a href="{% url 'meetings:meeting_detail' slug=workspace.slug meeting_code=call_info.code %}" 
-                                       class="px-2.5 py-1 text-[11px] font-medium rounded-lg text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-zinc-800 transition">
-                                        Logs
-                                    </a>
-                                    {% endif %}
-                                </div>
-                            </div>
                             {% endif %}
-                            {% endwith %}
-                        {% else %}
-                            <div class="text-xs text-slate-800 dark:text-zinc-200 mt-1 whitespace-pre-line break-words leading-relaxed font-normal">
-                                {{ msg.content }}
-                            </div>
-                        {% endif %}
 
-                        <!-- Attachments -->
-                        {% if msg.attachments.all %}
-                            <div class="mt-2 flex flex-wrap gap-2">
-                                {% for att in msg.attachments.all %}
-                                    {% if att.is_image %}
-                                        <a href="{{ att.file.url }}" target="_blank" class="block max-w-xs rounded-xl overflow-hidden border border-slate-200 dark:border-zinc-700 shadow-sm hover:opacity-90">
-                                            <img src="{{ att.file.url }}" alt="{{ att.file_name }}" class="max-h-48 w-auto object-cover">
-                                        </a>
-                                    {% else %}
-                                        <a href="{{ att.file.url }}" target="_blank" download 
-                                           class="flex items-center space-x-2 px-3 py-2 rounded-xl bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-xs font-semibold text-slate-800 dark:text-zinc-200 hover:border-blue-500 transition-colors">
-                                            <span>📄</span>
-                                            <span class="truncate max-w-[150px]">{{ att.file_name }}</span>
-                                            <span class="text-[10px] text-slate-400">({{ att.formatted_size }})</span>
-                                        </a>
-                                    {% endif %}
+                            <!-- Attachments -->
+                            {% if msg.attachments.all %}
+                                <div class="mt-2 flex flex-wrap gap-2 justify-end">
+                                    {% for att in msg.attachments.all %}
+                                        {% if att.is_image %}
+                                            <a href="{{ att.file.url }}" target="_blank" class="block max-w-xs rounded-xl overflow-hidden border border-blue-500/40 shadow-sm hover:opacity-90">
+                                                <img src="{{ att.file.url }}" alt="{{ att.file_name }}" class="max-h-48 w-auto object-cover">
+                                            </a>
+                                        {% else %}
+                                            <a href="{{ att.file.url }}" target="_blank" download 
+                                               class="flex items-center space-x-2 px-3 py-2 rounded-xl bg-blue-700/80 text-white text-xs font-semibold hover:bg-blue-700 transition-colors">
+                                                <span>📄</span>
+                                                <span class="truncate max-w-[150px]">{{ att.file_name }}</span>
+                                                <span class="text-[10px] text-blue-200">({{ att.formatted_size }})</span>
+                                            </a>
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+
+                            <!-- Reactions -->
+                            <div class="flex items-center flex-wrap gap-1 mt-1 justify-end" id="reactions-{{ msg.id }}">
+                                {% for r in msg.grouped_reactions %}
+                                    <button type="button" @click="toggleReaction('{{ msg.id }}', '{{ r.emoji }}')"
+                                            id="reaction-btn-{{ msg.id }}-{{ r.emoji }}"
+                                            class="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-xs transition-all active:scale-95 {% if request.user.id in r.user_ids %}bg-blue-100 dark:bg-blue-900/60 border border-blue-300 dark:border-blue-700 text-blue-800 dark:text-blue-200 font-semibold ring-1 ring-blue-400/30{% else %}bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 dark:hover:bg-zinc-700 border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-300{% endif %}">
+                                        <span>{{ r.emoji }}</span>
+                                        {% if r.count > 1 %}
+                                            <span class="text-[10px] font-bold ml-1">{{ r.count }}</span>
+                                        {% endif %}
+                                    </button>
                                 {% endfor %}
                             </div>
-                        {% endif %}
+                        </div>
 
-                        <!-- Emoji Reactions Badges -->
-                        <div class="flex items-center flex-wrap gap-1.5 mt-2" id="reactions-{{ msg.id }}">
-                            {% for r in msg.reactions.all %}
-                                <button type="button" @click="toggleReaction('{{ msg.id }}', '{{ r.emoji }}')"
-                                        id="reaction-btn-{{ msg.id }}-{{ r.emoji }}"
-                                        class="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-xs bg-slate-100 dark:bg-zinc-800 hover:bg-blue-50 dark:hover:bg-blue-950/60 border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 transition-transform active:scale-95">
-                                    <span>{{ r.emoji }}</span>
-                                </button>
-                            {% endfor %}
+                        <!-- Sender (You) Avatar on Right -->
+                        <div class="shrink-0 mb-0.5">
+                            {% include 'components/avatar.html' with user=user size='w-7 h-7' text_size='text-[10px]' %}
                         </div>
                     </div>
+                {% else %}
+                    <!-- Incoming Message (Received from Other User -> Left Side) -->
+                    <div class="flex justify-start items-end space-x-1.5 mb-2 group relative" id="msg-{{ msg.id }}">
+                        <!-- Sender Avatar on Left with People Hover Card -->
+                        <div class="shrink-0 mb-0.5">
+                            {% include 'components/people_hover_card.html' with target_user=msg.sender workspace_slug=workspace.slug show_name=False avatar_size='w-7 h-7' %}
+                        </div>
 
-                    <!-- Message Floating Action Menu -->
-                    <div class="absolute right-2 top-2 hidden group-hover:flex items-center space-x-1 bg-white dark:bg-obsidian-950 border border-slate-200 dark:border-zinc-700 rounded-lg p-0.5 shadow-sm">
-                        <button type="button" @click="toggleReaction('{{ msg.id }}', '👍')" class="p-1 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-xs transition-transform active:scale-125" title="React 👍">👍</button>
-                        <button type="button" @click="toggleReaction('{{ msg.id }}', '❤️')" class="p-1 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-xs transition-transform active:scale-125" title="React ❤️">❤️</button>
-                        <button type="button" @click="togglePin('{{ msg.id }}')" class="p-1 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-xs text-slate-500" title="Pin / Unpin">📌</button>
+                        <!-- Bubble Wrapper -->
+                        <div class="max-w-[80%] sm:max-w-md lg:max-w-lg flex flex-col items-start">
+                            <div class="flex items-center space-x-1 mb-0.5 px-1 text-[10px] text-slate-500 dark:text-zinc-400">
+                                {% include 'components/people_hover_card.html' with target_user=msg.sender workspace_slug=workspace.slug show_name=True avatar_size='hidden' %}
+                                <span>&bull;</span>
+                                <span>{{ msg.created_at|date:"h:i A" }}</span>
+                                {% if msg.is_pinned %}
+                                    <span class="text-[9px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 px-1.5 py-0.2 rounded border border-amber-200 dark:border-amber-900/60 flex items-center space-x-1">
+                                        <span>📌 Pinned</span>
+                                    </span>
+                                {% endif %}
+                            </div>
+
+                            <!-- Content or Call Card -->
+                            {% if msg.content|is_call_invite %}
+                                {% with call_info=msg.content|parse_call_invite %}
+                                    {% if call_info.is_live %}
+                                    <div class="p-3.5 rounded-2xl border-2 border-blue-500/30 bg-blue-50/40 dark:bg-blue-950/20 max-w-sm flex items-center justify-between gap-3 shadow-xs">
+                                        <div class="flex items-center space-x-3">
+                                            <div class="w-10 h-10 rounded-xl {% if call_info.is_video %}bg-blue-600 text-white{% else %}bg-emerald-600 text-white{% endif %} flex items-center justify-center shrink-0 shadow-md">
+                                                {% if call_info.is_video %}
+                                                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                                                {% else %}
+                                                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
+                                                {% endif %}
+                                            </div>
+                                            <div>
+                                                <div class="text-xs font-bold text-slate-900 dark:text-zinc-100">{{ call_info.title }}</div>
+                                                <div class="text-[11px] font-mono text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1.5">
+                                                    <span class="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                                                    <span>Live Now &bull; {{ call_info.code }}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <a href="{% url 'meetings:meeting_room' slug=workspace.slug meeting_code=call_info.code %}" 
+                                           class="px-3.5 py-1.5 text-xs font-bold rounded-xl {% if call_info.is_video %}bg-blue-600 hover:bg-blue-700{% else %}bg-emerald-600 hover:bg-emerald-700{% endif %} text-white shadow-sm transition flex items-center space-x-1">
+                                            <span>Join Call</span>
+                                        </a>
+                                    </div>
+                                    {% else %}
+                                    <div class="p-3.5 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-slate-50/70 dark:bg-zinc-900/50 max-w-sm flex items-center justify-between gap-3 shadow-xs">
+                                        <div class="flex items-center space-x-3">
+                                            <div class="w-10 h-10 rounded-xl bg-slate-200 text-slate-500 dark:bg-zinc-800 dark:text-zinc-400 flex items-center justify-center shrink-0">
+                                                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2M5 3a2 2 0 00-2 2v1c0 8.284 6.716 15 15 15h1a2 2 0 002-2v-3.28a1 1 0 00-.684-.948l-4.493-1.498a1 1 0 00-1.21.502l-1.13 2.257a11.042 11.042 0 01-5.516-5.517l2.257-1.128a1 1 0 00.502-1.21L9.228 3.683A1 1 0 008.279 3H5z"/></svg>
+                                            </div>
+                                            <div>
+                                                <div class="text-xs font-bold text-slate-700 dark:text-zinc-300">{{ call_info.title }}</div>
+                                                <div class="text-[11px] font-mono text-slate-400 dark:text-zinc-500">{{ call_info.code }} &bull; Call ended</div>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-center space-x-1.5">
+                                            <span class="px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-slate-200/80 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400">Ended</span>
+                                            {% if call_info.meeting %}
+                                            <a href="{% url 'meetings:meeting_detail' slug=workspace.slug meeting_code=call_info.code %}" class="px-2.5 py-1 text-[11px] font-medium rounded-lg text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-zinc-800 transition">Logs</a>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                {% endwith %}
+                            {% else %}
+                                <div class="chat-bubble rounded-2xl rounded-tl-xs px-3 py-1.5 bg-slate-100 dark:bg-zinc-800 text-slate-800 dark:text-zinc-100 border border-slate-200/70 dark:border-zinc-700/60 shadow-xs inline-block max-w-full text-left">
+                                    <div class="text-xs sm:text-[13px] text-slate-800 dark:text-zinc-200 break-words leading-relaxed font-normal [&_p]:m-0 [&_p]:inline [&_p+p]:block [&_p+p]:mt-1">
+                                        {{ msg.content|render_rich_text }}
+                                    </div>
+                                </div>
+                            {% endif %}
+
+
+                            <!-- Attachments -->
+                            {% if msg.attachments.all %}
+                                <div class="mt-2 flex flex-wrap gap-2 justify-start">
+                                    {% for att in msg.attachments.all %}
+                                        {% if att.is_image %}
+                                            <a href="{{ att.file.url }}" target="_blank" class="block max-w-xs rounded-xl overflow-hidden border border-slate-200 dark:border-zinc-700 shadow-sm hover:opacity-90">
+                                                <img src="{{ att.file.url }}" alt="{{ att.file_name }}" class="max-h-48 w-auto object-cover">
+                                            </a>
+                                        {% else %}
+                                            <a href="{{ att.file.url }}" target="_blank" download 
+                                               class="flex items-center space-x-2 px-3 py-2 rounded-xl bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-xs font-semibold text-slate-800 dark:text-zinc-200 hover:border-blue-500 transition-colors">
+                                                <span>📄</span>
+                                                <span class="truncate max-w-[150px]">{{ att.file_name }}</span>
+                                                <span class="text-[10px] text-slate-400">({{ att.formatted_size }})</span>
+                                            </a>
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+
+                            <!-- Reactions -->
+                            <div class="flex items-center flex-wrap gap-1 mt-1 justify-start" id="reactions-{{ msg.id }}">
+                                {% for r in msg.grouped_reactions %}
+                                    <button type="button" @click="toggleReaction('{{ msg.id }}', '{{ r.emoji }}')"
+                                            id="reaction-btn-{{ msg.id }}-{{ r.emoji }}"
+                                            class="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-xs transition-all active:scale-95 {% if request.user.id in r.user_ids %}bg-blue-50/90 dark:bg-blue-950/60 border border-blue-400 dark:border-blue-600 text-blue-700 dark:text-blue-300 font-semibold ring-1 ring-blue-400/30{% else %}bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 dark:hover:bg-zinc-700 border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-300{% endif %}">
+                                        <span>{{ r.emoji }}</span>
+                                        {% if r.count > 1 %}
+                                            <span class="text-[10px] font-bold ml-1">{{ r.count }}</span>
+                                        {% endif %}
+                                    </button>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <!-- Message Floating Action Menu on the Right of Bubble -->
+                        <div class="hidden group-hover:flex items-center space-x-0.5 bg-white/95 dark:bg-[#111a2e]/95 backdrop-blur-sm border border-slate-200 dark:border-zinc-700 rounded-lg p-0.5 shadow-md z-10 self-center ml-1" x-data="{ showMoreEmojis: false }">
+                            <button type="button" @click="toggleReaction('{{ msg.id }}', '😊')" class="p-1 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-xs transition-transform active:scale-125" title="React 😊">😊</button>
+                            <button type="button" @click="toggleReaction('{{ msg.id }}', '👍')" class="p-1 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-xs transition-transform active:scale-125" title="React 👍">👍</button>
+                            <button type="button" @click="toggleReaction('{{ msg.id }}', '❤️')" class="p-1 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-xs transition-transform active:scale-125" title="React ❤️">❤️</button>
+                            <button type="button" @click="toggleReaction('{{ msg.id }}', '😂')" class="p-1 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-xs transition-transform active:scale-125" title="React 😂">😂</button>
+
+                            <div class="relative">
+                                <button type="button" @click="showMoreEmojis = !showMoreEmojis" class="p-1 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-xs text-slate-500 hover:text-slate-700 dark:hover:text-zinc-200 font-bold" title="More Reactions">➕</button>
+                                <div x-show="showMoreEmojis" @click.outside="showMoreEmojis = false" style="display: none;" class="absolute left-0 bottom-full mb-1 p-1.5 bg-white dark:bg-[#18181b] border border-slate-200 dark:border-zinc-700 rounded-xl shadow-xl flex items-center gap-1 z-30">
+                                    <button type="button" @click="toggleReaction('{{ msg.id }}', '🚀'); showMoreEmojis = false" class="p-1 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-xs active:scale-125" title="🚀">🚀</button>
+                                    <button type="button" @click="toggleReaction('{{ msg.id }}', '🎉'); showMoreEmojis = false" class="p-1 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-xs active:scale-125" title="🎉">🎉</button>
+                                    <button type="button" @click="toggleReaction('{{ msg.id }}', '🔥'); showMoreEmojis = false" class="p-1 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-xs active:scale-125" title="🔥">🔥</button>
+                                    <button type="button" @click="toggleReaction('{{ msg.id }}', '👀'); showMoreEmojis = false" class="p-1 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-xs active:scale-125" title="👀">👀</button>
+                                    <button type="button" @click="toggleReaction('{{ msg.id }}', '👏'); showMoreEmojis = false" class="p-1 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-xs active:scale-125" title="👏">👏</button>
+                                    <button type="button" @click="toggleReaction('{{ msg.id }}', '✅'); showMoreEmojis = false" class="p-1 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-xs active:scale-125" title="✅">✅</button>
+                                </div>
+                            </div>
+
+                            <span class="h-3 w-px bg-slate-200 dark:bg-zinc-700 mx-0.5"></span>
+
+                            <button type="button" @click="setReply('{{ msg.id }}', '{{ msg.sender.full_name|default:msg.sender.email|escapejs }}', '{{ msg.content|truncatechars:80|escapejs }}')" class="flex items-center space-x-1 px-1.5 py-0.5 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-xs text-slate-600 dark:text-zinc-300 transition" title="Reply to message">
+                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/>
+                                </svg>
+                            </button>
+
+                            <button type="button" @click="togglePin('{{ msg.id }}')" class="p-1 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-xs text-slate-500" title="Pin / Unpin">📌</button>
+                        </div>
                     </div>
-                </div>
+                {% endif %}
             {% endfor %}
 
             <!-- Dynamic Live WebSocket Message Container -->
             <template x-for="item in liveMessages" :key="item.id">
-                <div class="flex items-start space-x-3 group relative p-2 -mx-2 rounded-xl hover:bg-slate-50 dark:hover:bg-zinc-800/40 transition-colors" :id="'msg-' + item.id">
-                    <div class="w-8 h-8 rounded-full bg-blue-600 text-white font-bold text-xs flex items-center justify-center shrink-0"
-                         x-text="item.sender_initial">
-                    </div>
-                    <div class="flex-1 min-w-0">
-                        <div class="flex items-baseline space-x-2">
-                            <span class="text-xs font-bold text-slate-900 dark:text-zinc-100" x-text="item.sender_name"></span>
-                            <span class="text-[10px] text-slate-400 dark:text-zinc-500" x-text="item.created_at"></span>
-                            <span x-show="item.is_optimistic" class="text-[10px] text-blue-500 italic">Sending...</span>
-                            <span x-show="item.is_pinned" class="text-[10px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 px-1.5 py-0.2 rounded border border-amber-200 dark:border-amber-900/60 flex items-center space-x-1">
-                                <span>📌 Pinned</span>
-                            </span>
-                        <!-- Live content or Live Call Card -->
-                        <template x-if="item.content && item.content.startsWith('CALL_INVITE:')">
-                            <div class="mt-2 p-3.5 rounded-2xl border-2 border-blue-500/30 bg-blue-50/40 dark:bg-blue-950/20 max-w-sm flex items-center justify-between gap-3 shadow-xs">
-                                <div class="flex items-center space-x-3">
-                                    <div class="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-md">
-                                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
-                                        </svg>
-                                    </div>
-                                    <div>
-                                        <div class="text-xs font-bold text-slate-900 dark:text-zinc-100">Live Call</div>
-                                        <div class="text-[11px] font-mono text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
-                                            <span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                                            <span x-text="extractCallCode(item.content)"></span>
-                                        </div>
-                                    </div>
+                <div>
+                    <!-- Outgoing Live Message (from Current User) -->
+                    <template x-if="item.is_self || String(item.sender_id) === String(config.currentUserId)">
+                        <div class="flex justify-end items-end space-x-1.5 space-x-reverse mb-2 group relative" :id="'msg-' + item.id">
+                            <div class="max-w-[80%] sm:max-w-md lg:max-w-lg flex flex-col items-end">
+                                <div class="flex items-center space-x-1 mb-0.5 px-1 text-[10px] text-slate-400 dark:text-zinc-500">
+                                    <span x-show="item.is_optimistic" class="text-blue-500 italic">Sending...</span>
+                                    <span x-text="item.created_at"></span>
+                                    <span>&bull;</span>
+                                    <span class="font-medium text-slate-500 dark:text-zinc-400">You</span>
+                                    <span x-show="item.is_pinned" class="text-[9px] font-semibold text-amber-500 bg-amber-500/10 px-1.5 py-0.2 rounded border border-amber-500/20 flex items-center space-x-1">
+                                        <span>📌 Pinned</span>
+                                    </span>
                                 </div>
-                                <a :href="'/meetings/w/{{ workspace.slug }}/room/' + extractCallCode(item.content) + '/'" 
-                                   class="px-3.5 py-1.5 text-xs font-bold rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition">
-                                    Join Call
-                                </a>
+                                <template x-if="item.content && item.content.startsWith('CALL_INVITE:')">
+                                    <div class="p-3.5 rounded-2xl border-2 border-blue-500/30 bg-blue-50/40 dark:bg-blue-950/20 max-w-sm flex items-center justify-between gap-3 shadow-xs">
+                                        <div class="flex items-center space-x-3">
+                                            <div class="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-md">
+                                                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                                            </div>
+                                            <div>
+                                                <div class="text-xs font-bold text-slate-900 dark:text-zinc-100">Live Call</div>
+                                                <div class="text-[11px] font-mono text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
+                                                    <span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                                                    <span x-text="extractCallCode(item.content)"></span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <a :href="'/meetings/w/{{ workspace.slug }}/room/' + extractCallCode(item.content) + '/'" 
+                                           class="px-3.5 py-1.5 text-xs font-bold rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition">
+                                            Join Call
+                                        </a>
+                                    </div>
+                                </template>
+                                <template x-if="!item.content || !item.content.startsWith('CALL_INVITE:')">
+                                    <div class="chat-bubble rounded-2xl rounded-tr-xs px-3 py-1.5 bg-blue-600 text-white shadow-xs inline-block max-w-full text-left">
+                                        <div class="text-xs sm:text-[13px] text-white break-words leading-relaxed font-normal [&_p]:m-0 [&_p]:inline [&_p+p]:block [&_p+p]:mt-1" x-html="formatMessageContent(item.content)"></div>
+                                    </div>
+                                </template>
+                                <div class="flex items-center flex-wrap gap-1 mt-1 justify-end" :id="'reactions-' + item.id"></div>
                             </div>
-                        </template>
-                        <template x-if="!item.content || !item.content.startsWith('CALL_INVITE:')">
-                            <div class="text-xs text-slate-800 dark:text-zinc-200 mt-1 whitespace-pre-line break-words leading-relaxed font-normal" x-text="item.content"></div>
-                        </template>
-                        <!-- Live Reactions Container -->
-                        <div class="flex items-center flex-wrap gap-1.5 mt-2" :id="'reactions-' + item.id"></div>
-                    </div>
-                    <!-- Action Menu -->
-                    <div class="absolute right-2 top-2 hidden group-hover:flex items-center space-x-1 bg-white dark:bg-obsidian-950 border border-slate-200 dark:border-zinc-700 rounded-lg p-0.5 shadow-sm">
-                        <button type="button" @click="toggleReaction(item.id, '👍')" class="p-1 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-xs transition-transform active:scale-125" title="React 👍">👍</button>
-                        <button type="button" @click="toggleReaction(item.id, '❤️')" class="p-1 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-xs transition-transform active:scale-125" title="React ❤️">❤️</button>
-                    </div>
+                            <div class="w-7 h-7 rounded-full bg-blue-700 text-white font-bold text-[10px] flex items-center justify-center shrink-0 mb-0.5"
+                                 x-text="item.sender_initial || config.currentUserInitial">
+                            </div>
+                        </div>
+                    </template>
+
+                    <!-- Incoming Live Message (from Peer) -->
+                    <template x-if="!item.is_self && String(item.sender_id) !== String(config.currentUserId)">
+                        <div class="flex justify-start items-end space-x-1.5 mb-2 group relative" :id="'msg-' + item.id">
+                            <div class="w-7 h-7 rounded-full bg-gradient-to-tr from-purple-600 to-indigo-600 text-white font-bold text-[10px] flex items-center justify-center shrink-0 mb-0.5"
+                                 x-text="item.sender_initial">
+                            </div>
+                            <div class="max-w-[80%] sm:max-w-md lg:max-w-lg flex flex-col items-start">
+                                <div class="flex items-center space-x-1 mb-0.5 px-1 text-[10px] text-slate-500 dark:text-zinc-400">
+                                    <span class="font-bold text-slate-800 dark:text-zinc-200" x-text="item.sender_name"></span>
+                                    <span>&bull;</span>
+                                    <span x-text="item.created_at"></span>
+                                    <span x-show="item.is_pinned" class="text-[9px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 px-1.5 py-0.2 rounded border border-amber-200 dark:border-amber-900/60 flex items-center space-x-1">
+                                        <span>📌 Pinned</span>
+                                    </span>
+                                </div>
+                                <template x-if="item.content && item.content.startsWith('CALL_INVITE:')">
+                                    <div class="p-3.5 rounded-2xl border-2 border-blue-500/30 bg-blue-50/40 dark:bg-blue-950/20 max-w-sm flex items-center justify-between gap-3 shadow-xs">
+                                        <div class="flex items-center space-x-3">
+                                            <div class="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-md">
+                                                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                                            </div>
+                                            <div>
+                                                <div class="text-xs font-bold text-slate-900 dark:text-zinc-100">Live Call</div>
+                                                <div class="text-[11px] font-mono text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
+                                                    <span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                                                    <span x-text="extractCallCode(item.content)"></span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <a :href="'/meetings/w/{{ workspace.slug }}/room/' + extractCallCode(item.content) + '/'" 
+                                           class="px-3.5 py-1.5 text-xs font-bold rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition">
+                                            Join Call
+                                        </a>
+                                    </div>
+                                </template>
+                                <template x-if="!item.content || !item.content.startsWith('CALL_INVITE:')">
+                                    <div class="chat-bubble rounded-2xl rounded-tl-xs px-3 py-1.5 bg-slate-100 dark:bg-zinc-800 text-slate-800 dark:text-zinc-100 border border-slate-200/70 dark:border-zinc-700/60 shadow-xs inline-block max-w-full text-left">
+                                        <div class="text-xs sm:text-[13px] text-slate-800 dark:text-zinc-200 break-words leading-relaxed font-normal [&_p]:m-0 [&_p]:inline [&_p+p]:block [&_p+p]:mt-1" x-html="formatMessageContent(item.content)"></div>
+                                    </div>
+                                </template>
+                                <div class="flex items-center flex-wrap gap-1 mt-1 justify-start" :id="'reactions-' + item.id"></div>
+                            </div>
+                        </div>
+                    </template>
                 </div>
             </template>
         </div>
 
         <!-- 3. DM Input Footer matching Panel 3 -->
-        <div class="p-4 border-t border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322]">
+        <div class="p-4 border-t border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] relative">
+            <!-- Mention Autocomplete Popup Dropdown -->
+            <div x-show="showMentions" @click.outside="showMentions = false" style="display: none;"
+                 class="absolute bottom-full left-4 mb-2 w-80 max-h-80 overflow-y-auto rounded-2xl shadow-2xl bg-white dark:bg-[#18181b] border border-slate-200 dark:border-zinc-800 z-50 py-1.5 focus:outline-none">
+                
+                <!-- PEOPLE SECTION -->
+                <template x-if="people.length > 0">
+                    <div>
+                        <div class="px-3 pt-2 pb-1 text-[10px] font-bold tracking-wider text-slate-400 dark:text-zinc-500 uppercase">
+                            Teammates
+                        </div>
+                        <template x-for="(p, pIdx) in people" :key="'p-' + p.id">
+                            <div @click="selectMention(p)"
+                                 @mouseenter="activeIndex = pIdx"
+                                 :class="activeIndex === pIdx ? 'bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-zinc-50' : 'text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800/60'"
+                                 class="px-3 py-2 flex items-center space-x-2.5 cursor-pointer transition-colors text-xs">
+                                <template x-if="p.avatar">
+                                    <img :src="p.avatar" class="w-7 h-7 rounded-full object-cover ring-1 ring-slate-200 dark:ring-zinc-700 shrink-0">
+                                </template>
+                                <template x-if="!p.avatar">
+                                    <div class="w-7 h-7 rounded-full bg-gradient-to-tr from-purple-600 to-indigo-600 text-white font-bold text-[10px] flex items-center justify-center shrink-0 shadow-xs">
+                                        <span x-text="p.initials"></span>
+                                    </div>
+                                </template>
+                                <div class="min-w-0 flex-1">
+                                    <div class="flex items-center justify-between gap-1">
+                                        <span class="font-bold truncate text-slate-900 dark:text-zinc-100 text-xs" x-text="p.full_name"></span>
+                                        <template x-if="p.contributor_id">
+                                            <span class="font-mono text-[9px] font-bold text-blue-600 dark:text-blue-400 px-1 py-0.2 rounded bg-blue-50 dark:bg-blue-950/60 shrink-0" x-text="p.contributor_id"></span>
+                                        </template>
+                                    </div>
+                                    <span class="text-[11px] text-slate-400 dark:text-zinc-400 truncate block" x-text="'@' + (p.username || p.email)"></span>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </template>
+
+                <!-- FILES SECTION -->
+                <template x-if="files.length > 0">
+                    <div class="mt-1 border-t border-slate-100 dark:border-zinc-800">
+                        <div class="px-3 pt-2 pb-1 text-[10px] font-bold tracking-wider text-slate-400 dark:text-zinc-500 uppercase">
+                            Files
+                        </div>
+                        <template x-for="(f, fIdx) in files" :key="'f-' + f.id">
+                            <div @click="selectMention(f)"
+                                 @mouseenter="activeIndex = (people.length + fIdx)"
+                                 :class="activeIndex === (people.length + fIdx) ? 'bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-zinc-50' : 'text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800/60'"
+                                 class="px-3 py-2 flex items-center space-x-2.5 cursor-pointer transition-colors text-xs">
+                                <div class="w-7 h-7 rounded-lg bg-slate-100 dark:bg-zinc-800 flex items-center justify-center text-slate-500 dark:text-zinc-400 shrink-0 border border-slate-200 dark:border-zinc-700">
+                                    📄
+                                </div>
+                                <div class="min-w-0 flex-1">
+                                    <span class="font-medium truncate text-slate-800 dark:text-zinc-200 text-xs block" x-text="f.name"></span>
+                                    <span class="text-[10px] text-slate-400 dark:text-zinc-500 block" x-text="f.size"></span>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </template>
+            </div>
+
             <form action="{% url 'chat:direct_message' slug=workspace.slug user_id=other_user.id %}" 
                   method="POST" 
                   enctype="multipart/form-data" 
                   @submit.prevent="handleSendMessage($event)">
                 {% csrf_token %}
                 
+                <!-- Replying To Banner Preview -->
+                <div x-show="replyingTo" style="display: none;" class="flex items-center justify-between px-3 py-1.5 mb-2 bg-blue-50/90 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-900/60 rounded-xl text-xs text-slate-700 dark:text-zinc-300 animate-fadeIn">
+                    <div class="flex items-center space-x-2 truncate">
+                        <span class="text-blue-600 dark:text-blue-400 font-bold flex items-center gap-1 shrink-0">
+                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>
+                            Replying to <span x-text="'@' + (replyingTo ? replyingTo.author : '')"></span>:
+                        </span>
+                        <span class="text-slate-500 dark:text-zinc-400 truncate italic" x-text="replyingTo ? replyingTo.snippet : ''"></span>
+                    </div>
+                    <button type="button" @click="cancelReply()" class="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 p-0.5 rounded ml-2 transition-colors" title="Cancel Reply">
+                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+
                 <!-- File attachment preview chips -->
                 <div x-show="selectedFiles.length > 0" class="flex flex-wrap gap-2 mb-2" style="display: none;">
                     <template x-for="(file, idx) in selectedFiles" :key="idx">
@@ -299,33 +596,64 @@
                     </template>
                 </div>
 
-                <div class="flex items-end space-x-2 bg-slate-50 dark:bg-zinc-900 rounded-2xl border border-slate-200 dark:border-zinc-800 p-2 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20 transition-all">
-                    
-                    <!-- File Upload Button -->
-                    <label class="p-2 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer rounded-xl hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors" title="Attach file">
-                        <input type="file" name="files" multiple class="hidden" @change="onFilesSelected($event)" x-ref="fileInput">
-                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
-                        </svg>
-                    </label>
+                <div class="rounded-2xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900 overflow-hidden focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20 transition-all">
+                    <!-- Format Options Toolbar (.comment-toolbar) -->
+                    <div class="comment-toolbar px-2.5 py-1.5 flex items-center flex-wrap gap-1 text-xs select-none">
+                        <button type="button" @click="applyFormat('bold')" class="px-2 py-0.5 rounded font-bold transition" title="Bold (Ctrl+B)">B</button>
+                        <button type="button" @click="applyFormat('italic')" class="px-2 py-0.5 rounded italic font-serif transition" title="Italic (Ctrl+I)">I</button>
+                        <button type="button" @click="applyFormat('strike')" class="px-2 py-0.5 rounded line-through transition" title="Strikethrough (~~text~~)">S</button>
+                        <span class="opacity-30 select-none text-xs">|</span>
+                        <button type="button" @click="applyFormat('code')" class="px-2 py-0.5 rounded text-[11px] font-mono transition" title="Inline Code (`code`)">&lt;/&gt;</button>
+                        <button type="button" @click="applyFormat('codeblock')" class="px-2 py-0.5 rounded font-mono transition" title="Code Block (```)">&lbrace; &rbrace;</button>
+                        <button type="button" @click="applyFormat('quote')" class="px-2 py-0.5 rounded font-serif transition" title="Quote (> text)">&ldquo;</button>
+                        <span class="opacity-30 select-none text-xs">|</span>
+                        <button type="button" @click="applyFormat('bullet')" class="px-2 py-0.5 rounded transition" title="Bullet List (- item)">&bull; List</button>
+                        <button type="button" @click="applyFormat('number')" class="px-2 py-0.5 rounded transition" title="Numbered List (1. item)">1. List</button>
+                        <button type="button" @click="applyFormat('link')" class="px-2 py-0.5 rounded transition" title="Link (Ctrl+K)">🔗</button>
+                        <button type="button" @click="applyFormat('mention')" class="ml-auto px-2 py-0.5 rounded-lg bg-blue-500/15 hover:bg-blue-500/25 text-blue-600 dark:text-blue-400 font-bold transition flex items-center space-x-1" title="Mention teammate (@)">
+                            <span>@ Mention</span>
+                        </button>
+                    </div>
 
-                    <!-- Textarea Input -->
-                    <textarea name="content" 
-                              x-model="messageContent" 
-                              @keydown.enter.prevent="if(!$event.shiftKey){ handleSendMessage($event); }"
-                              placeholder="Direct message {{ other_user.full_name|default:other_user.email }} (Enter to send, Shift+Enter for newline)..." 
-                              rows="1" 
-                              class="flex-1 bg-transparent border-0 resize-none text-xs text-slate-900 dark:text-zinc-100 focus:ring-0 placeholder:text-slate-400 max-h-32 py-2"></textarea>
+                    <!-- Textarea & Send Button Row -->
+                    <div class="flex items-end space-x-2 px-3 pb-2 pt-1">
+                        <!-- File Upload Button -->
+                        <label class="p-1.5 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors shrink-0" title="Attach file">
+                            <input type="file" name="files" multiple class="hidden" @change="onFilesSelected($event)" x-ref="fileInput">
+                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
+                            </svg>
+                        </label>
 
-                    <!-- Send Button -->
-                    <button type="submit" 
-                            :disabled="!messageContent.trim() && selectedFiles.length === 0"
-                            class="p-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed shadow-sm transition-all"
-                            title="Send Message">
-                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
-                        </svg>
-                    </button>
+                        <!-- Textarea Input with Native & Formatting Commands -->
+                        <textarea name="content" 
+                                  x-ref="chatInput"
+                                  x-model="messageContent" 
+                                  @input="onChatInput($event)"
+                                  @keydown.ctrl.b.prevent="applyFormat('bold')"
+                                  @keydown.meta.b.prevent="applyFormat('bold')"
+                                  @keydown.ctrl.i.prevent="applyFormat('italic')"
+                                  @keydown.meta.i.prevent="applyFormat('italic')"
+                                  @keydown.ctrl.k.prevent="applyFormat('link')"
+                                  @keydown.meta.k.prevent="applyFormat('link')"
+                                  @keydown.arrow-down.prevent="if (showMentions) navigateMentions(1)"
+                                  @keydown.arrow-up.prevent="if (showMentions) navigateMentions(-1)"
+                                  @keydown.enter="if (showMentions) { $event.preventDefault(); selectActiveMention(); } else if (!$event.shiftKey) { $event.preventDefault(); handleSendMessage($event); }"
+                                  @keydown.escape="showMentions = false"
+                                  placeholder="Direct message {{ other_user.full_name|default:other_user.email }} (Type @ to mention, Enter to send)..." 
+                                  rows="2" 
+                                  class="flex-1 bg-transparent border-0 resize-none text-xs text-slate-900 dark:text-zinc-100 focus:ring-0 placeholder:text-slate-400 max-h-36 py-1.5"></textarea>
+
+                        <!-- Send Button -->
+                        <button type="submit" 
+                                :disabled="!messageContent.trim() && selectedFiles.length === 0"
+                                class="p-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed shadow-sm transition-all shrink-0"
+                                title="Send Message">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+                            </svg>
+                        </button>
+                    </div>
                 </div>
             </form>
         </div>
@@ -343,10 +671,192 @@ function chatDmStream(config) {
         selectedFiles: [],
         liveMessages: [],
         socket: null,
+        replyingTo: null,
+
+        showMentions: false,
+        mentionQuery: '',
+        people: [],
+        files: [],
+        activeIndex: 0,
+        cursorPos: 0,
+
+        setReply(id, author, snippet) {
+            this.replyingTo = { id, author, snippet };
+            this.$nextTick(() => {
+                if (this.$refs.chatInput) {
+                    this.$refs.chatInput.focus();
+                }
+            });
+        },
+
+        cancelReply() {
+            this.replyingTo = null;
+        },
+
+        applyFormat(type) {
+            const el = this.$refs.chatInput;
+            if (!el) return;
+            const start = el.selectionStart || 0;
+            const end = el.selectionEnd || 0;
+            const val = this.messageContent || '';
+            const selected = val.substring(start, end);
+            let before = val.substring(0, start);
+            let after = val.substring(end);
+            let replacement = '';
+            let newCursor = start;
+
+            switch(type) {
+                case 'bold':
+                    replacement = `**${selected || 'bold text'}**`;
+                    newCursor = selected ? start + replacement.length : start + 2;
+                    break;
+                case 'italic':
+                    replacement = `*${selected || 'italic text'}*`;
+                    newCursor = selected ? start + replacement.length : start + 1;
+                    break;
+                case 'strike':
+                    replacement = `~~${selected || 'strikethrough'}~~`;
+                    newCursor = selected ? start + replacement.length : start + 2;
+                    break;
+                case 'code':
+                    replacement = `\`${selected || 'code'}\``;
+                    newCursor = selected ? start + replacement.length : start + 1;
+                    break;
+                case 'codeblock':
+                    replacement = `\n\`\`\`\n${selected || 'code block'}\n\`\`\`\n`;
+                    newCursor = selected ? start + replacement.length : start + 5;
+                    break;
+                case 'quote':
+                    replacement = `\n> ${selected || 'quote'}\n`;
+                    newCursor = selected ? start + replacement.length : start + 3;
+                    break;
+                case 'bullet':
+                    replacement = `\n- ${selected || 'list item'}\n`;
+                    newCursor = selected ? start + replacement.length : start + 3;
+                    break;
+                case 'number':
+                    replacement = `\n1. ${selected || 'list item'}\n`;
+                    newCursor = selected ? start + replacement.length : start + 4;
+                    break;
+                case 'link':
+                    replacement = selected ? `[${selected}](https://)` : `[link text](https://)`;
+                    newCursor = selected ? start + replacement.length - 1 : start + 1;
+                    break;
+                case 'mention':
+                    replacement = '@';
+                    newCursor = start + 1;
+                    this.messageContent = before + replacement + after;
+                    this.$nextTick(() => {
+                        el.focus();
+                        el.setSelectionRange(newCursor, newCursor);
+                        this.cursorPos = newCursor;
+                        this.mentionQuery = '';
+                        this.searchMentions('');
+                    });
+                    return;
+            }
+            this.messageContent = before + replacement + after;
+            this.$nextTick(() => {
+                el.focus();
+                el.setSelectionRange(newCursor, newCursor);
+            });
+        },
 
         init() {
             this.connectWebSocket();
             this.scrollToBottom();
+        },
+
+        onChatInput(e) {
+            const val = e.target.value;
+            const pos = e.target.selectionStart;
+            this.cursorPos = pos;
+            const beforeCursor = val.slice(0, pos);
+            const match = beforeCursor.match(/@([a-zA-Z0-9._-]*)$/);
+            if (match) {
+                this.mentionQuery = match[1];
+                this.searchMentions(this.mentionQuery);
+            } else {
+                this.showMentions = false;
+            }
+        },
+
+        async searchMentions(q) {
+            try {
+                const res = await fetch(`/workspaces/w/${config.workspaceSlug}/api/mentions/?q=${encodeURIComponent(q)}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    this.people = data.people || [];
+                    this.files = data.files || [];
+                    const total = this.people.length + this.files.length;
+                    this.showMentions = total > 0;
+                    this.activeIndex = 0;
+                }
+            } catch (err) {}
+        },
+
+        navigateMentions(dir) {
+            const total = this.people.length + this.files.length;
+            if (total === 0) return;
+            this.activeIndex = (this.activeIndex + dir + total) % total;
+        },
+
+        selectActiveMention() {
+            const total = this.people.length + this.files.length;
+            if (total === 0) return;
+            if (this.activeIndex < this.people.length) {
+                this.selectMention(this.people[this.activeIndex]);
+            } else {
+                this.selectMention(this.files[this.activeIndex - this.people.length]);
+            }
+        },
+
+        selectMention(item) {
+            const textarea = this.$refs.chatInput;
+            const text = this.messageContent;
+            const before = text.slice(0, this.cursorPos);
+            const after = text.slice(this.cursorPos);
+            let insertText = '';
+            if (item.type === 'file') {
+                insertText = `[${item.name}](${item.url}) `;
+            } else {
+                const displayName = (item.full_name || item.name || (item.username && !item.username.includes('@') ? item.username : item.email.split('@')[0])).trim();
+                insertText = `@${displayName} `;
+            }
+            const newBefore = before.replace(/@([a-zA-Z0-9._\s-]*)$/, insertText);
+            this.messageContent = newBefore + after;
+            this.showMentions = false;
+            this.$nextTick(() => {
+                if (textarea) {
+                    textarea.focus();
+                    const nextPos = newBefore.length;
+                    textarea.setSelectionRange(nextPos, nextPos);
+                }
+            });
+        },
+
+        formatMessageContent(content) {
+            if (!content) return '';
+            let esc = String(content).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            // Quotes / Replying to: lines starting with &gt;
+            esc = esc.replace(/^&gt;\s*(.*?)$/gm, '<blockquote class="border-l-2 border-blue-500/60 pl-2.5 py-0.5 my-1 text-slate-500 dark:text-zinc-400 italic bg-blue-50/40 dark:bg-blue-950/30 rounded-r text-[11px]">$1</blockquote>');
+            // Bold: **text**
+            esc = esc.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            // Italic: *text*
+            esc = esc.replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, '<em>$1</em>');
+            // Strike: ~~text~~
+            esc = esc.replace(/~~(.*?)~~/g, '<span class="line-through opacity-75">$1</span>');
+            // Inline code: `code`
+            esc = esc.replace(/`([^`]+)`/g, '<code class="px-1.5 py-0.5 rounded bg-slate-200/80 dark:bg-zinc-800 font-mono text-[11px]">$1</code>');
+            // Complex mentions: @[Full Name](ID)
+            esc = esc.replace(/@\[([^\]]+)\]\(([a-zA-Z0-9_-]+)\)/g, '<span class="aether-mention inline-flex items-center space-x-0.5 px-1.5 py-0.5 rounded-full text-xs font-semibold bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/25 hover:bg-blue-500/25 cursor-pointer transition" data-user-hover data-user-id="$2" data-user-name="$1">@$1</span>');
+            // Contributor ID mentions: @26457C
+            esc = esc.replace(/(?<![a-zA-Z0-9_])@(\d{5}[A-Za-z])\b/g, '<span class="aether-mention inline-flex items-center space-x-0.5 px-1.5 py-0.5 rounded-full text-xs font-mono font-bold bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/25 hover:bg-blue-500/25 cursor-pointer transition" data-user-hover data-contributor-id="$1" data-user-name="$1">@$1</span>');
+            // Text name mentions: @Full Name or @username
+            esc = esc.replace(/(?<![a-zA-Z0-9_])@([A-Z][a-zA-Z0-9_]*(?:\s+[A-Z][a-zA-Z0-9_]*)*|[a-zA-Z0-9_]+)\b/g, '<span class="aether-mention inline-flex items-center space-x-0.5 px-1.5 py-0.5 rounded-full text-xs font-medium bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/25 hover:bg-blue-500/25 cursor-pointer transition" data-user-hover data-user-name="$1">@$1</span>');
+            // Clean newline to <br>
+            esc = esc.replace(/\n/g, '<br>');
+            return esc;
         },
 
         extractCallCode(content) {
@@ -373,6 +883,7 @@ function chatDmStream(config) {
                         const data = JSON.parse(event.data);
                         if (data.event === 'new_message' && data.message) {
                             const m = data.message;
+                            const isSelf = String(m.sender_id) === String(config.currentUserId);
                             // Check if this confirms an optimistic message
                             const existingIdx = this.liveMessages.findIndex(
                                 lm => lm.is_optimistic && lm.content === m.content && lm.sender_name === m.sender_name
@@ -381,22 +892,43 @@ function chatDmStream(config) {
                                 this.liveMessages[existingIdx] = {
                                     id: m.id,
                                     content: m.content,
+                                    sender_id: m.sender_id,
                                     sender_name: m.sender_name,
                                     sender_initial: m.sender_initial,
                                     created_at: m.created_at || 'Just now',
-                                    is_optimistic: false
+                                    is_optimistic: false,
+                                    is_self: isSelf
                                 };
                             } else {
                                 this.liveMessages.push({
                                     id: m.id || Date.now(),
                                     content: m.content,
+                                    sender_id: m.sender_id,
                                     sender_name: m.sender_name,
                                     sender_initial: m.sender_initial,
                                     created_at: m.created_at || 'Just now',
-                                    is_optimistic: false
+                                    is_optimistic: false,
+                                    is_self: isSelf
                                 });
                             }
                             this.scrollToBottom();
+
+                            // Trigger ringtone and modal if CALL_INVITE is received from peer
+                            if (m.content && m.content.startsWith('CALL_INVITE:') && String(m.sender_id) !== String("{{ request.user.id }}")) {
+                                const parts = m.content.replace('CALL_INVITE:', '').split(':');
+                                window.dispatchEvent(new CustomEvent('aetherspace:incoming_call', {
+                                    detail: {
+                                        meeting_code: parts[0] || '',
+                                        is_audio_only: (parts[1] || '').toUpperCase() === 'AUDIO',
+                                        title: parts[2] || 'Direct Call',
+                                        caller_name: m.sender_name || 'Team Member',
+                                        caller_avatar: m.sender_avatar || '',
+                                        room_url: `/meetings/w/{{ workspace.slug }}/room/${parts[0] || ''}/`
+                                    }
+                                }));
+                            }
+                        } else if (data.event === 'incoming_call' && data.call) {
+                            window.dispatchEvent(new CustomEvent('aetherspace:incoming_call', { detail: data.call }));
                         } else if (data.event === 'reaction_updated' && data.data) {
                             const rData = data.data;
                             const container = document.getElementById('reactions-' + rData.message_id);
@@ -418,13 +950,16 @@ function chatDmStream(config) {
                                 }
                             }
                         } else if (data.type === 'chat_message') {
+                            const isSelf = String(data.sender_id) === String(config.currentUserId);
                             this.liveMessages.push({
                                 id: data.id || data.message_id || Date.now(),
                                 content: data.content,
+                                sender_id: data.sender_id,
                                 sender_name: data.sender_name,
                                 sender_initial: data.sender_initial,
                                 created_at: data.created_at || 'Just now',
-                                is_optimistic: false
+                                is_optimistic: false,
+                                is_self: isSelf
                             });
                             this.scrollToBottom();
                         }
@@ -458,17 +993,27 @@ function chatDmStream(config) {
         },
 
         handleSendMessage(e) {
-            const text = this.messageContent.trim();
+            let text = this.messageContent.trim();
             const hasFiles = this.selectedFiles.length > 0;
 
             if (!text && !hasFiles) return;
+
+            if (this.replyingTo && text) {
+                text = `> Replying to @${this.replyingTo.author}: "${this.replyingTo.snippet.replace(/\n/g, ' ')}"\n\n` + text;
+                this.replyingTo = null;
+                this.messageContent = text;
+            }
 
             const form = (e && e.target) ? (e.target.closest('form') || document.querySelector('form')) : document.querySelector('form');
             const socketReady = this.socket && this.socket.readyState === WebSocket.OPEN;
 
             // If files attached or socket not connected/ready, fallback to standard multipart form submit
             if (hasFiles || !this.wsConnected || !socketReady) {
-                if (form) form.submit();
+                if (form) {
+                    const txtEl = form.querySelector('[name=content]');
+                    if (txtEl) txtEl.value = text;
+                    form.submit();
+                }
                 return;
             }
 
@@ -480,10 +1025,12 @@ function chatDmStream(config) {
             this.liveMessages.push({
                 id: tempId,
                 content: text,
+                sender_id: config.currentUserId,
                 sender_name: config.currentUserName,
                 sender_initial: config.currentUserInitial,
                 created_at: timeStr,
-                is_optimistic: true
+                is_optimistic: true,
+                is_self: true
             });
 
             this.messageContent = '';
@@ -496,7 +1043,11 @@ function chatDmStream(config) {
                 }));
             } catch (err) {
                 console.error('WebSocket send failed, submitting via HTTP form:', err);
-                if (form) form.submit();
+                if (form) {
+                    const txtEl = form.querySelector('[name=content]');
+                    if (txtEl) txtEl.value = text;
+                    form.submit();
+                }
             }
         },
 

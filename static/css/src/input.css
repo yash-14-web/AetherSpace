@@ -4,7 +4,7 @@
 
 @layer base {
   body {
-    @apply font-sans antialiased transition-colors duration-150 bg-slate-50 dark:bg-obsidian-950 text-slate-900 dark:text-zinc-100;
+    @apply font-sans antialiased transition-colors duration-150 bg-slate-50 dark:bg-obsidian-950 text-slate-900 dark:text-zinc-100 text-[14.5px] leading-relaxed;
   }
   
   /* Form elements default theme styling */
@@ -14,7 +14,7 @@
   input[type="search"],
   select,
   textarea {
-    @apply bg-white dark:bg-[#0c1322] text-slate-900 dark:text-zinc-100 border-slate-200 dark:border-zinc-800 placeholder-slate-400 dark:placeholder-zinc-500;
+    @apply bg-white dark:bg-[#0c1322] text-slate-900 dark:text-zinc-100 border-slate-200 dark:border-zinc-800 placeholder-slate-400 dark:placeholder-zinc-500 text-sm;
   }
 
   /* Custom scrollbar for dark/light theme */
@@ -31,6 +31,21 @@
   ::-webkit-scrollbar-thumb:hover {
     @apply bg-slate-400 dark:bg-zinc-700;
   }
+
+  /* Chat bubble compact reset - eliminates unwanted spacing */
+  .chat-bubble p {
+    margin: 0;
+  }
+  .chat-bubble p + p {
+    margin-top: 0.375rem;
+  }
+  .chat-bubble blockquote {
+    margin: 0.25rem 0;
+  }
+  .chat-bubble ul, .chat-bubble ol {
+    margin: 0.25rem 0;
+    padding-left: 1.25rem;
+  }
 }
 
 @layer components {
@@ -45,14 +60,30 @@
     color: #f4f4f5 !important;
   }
 
+  /* Bulletproof Profile Hover Card (Dark & Light) */
+  .aether-hover-card {
+    background-color: #ffffff;
+    border: 1px solid #e2e8f0;
+    color: #0f172a;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  }
+  .dark .aether-hover-card,
+  html.dark .aether-hover-card,
+  :is(.dark *) .aether-hover-card {
+    background-color: #18181b !important;
+    border-color: #27272a !important;
+    color: #f4f4f5 !important;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7) !important;
+  }
+
   .aether-button-primary {
-    @apply inline-flex items-center justify-center px-4 py-2 font-medium text-sm rounded-lg bg-aether-blue hover:bg-aether-blue-hover text-white transition-all shadow-sm focus:outline-none focus:ring-2 focus:ring-aether-blue/50;
+    @apply inline-flex items-center justify-center px-4 py-2.5 font-medium text-sm rounded-lg bg-aether-blue hover:bg-aether-blue-hover text-white transition-all shadow-sm focus:outline-none focus:ring-2 focus:ring-aether-blue/50;
   }
   .aether-button-secondary {
-    @apply inline-flex items-center justify-center px-4 py-2 font-medium text-sm rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 dark:bg-obsidian-700 dark:hover:bg-zinc-800 dark:text-zinc-200 border border-slate-border dark:border-obsidian-border transition-all focus:outline-none;
+    @apply inline-flex items-center justify-center px-4 py-2.5 font-medium text-sm rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 dark:bg-obsidian-700 dark:hover:bg-zinc-800 dark:text-zinc-200 border border-slate-border dark:border-obsidian-border transition-all focus:outline-none;
   }
   .aether-input {
-    @apply w-full px-3.5 py-2 text-xs rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-aether-blue focus:border-aether-blue transition-all;
+    @apply w-full px-3.5 py-2.5 text-sm rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-aether-blue focus:border-aether-blue transition-all;
   }
 
   /* Bulletproof Meet Hub theme components (Guaranteed in both Dark & Light modes) */
@@ -82,6 +113,38 @@
     background-color: #0f172a !important;
     border-color: #27272a !important;
     color: #f4f4f5 !important;
+  }
+
+  /* Robust Comment & Chat Formatting Toolbar (Dark Obsidian & Light Slate) */
+  .comment-toolbar {
+    background-color: #f1f5f9;
+    border-bottom: 1px solid #e2e8f0;
+    color: #475569;
+  }
+  .dark .comment-toolbar,
+  html.dark .comment-toolbar,
+  :is(.dark *) .comment-toolbar {
+    background-color: #111a2e !important;
+    border-color: #1e293b !important;
+    color: #cbd5e1 !important;
+  }
+  .comment-toolbar button {
+    color: #475569;
+  }
+  .dark .comment-toolbar button,
+  html.dark .comment-toolbar button,
+  :is(.dark *) .comment-toolbar button {
+    color: #cbd5e1 !important;
+  }
+  .comment-toolbar button:hover {
+    background-color: #e2e8f0;
+    color: #0f172a;
+  }
+  .dark .comment-toolbar button:hover,
+  html.dark .comment-toolbar button:hover,
+  :is(.dark *) .comment-toolbar button:hover {
+    background-color: #1e293b !important;
+    color: #ffffff !important;
   }
 
   .meet-card-hover {
@@ -118,6 +181,37 @@
   :is(.dark *) .meet-btn-secondary:hover {
     background-color: #27272a !important;
     border-color: #3b82f6 !important;
+    color: #ffffff !important;
+  }
+
+  .aether-error-btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    color: #1e293b;
+    border-radius: 0.5rem;
+    font-weight: 500;
+    transition: all 0.15s ease-in-out;
+  }
+  .aether-error-btn-secondary:hover {
+    background-color: #e2e8f0;
+    color: #0f172a;
+    border-color: #94a3b8;
+  }
+  .dark .aether-error-btn-secondary,
+  html.dark .aether-error-btn-secondary,
+  :is(.dark *) .aether-error-btn-secondary {
+    background-color: #27272a !important;
+    border-color: #3f3f46 !important;
+    color: #f4f4f5 !important;
+  }
+  .dark .aether-error-btn-secondary:hover,
+  html.dark .aether-error-btn-secondary:hover,
+  :is(.dark *) .aether-error-btn-secondary:hover {
+    background-color: #3f3f46 !important;
+    border-color: #52525b !important;
     color: #ffffff !important;
   }
 

@@ -91,41 +91,10 @@
 
                 <!-- Description Card with Markdown Toolbar -->
                 <div class="aether-card p-6 space-y-3">
-                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-100 dark:border-zinc-800">
-                        <label for="{{ form.description.id_for_label }}" class="block text-xs font-bold text-slate-700 dark:text-zinc-300">
-                            Description
-                        </label>
-                        
-                        <!-- Rich Markdown Quick Bar -->
-                        <div class="flex items-center space-x-1 text-slate-500 dark:text-zinc-400 bg-slate-50 dark:bg-zinc-900/80 p-1 rounded-lg border border-slate-200 dark:border-zinc-800">
-                            <button type="button" @click="insertMarkdown('**', '**')" title="Bold" class="px-2 py-1 text-xs font-bold hover:text-slate-900 dark:hover:text-zinc-100 hover:bg-slate-200 dark:hover:bg-zinc-800 rounded">
-                                B
-                            </button>
-                            <button type="button" @click="insertMarkdown('*', '*')" title="Italic" class="px-2 py-1 text-xs italic hover:text-slate-900 dark:hover:text-zinc-100 hover:bg-slate-200 dark:hover:bg-zinc-800 rounded">
-                                I
-                            </button>
-                            <button type="button" @click="insertMarkdown('`', '`')" title="Code" class="px-2 py-1 text-xs font-mono hover:text-slate-900 dark:hover:text-zinc-100 hover:bg-slate-200 dark:hover:bg-zinc-800 rounded">
-                                &lt;/&gt;
-                            </button>
-                            <button type="button" @click="insertMarkdown('- ', '')" title="Bullet List" class="px-2 py-1 text-xs hover:text-slate-900 dark:hover:text-zinc-100 hover:bg-slate-200 dark:hover:bg-zinc-800 rounded">
-                                • List
-                            </button>
-                            <button type="button" @click="insertMarkdown('[', '](url)')" title="Link" class="px-2 py-1 text-xs hover:text-slate-900 dark:hover:text-zinc-100 hover:bg-slate-200 dark:hover:bg-zinc-800 rounded">
-                                🔗
-                            </button>
-                            <button type="button" @click="insertMarkdown('> ', '')" title="Quote" class="px-2 py-1 text-xs hover:text-slate-900 dark:hover:text-zinc-100 hover:bg-slate-200 dark:hover:bg-zinc-800 rounded">
-                                ”
-                            </button>
-                        </div>
-                    </div>
-
-                    {{ form.description }}
+                    {% include 'components/rich_text_editor.html' with field_name='description' field_id=form.description.id_for_label initial_content=form.description.value label='Description' placeholder='Provide technical details, acceptance criteria, or context for this task...' rows=6 %}
                     {% if form.description.errors %}
                         <p class="text-xs text-red-500 font-semibold">{{ form.description.errors.0 }}</p>
                     {% endif %}
-                    <p class="text-[11px] text-slate-400 dark:text-zinc-500">
-                        Markdown formatting supported. Add acceptance criteria checklists with <code>- [ ] Checklist item</code>.
-                    </p>
                 </div>
 
                 <!-- Subtasks Section (Dynamic & Database Backed) -->
@@ -219,33 +188,15 @@
             <!-- Right Column: Assignee, Metadata & Permissions Sidebar (4 cols) -->
             <div class="lg:col-span-4 space-y-5">
                 
-                <!-- Assignee Card with Profile Picture / Avatar Preview -->
+                <!-- Assignee Card with People Search Select -->
                 <div class="aether-card p-5 space-y-3">
-                    <label for="{{ form.assignee.id_for_label }}" class="block text-xs font-bold text-slate-700 dark:text-zinc-300">
+                    <label class="block text-xs font-bold text-slate-700 dark:text-zinc-300">
                         Assignee
                     </label>
-                    
-                    {{ form.assignee }}
+                    {% include 'components/people_search_select.html' with initial_user=task.assignee field_name='assignee' workspace_slug=workspace.slug required=False %}
                     {% if form.assignee.errors %}
                         <p class="text-xs text-red-500 font-semibold">{{ form.assignee.errors.0 }}</p>
                     {% endif %}
-                    
-                    <div class="flex items-center space-x-2 pt-2 border-t border-slate-100 dark:border-zinc-800">
-                        <div class="w-6 h-6 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-bold text-[10px] flex items-center justify-center shrink-0">
-                            {% if task and task.assignee %}
-                                {{ task.assignee.full_name|default:task.assignee.email|slice:":1"|upper }}
-                            {% else %}
-                                ?
-                            {% endif %}
-                        </div>
-                        <span class="text-[11px] text-slate-500 dark:text-zinc-400">
-                            {% if task and task.assignee %}
-                                Currently assigned to <strong class="text-slate-800 dark:text-zinc-200">{{ task.assignee.full_name|default:task.assignee.email }}</strong>
-                            {% else %}
-                                Assignee avatar will appear on boards & lists.
-                            {% endif %}
-                        </span>
-                    </div>
                 </div>
 
                 <!-- Attributes Card -->

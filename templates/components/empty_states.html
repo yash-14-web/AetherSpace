@@ -1,0 +1,310 @@
+{% comment %}
+AetherSpace Vector Empty-State Library
+Visual Source of Truth: AetherSpace_Designs/a_high_resolution_dark_ui_graphic_design_showcase.png (Panel 2)
+
+Props:
+  state_type: 'no_tasks' | 'no_bugs' | 'no_files' | 'no_notifications' | 'no_search_results'
+  title: string (optional, has smart default)
+  message: string (optional, has smart default)
+  query: string (for search empty state)
+  action_url: string (URL for primary CTA button)
+  action_text: string (Text for primary CTA button)
+  action_onclick: string (JS click handler for primary button)
+  secondary_url: string (URL for secondary button, e.g. Clear Filters)
+  secondary_text: string (Text for secondary button, default 'Clear Filters')
+  can_create: boolean (default true - if false, shows permission constraint)
+  extra_classes: string (optional additional container classes)
+{% endcomment %}
+
+<div class="py-12 sm:py-16 px-4 text-center flex flex-col items-center justify-center space-y-5 select-none {{ extra_classes|default:'' }}">
+
+    <!-- Center Vector Illustration with Ambient Glow -->
+    <div class="relative flex items-center justify-center">
+        <!-- Ambient Glow -->
+        <div class="absolute inset-0 rounded-full blur-2xl opacity-20 dark:opacity-30 pointer-events-none
+            {% if state_type == 'no_tasks' %}bg-blue-500
+            {% elif state_type == 'no_bugs' %}bg-purple-500
+            {% elif state_type == 'no_files' %}bg-indigo-500
+            {% elif state_type == 'no_notifications' %}bg-emerald-500
+            {% elif state_type == 'no_search_results' %}bg-amber-500
+            {% else %}bg-blue-500{% endif %}"></div>
+
+        <!-- SVG Container -->
+        <div class="relative z-10 w-36 h-36 sm:w-44 sm:h-44 flex items-center justify-center transition-transform duration-300 hover:scale-105">
+            
+            {% if state_type == 'no_tasks' %}
+                <!-- 1. NO TASKS: Holographic Clipboard with Checkmarks & Cyan/Blue Glow -->
+                <svg class="w-full h-full drop-shadow-[0_10px_20px_rgba(59,130,246,0.3)]" viewBox="0 0 160 160" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="No Tasks Clipboard Illustration">
+                    <defs>
+                        <linearGradient id="ntBoardGrad" x1="40" y1="30" x2="120" y2="140" gradientUnits="userSpaceOnUse">
+                            <stop stop-color="#1e293b"/>
+                            <stop offset="1" stop-color="#0f172a"/>
+                        </linearGradient>
+                        <linearGradient id="ntClipGrad" x1="60" y1="16" x2="100" y2="36" gradientUnits="userSpaceOnUse">
+                            <stop stop-color="#60a5fa"/>
+                            <stop offset="1" stop-color="#2563eb"/>
+                        </linearGradient>
+                    </defs>
+                    <!-- Floating Sparkles -->
+                    <polygon points="28,45 30,50 35,52 30,54 28,59 26,54 21,52 26,50" fill="#60a5fa" opacity="0.8"/>
+                    <polygon points="135,95 136,99 140,100 136,101 135,105 134,101 130,100 134,99" fill="#93c5fd" opacity="0.7"/>
+                    <circle cx="128" cy="40" r="2.5" fill="#38bdf8" opacity="0.8"/>
+                    <!-- Clipboard Body -->
+                    <rect x="36" y="28" width="88" height="110" rx="14" fill="url(#ntBoardGrad)" stroke="#3b82f6" stroke-width="2"/>
+                    <!-- Inner Paper -->
+                    <rect x="44" y="38" width="72" height="92" rx="8" fill="#1e293b" stroke="#334155" stroke-width="1.2"/>
+                    <!-- Clip Header -->
+                    <rect x="60" y="20" width="40" height="18" rx="5" fill="url(#ntClipGrad)" stroke="#93c5fd" stroke-width="1.5"/>
+                    <circle cx="80" cy="29" r="3.5" fill="#0f172a"/>
+                    <!-- Task Lines with Checkmarks -->
+                    <circle cx="56" cy="58" r="6" fill="#1d4ed8" stroke="#60a5fa" stroke-width="1.5"/>
+                    <path d="M53 58 L55 60 L59 56" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    <rect x="66" y="55" width="42" height="6" rx="3" fill="#38bdf8" opacity="0.85"/>
+
+                    <circle cx="56" cy="78" r="6" fill="#1d4ed8" stroke="#60a5fa" stroke-width="1.5"/>
+                    <path d="M53 78 L55 80 L59 76" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    <rect x="66" y="75" width="36" height="6" rx="3" fill="#64748b"/>
+
+                    <circle cx="56" cy="98" r="6" fill="#0f172a" stroke="#475569" stroke-width="1.5"/>
+                    <rect x="66" y="95" width="40" height="6" rx="3" fill="#475569" opacity="0.6"/>
+
+                    <circle cx="56" cy="118" r="6" fill="#0f172a" stroke="#475569" stroke-width="1.5"/>
+                    <rect x="66" y="115" width="30" height="6" rx="3" fill="#475569" opacity="0.4"/>
+                </svg>
+
+            {% elif state_type == 'no_bugs' %}
+                <!-- 2. NO BUGS: Luminous Purple Cybernetic Beetle Ladybug -->
+                <svg class="w-full h-full drop-shadow-[0_10px_20px_rgba(168,85,247,0.35)]" viewBox="0 0 160 160" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="No Bugs Ladybug Illustration">
+                    <defs>
+                        <linearGradient id="nbShellGrad" x1="50" y1="50" x2="110" y2="130" gradientUnits="userSpaceOnUse">
+                            <stop stop-color="#9333ea"/>
+                            <stop offset="0.5" stop-color="#6b21a8"/>
+                            <stop offset="1" stop-color="#3b0764"/>
+                        </linearGradient>
+                        <linearGradient id="nbHeadGrad" x1="70" y1="30" x2="90" y2="55" gradientUnits="userSpaceOnUse">
+                            <stop stop-color="#c084fc"/>
+                            <stop offset="1" stop-color="#581c87"/>
+                        </linearGradient>
+                    </defs>
+                    <!-- Sparkles -->
+                    <polygon points="26,60 28,64 32,65 28,66 26,70 24,66 20,65 24,64" fill="#c084fc" opacity="0.8"/>
+                    <polygon points="132,55 133,58 136,59 133,60 132,63 131,60 128,59 131,58" fill="#e9d5ff" opacity="0.7"/>
+                    <!-- Legs -->
+                    <path d="M48 65 Q30 55 24 62" stroke="#a855f7" stroke-width="2.5" stroke-linecap="round"/>
+                    <path d="M42 90 Q22 90 20 98" stroke="#a855f7" stroke-width="2.5" stroke-linecap="round"/>
+                    <path d="M48 115 Q30 125 26 135" stroke="#a855f7" stroke-width="2.5" stroke-linecap="round"/>
+                    <path d="M112 65 Q130 55 136 62" stroke="#a855f7" stroke-width="2.5" stroke-linecap="round"/>
+                    <path d="M118 90 Q138 90 140 98" stroke="#a855f7" stroke-width="2.5" stroke-linecap="round"/>
+                    <path d="M112 115 Q130 125 134 135" stroke="#a855f7" stroke-width="2.5" stroke-linecap="round"/>
+                    <!-- Antennae -->
+                    <path d="M72 38 Q60 22 52 24" stroke="#c084fc" stroke-width="2" stroke-linecap="round"/>
+                    <circle cx="50" cy="25" r="2.5" fill="#e9d5ff"/>
+                    <path d="M88 38 Q100 22 108 24" stroke="#c084fc" stroke-width="2" stroke-linecap="round"/>
+                    <circle cx="110" cy="25" r="2.5" fill="#e9d5ff"/>
+                    <!-- Head -->
+                    <ellipse cx="80" cy="46" rx="18" ry="14" fill="url(#nbHeadGrad)" stroke="#c084fc" stroke-width="1.8"/>
+                    <circle cx="73" cy="42" r="2.5" fill="#ffffff"/>
+                    <circle cx="87" cy="42" r="2.5" fill="#ffffff"/>
+                    <!-- Body Shell -->
+                    <ellipse cx="80" cy="94" rx="38" ry="42" fill="url(#nbShellGrad)" stroke="#c084fc" stroke-width="2"/>
+                    <!-- Wing Divider -->
+                    <line x1="80" y1="52" x2="80" y2="136" stroke="#2e1065" stroke-width="2.5"/>
+                    <!-- Glowing Cyber Spots -->
+                    <circle cx="62" cy="74" r="7" fill="#2e1065" stroke="#c084fc" stroke-width="1.5"/>
+                    <circle cx="62" cy="74" r="3" fill="#e9d5ff"/>
+                    <circle cx="98" cy="74" r="7" fill="#2e1065" stroke="#c084fc" stroke-width="1.5"/>
+                    <circle cx="98" cy="74" r="3" fill="#e9d5ff"/>
+                    <circle cx="58" cy="104" r="8" fill="#2e1065" stroke="#c084fc" stroke-width="1.5"/>
+                    <circle cx="58" cy="104" r="3.5" fill="#e9d5ff"/>
+                    <circle cx="102" cy="104" r="8" fill="#2e1065" stroke="#c084fc" stroke-width="1.5"/>
+                    <circle cx="102" cy="104" r="3.5" fill="#e9d5ff"/>
+                </svg>
+
+            {% elif state_type == 'no_files' %}
+                <!-- 3. NO FILES: Glossy Indigo/Blue Folder with Cloud & Documents -->
+                <svg class="w-full h-full drop-shadow-[0_10px_20px_rgba(99,102,241,0.35)]" viewBox="0 0 160 160" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="No Files Folder Illustration">
+                    <defs>
+                        <linearGradient id="nfBackGrad" x1="30" y1="40" x2="130" y2="120" gradientUnits="userSpaceOnUse">
+                            <stop stop-color="#312e81"/>
+                            <stop offset="1" stop-color="#1e1b4b"/>
+                        </linearGradient>
+                        <linearGradient id="nfFrontGrad" x1="28" y1="65" x2="132" y2="135" gradientUnits="userSpaceOnUse">
+                            <stop stop-color="#6366f1"/>
+                            <stop offset="0.5" stop-color="#4f46e5"/>
+                            <stop offset="1" stop-color="#3730a3"/>
+                        </linearGradient>
+                    </defs>
+                    <!-- Floating Sparkles -->
+                    <polygon points="132,45 134,49 138,50 134,51 132,55 130,51 126,50 130,49" fill="#a5b4fc" opacity="0.8"/>
+                    <circle cx="28" cy="75" r="2.5" fill="#818cf8" opacity="0.8"/>
+                    <!-- Folder Back Plate -->
+                    <path d="M28 46 C28 41.5 31.5 38 36 38 H62 L74 50 H124 C128.5 50 132 53.5 132 58 V118 C132 122.5 128.5 126 124 126 H36 C31.5 126 28 122.5 28 118 Z" 
+                          fill="url(#nfBackGrad)" stroke="#6366f1" stroke-width="1.8"/>
+                    <!-- Inner Paper Sheet popping up -->
+                    <rect x="46" y="44" width="68" height="48" rx="6" fill="#1e293b" stroke="#475569" stroke-width="1.5"/>
+                    <line x1="56" y1="54" x2="80" y2="54" stroke="#6366f1" stroke-width="2" stroke-linecap="round"/>
+                    <line x1="56" y1="62" x2="100" y2="62" stroke="#64748b" stroke-width="1.8" stroke-linecap="round"/>
+                    <line x1="56" y1="70" x2="92" y2="70" stroke="#64748b" stroke-width="1.8" stroke-linecap="round"/>
+                    <!-- Folder Front Cover (Angled Perspective) -->
+                    <path d="M26 66 C26 62 29 58 33 58 H127 C131 58 134 62 134 66 L128 124 C128 128.5 124.5 132 120 132 H34 C29.5 132 26 128.5 26 124 Z" 
+                          fill="url(#nfFrontGrad)" stroke="#818cf8" stroke-width="2"/>
+                    <!-- Cloud Upload Badge in Center -->
+                    <circle cx="80" cy="95" r="16" fill="#1e1b4b" stroke="#a5b4fc" stroke-width="1.5"/>
+                    <path d="M72 96 C72 93 74 91 77 91 C77.5 88.5 79.5 87 82 87 C84.8 87 87 89 87 91.5 C89 92 90 93.5 90 95.5 C90 97.5 88.5 99 86.5 99 H73.5 C72 99 71 97.8 72 96 Z" 
+                          fill="#c7d2fe"/>
+                    <path d="M80 102 V94 M77 97 L80 94 L83 97" stroke="#4338ca" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+
+            {% elif state_type == 'no_notifications' %}
+                <!-- 4. NO NOTIFICATIONS: Glowing Emerald Green Bell with Checkmark Badge -->
+                <svg class="w-full h-full drop-shadow-[0_10px_20px_rgba(16,185,129,0.35)]" viewBox="0 0 160 160" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="No Notifications Bell Illustration">
+                    <defs>
+                        <linearGradient id="nnBellGrad" x1="48" y1="35" x2="112" y2="125" gradientUnits="userSpaceOnUse">
+                            <stop stop-color="#10b981"/>
+                            <stop offset="0.6" stop-color="#059669"/>
+                            <stop offset="1" stop-color="#064e3b"/>
+                        </linearGradient>
+                    </defs>
+                    <!-- Sparkles -->
+                    <polygon points="30,45 32,49 36,50 32,51 30,55 28,51 24,50 28,49" fill="#6ee7b7" opacity="0.85"/>
+                    <polygon points="132,65 133,68 136,69 133,70 132,73 131,70 128,69 131,68" fill="#a7f3d0" opacity="0.75"/>
+                    <circle cx="125" cy="35" r="2.5" fill="#34d399" opacity="0.8"/>
+                    <!-- Bell Top Ring -->
+                    <circle cx="80" cy="30" r="7" fill="none" stroke="#6ee7b7" stroke-width="3"/>
+                    <!-- Main Bell Dome -->
+                    <path d="M80 34 C60 34 52 56 50 82 C48 98 40 104 36 108 C35 109 36 111 38 111 H122 C124 111 125 109 124 108 C120 104 112 98 110 82 C108 56 100 34 80 34 Z" 
+                          fill="url(#nnBellGrad)" stroke="#6ee7b7" stroke-width="2.2"/>
+                    <!-- Bell Clapper -->
+                    <ellipse cx="80" cy="116" rx="11" ry="8" fill="#064e3b" stroke="#34d399" stroke-width="2"/>
+                    <!-- Emerald Checkmark Badge (All Caught Up) -->
+                    <circle cx="106" cy="100" r="14" fill="#064e3b" stroke="#34d399" stroke-width="2.5"/>
+                    <circle cx="106" cy="100" r="11" fill="#10b981"/>
+                    <path d="M101 100 L104.5 103.5 L111.5 96.5" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+
+            {% elif state_type == 'no_search_results' %}
+                <!-- 5. NO SEARCH RESULTS: Luminous Amber/Orange Magnifying Glass with Radar Scan Rings -->
+                <svg class="w-full h-full drop-shadow-[0_10px_20px_rgba(245,158,11,0.35)]" viewBox="0 0 160 160" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="No Search Results Illustration">
+                    <defs>
+                        <linearGradient id="nsLensGrad" x1="40" y1="35" x2="95" y2="90" gradientUnits="userSpaceOnUse">
+                            <stop stop-color="#fbbf24" stop-opacity="0.35"/>
+                            <stop offset="0.6" stop-color="#d97706" stop-opacity="0.15"/>
+                            <stop offset="1" stop-color="#78350f" stop-opacity="0.5"/>
+                        </linearGradient>
+                        <linearGradient id="nsHandleGrad" x1="90" y1="90" x2="135" y2="135" gradientUnits="userSpaceOnUse">
+                            <stop stop-color="#f59e0b"/>
+                            <stop offset="0.5" stop-color="#b45309"/>
+                            <stop offset="1" stop-color="#451a03"/>
+                        </linearGradient>
+                    </defs>
+                    <!-- Radar Scanner Dashed Rings -->
+                    <circle cx="68" cy="62" r="46" stroke="#fbbf24" stroke-width="1.2" stroke-dasharray="4 4" opacity="0.3"/>
+                    <circle cx="68" cy="62" r="38" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="5 3" opacity="0.45"/>
+                    <!-- Sparkles -->
+                    <polygon points="120,35 122,39 126,40 122,41 120,45 118,41 114,40 118,39" fill="#fde68a" opacity="0.8"/>
+                    <circle cx="28" cy="98" r="2.5" fill="#f59e0b" opacity="0.75"/>
+                    <!-- Handle Shadow & Body -->
+                    <path d="M96 90 L132 126 C135 129 135 134 132 137 C129 140 124 140 121 137 L85 101 Z" 
+                          fill="url(#nsHandleGrad)" stroke="#fcd34d" stroke-width="2" stroke-linejoin="round"/>
+                    <!-- Outer Lens Rim -->
+                    <circle cx="68" cy="62" r="30" fill="url(#nsLensGrad)" stroke="#fbbf24" stroke-width="3"/>
+                    <!-- Inner Lens Glare Arc -->
+                    <path d="M48 50 A 24 24 0 0 1 78 38" stroke="#fef3c7" stroke-width="2.5" stroke-linecap="round" opacity="0.8"/>
+                    <!-- Question Mark / Empty Target inside lens -->
+                    <path d="M63 56 C63 52 66 49 70 49 C74 49 76 51.5 76 54 C76 56.5 74 58 72 59.5 V63 M72 68 V69" 
+                          stroke="#fbbf24" stroke-width="2.2" stroke-linecap="round"/>
+                </svg>
+
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Title & Description -->
+    <div class="space-y-1.5 max-w-md mx-auto">
+        <h3 class="text-base sm:text-lg font-bold text-slate-900 dark:text-zinc-100 tracking-tight">
+            {% if title %}
+                {{ title }}
+            {% elif state_type == 'no_tasks' %}
+                No Tasks Yet
+            {% elif state_type == 'no_bugs' %}
+                No Bugs Found
+            {% elif state_type == 'no_files' %}
+                No Files Yet
+            {% elif state_type == 'no_notifications' %}
+                You're All Caught Up!
+            {% elif state_type == 'no_search_results' %}
+                No Results Found
+            {% else %}
+                Nothing Here Yet
+            {% endif %}
+        </h3>
+
+        <p class="text-xs sm:text-sm text-slate-500 dark:text-zinc-400 leading-relaxed">
+            {% if message %}
+                {{ message }}
+            {% elif state_type == 'no_tasks' %}
+                There are no tasks created in this view yet. Start organizing your sprint by creating your first task.
+            {% elif state_type == 'no_bugs' %}
+                All systems green! No defect or bug reports found in this view.
+            {% elif state_type == 'no_files' %}
+                Upload workspace documents, designs, or assets to collaborate with your team.
+            {% elif state_type == 'no_notifications' %}
+                No unread notifications right now. Check back later for team and project updates.
+            {% elif state_type == 'no_search_results' %}
+                {% if query %}
+                    No results match your search query <strong class="text-slate-800 dark:text-zinc-200 font-mono">"{{ query }}"</strong>.
+                {% else %}
+                    No items match your active search criteria. Try searching by 6-digit Task ID (e.g. #619347), Bug ID (e.g. B-882316), or keywords.
+                {% endif %}
+            {% else %}
+                No data available in this section.
+            {% endif %}
+        </p>
+    </div>
+
+    <!-- Actions Section -->
+    <div class="pt-1 flex flex-wrap items-center justify-center gap-2.5">
+        {% if action_url or action_onclick %}
+            {% if can_create is False %}
+                <button type="button"
+                        @click="$dispatch('open-access-request', { action: '{{ empty_action|default:'task.create' }}', workspaceSlug: '{{ workspace.slug|default:'' }}', workspaceName: '{{ workspace.name|default:'' }}', workspaceId: '{{ workspace.id|default:'' }}' })"
+                        class="inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl bg-purple-50 dark:bg-purple-950/60 border border-purple-200 dark:border-purple-800/80 text-purple-700 dark:text-purple-300 text-xs font-semibold hover:bg-purple-100 dark:hover:bg-purple-900/60 transition cursor-pointer"
+                        title="You don't currently have permission. Request temporary access.">
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                    </svg>
+                    <span>Request Access 🔒</span>
+                </button>
+            {% else %}
+                {% if action_onclick %}
+                    <button type="button" @click="{{ action_onclick }}"
+                            class="px-4 py-2 text-xs font-semibold rounded-xl text-white shadow-md transition-all cursor-pointer
+                                {% if state_type == 'no_tasks' %}bg-blue-600 hover:bg-blue-500 shadow-blue-500/20
+                                {% elif state_type == 'no_bugs' %}bg-rose-600 hover:bg-rose-500 shadow-rose-500/20
+                                {% elif state_type == 'no_files' %}bg-indigo-600 hover:bg-indigo-500 shadow-indigo-500/20
+                                {% elif state_type == 'no_search_results' %}bg-amber-600 hover:bg-amber-500 shadow-amber-500/20
+                                {% else %}bg-blue-600 hover:bg-blue-500 shadow-blue-500/20{% endif %}">
+                        {{ action_text|default:'+ Create' }}
+                    </button>
+                {% else %}
+                    <a href="{{ action_url }}"
+                       class="inline-flex items-center px-4 py-2 text-xs font-semibold rounded-xl text-white shadow-md transition-all cursor-pointer
+                            {% if state_type == 'no_tasks' %}bg-blue-600 hover:bg-blue-500 shadow-blue-500/20
+                            {% elif state_type == 'no_bugs' %}bg-rose-600 hover:bg-rose-500 shadow-rose-500/20
+                            {% elif state_type == 'no_files' %}bg-indigo-600 hover:bg-indigo-500 shadow-indigo-500/20
+                            {% elif state_type == 'no_search_results' %}bg-amber-600 hover:bg-amber-500 shadow-amber-500/20
+                            {% else %}bg-blue-600 hover:bg-blue-500 shadow-blue-500/20{% endif %}">
+                        {{ action_text|default:'+ Create' }}
+                    </a>
+                {% endif %}
+            {% endif %}
+        {% endif %}
+
+        {% if secondary_url %}
+            <a href="{{ secondary_url }}"
+               class="px-3.5 py-2 text-xs font-medium rounded-xl border border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-zinc-800/80 text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-700 transition">
+                {{ secondary_text|default:'Clear Filters' }}
+            </a>
+        {% endif %}
+    </div>
+</div>

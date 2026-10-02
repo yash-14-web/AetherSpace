@@ -26,6 +26,9 @@ DEBUG = os.environ.get('DJANGO_DEBUG', 'True').lower() in ('true', '1', 't')
 allowed_hosts_env = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1,.onrender.com')
 ALLOWED_HOSTS = [h.strip() for h in allowed_hosts_env.split(',') if h.strip()]
 
+csrf_trusted_env = os.environ.get('CSRF_TRUSTED_ORIGINS', 'https://*.onrender.com,http://localhost,http://127.0.0.1')
+CSRF_TRUSTED_ORIGINS = [orig.strip() for orig in csrf_trusted_env.split(',') if orig.strip()]
+
 # Application definition
 INSTALLED_APPS = [
     'daphne',
@@ -63,6 +66,9 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'core.middleware.AetherSpaceGlobalErrorMiddleware',
+    'core.middleware.ModuleMaintenanceMiddleware',
+    'core.middleware.UserActivityMiddleware',
 ]
 
 ROOT_URLCONF = 'aetherspace.urls'
@@ -89,11 +95,41 @@ TEMPLATES = [
 WSGI_APPLICATION = 'aetherspace.wsgi.application'
 ASGI_APPLICATION = 'aetherspace.asgi.application'
 
-CHANNEL_LAYERS = {
-    'default': {
-        'BACKEND': 'channels.layers.InMemoryChannelLayer',
-    },
-}
+REDIS_URL = os.environ.get('REDIS_URL')
+if REDIS_URL:
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels_redis.core.RedisChannelLayer',
+            'CONFIG': {
+                'hosts': [REDIS_URL],
+            },
+        },
+    }
+else:
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels.layers.InMemoryChannelLayer',
+        },
+    }
+
+# WebRTC STUN/TURN Configuration
+DEFAULT_ICE_SERVERS = [
+    {"urls": "stun:stun.l.google.com:19302"},
+    {"urls": "stun:stun1.l.google.com:19302"},
+    {"urls": "stun:stun2.l.google.com:19302"},
+    {"urls": "stun:stun3.l.google.com:19302"},
+    {"urls": "stun:stun4.l.google.com:19302"},
+]
+
+ICE_SERVERS_ENV = os.environ.get('ICE_SERVERS_JSON')
+if ICE_SERVERS_ENV:
+    try:
+        import json
+        WEBRTC_ICE_SERVERS = json.loads(ICE_SERVERS_ENV)
+    except Exception:
+        WEBRTC_ICE_SERVERS = DEFAULT_ICE_SERVERS
+else:
+    WEBRTC_ICE_SERVERS = DEFAULT_ICE_SERVERS
 
 # Authoritative User Model
 AUTH_USER_MODEL = 'accounts.User'
@@ -106,10 +142,13 @@ if not DATABASE_URL:
         "AetherSpace strictly requires a configured Supabase PostgreSQL connection string."
     )
 
+# Supabase Session/Transaction pooling:
+# CONN_MAX_AGE defaults to 0 to prevent session pool exhaustion (EMAXCONNSESSION).
+# DB_CONNECT_TIMEOUT defaults to 60s for reliable Render cold starts and deployment stability.
 DATABASES = {
     'default': dj_database_url.config(
         default=DATABASE_URL,
-        conn_max_age=int(os.environ.get('CONN_MAX_AGE', 600)),
+        conn_max_age=int(os.environ.get('CONN_MAX_AGE', 0)),
         conn_health_checks=True,
     )
 }
@@ -121,10 +160,11 @@ if 'test' in sys.argv:
         'NAME': ':memory:',
     }
 
-# Supabase requires SSL connection
+# Supabase requires SSL connection and configured connect timeout for production / Render cold boots
 if 'postgresql' in DATABASES['default'].get('ENGINE', ''):
     DATABASES['default'].setdefault('OPTIONS', {})
     DATABASES['default']['OPTIONS'].setdefault('sslmode', 'require')
+    DATABASES['default']['OPTIONS'].setdefault('connect_timeout', int(os.environ.get('DB_CONNECT_TIMEOUT', 60)))
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
@@ -181,13 +221,14 @@ AUTHENTICATION_BACKENDS = [
 SUPABASE_URL = os.environ.get('SUPABASE_URL', '')
 SUPABASE_PUBLISHABLE_KEY = os.environ.get('SUPABASE_PUBLISHABLE_KEY', '')
 SUPABASE_SECRET_KEY = os.environ.get('SUPABASE_SECRET_KEY', '')
-SUPABASE_STORAGE_BUCKET = os.environ.get('SUPABASE_STORAGE_BUCKET', 'aetherspace-storage')
+SUPABASE_STORAGE_BUCKET = os.environ.get('SUPABASE_STORAGE_BUCKET', 'Aether Space 1')
+SUPABASE_STORAGE_READY = os.environ.get('SUPABASE_STORAGE_READY', 'true').lower() in ('true', '1')
 
-# Email Delivery Configuration (Environment-driven, console backend fallback in development)
+# Email Delivery Configuration (Environment-driven, clean console backend fallback in development)
 EMAIL_BACKEND = os.environ.get(
     'EMAIL_BACKEND',
     'django.core.mail.backends.smtp.EmailBackend' if os.environ.get('EMAIL_HOST')
-    else 'django.core.mail.backends.console.EmailBackend'
+    else 'notifications.email_backend.CleanConsoleEmailBackend'
 )
 EMAIL_HOST = os.environ.get('EMAIL_HOST', '')
 EMAIL_PORT = int(os.environ.get('EMAIL_PORT', 587))
@@ -195,3 +236,55 @@ EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
 EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'True').lower() in ('true', '1')
 DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'AetherSpace <no-reply@aetherspace.dev>')
+
+# Secure Error Logging Configuration
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'safe_standard': {
+            'format': '[%(asctime)s] %(levelname)s in %(name)s: %(message)s',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'safe_standard',
+        },
+        'file': {
+            'class': 'logging.FileHandler',
+            'filename': BASE_DIR / 'aetherspace_debug.log',
+            'formatter': 'safe_standard',
+            'level': 'DEBUG',
+            'encoding': 'utf-8',
+        },
+    },
+    'loggers': {
+        'django.request': {
+            'handlers': ['console', 'file'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+        'aetherspace.errors': {
+            'handlers': ['console', 'file'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+    },
+}
+
+# Production Security Headers & SSL Proxy Configuration
+if not DEBUG and 'test' not in sys.argv:
+    SESSION_COOKIE_SECURE = os.environ.get('SESSION_COOKIE_SECURE', 'True').lower() in ('true', '1')
+    CSRF_COOKIE_SECURE = os.environ.get('CSRF_COOKIE_SECURE', 'True').lower() in ('true', '1')
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    X_FRAME_OPTIONS = 'DENY'
+    SECURE_SSL_REDIRECT = os.environ.get('SECURE_SSL_REDIRECT', 'True').lower() in ('true', '1')
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    hsts_seconds = int(os.environ.get('SECURE_HSTS_SECONDS', 31536000))
+    if hsts_seconds > 0:
+        SECURE_HSTS_SECONDS = hsts_seconds
+        SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+        SECURE_HSTS_PRELOAD = True
+

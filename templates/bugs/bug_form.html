@@ -116,7 +116,7 @@
                         <label class="block text-xs font-bold text-slate-700 dark:text-zinc-300">
                             Assign To
                         </label>
-                        {{ form.assignee }}
+                        {% include 'components/people_search_select.html' with initial_user=bug.assignee field_name='assignee' workspace_slug=workspace.slug required=False %}
                     </div>
                     <div class="space-y-1.5">
                         <label class="block text-xs font-bold text-slate-700 dark:text-zinc-300">
@@ -143,12 +143,9 @@
                     </div>
                 </div>
 
-                <!-- Description -->
+                <!-- Description with Markdown Toolbar -->
                 <div class="space-y-1.5">
-                    <label class="block text-xs font-bold text-slate-700 dark:text-zinc-300">
-                        Description
-                    </label>
-                    {{ form.description }}
+                    {% include 'components/rich_text_editor.html' with field_name='description' field_id=form.description.id_for_label initial_content=form.description.value label='Description' placeholder='Detailed summary of defect...' rows=4 %}
                 </div>
             </div>
 
@@ -182,12 +179,9 @@
                     {{ form.browser_device }}
                 </div>
 
-                <!-- Steps to Reproduce -->
+                <!-- Steps to Reproduce with Markdown Toolbar -->
                 <div class="space-y-1.5">
-                    <label class="block text-xs font-bold text-slate-700 dark:text-zinc-300">
-                        Steps to Reproduce
-                    </label>
-                    {{ form.steps_to_reproduce }}
+                    {% include 'components/rich_text_editor.html' with field_name='steps_to_reproduce' field_id=form.steps_to_reproduce.id_for_label initial_content=form.steps_to_reproduce.value label='Steps to Reproduce' placeholder='1. Navigate to...\n2. Click on...\n3. Observe error...' rows=4 %}
                 </div>
 
                 <!-- Expected & Actual Result Grid -->

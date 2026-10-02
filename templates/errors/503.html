@@ -1,0 +1,90 @@
+{% extends 'errors/base_error.html' %}
+
+{% block error_title_tag %}503 — Service Temporarily Unavailable{% endblock %}
+
+{% block status_code %}503{% endblock %}
+{% block status_code_color %}text-amber-500 dark:text-amber-400{% endblock %}
+{% block glow_color %}bg-amber-600{% endblock %}
+
+{% block headline %}Service Temporarily Unavailable{% endblock %}
+{% block description %}
+AetherSpace is temporarily unavailable. We're working to restore the service. Please try again shortly.
+{% endblock %}
+
+{% block illustration %}
+<svg class="w-full h-full drop-shadow-[0_10px_25px_rgba(245,158,11,0.35)]" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Deep space satellite radar dish illustration">
+    <!-- Starfield -->
+    <circle cx="28" cy="45" r="1.5" fill="#fde68a" opacity="0.6"/>
+    <circle cx="165" cy="30" r="1.2" fill="#fde68a" opacity="0.7"/>
+    <circle cx="185" cy="80" r="1.5" fill="#f59e0b" opacity="0.5"/>
+    <circle cx="35" cy="115" r="1.2" fill="#f59e0b" opacity="0.4"/>
+
+    <!-- Radio / Signal Wave Arcs in Amber/Gold -->
+    <path d="M125 45 A45 45 0 0 1 155 75" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-dasharray="2 4" opacity="0.8"/>
+    <path d="M138 32 A65 65 0 0 1 175 69" stroke="#fbbf24" stroke-width="2.5" stroke-linecap="round" opacity="0.6"/>
+    <path d="M152 20 A85 85 0 0 1 192 60" stroke="#fde68a" stroke-width="3" stroke-linecap="round" opacity="0.4"/>
+
+    <!-- Satellite Dish Pedestal / Base -->
+    <path d="M75 160 L125 160 L115 135 L85 135 Z" fill="url(#pedestalGrad)" stroke="#b45309" stroke-width="1.5"/>
+    <!-- Pedestal Feet / Ground Plates -->
+    <rect x="68" y="158" width="64" height="6" rx="3" fill="#1e293b" stroke="#f59e0b" stroke-width="1"/>
+
+    <!-- Pivot Swivel Joint -->
+    <circle cx="100" cy="130" r="8" fill="#451a03" stroke="#f59e0b" stroke-width="2"/>
+    <circle cx="100" cy="130" r="3" fill="#fbbf24"/>
+
+    <!-- Support Strut / Boom -->
+    <path d="M100 130 L112 95" stroke="#78350f" stroke-width="6" stroke-linecap="round"/>
+
+    <!-- Main Parabolic Radar Dish (Curved Ellipse) -->
+    <g transform="translate(10, -5)">
+        <!-- Dish Back Body -->
+        <ellipse cx="105" cy="98" rx="42" ry="32" transform="rotate(-32 105 98)" 
+                 fill="url(#dishBodyGrad)" stroke="#f59e0b" stroke-width="2.5"/>
+        <!-- Dish Inner Cavity -->
+        <ellipse cx="108" cy="96" rx="36" ry="24" transform="rotate(-32 108 96)" 
+                 fill="url(#dishInnerGrad)" stroke="#fbbf24" stroke-width="1.2"/>
+        
+        <!-- Central Feed Horn / LNB Antenna -->
+        <path d="M108 96 L132 76" stroke="#fbbf24" stroke-width="3" stroke-linecap="round"/>
+        <!-- Feed Horn Sub-reflector Ball -->
+        <circle cx="134" cy="74" r="5" fill="#fef3c7" stroke="#d97706" stroke-width="1.5"/>
+        <!-- Focus Glow -->
+        <circle cx="134" cy="74" r="2.5" fill="#f59e0b"/>
+
+        <!-- Support Tri-struts for Feed Horn -->
+        <path d="M85 86 L134 74" stroke="#d97706" stroke-width="1.2" opacity="0.7"/>
+        <path d="M112 118 L134 74" stroke="#d97706" stroke-width="1.2" opacity="0.7"/>
+    </g>
+
+    <defs>
+        <linearGradient id="dishBodyGrad" x1="60" y1="70" x2="150" y2="130" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#78350f"/>
+            <stop offset="0.5" stop-color="#451a03"/>
+            <stop offset="1" stop-color="#1e1b4b"/>
+        </linearGradient>
+        <linearGradient id="dishInnerGrad" x1="75" y1="75" x2="140" y2="120" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#f59e0b"/>
+            <stop offset="0.4" stop-color="#b45309"/>
+            <stop offset="1" stop-color="#291102"/>
+        </linearGradient>
+        <linearGradient id="pedestalGrad" x1="75" y1="135" x2="125" y2="160" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#475569"/>
+            <stop offset="1" stop-color="#1e293b"/>
+        </linearGradient>
+    </defs>
+</svg>
+{% endblock %}
+
+{% block primary_button_style %}bg-amber-600 hover:bg-amber-500 focus:ring-amber-500 shadow-amber-500/20{% endblock %}
+{% block primary_button_text %}Try Again{% endblock %}
+{% block action_buttons %}
+    <button type="button" onclick="window.location.reload()"
+            class="w-full sm:w-auto px-6 py-2.5 rounded-lg text-sm font-semibold text-white shadow-lg bg-amber-600 hover:bg-amber-500 focus:ring-amber-500 shadow-amber-500/20 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2">
+        Try Again
+    </button>
+    <a href="{% if user.is_authenticated %}{% url 'workspaces:dashboard' %}{% else %}{% url 'core:landing' %}{% endif %}"
+       class="w-full sm:w-auto px-6 py-2.5 rounded-lg text-sm font-medium aether-error-btn-secondary bg-slate-100 dark:bg-zinc-800 text-slate-800 dark:text-zinc-100 border border-slate-300 dark:border-zinc-700 hover:bg-slate-200 dark:hover:bg-zinc-700 shadow-sm transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-slate-400 dark:focus:ring-zinc-600">
+        Go to Dashboard
+    </a>
+{% endblock %}

@@ -1,0 +1,16 @@
+Hello {{ user.full_name|default:user.email }},
+
+{% if actor %}{{ actor.full_name|default:actor.email }} has {% if status_str == 'Cancelled' %}cancelled{% else %}scheduled{% endif %} a conference:{% else %}A video meeting has been scheduled:{% endif %}
+
+Meeting: {{ meeting.title }}
+Room Code: {{ meeting.meeting_code }}
+Workspace: {{ meeting.workspace.name }}
+{% if meeting.scheduled_start %}Scheduled for: {{ meeting.scheduled_start|date:"M d, Y H:i" }} UTC{% endif %}
+
+{% if status_str != 'Cancelled' %}
+Join Meeting Room:
+{{ site_url|default:'http://127.0.0.1:8000' }}{{ action_url }}
+{% endif %}
+
+--
+AetherSpace Meet Hub

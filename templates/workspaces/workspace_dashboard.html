@@ -4,370 +4,687 @@
 {% block title %}{{ workspace.name }} — Workspace Dashboard — AetherSpace{% endblock %}
 
 {% block content %}
-<div class="space-y-6 max-w-7xl mx-auto py-4 sm:py-6 px-4 sm:px-6">
+<div class="space-y-8 max-w-7xl mx-auto py-2 sm:py-4 px-2 sm:px-4">
     
-    <!-- Workspace Header & Quick Actions -->
-    <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-5 border-b border-slate-200 dark:border-zinc-800 pb-6">
-        <div class="flex items-start space-x-4 min-w-0">
-            <!-- Uncompressed High-Fidelity Workspace Emblem Logo -->
-            <div class="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-violet-700 text-white font-black text-xl sm:text-2xl shadow-xl shadow-blue-500/25 border border-blue-400/30 flex items-center justify-center shrink-0 flex-none select-none tracking-wider">
-                {{ workspace.name|slice:":2"|upper }}
-            </div>
+    <!-- 1. WORKSPACE COMMAND CENTER HEADER -->
+    <div class="bg-white dark:bg-[#0c1322] rounded-2xl border border-slate-200 dark:border-zinc-800 p-6 sm:p-7 shadow-sm transition-colors">
+        <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
             
-            <div class="min-w-0 space-y-1.5">
-                <div class="flex flex-wrap items-center gap-2.5">
-                    <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-zinc-50 truncate">
-                        {{ workspace.name }}
-                    </h1>
-                    <!-- Role Badge -->
-                    {% if membership.is_admin %}
-                        <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold bg-purple-50 dark:bg-purple-950/70 text-purple-600 dark:text-purple-300 border border-purple-200 dark:border-purple-800/60 shadow-sm">
-                            Admin
-                        </span>
-                    {% elif membership.is_manager %}
-                        <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold bg-blue-50 dark:bg-blue-950/70 text-blue-600 dark:text-blue-300 border border-blue-200 dark:border-blue-800/60 shadow-sm">
-                            Manager
+            <!-- Left: Workspace Identity & Metadata -->
+            <div class="flex items-start space-x-4 min-w-0">
+                <!-- Workspace Emblem / Logo -->
+                <div class="w-16 h-16 sm:w-18 sm:h-18 rounded-2xl overflow-hidden shadow-md shadow-blue-500/15 border border-slate-200/80 dark:border-zinc-700/80 flex items-center justify-center shrink-0 select-none tracking-wider bg-gradient-to-tr from-blue-600 via-indigo-600 to-violet-700 text-white font-black text-2xl">
+                    {% if workspace.logo_url %}
+                        <img src="{{ workspace.logo_url }}" alt="{{ workspace.name }}" class="w-full h-full object-cover" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                        <span style="display:none;" class="w-full h-full items-center justify-center">
+                            {{ workspace.name|slice:":2"|upper }}
                         </span>
                     {% else %}
-                        <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 border border-slate-200 dark:border-zinc-700 shadow-sm">
-                            Contributor
-                        </span>
+                        {{ workspace.name|slice:":2"|upper }}
                     {% endif %}
                 </div>
-                <!-- Readable, properly scaled description -->
-                <p class="text-sm text-slate-500 dark:text-zinc-400 leading-relaxed max-w-3xl">
-                    {{ workspace.description|default:"Active team workspace on AetherSpace." }}
-                </p>
+                
+                <div class="min-w-0 space-y-1.5">
+                    <div class="flex flex-wrap items-center gap-2.5">
+                        <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-zinc-50 truncate">
+                            {{ workspace.name }}
+                        </h1>
+                        <!-- Role Badge -->
+                        {% if membership.is_admin %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-lg text-xs font-bold bg-purple-50 dark:bg-purple-950/70 text-purple-600 dark:text-purple-300 border border-purple-200 dark:border-purple-800/60 shadow-2xs">
+                                Admin
+                            </span>
+                        {% elif membership.is_manager %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-lg text-xs font-bold bg-blue-50 dark:bg-blue-950/70 text-blue-600 dark:text-blue-300 border border-blue-200 dark:border-blue-800/60 shadow-2xs">
+                                Manager
+                            </span>
+                        {% else %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-lg text-xs font-bold bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 border border-slate-200 dark:border-zinc-700 shadow-2xs">
+                                Contributor
+                            </span>
+                        {% endif %}
+                    </div>
+                    
+                    <p class="text-xs sm:text-sm text-slate-500 dark:text-zinc-400 leading-relaxed max-w-2xl">
+                        Your workspace command center • {{ total_members_count }} team member{{ total_members_count|pluralize }} collaborating on {{ workspace.name }}
+                    </p>
+                </div>
             </div>
-        </div>
 
-        <!-- Action Buttons -->
-        <div class="flex items-center space-x-3 shrink-0 pt-1">
-            <a href="{% url 'workspaces:team' slug=workspace.slug %}" class="aether-button-secondary text-xs sm:text-sm px-4 py-2.5 flex items-center space-x-2 font-medium shadow-sm">
-                <svg class="w-4 h-4 text-slate-500 dark:text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
-                </svg>
-                <span>Team ({{ total_members_count }})</span>
-            </a>
+            <!-- Right: Contextual Quick Actions -->
+            <div class="flex flex-wrap items-center gap-2.5 shrink-0">
+                {% if can_create_task %}
+                    <a href="{% url 'tasks:task_create' slug=workspace.slug %}" 
+                       class="inline-flex items-center space-x-1.5 px-4 py-2 text-xs font-bold rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-sm shadow-blue-500/25 transition cursor-pointer">
+                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
+                        </svg>
+                        <span>New Task</span>
+                    </a>
+                {% else %}
+                    <button type="button"
+                            @click="$dispatch('open-access-request', { action: 'task.create', workspaceSlug: '{{ workspace.slug }}', workspaceName: '{{ workspace.name }}', workspaceId: '{{ workspace.id }}' })"
+                            class="inline-flex items-center space-x-1.5 px-4 py-2 text-xs font-semibold rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-300 transition cursor-pointer"
+                            title="Request temporary permission to create tasks">
+                        <span>🔒</span>
+                        <span>Request Task Access</span>
+                    </button>
+                {% endif %}
 
-            {% if membership.can_manage_workspace %}
-                <a href="{% url 'workspaces:settings' slug=workspace.slug %}" class="aether-button-secondary text-xs sm:text-sm p-2.5 flex items-center justify-center shadow-sm" title="Workspace Settings">
-                    <svg class="w-4 h-4 text-slate-500 dark:text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                    </svg>
+                <a href="{% url 'bugs:bug_create' slug=workspace.slug %}" 
+                   class="inline-flex items-center space-x-1.5 px-3.5 py-2 text-xs font-semibold rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800/80 transition">
+                    <span class="w-2 h-2 rounded-full bg-rose-500"></span>
+                    <span>Report Bug</span>
                 </a>
-            {% endif %}
+
+                <a href="{% url 'meetings:meeting_start' slug=workspace.slug %}" 
+                   class="inline-flex items-center space-x-1.5 px-3.5 py-2 text-xs font-semibold rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/40 transition">
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                    </svg>
+                    <span>Instant Call</span>
+                </a>
+
+                {% if membership.can_manage_workspace %}
+                    <a href="{% url 'workspaces:settings' slug=workspace.slug %}" 
+                       class="p-2 text-slate-500 hover:text-slate-800 dark:text-zinc-400 dark:hover:text-zinc-100 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:bg-slate-50 dark:hover:bg-zinc-800/80 transition"
+                       title="Workspace Settings">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        </svg>
+                    </a>
+                {% endif %}
+            </div>
+
         </div>
     </div>
 
-    <!-- 4 High-Fidelity Stat Cards (from Mockup) -->
+    <!-- 2. HIGH-FIDELITY KPI SUMMARY CARDS (100% Real Database Queries) -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <!-- Active Tasks -->
-        <div class="aether-card p-5 space-y-3">
+        
+        <!-- Card 1: Active Tasks -->
+        <a href="{% url 'tasks:task_list' slug=workspace.slug %}" 
+           class="bg-white dark:bg-[#0c1322] rounded-2xl border border-slate-200 dark:border-zinc-800 p-5 space-y-3 shadow-2xs hover:shadow-md hover:border-blue-400 dark:hover:border-blue-500/50 transition group block">
             <div class="flex items-center justify-between">
-                <span class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">Active Tasks</span>
-                <span class="text-xs px-2 py-0.5 rounded-md bg-blue-50 dark:bg-blue-950/60 text-aether-blue font-bold">Sprint 4</span>
+                <span class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 flex items-center space-x-1.5">
+                    <span class="w-2 h-2 rounded-full bg-blue-500"></span>
+                    <span>Active Tasks</span>
+                </span>
+                <span class="text-[11px] font-semibold text-blue-600 dark:text-blue-400 group-hover:underline">
+                    View &rarr;
+                </span>
             </div>
             <div class="flex items-baseline space-x-2.5">
-                <span class="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-zinc-50 tracking-tight">{{ active_tasks_count }}</span>
-                <span class="text-xs font-semibold text-emerald-600 dark:text-emerald-400">↑ 12% vs last cycle</span>
-            </div>
-            <div class="w-full bg-slate-100 dark:bg-zinc-800 rounded-full h-1.5 mt-2 overflow-hidden">
-                <div class="bg-aether-blue h-1.5 rounded-full" style="width: 68%"></div>
-            </div>
-        </div>
-
-        <!-- Open Bugs -->
-        <div class="aether-card p-5 space-y-3">
-            <div class="flex items-center justify-between">
-                <span class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">Open Bugs</span>
-                <a href="{% url 'bugs:bug_dashboard' slug=workspace.slug %}" class="text-xs px-2 py-0.5 rounded-md bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 font-bold hover:underline">Triage</a>
-            </div>
-            <div class="flex items-baseline space-x-2.5">
-                <span class="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-zinc-50 tracking-tight">{{ open_bugs_count }}</span>
-                {% if high_severity_bugs_count > 0 %}
-                    <span class="text-xs font-semibold text-rose-500">{{ high_severity_bugs_count }} high severity</span>
+                <span class="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-zinc-50 tracking-tight font-mono">
+                    {{ active_tasks_count }}
+                </span>
+                {% if active_sprint %}
+                    <span class="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                        {{ active_sprint.progress_percentage }}% sprint done
+                    </span>
                 {% else %}
-                    <span class="text-xs font-semibold text-emerald-500">0 blockers</span>
+                    <span class="text-xs font-semibold text-slate-400 dark:text-zinc-500">
+                        Backlog queue
+                    </span>
                 {% endif %}
             </div>
-            <div class="w-full bg-slate-100 dark:bg-zinc-800 rounded-full h-1.5 mt-2 overflow-hidden">
-                <div class="bg-rose-500 h-1.5 rounded-full" style="width: {% if open_bugs_count > 0 %}{% if open_bugs_count > 10 %}100{% else %}{{ open_bugs_count }}0{% endif %}{% else %}0{% endif %}%"></div>
+            <!-- Real Status Breakdown / Bar -->
+            <div class="w-full bg-slate-100 dark:bg-zinc-800 rounded-full h-1.5 overflow-hidden">
+                <div class="bg-blue-600 h-1.5 rounded-full transition-all duration-500" 
+                     style="width: {% if active_sprint %}{{ active_sprint.progress_percentage }}{% elif active_tasks_count > 0 %}40{% else %}0{% endif %}%;"></div>
+            </div>
+        </a>
+
+        <!-- Card 2: Open Bugs -->
+        <a href="{% url 'bugs:bug_dashboard' slug=workspace.slug %}" 
+           class="bg-white dark:bg-[#0c1322] rounded-2xl border border-slate-200 dark:border-zinc-800 p-5 space-y-3 shadow-2xs hover:shadow-md hover:border-rose-400 dark:hover:border-rose-500/50 transition group block">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 flex items-center space-x-1.5">
+                    <span class="w-2 h-2 rounded-full bg-rose-500"></span>
+                    <span>Open Bugs</span>
+                </span>
+                <span class="text-[11px] font-semibold text-rose-600 dark:text-rose-400 group-hover:underline">
+                    Triage &rarr;
+                </span>
+            </div>
+            <div class="flex items-baseline space-x-2.5">
+                <span class="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-zinc-50 tracking-tight font-mono">
+                    {{ open_bugs_count }}
+                </span>
+                {% if high_severity_bugs_count > 0 %}
+                    <span class="text-xs font-semibold text-rose-500 font-medium">
+                        {{ high_severity_bugs_count }} high/critical
+                    </span>
+                {% else %}
+                    <span class="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                        0 critical blockers
+                    </span>
+                {% endif %}
+            </div>
+            <!-- Real Status Bar -->
+            <div class="w-full bg-slate-100 dark:bg-zinc-800 rounded-full h-1.5 overflow-hidden">
+                <div class="bg-rose-500 h-1.5 rounded-full transition-all duration-500" 
+                     style="width: {% if open_bugs_count > 0 %}{% if open_bugs_count > 10 %}100{% else %}{{ open_bugs_count }}0{% endif %}{% else %}0{% endif %}%;"></div>
+            </div>
+        </a>
+
+        <!-- Card 3: Team Members -->
+        <a href="{% url 'workspaces:team' slug=workspace.slug %}" 
+           class="bg-white dark:bg-[#0c1322] rounded-2xl border border-slate-200 dark:border-zinc-800 p-5 space-y-3 shadow-2xs hover:shadow-md hover:border-indigo-400 dark:hover:border-indigo-500/50 transition group block">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 flex items-center space-x-1.5">
+                    <span class="w-2 h-2 rounded-full bg-indigo-500"></span>
+                    <span>Team Members</span>
+                </span>
+                <span class="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 group-hover:underline">
+                    Roster &rarr;
+                </span>
+            </div>
+            <div class="flex items-baseline space-x-2.5">
+                <span class="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-zinc-50 tracking-tight font-mono">
+                    {{ total_members_count }}
+                </span>
+                <span class="text-xs font-semibold text-slate-500 dark:text-zinc-400">
+                    {{ admins_count }} Adm • {{ managers_count }} Mgr • {{ contributors_count }} Dev
+                </span>
+            </div>
+            <!-- Real Avatar Stack -->
+            <div class="flex -space-x-2 overflow-hidden pt-0.5">
+                {% for m in members|slice:":6" %}
+                    {% if m.user.avatar and not m.user.avatar|slice:":7" == "preset:" %}
+                        <img src="{{ m.user.avatar }}" alt="{{ m.user.full_name|default:m.user.get_full_name }}" class="w-6 h-6 rounded-full object-cover ring-2 ring-white dark:ring-[#0c1322] shrink-0" title="{{ m.user.full_name|default:m.user.get_full_name }}">
+                    {% else %}
+                        <div class="w-6 h-6 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-700 text-white font-bold text-[9px] flex items-center justify-center ring-2 ring-white dark:ring-[#0c1322] shrink-0" title="{{ m.user.full_name|default:m.user.get_full_name }}">
+                            {{ m.user.full_name|default:m.user.email|slice:":2"|upper }}
+                        </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </a>
+
+        <!-- Card 4: Meetings Today -->
+        <a href="{% url 'meetings:meet_hub' slug=workspace.slug %}" 
+           class="bg-white dark:bg-[#0c1322] rounded-2xl border border-slate-200 dark:border-zinc-800 p-5 space-y-3 shadow-2xs hover:shadow-md hover:border-purple-400 dark:hover:border-purple-500/50 transition group block">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 flex items-center space-x-1.5">
+                    <span class="w-2 h-2 rounded-full bg-purple-500"></span>
+                    <span>Meetings Today</span>
+                </span>
+                <span class="text-[11px] font-semibold text-purple-600 dark:text-purple-400 group-hover:underline">
+                    Meet Hub &rarr;
+                </span>
+            </div>
+            <div class="flex items-baseline space-x-2.5">
+                <span class="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-zinc-50 tracking-tight font-mono">
+                    {{ meetings_today_count }}
+                </span>
+                {% if next_meeting %}
+                    <span class="text-xs font-semibold text-purple-600 dark:text-purple-400 truncate">
+                        Next: {{ next_meeting.scheduled_start|date:"g:i A" }}
+                    </span>
+                {% else %}
+                    <span class="text-xs font-semibold text-slate-400 dark:text-zinc-500">
+                        {{ upcoming_meetings_count }} upcoming
+                    </span>
+                {% endif %}
+            </div>
+            <div class="text-[11px] text-slate-500 dark:text-zinc-400 truncate font-medium">
+                {% if next_meeting %}
+                    {{ next_meeting.title }}
+                {% else %}
+                    No pending meetings today
+                {% endif %}
+            </div>
+        </a>
+
+    </div>
+
+    <!-- 3. SPRINT / PROJECT PROGRESS SECTION (Vertically Organized Card) -->
+    {% if active_sprint %}
+    <div class="bg-white dark:bg-[#0c1322] rounded-2xl border border-slate-200 dark:border-zinc-800 p-6 shadow-sm space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-zinc-800 pb-3">
+            <div class="flex items-center space-x-3">
+                <span class="w-3 h-3 rounded-full bg-emerald-500"></span>
+                <div>
+                    <div class="flex items-center space-x-2">
+                        <h2 class="text-base font-bold text-slate-900 dark:text-zinc-100">
+                            Current Sprint: {{ active_sprint.name }}
+                        </h2>
+                        <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/70 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+                            ACTIVE
+                        </span>
+                    </div>
+                    {% if active_sprint.goal %}
+                        <p class="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">{{ active_sprint.goal }}</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="flex items-center space-x-3 text-xs">
+                {% if active_sprint.days_remaining is not None %}
+                    <span class="font-mono text-slate-500 dark:text-zinc-400">
+                        ⏳ <strong class="text-slate-800 dark:text-zinc-200">{{ active_sprint.days_remaining }}</strong> day{{ active_sprint.days_remaining|pluralize }} remaining
+                    </span>
+                {% endif %}
+                <a href="{% url 'tasks:sprint_planning' slug=workspace.slug %}" class="font-bold text-blue-600 dark:text-blue-400 hover:underline">
+                    Sprint Board &rarr;
+                </a>
             </div>
         </div>
 
-        <!-- Team Members -->
-        <div class="aether-card p-5 space-y-3">
-            <div class="flex items-center justify-between">
-                <span class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">Team Members</span>
-                <a href="{% url 'workspaces:team' slug=workspace.slug %}" class="text-xs text-aether-blue font-bold hover:underline">Manage</a>
+        <!-- Real Task Status Chips Breakdown -->
+        <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 pt-1">
+            <div class="p-3 rounded-xl bg-slate-50 dark:bg-zinc-900/60 border border-slate-100 dark:border-zinc-800 text-center">
+                <span class="text-[10px] uppercase font-bold text-slate-400 dark:text-zinc-500 block">To Do</span>
+                <span class="text-xl font-bold font-mono text-slate-800 dark:text-zinc-200">{{ sprint_breakdown.todo|default:0 }}</span>
             </div>
-            <div class="flex items-baseline space-x-2.5">
-                <span class="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-zinc-50 tracking-tight">{{ total_members_count }}</span>
-                <span class="text-xs font-semibold text-slate-500 dark:text-zinc-400">Online now</span>
+            <div class="p-3 rounded-xl bg-blue-50/50 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900/50 text-center">
+                <span class="text-[10px] uppercase font-bold text-blue-500 block">In Progress</span>
+                <span class="text-xl font-bold font-mono text-blue-600 dark:text-blue-400">{{ sprint_breakdown.in_progress|default:0 }}</span>
             </div>
-            <!-- Avatar stack -->
-            <div class="flex -space-x-1.5 overflow-hidden pt-1">
-                {% for m in members %}
-                    <div class="inline-block h-7 w-7 rounded-full ring-2 ring-white dark:ring-obsidian-900 bg-gradient-to-tr from-blue-500 to-indigo-600 text-white text-xs font-bold flex items-center justify-center shadow-sm" title="{{ m.user.full_name|default:m.user.email }}">
-                        {{ m.user.full_name|default:m.user.email|slice:":1"|upper }}
+            <div class="p-3 rounded-xl bg-amber-50/50 dark:bg-amber-950/30 border border-amber-100 dark:border-amber-900/50 text-center">
+                <span class="text-[10px] uppercase font-bold text-amber-500 block">Code Review</span>
+                <span class="text-xl font-bold font-mono text-amber-600 dark:text-amber-400">{{ sprint_breakdown.code_review|default:0 }}</span>
+            </div>
+            <div class="p-3 rounded-xl bg-purple-50/50 dark:bg-purple-950/30 border border-purple-100 dark:border-purple-900/50 text-center">
+                <span class="text-[10px] uppercase font-bold text-purple-500 block">Testing</span>
+                <span class="text-xl font-bold font-mono text-purple-600 dark:text-purple-400">{{ sprint_breakdown.testing|default:0 }}</span>
+            </div>
+            <div class="p-3 rounded-xl bg-emerald-50/50 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-900/50 text-center col-span-2 sm:col-span-1">
+                <span class="text-[10px] uppercase font-bold text-emerald-500 block">Done</span>
+                <span class="text-xl font-bold font-mono text-emerald-600 dark:text-emerald-400">{{ sprint_breakdown.done|default:0 }}</span>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- 4. ACTIVE & PRIORITY TASKS SECTION (Vertically Organized Card) -->
+    <div class="bg-white dark:bg-[#0c1322] rounded-2xl border border-slate-200 dark:border-zinc-800 p-6 shadow-sm space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-100 dark:border-zinc-800 pb-3">
+            <div class="flex items-center space-x-2.5">
+                <span class="w-2.5 h-2.5 rounded-full bg-blue-600"></span>
+                <h2 class="text-base font-bold text-slate-900 dark:text-zinc-100 tracking-tight">
+                    Active & Priority Tasks
+                </h2>
+                <span class="text-xs text-slate-400 dark:text-zinc-500 font-mono">({{ active_tasks_count }} open)</span>
+            </div>
+            <div class="flex items-center space-x-3">
+                <a href="{% url 'tasks:task_board' slug=workspace.slug %}" class="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline">
+                    Kanban Board &rarr;
+                </a>
+                <a href="{% url 'tasks:task_list' slug=workspace.slug %}" class="text-xs text-slate-500 dark:text-zinc-400 hover:underline hidden sm:inline">
+                    All Tasks &rarr;
+                </a>
+            </div>
+        </div>
+
+        {% if priority_tasks %}
+            <div class="divide-y divide-slate-100 dark:divide-zinc-800/80">
+                {% for t in priority_tasks %}
+                    <div class="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50/60 dark:hover:bg-zinc-800/40 px-2 rounded-xl transition">
+                        <div class="flex items-center space-x-3 min-w-0">
+                            <a href="{% url 'tasks:task_detail' slug=workspace.slug task_code=t.task_code %}" 
+                               class="font-mono text-xs font-bold text-slate-400 dark:text-zinc-500 hover:text-blue-600 shrink-0">
+                                #{{ t.task_code }}
+                            </a>
+                            <a href="{% url 'tasks:task_detail' slug=workspace.slug task_code=t.task_code %}" 
+                               class="text-xs sm:text-sm font-semibold text-slate-800 dark:text-zinc-200 truncate hover:text-blue-600 transition">
+                                {{ t.title }}
+                            </a>
+                        </div>
+                        
+                        <div class="flex items-center space-x-2.5 shrink-0">
+                            <!-- Assignee -->
+                            {% if t.assignee %}
+                                <div class="flex items-center space-x-1.5 text-xs text-slate-500 dark:text-zinc-400">
+                                    {% if t.assignee.avatar and not t.assignee.avatar|slice:":7" == "preset:" %}
+                                        <img src="{{ t.assignee.avatar }}" alt="{{ t.assignee.full_name }}" class="w-5 h-5 rounded-full object-cover shrink-0">
+                                    {% else %}
+                                        <span class="w-5 h-5 rounded-full bg-slate-200 dark:bg-zinc-700 text-slate-700 dark:text-zinc-300 font-bold text-[9px] flex items-center justify-center shrink-0">
+                                            {{ t.assignee.full_name|default:t.assignee.email|slice:":2"|upper }}
+                                        </span>
+                                    {% endif %}
+                                    <span class="truncate max-w-[100px] text-[11px]">{{ t.assignee.full_name|default:t.assignee.get_full_name }}</span>
+                                </div>
+                            {% else %}
+                                <span class="text-[11px] text-slate-400 italic">Unassigned</span>
+                            {% endif %}
+
+                            <!-- Status Badge -->
+                            <span class="px-2 py-0.5 rounded text-[11px] font-semibold {% if t.status == 'IN_PROGRESS' %}bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400{% elif t.status == 'CODE_REVIEW' %}bg-amber-50 dark:bg-amber-950/60 text-amber-600{% elif t.status == 'TESTING' %}bg-purple-50 dark:bg-purple-950/60 text-purple-600{% elif t.status == 'DONE' %}bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600{% else %}bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400{% endif %}">
+                                {{ t.get_status_display }}
+                            </span>
+
+                            <!-- Priority Badge -->
+                            <span class="px-2 py-0.5 rounded text-[11px] font-bold {% if t.priority == 'URGENT' %}bg-rose-100 dark:bg-rose-950/80 text-rose-700 dark:text-rose-300{% elif t.priority == 'HIGH' %}bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400{% elif t.priority == 'MEDIUM' %}bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400{% else %}bg-slate-100 dark:bg-zinc-800 text-slate-500{% endif %}">
+                                {{ t.get_priority_display }}
+                            </span>
+                        </div>
                     </div>
                 {% endfor %}
             </div>
-        </div>
-
-        <!-- Scheduled Meetings -->
-        <div class="aether-card p-5 space-y-3">
-            <div class="flex items-center justify-between">
-                <span class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">Meetings Today</span>
-                <span class="text-xs px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 font-bold">WebRTC</span>
-            </div>
-            <div class="flex items-baseline space-x-2.5">
-                <span class="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-zinc-50 tracking-tight">{{ upcoming_meetings_count }}</span>
-                <span class="text-xs font-semibold text-slate-500 dark:text-zinc-400">Next: 2:00 PM</span>
-            </div>
-            <div class="text-xs text-slate-500 dark:text-zinc-400 pt-0.5 truncate">
-                Sprint Review • Standup Room
-            </div>
-        </div>
+        {% else %}
+            {% include 'components/empty_states.html' with state_type='no_tasks' title='No Active Tasks' message='There are currently no open tasks assigned in this workspace.' action_url='/tasks/w/'|add:workspace.slug|add:'/create/' action_text='+ Create Task' can_create=can_create_task %}
+        {% endif %}
     </div>
 
-    <!-- Main 2-Column Section -->
-    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        
-        <!-- Left Column: Active Tasks & Bug Highlights (8 cols) -->
-        <div class="lg:col-span-8 space-y-6">
-            
-            <!-- Tasks Widget -->
-            <div class="aether-card p-5 sm:p-6 space-y-4">
-                <div class="flex items-center justify-between border-b border-slate-100 dark:border-zinc-800 pb-3">
-                    <div class="flex items-center space-x-2">
-                        <a href="{% url 'tasks:task_list' slug=workspace.slug %}" class="text-base sm:text-lg font-bold text-slate-900 dark:text-zinc-100 tracking-tight hover:text-aether-blue transition">
-                            Active Tasks
-                        </a>
-                        <span class="text-xs text-slate-400 dark:text-zinc-500 font-medium">({{ active_tasks_count }} open)</span>
-                    </div>
-                    <a href="{% url 'tasks:task_board' slug=workspace.slug %}" class="text-xs font-semibold text-aether-blue hover:underline">
-                        View Kanban Board &rarr;
-                    </a>
-                </div>
-
-                <!-- Dynamic Task Rows -->
-                {% if recent_tasks %}
-                    <div class="divide-y divide-slate-100 dark:divide-zinc-800/80">
-                        {% for t in recent_tasks %}
-                            <div class="py-3 flex items-center justify-between gap-3">
-                                <div class="flex items-center space-x-3 min-w-0">
-                                    <a href="{% url 'tasks:task_detail' slug=workspace.slug task_code=t.task_code %}" class="font-mono text-xs font-bold text-slate-400 dark:text-zinc-500 hover:text-aether-blue shrink-0">
-                                        #{{ t.task_code }}
-                                    </a>
-                                    <a href="{% url 'tasks:task_detail' slug=workspace.slug task_code=t.task_code %}" class="text-sm font-semibold text-slate-800 dark:text-zinc-200 truncate hover:text-aether-blue transition">
-                                        {{ t.title }}
-                                    </a>
-                                </div>
-                                <div class="flex items-center space-x-2 shrink-0">
-                                    <span class="px-2.5 py-1 rounded-md text-xs font-semibold {% if t.status == 'IN_PROGRESS' %}bg-blue-50 dark:bg-blue-950/60 text-aether-blue{% elif t.status == 'CODE_REVIEW' %}bg-amber-50 dark:bg-amber-950/60 text-amber-600{% elif t.status == 'TESTING' %}bg-purple-50 dark:bg-purple-950/60 text-purple-600{% elif t.status == 'DONE' %}bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600{% else %}bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400{% endif %}">
-                                        {{ t.get_status_display }}
-                                    </span>
-                                    <span class="px-2.5 py-1 rounded-md text-xs font-bold {% if t.priority == 'URGENT' %}bg-red-100 dark:bg-red-950/80 text-red-700{% elif t.priority == 'HIGH' %}bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400{% elif t.priority == 'MEDIUM' %}bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400{% else %}bg-slate-50 dark:bg-zinc-900 text-slate-500{% endif %}">
-                                        {{ t.get_priority_display }}
-                                    </span>
-                                </div>
-                            </div>
-                        {% endfor %}
-                    </div>
-                {% else %}
-                    <div class="py-8 text-center space-y-2">
-                        <p class="text-xs text-slate-400 dark:text-zinc-500">No tasks created yet in this workspace.</p>
-                        <a href="{% url 'tasks:task_create' slug=workspace.slug %}" class="inline-flex items-center text-xs font-bold text-aether-blue hover:underline">
-                            + Create the first task
-                        </a>
-                    </div>
-                {% endif %}
+    <!-- 5. BUG TRIAGE SECTION (Vertically Organized Card) -->
+    <div class="bg-white dark:bg-[#0c1322] rounded-2xl border border-slate-200 dark:border-zinc-800 p-6 shadow-sm space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-100 dark:border-zinc-800 pb-3">
+            <div class="flex items-center space-x-2.5">
+                <span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
+                <h2 class="text-base font-bold text-slate-900 dark:text-zinc-100 tracking-tight">
+                    Bug Triage & Defect Queue
+                </h2>
+                <span class="text-xs text-slate-400 dark:text-zinc-500 font-mono">({{ open_bugs_count }} open)</span>
             </div>
-
-            <!-- Bug Triage Widget -->
-            <div class="aether-card p-5 sm:p-6 space-y-4">
-                <div class="flex items-center justify-between border-b border-slate-100 dark:border-zinc-800 pb-3">
-                    <div class="flex items-center space-x-2">
-                        <a href="{% url 'bugs:bug_list' slug=workspace.slug %}" class="text-base sm:text-lg font-bold text-slate-900 dark:text-zinc-100 tracking-tight hover:text-rose-500 transition">
-                            Bug Triage
-                        </a>
-                        <span class="text-xs text-slate-400 dark:text-zinc-500 font-medium">({{ open_bugs_count }} open)</span>
-                    </div>
-                    <a href="{% url 'bugs:bug_dashboard' slug=workspace.slug %}" class="text-xs font-semibold text-rose-500 hover:underline">
-                        View Bug Tracker &rarr;
-                    </a>
-                </div>
-
-                {% if recent_bugs %}
-                    <div class="divide-y divide-slate-100 dark:divide-zinc-800/80">
-                        {% for b in recent_bugs %}
-                            <div class="py-3 flex items-center justify-between gap-3">
-                                <div class="flex items-center space-x-3 min-w-0">
-                                    <a href="{% url 'bugs:bug_detail' slug=workspace.slug bug_code=b.bug_code %}" class="font-mono text-xs font-extrabold text-rose-600 dark:text-rose-400 hover:underline shrink-0">
-                                        {{ b.bug_code }}
-                                    </a>
-                                    <a href="{% url 'bugs:bug_detail' slug=workspace.slug bug_code=b.bug_code %}" class="text-sm font-semibold text-slate-800 dark:text-zinc-200 truncate hover:text-rose-500 transition">
-                                        {{ b.title }}
-                                    </a>
-                                </div>
-                                <div class="flex items-center space-x-2 shrink-0">
-                                    <span class="px-2.5 py-1 rounded-md text-xs font-bold {% if b.severity == 'SEV1' %}bg-rose-100 dark:bg-rose-950/80 text-rose-700 dark:text-rose-300{% elif b.severity == 'SEV2' %}bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400{% elif b.severity == 'SEV3' %}bg-amber-50 dark:bg-amber-950/60 text-amber-600{% else %}bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400{% endif %}">
-                                        {{ b.get_severity_display }}
-                                    </span>
-                                    <span class="px-2.5 py-1 rounded-md text-xs font-semibold {% if b.status == 'RESOLVED' or b.status == 'CLOSED' %}bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400{% elif b.status == 'IN_PROGRESS' %}bg-blue-50 dark:bg-blue-950/60 text-aether-blue{% else %}bg-amber-50 dark:bg-amber-950/60 text-amber-600{% endif %}">
-                                        {{ b.get_status_display }}
-                                    </span>
-                                </div>
-                            </div>
-                        {% endfor %}
-                    </div>
-                {% else %}
-                    <div class="py-8 text-center space-y-2">
-                        <p class="text-xs text-slate-400 dark:text-zinc-500">No bugs reported yet in this workspace.</p>
-                        <a href="{% url 'bugs:bug_create' slug=workspace.slug %}" class="inline-flex items-center text-xs font-bold text-rose-500 hover:underline">
-                            + Raise a bug
-                        </a>
-                    </div>
-                {% endif %}
+            <div class="flex items-center space-x-3">
+                <a href="{% url 'bugs:bug_dashboard' slug=workspace.slug %}" class="text-xs font-semibold text-rose-500 hover:underline">
+                    Bug Dashboard &rarr;
+                </a>
+                <a href="{% url 'bugs:bug_list' slug=workspace.slug %}" class="text-xs text-slate-500 dark:text-zinc-400 hover:underline hidden sm:inline">
+                    All Bugs &rarr;
+                </a>
             </div>
-
         </div>
 
-        <!-- Right Column: Team Roster & Workspace Info/Settings (4 cols) -->
-        <div class="lg:col-span-4 space-y-6">
-            
-            <!-- Team Roster Card (Harmonized, balanced height) -->
-            <div class="aether-card p-5 space-y-4">
-                <div class="flex items-center justify-between border-b border-slate-100 dark:border-zinc-800 pb-3">
-                    <h2 class="text-base font-bold text-slate-900 dark:text-zinc-100 tracking-tight">
-                        Team Roster
-                    </h2>
-                    <a href="{% url 'workspaces:team' slug=workspace.slug %}" class="text-xs text-aether-blue font-bold hover:underline">
-                        View All ({{ total_members_count }})
-                    </a>
-                </div>
+        {% if triage_bugs %}
+            <div class="divide-y divide-slate-100 dark:divide-zinc-800/80">
+                {% for b in triage_bugs %}
+                    <div class="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50/60 dark:hover:bg-zinc-800/40 px-2 rounded-xl transition">
+                        <div class="flex items-center space-x-3 min-w-0">
+                            <a href="{% url 'bugs:bug_detail' slug=workspace.slug bug_code=b.bug_code %}" 
+                               class="font-mono text-xs font-extrabold text-rose-600 dark:text-rose-400 hover:underline shrink-0">
+                                {{ b.bug_code }}
+                            </a>
+                            <a href="{% url 'bugs:bug_detail' slug=workspace.slug bug_code=b.bug_code %}" 
+                               class="text-xs sm:text-sm font-semibold text-slate-800 dark:text-zinc-200 truncate hover:text-rose-500 transition">
+                                {{ b.title }}
+                            </a>
+                        </div>
+                        
+                        <div class="flex items-center space-x-2.5 shrink-0">
+                            <span class="px-2 py-0.5 rounded text-[11px] font-bold {% if b.severity == 'SEV1' %}bg-rose-100 dark:bg-rose-950/80 text-rose-700 dark:text-rose-300{% elif b.severity == 'SEV2' %}bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400{% elif b.severity == 'SEV3' %}bg-amber-50 dark:bg-amber-950/60 text-amber-600{% else %}bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400{% endif %}">
+                                {{ b.get_severity_display }}
+                            </span>
+                            <span class="px-2 py-0.5 rounded text-[11px] font-semibold {% if b.status == 'RESOLVED' or b.status == 'CLOSED' %}bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400{% elif b.status == 'IN_PROGRESS' %}bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400{% else %}bg-amber-50 dark:bg-amber-950/60 text-amber-600{% endif %}">
+                                {{ b.get_status_display }}
+                            </span>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            {% include 'components/empty_states.html' with state_type='no_bugs' title='Zero Active Bugs' message='All defects have been triaged and resolved. Excellent software stability!' action_url='/bugs/w/'|add:workspace.slug|add:'/create/' action_text='+ Report Bug' %}
+        {% endif %}
+    </div>
 
+    <!-- 6. TEAM ACTIVITY & UPCOMING SCHEDULE (Balanced 2-Column Section) -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        
+        <!-- Left: Real Team Activity -->
+        <div class="bg-white dark:bg-[#0c1322] rounded-2xl border border-slate-200 dark:border-zinc-800 p-6 shadow-sm space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-100 dark:border-zinc-800 pb-3">
+                <h3 class="text-base font-bold text-slate-900 dark:text-zinc-100 tracking-tight">
+                    Team Activity
+                </h3>
+                <span class="text-xs text-slate-400 dark:text-zinc-500 font-medium">Real-time pulse</span>
+            </div>
+
+            {% if recent_task_activities %}
                 <div class="space-y-3">
-                    {% for m in members %}
-                        <div class="flex items-center justify-between gap-2.5">
-                            <div class="flex items-center space-x-3 min-w-0">
-                                <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-700 text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-sm">
-                                    {{ m.user.full_name|default:m.user.email|slice:":1"|upper }}
+                    {% for act in recent_task_activities %}
+                        <div class="flex items-start space-x-3 text-xs py-1">
+                            <div class="shrink-0 mt-0.5">
+                                {% if act.actor %}
+                                    {% include 'components/people_hover_card.html' with target_user=act.actor workspace_slug=workspace.slug show_name=False avatar_size='w-7 h-7' %}
+                                {% else %}
+                                    <div class="w-7 h-7 rounded-full bg-slate-200 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 font-bold text-[9px] flex items-center justify-center">
+                                        SYS
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="min-w-0 flex-1">
+                                <div class="text-slate-800 dark:text-zinc-200">
+                                    <strong class="font-semibold">{{ act.actor.full_name|default:act.actor.get_full_name|default:"System" }}</strong>
+                                    <span class="text-slate-500 dark:text-zinc-400">{{ act.get_action_display|lower }}</span>
+                                    <a href="{% url 'tasks:task_detail' slug=workspace.slug task_code=act.task.task_code %}" class="font-mono text-blue-600 dark:text-blue-400 hover:underline">
+                                        #{{ act.task.task_code }}
+                                    </a>
                                 </div>
-                                <div class="truncate">
-                                    <span class="text-xs font-bold text-slate-800 dark:text-zinc-200 block truncate">
-                                        {{ m.user.full_name|default:m.user.email }}
-                                    </span>
-                                    <span class="text-[11px] text-slate-400 dark:text-zinc-500 block truncate">
-                                        {{ m.user.email }}
-                                    </span>
+                                <div class="text-[10px] text-slate-400 dark:text-zinc-500 font-mono mt-0.5">
+                                    {{ act.created_at|timesince }} ago
                                 </div>
                             </div>
-                            <span class="text-[11px] font-bold px-2 py-0.5 rounded shrink-0 {% if m.is_admin %}bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-300{% elif m.is_manager %}bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-300{% else %}bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400{% endif %}">
-                                {{ m.get_role_display }}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% elif recent_notifications %}
+                <div class="space-y-3">
+                    {% for notif in recent_notifications %}
+                        <div class="flex items-start space-x-3 text-xs py-1">
+                            <div class="shrink-0 mt-0.5">
+                                {% if notif.actor %}
+                                    {% include 'components/people_hover_card.html' with target_user=notif.actor workspace_slug=workspace.slug show_name=False avatar_size='w-7 h-7' %}
+                                {% else %}
+                                    <div class="w-7 h-7 rounded-full bg-slate-200 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 font-bold text-[9px] flex items-center justify-center">
+                                        🔔
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="min-w-0 flex-1">
+                                <div class="text-slate-800 dark:text-zinc-200 truncate">
+                                    <strong class="font-semibold">{{ notif.actor.full_name|default:notif.actor.get_full_name|default:"AetherSpace" }}</strong>
+                                    <span class="text-slate-500 dark:text-zinc-400">{{ notif.title }}</span>
+                                </div>
+                                <div class="text-[10px] text-slate-400 dark:text-zinc-500 font-mono mt-0.5">
+                                    {{ notif.created_at|timesince }} ago
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="text-xs text-slate-400 dark:text-zinc-500 italic py-4 text-center">
+                    No recent team activity recorded yet.
+                </p>
+            {% endif %}
+        </div>
+
+        <!-- Right: Upcoming Schedule & Deadlines -->
+        <div class="bg-white dark:bg-[#0c1322] rounded-2xl border border-slate-200 dark:border-zinc-800 p-6 shadow-sm space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-100 dark:border-zinc-800 pb-3">
+                <h3 class="text-base font-bold text-slate-900 dark:text-zinc-100 tracking-tight">
+                    Upcoming Schedule & Deadlines
+                </h3>
+                <a href="{% url 'calendars:calendar_view' slug=workspace.slug %}" class="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline">
+                    Calendar &rarr;
+                </a>
+            </div>
+
+            {% if upcoming_events %}
+                <div class="divide-y divide-slate-100 dark:divide-zinc-800/80">
+                    {% for ev in upcoming_events %}
+                        <div class="py-2.5 flex items-center justify-between gap-3">
+                            <div class="min-w-0">
+                                <a href="{% url 'calendars:event_detail' slug=workspace.slug event_id=ev.id %}" 
+                                   class="text-xs font-semibold text-slate-800 dark:text-zinc-200 hover:text-blue-600 dark:hover:text-blue-400 block truncate">
+                                    {{ ev.title }}
+                                </a>
+                                <div class="text-[11px] text-slate-400 dark:text-zinc-500 font-mono">
+                                    {{ ev.start_at|date:"M j, g:i A" }}
+                                    {% if ev.meeting_link %}
+                                        • <span class="text-purple-600 dark:text-purple-400 font-semibold">Video Call</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase shrink-0
+                                {% if ev.event_type == 'MILESTONE' %}bg-amber-100 dark:bg-amber-950/70 text-amber-700 dark:text-amber-300
+                                {% elif ev.event_type == 'MEETING' %}bg-purple-100 dark:bg-purple-950/70 text-purple-700 dark:text-purple-300
+                                {% elif ev.event_type == 'TASK_DEADLINE' %}bg-emerald-100 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300
+                                {% else %}bg-blue-100 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300{% endif %}">
+                                {{ ev.get_event_type_display }}
                             </span>
                         </div>
                     {% endfor %}
                 </div>
+            {% else %}
+                <div class="text-center py-6 space-y-1">
+                    <p class="text-xs text-slate-400 dark:text-zinc-500 italic">No upcoming events or milestones scheduled.</p>
+                    <a href="{% url 'calendars:event_create' slug=workspace.slug %}" class="inline-block text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline">
+                        + Schedule Event
+                    </a>
+                </div>
+            {% endif %}
+        </div>
 
-                {% if membership.can_manage_workspace %}
-                    <div class="pt-2 border-t border-slate-100 dark:border-zinc-800">
-                        <a href="{% url 'workspaces:team' slug=workspace.slug %}" class="aether-button-secondary w-full text-xs py-2 flex items-center justify-center space-x-1.5 font-medium">
-                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                            </svg>
-                            <span>Invite Colleague</span>
-                        </a>
-                    </div>
-                {% endif %}
+    </div>
+
+    <!-- 7. TEAM ROSTER & WORKSPACE SPECIFICATIONS (Balanced 2-Column Section) -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        
+        <!-- Left: Team Roster (7 cols) -->
+        <div class="lg:col-span-7 bg-white dark:bg-[#0c1322] rounded-2xl border border-slate-200 dark:border-zinc-800 p-6 shadow-sm space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-100 dark:border-zinc-800 pb-3">
+                <div>
+                    <h3 class="text-base font-bold text-slate-900 dark:text-zinc-100 tracking-tight">
+                        Team Roster
+                    </h3>
+                    <p class="text-xs text-slate-400 dark:text-zinc-500">Active workspace members and role allocation</p>
+                </div>
+                <a href="{% url 'workspaces:team' slug=workspace.slug %}" class="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline">
+                    View All ({{ total_members_count }}) &rarr;
+                </a>
             </div>
 
-            <!-- Workspace Details & Settings Card (Enriched so it is balanced and not 'less') -->
-            <div class="aether-card p-5 space-y-4" x-data="{ copied: false, url: 'aetherspace.dev/w/{{ workspace.slug }}/' }">
-                <div class="flex items-center justify-between border-b border-slate-100 dark:border-zinc-800 pb-3">
-                    <h3 class="text-base font-bold text-slate-900 dark:text-zinc-100 tracking-tight">
-                        Workspace Info
-                    </h3>
-                    {% if membership.can_manage_workspace %}
-                        <a href="{% url 'workspaces:settings' slug=workspace.slug %}" class="text-xs text-aether-blue font-bold hover:underline">
-                            Configure &rarr;
-                        </a>
-                    {% endif %}
-                </div>
+            <div class="divide-y divide-slate-100 dark:divide-zinc-800/80">
+                {% for m in members %}
+                    <div class="py-3 flex items-center justify-between gap-3">
+                        <div class="flex items-center space-x-3 min-w-0">
+                            <!-- Universal Hover Card Component -->
+                            <div class="shrink-0">
+                                {% include 'components/people_hover_card.html' with target_user=m.user workspace_slug=workspace.slug target_member=m show_name=False avatar_size='w-9 h-9' %}
+                            </div>
+                            <div class="min-w-0">
+                                <div class="text-xs sm:text-sm font-bold text-slate-800 dark:text-zinc-200 truncate flex items-center space-x-1.5">
+                                    {% include 'components/people_hover_card.html' with target_user=m.user workspace_slug=workspace.slug target_member=m show_name=True avatar_size='hidden' %}
+                                    {% if m.user == workspace.owner %}
+                                        <span class="text-[10px] text-amber-600 font-semibold">(Owner)</span>
+                                    {% endif %}
+                                </div>
+                                <div class="text-[11px] text-slate-400 dark:text-zinc-500 font-mono truncate">
+                                    {% if m.user.contributor_id %}
+                                        <span>ID: {{ m.user.contributor_id }}</span>
+                                        <span class="mx-1">•</span>
+                                    {% endif %}
+                                    <span>{{ m.functional_role|default:m.get_role_display }}</span>
+                                </div>
+                            </div>
+                        </div>
 
-                <div class="divide-y divide-slate-100 dark:divide-zinc-800/80 text-xs">
-                    <!-- Workspace URL with Copy Button -->
-                    <div class="py-2.5 flex items-center justify-between gap-2">
-                        <span class="text-slate-400 dark:text-zinc-400 font-medium">URL Slug:</span>
-                        <div class="flex items-center space-x-1.5">
-                            <span class="font-mono text-slate-700 dark:text-zinc-300 truncate max-w-[140px]">{{ workspace.slug }}</span>
-                            <button type="button"
-                                    @click="navigator.clipboard.writeText(url); copied = true; setTimeout(() => copied = false, 2000)"
-                                    class="p-1 rounded hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 transition-colors"
-                                    title="Copy workspace URL">
-                                <svg x-show="!copied" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
-                                </svg>
-                                <svg x-show="copied" class="w-3.5 h-3.5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="display: none;">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
-                                </svg>
-                            </button>
+                        <div class="text-right shrink-0">
+                            <span class="text-[10px] font-bold px-2 py-0.5 rounded uppercase font-mono {% if m.is_admin %}bg-purple-50 dark:bg-purple-950/70 text-purple-600 dark:text-purple-300 border border-purple-200 dark:border-purple-800/60{% elif m.is_manager %}bg-blue-50 dark:bg-blue-950/70 text-blue-600 dark:text-blue-300 border border-blue-200 dark:border-blue-800/60{% else %}bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 border border-slate-200 dark:border-zinc-700{% endif %}">
+                                {{ m.get_role_display }}
+                            </span>
                         </div>
                     </div>
+                {% endfor %}
+            </div>
 
-                    <!-- Owner -->
-                    <div class="py-2.5 flex justify-between items-center">
-                        <span class="text-slate-400 dark:text-zinc-400 font-medium">Owner:</span>
-                        <span class="font-semibold text-slate-800 dark:text-zinc-200 truncate max-w-[170px]">{{ workspace.owner.full_name|default:workspace.owner.email }}</span>
-                    </div>
-
-                    <!-- Created Date -->
-                    <div class="py-2.5 flex justify-between items-center">
-                        <span class="text-slate-400 dark:text-zinc-400 font-medium">Created:</span>
-                        <span class="font-semibold text-slate-800 dark:text-zinc-200">{{ workspace.created_at|date:"M d, Y" }}</span>
-                    </div>
-
-                    <!-- Plan -->
-                    <div class="py-2.5 flex justify-between items-center">
-                        <span class="text-slate-400 dark:text-zinc-400 font-medium">Plan:</span>
-                        <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/50">
-                            Professional
-                        </span>
-                    </div>
-
-                    <!-- Storage Backend -->
-                    <div class="py-2.5 flex justify-between items-center">
-                        <span class="text-slate-400 dark:text-zinc-400 font-medium">Storage:</span>
-                        <span class="font-semibold text-emerald-600 dark:text-emerald-400 flex items-center space-x-1">
-                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                            <span>Supabase</span>
-                        </span>
-                    </div>
-
-                    <!-- Isolation -->
-                    <div class="py-2.5 flex justify-between items-center">
-                        <span class="text-slate-400 dark:text-zinc-400 font-medium">Isolation:</span>
-                        <span class="font-semibold text-blue-600 dark:text-blue-400">RBAC Active</span>
-                    </div>
+            {% if membership.can_manage_workspace %}
+                <div class="pt-2 border-t border-slate-100 dark:border-zinc-800">
+                    <a href="{% url 'workspaces:team' slug=workspace.slug %}" class="inline-flex items-center justify-center w-full py-2 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-700 transition">
+                        + Invite Colleague to Workspace
+                    </a>
                 </div>
+            {% endif %}
+        </div>
 
+        <!-- Right: Workspace Specifications & Health (5 cols) -->
+        <div class="lg:col-span-5 bg-white dark:bg-[#0c1322] rounded-2xl border border-slate-200 dark:border-zinc-800 p-6 shadow-sm space-y-4"
+             x-data="{ copied: false, url: 'aetherspace.dev/w/{{ workspace.slug }}/' }">
+            <div class="flex items-center justify-between border-b border-slate-100 dark:border-zinc-800 pb-3">
+                <h3 class="text-base font-bold text-slate-900 dark:text-zinc-100 tracking-tight">
+                    Workspace Specifications
+                </h3>
                 {% if membership.can_manage_workspace %}
-                    <div class="pt-2 border-t border-slate-100 dark:border-zinc-800">
-                        <a href="{% url 'workspaces:settings' slug=workspace.slug %}" class="aether-button-secondary w-full text-xs py-2 flex items-center justify-center space-x-1.5 font-medium">
-                            <svg class="w-3.5 h-3.5 text-slate-500 dark:text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                            </svg>
-                            <span>Workspace Settings</span>
-                        </a>
-                    </div>
+                    <a href="{% url 'workspaces:settings' slug=workspace.slug %}" class="text-xs text-blue-600 dark:text-blue-400 font-bold hover:underline">
+                        Configure &rarr;
+                    </a>
                 {% endif %}
             </div>
 
+            <div class="divide-y divide-slate-100 dark:divide-zinc-800/80 text-xs">
+                <!-- Slug & Copy -->
+                <div class="py-2.5 flex items-center justify-between gap-2">
+                    <span class="text-slate-400 dark:text-zinc-400 font-medium">URL Slug:</span>
+                    <div class="flex items-center space-x-1.5">
+                        <span class="font-mono text-slate-800 dark:text-zinc-200">{{ workspace.slug }}</span>
+                        <button type="button"
+                                @click="navigator.clipboard.writeText(url); copied = true; setTimeout(() => copied = false, 2000)"
+                                class="p-1 rounded hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 transition-colors"
+                                title="Copy URL">
+                            <svg x-show="!copied" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                            </svg>
+                            <svg x-show="copied" class="w-3.5 h-3.5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="display: none;">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Owner -->
+                <div class="py-2.5 flex justify-between items-center">
+                    <span class="text-slate-400 dark:text-zinc-400 font-medium">Owner:</span>
+                    <span class="font-semibold text-slate-800 dark:text-zinc-200 truncate max-w-[160px]">
+                        {{ workspace.owner.full_name|default:workspace.owner.get_full_name }}
+                    </span>
+                </div>
+
+                <!-- Created Date -->
+                <div class="py-2.5 flex justify-between items-center">
+                    <span class="text-slate-400 dark:text-zinc-400 font-medium">Created:</span>
+                    <span class="font-semibold text-slate-800 dark:text-zinc-200">{{ workspace.created_at|date:"M d, Y" }}</span>
+                </div>
+
+                <!-- Seat Allocation -->
+                <div class="py-2.5 flex justify-between items-center">
+                    <span class="text-slate-400 dark:text-zinc-400 font-medium">Seat Allocation:</span>
+                    <span class="font-semibold text-slate-800 dark:text-zinc-200 font-mono">
+                        {{ total_members_count }} / {{ workspace.max_seats }} seats ({{ workspace.seats_percentage }}%)
+                    </span>
+                </div>
+
+                <!-- Real Storage Usage -->
+                <div class="py-2.5 flex justify-between items-center">
+                    <span class="text-slate-400 dark:text-zinc-400 font-medium">Storage Quota:</span>
+                    <span class="font-semibold text-slate-800 dark:text-zinc-200 font-mono">
+                        {{ storage_used_display }} / {{ workspace.storage_quota_mb }} MB ({{ storage_percent }}%)
+                    </span>
+                </div>
+
+                <!-- Isolation Status -->
+                <div class="py-2.5 flex justify-between items-center">
+                    <span class="text-slate-400 dark:text-zinc-400 font-medium">Tenant Isolation:</span>
+                    <span class="inline-flex items-center space-x-1 font-semibold text-emerald-600 dark:text-emerald-400">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                        <span>PostgreSQL + Supabase</span>
+                    </span>
+                </div>
+            </div>
+
+            {% if membership.can_manage_workspace %}
+                <div class="pt-2 border-t border-slate-100 dark:border-zinc-800">
+                    <a href="{% url 'workspaces:settings' slug=workspace.slug %}" 
+                       class="inline-flex items-center justify-center w-full py-2 rounded-xl text-xs font-semibold border border-slate-200 dark:border-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-800/80 text-slate-700 dark:text-zinc-300 transition">
+                        Workspace Configuration
+                    </a>
+                </div>
+            {% endif %}
         </div>
+
     </div>
 
 </div>

@@ -137,11 +137,15 @@ class SupabaseStorageService:
         # If Supabase credentials exist, try uploading via REST API
         if cls.is_supabase_configured():
             try:
+                import urllib.parse
                 base_url = settings.SUPABASE_URL.rstrip('/')
                 bucket = settings.SUPABASE_STORAGE_BUCKET
-                api_url = f"{base_url}/storage/v1/object/{bucket}/{storage_path}"
+                encoded_bucket = urllib.parse.quote(bucket)
+                api_url = f"{base_url}/storage/v1/object/{encoded_bucket}/{storage_path}"
+                auth_key = settings.SUPABASE_SECRET_KEY or settings.SUPABASE_PUBLISHABLE_KEY
                 headers = {
-                    'Authorization': f"Bearer {settings.SUPABASE_SECRET_KEY or settings.SUPABASE_PUBLISHABLE_KEY}",
+                    'apikey': auth_key,
+                    'Authorization': f"Bearer {auth_key}",
                     'Content-Type': content_type,
                     'x-upsert': 'true'
                 }
@@ -169,16 +173,26 @@ class SupabaseStorageService:
         """
         if cls.is_supabase_configured():
             try:
+                import urllib.parse
                 base_url = settings.SUPABASE_URL.rstrip('/')
                 bucket = settings.SUPABASE_STORAGE_BUCKET
-                api_url = f"{base_url}/storage/v1/object/authenticated/{bucket}/{storage_path}"
+                encoded_bucket = urllib.parse.quote(bucket)
+                auth_key = settings.SUPABASE_SECRET_KEY or settings.SUPABASE_PUBLISHABLE_KEY
                 headers = {
-                    'Authorization': f"Bearer {settings.SUPABASE_SECRET_KEY or settings.SUPABASE_PUBLISHABLE_KEY}",
+                    'apikey': auth_key,
+                    'Authorization': f"Bearer {auth_key}",
                 }
+                api_url = f"{base_url}/storage/v1/object/authenticated/{encoded_bucket}/{storage_path}"
                 resp = requests.get(api_url, headers=headers, timeout=20)
                 if resp.status_code == 200:
                     content_type = resp.headers.get('Content-Type', 'application/octet-stream')
                     return resp.content, content_type
+                # Fallback to public url
+                public_url = f"{base_url}/storage/v1/object/public/{encoded_bucket}/{storage_path}"
+                resp_pub = requests.get(public_url, headers={'apikey': auth_key}, timeout=20)
+                if resp_pub.status_code == 200:
+                    content_type = resp_pub.headers.get('Content-Type', 'application/octet-stream')
+                    return resp_pub.content, content_type
             except Exception as e:
                 logger.warning(f"Supabase download failed ({str(e)}). Checking local storage.")
 
@@ -200,11 +214,15 @@ class SupabaseStorageService:
 
         if cls.is_supabase_configured():
             try:
+                import urllib.parse
                 base_url = settings.SUPABASE_URL.rstrip('/')
                 bucket = settings.SUPABASE_STORAGE_BUCKET
-                api_url = f"{base_url}/storage/v1/object/{bucket}/{storage_path}"
+                encoded_bucket = urllib.parse.quote(bucket)
+                api_url = f"{base_url}/storage/v1/object/{encoded_bucket}/{storage_path}"
+                auth_key = settings.SUPABASE_SECRET_KEY or settings.SUPABASE_PUBLISHABLE_KEY
                 headers = {
-                    'Authorization': f"Bearer {settings.SUPABASE_SECRET_KEY or settings.SUPABASE_PUBLISHABLE_KEY}",
+                    'apikey': auth_key,
+                    'Authorization': f"Bearer {auth_key}",
                 }
                 requests.delete(api_url, headers=headers, timeout=10)
             except Exception as e:
@@ -227,6 +245,18 @@ class SupabaseStorageService:
             return stored_file.external_url
         from django.urls import reverse
         return reverse('files:file_download', kwargs={'slug': stored_file.workspace.slug, 'file_id': stored_file.id})
+
+    @classmethod
+    def get_preview_url(cls, stored_file):
+        """
+        Generates appropriate preview URL:
+        - If external link -> external_url
+        - Otherwise returns workspace-protected inline preview URL
+        """
+        if stored_file.is_external_link:
+            return stored_file.external_url
+        from django.urls import reverse
+        return reverse('files:file_preview', kwargs={'slug': stored_file.workspace.slug, 'file_id': stored_file.id})
 
 
 def log_file_activity(stored_file, actor, action, details=''):

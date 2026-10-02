@@ -73,9 +73,9 @@ class AccountDetailsForm(forms.ModelForm):
 
 
 class ProfileDetailsForm(forms.ModelForm):
-    avatar_url = forms.URLField(
+    avatar_url = forms.CharField(
         required=False,
-        widget=forms.URLInput(attrs={
+        widget=forms.TextInput(attrs={
             'class': 'w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] text-slate-900 dark:text-zinc-100 text-sm focus:outline-none focus:ring-2 focus:ring-aether-blue transition-all',
             'placeholder': 'https://example.com/avatar.png'
         })
@@ -99,6 +99,26 @@ class ProfileDetailsForm(forms.ModelForm):
                 'placeholder': 'Write a short professional bio describing your focus and expertise...'
             }),
         }
+
+    def clean_avatar_url(self):
+        url = self.cleaned_data.get('avatar_url', '').strip()
+        if not url:
+            return ''
+        if url.startswith('/media/') or url.startswith('preset:'):
+            return url
+        if not url.startswith(('http://', 'https://')):
+            url = 'https://' + url
+        from urllib.parse import urlparse
+        try:
+            parsed = urlparse(url)
+            if not (parsed.scheme in ('http', 'https') and parsed.netloc):
+                raise forms.ValidationError(_("Please enter a valid image URL (e.g. https://example.com/photo.jpg)."))
+        except forms.ValidationError:
+            raise
+        except Exception:
+            raise forms.ValidationError(_("Please enter a valid image URL."))
+        return url
+
 
 
 class SecurityPasswordChangeForm(PasswordChangeForm):

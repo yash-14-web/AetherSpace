@@ -18,5 +18,10 @@ urlpatterns = [
     path('w/<slug:slug>/<str:bug_code>/activity/', views.bug_activity_view, name='bug_activity'),
     path('w/<slug:slug>/<str:bug_code>/delete/', views.bug_delete_view, name='bug_delete'),
     path('w/<slug:slug>/<str:bug_code>/comment/', views.bug_comment_add_view, name='bug_comment_add'),
+    path('w/<slug:slug>/<str:bug_code>/comment/<uuid:comment_id>/edit/', views.bug_comment_edit_view, name='bug_comment_edit'),
     path('w/<slug:slug>/<str:bug_code>/comment/<uuid:comment_id>/delete/', views.bug_comment_delete_view, name='bug_comment_delete'),
+
+    # Attachment endpoints
+    path('w/<slug:slug>/<str:bug_code>/attachment/upload/', views.bug_attachment_upload_view, name='bug_attachment_upload'),
+    path('w/<slug:slug>/<str:bug_code>/attachment/<uuid:attachment_id>/delete/', views.bug_attachment_delete_view, name='bug_attachment_delete'),
 ]

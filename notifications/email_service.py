@@ -1,8 +1,9 @@
 import logging
+import re
 from datetime import timedelta
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
-from django.template.loader import render_to_string
+from django.template.loader import render_to_string, get_template
 from django.utils.html import strip_tags
 from django.utils import timezone
 
@@ -35,7 +36,7 @@ def should_send_email_to_user(user, event_type):
         return False
     if event_type in ['BUG_ASSIGNED', 'BUG_STATUS_CHANGED'] and not prefs.get('bug_alerts', True):
         return False
-    if event_type in ['CHAT_MENTION', 'CHAT_DM'] and not prefs.get('chat_mentions', True):
+    if event_type in ['CHAT_MENTION', 'CHAT_DM', 'MENTION'] and not prefs.get('chat_mentions', True):
         return False
 
     return True
@@ -96,7 +97,17 @@ def send_notification_email(recipient_user, event_type, subject, template_name, 
 
     try:
         html_content = render_to_string(template_name, ctx)
-        text_content = strip_tags(html_content)
+
+        # Check if matching dedicated plain-text template exists
+        text_template = template_name.replace('.html', '.txt')
+        try:
+            get_template(text_template)
+            text_content = render_to_string(text_template, ctx)
+        except Exception:
+            clean_html = re.sub(r'<style[^>]*>[\s\S]*?</style>', '', html_content, flags=re.IGNORECASE)
+            clean_html = re.sub(r'<script[^>]*>[\s\S]*?</script>', '', clean_html, flags=re.IGNORECASE)
+            text_content = strip_tags(clean_html).strip()
+            text_content = re.sub(r'\n{3,}', '\n\n', text_content)
 
         from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'AetherSpace <no-reply@aetherspace.dev>')
         msg = EmailMultiAlternatives(subject, text_content, from_email, [recipient_email])
@@ -309,3 +320,86 @@ def send_workspace_invitation_email(invitation=None, recipient_email=None, works
         template_name='emails/workspace_invite.html',
         context=context
     )
+
+
+def send_bug_assigned_email(bug, assignee, actor=None):
+    """Notify contributor that a defect (B-######) was assigned to them."""
+    if not assignee or (actor and actor.id == assignee.id):
+        return False
+
+    subject = f"[AetherSpace] Defect Assigned: {bug.bug_code} — {bug.title}"
+    context = {
+        'bug': bug,
+        'actor': actor,
+        'action_url': f"/bugs/w/{bug.workspace.slug}/b/{bug.bug_code}/",
+    }
+    return send_notification_email(
+        recipient_user=assignee,
+        event_type='BUG_ASSIGNED',
+        subject=subject,
+        template_name='emails/bug_assigned.html',
+        context=context
+    )
+
+
+def send_password_reset_email(user, reset_url):
+    """Send secure password reset link to user."""
+    if not user or not user.email:
+        return False
+
+    subject = "[AetherSpace] Reset Your Account Password"
+    context = {
+        'user': user,
+        'reset_url': reset_url,
+    }
+    return send_notification_email(
+        recipient_user=user,
+        event_type='PASSWORD_RESET',
+        subject=subject,
+        template_name='emails/password_reset.html',
+        context=context
+    )
+
+
+def send_email_verification_email(user, verify_url):
+    """Send email verification link to newly registered user."""
+    if not user or not user.email:
+        return False
+
+    subject = "[AetherSpace] Verify Your Email Address"
+    context = {
+        'user': user,
+        'verify_url': verify_url,
+    }
+    return send_notification_email(
+        recipient_user=user,
+        event_type='EMAIL_VERIFICATION',
+        subject=subject,
+        template_name='emails/verification.html',
+        context=context
+    )
+
+
+def send_mention_email(user, actor, context_type, context_title, snippet, action_url):
+    """Notify user that they were mentioned in a task or bug comment."""
+    if not user or not user.email or (actor and actor.id == user.id):
+        return False
+
+    actor_name = actor.full_name or actor.email if actor else "A teammate"
+    subject = f"[AetherSpace] {actor_name} mentioned you in {context_type}: {context_title}"
+    context = {
+        'user': user,
+        'actor': actor,
+        'context_type': context_type,
+        'context_title': context_title,
+        'snippet': snippet,
+        'action_url': action_url,
+    }
+    return send_notification_email(
+        recipient_user=user,
+        event_type='MENTION',
+        subject=subject,
+        template_name='emails/mention_notification.html',
+        context=context
+    )
+

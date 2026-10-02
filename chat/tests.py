@@ -39,35 +39,40 @@ class ChatModuleTests(TestCase):
         self.admin = User.objects.create_user(
             email='admin@aetherspace.dev',
             password='AdminPassword123!',
-            full_name='Admin User'
+            full_name='Admin User',
+            approval_status='APPROVED',
         )
 
         # Manager user
         self.manager = User.objects.create_user(
             email='manager@aetherspace.dev',
             password='ManagerPassword123!',
-            full_name='Manager User'
+            full_name='Manager User',
+            approval_status='APPROVED',
         )
 
         # Contributor user
         self.contributor = User.objects.create_user(
             email='dev@aetherspace.dev',
             password='DevPassword123!',
-            full_name='Dev Contributor'
+            full_name='Dev Contributor',
+            approval_status='APPROVED',
         )
 
         # Second Contributor
         self.contributor2 = User.objects.create_user(
             email='designer@aetherspace.dev',
             password='DesignerPassword123!',
-            full_name='Designer Contributor'
+            full_name='Designer Contributor',
+            approval_status='APPROVED',
         )
 
         # Outsider user (belongs to a different workspace)
         self.outsider = User.objects.create_user(
             email='outsider@external.dev',
             password='OutsiderPassword123!',
-            full_name='Outsider User'
+            full_name='Outsider User',
+            approval_status='APPROVED',
         )
 
         # Primary Workspace
@@ -461,4 +466,111 @@ class ChatModuleTests(TestCase):
         self.assertEqual(post_resp.status_code, 200)
         self.assertContains(post_resp, 'Hello external user!')
         self.assertFalse(self.workspace.has_user(self.outsider))
+
+    def test_channel_add_and_remove_member(self):
+        """Authorized user can add and remove members from a channel."""
+        channel = Channel.objects.create(
+            workspace=self.workspace,
+            name='private-space',
+            slug='private-space',
+            is_private=True,
+            created_by=self.admin
+        )
+        ChannelMembership.objects.create(channel=channel, user=self.admin, role=ChannelRole.OWNER)
+
+        # Contributor is not in channel
+        self.assertFalse(channel.memberships.filter(user=self.contributor).exists())
+
+        # Admin adds contributor
+        self.client.force_login(self.admin)
+        add_url = reverse('chat:channel_add_members', kwargs={
+            'slug': self.workspace.slug,
+            'channel_slug': channel.slug
+        })
+        resp = self.client.post(add_url, {'user_ids': [str(self.contributor.id)], 'role': 'MEMBER'}, follow=True)
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(channel.memberships.filter(user=self.contributor).exists())
+
+        # Admin removes contributor
+        remove_url = reverse('chat:channel_remove_member', kwargs={
+            'slug': self.workspace.slug,
+            'channel_slug': channel.slug,
+            'user_id': self.contributor.id
+        })
+        resp = self.client.post(remove_url, follow=True)
+        self.assertEqual(resp.status_code, 200)
+        self.assertFalse(channel.memberships.filter(user=self.contributor).exists())
+
+    def test_channel_creator_cannot_be_removed(self):
+        """Channel creator cannot be removed from the channel."""
+        channel = Channel.objects.create(
+            workspace=self.workspace,
+            name='design-sprint',
+            slug='design-sprint',
+            created_by=self.admin
+        )
+        ChannelMembership.objects.create(channel=channel, user=self.admin, role=ChannelRole.OWNER)
+
+        self.client.force_login(self.manager)
+        remove_url = reverse('chat:channel_remove_member', kwargs={
+            'slug': self.workspace.slug,
+            'channel_slug': channel.slug,
+            'user_id': self.admin.id
+        })
+        resp = self.client.post(remove_url, follow=True)
+        self.assertEqual(resp.status_code, 200)
+        # Still a member because creator cannot be removed
+        self.assertTrue(channel.memberships.filter(user=self.admin).exists())
+
+    def test_channel_leave_space(self):
+        """Members can voluntarily leave a non-default space."""
+        channel = Channel.objects.create(
+            workspace=self.workspace,
+            name='random-ideas',
+            slug='random-ideas',
+            created_by=self.admin
+        )
+        ChannelMembership.objects.create(channel=channel, user=self.admin, role=ChannelRole.OWNER)
+        ChannelMembership.objects.create(channel=channel, user=self.contributor, role=ChannelRole.MEMBER)
+
+        self.client.force_login(self.contributor)
+        leave_url = reverse('chat:channel_leave', kwargs={
+            'slug': self.workspace.slug,
+            'channel_slug': channel.slug
+        })
+        resp = self.client.post(leave_url, follow=True)
+        self.assertEqual(resp.status_code, 200)
+        self.assertFalse(channel.memberships.filter(user=self.contributor).exists())
+
+    def test_channel_delete_space_and_protection(self):
+        """Custom spaces can be deleted by authorized users; default channels cannot be deleted."""
+        ensure_default_channels(self.workspace, creator=self.admin)
+        general = Channel.objects.get(workspace=self.workspace, slug='general')
+
+        self.client.force_login(self.admin)
+        # Attempting to delete #general is disallowed
+        gen_delete_url = reverse('chat:channel_delete', kwargs={
+            'slug': self.workspace.slug,
+            'channel_slug': general.slug
+        })
+        resp = self.client.post(gen_delete_url, follow=True)
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(Channel.objects.filter(workspace=self.workspace, slug='general').exists())
+
+        # Deleting a custom channel succeeds
+        custom_channel = Channel.objects.create(
+            workspace=self.workspace,
+            name='temp-space',
+            slug='temp-space',
+            created_by=self.admin
+        )
+        ChannelMembership.objects.create(channel=custom_channel, user=self.admin, role=ChannelRole.OWNER)
+        custom_delete_url = reverse('chat:channel_delete', kwargs={
+            'slug': self.workspace.slug,
+            'channel_slug': custom_channel.slug
+        })
+        resp = self.client.post(custom_delete_url, follow=True)
+        self.assertEqual(resp.status_code, 200)
+        self.assertFalse(Channel.objects.filter(workspace=self.workspace, slug='temp-space').exists())
+
 

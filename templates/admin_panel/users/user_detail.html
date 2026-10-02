@@ -7,9 +7,7 @@
     <div class="aether-card p-6">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div class="flex items-center space-x-4">
-                <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-purple-600 to-indigo-700 text-white font-extrabold text-xl flex items-center justify-center shrink-0 shadow-md">
-                    {{ target_user.full_name|default:target_user.email|slice:":2"|upper }}
-                </div>
+                {% include 'components/avatar.html' with user=target_user size="w-16 h-16" rounded="rounded-2xl" text_size="text-xl" extra_classes="shadow-md" %}
                 <div>
                     <div class="flex items-center space-x-2">
                         <h2 class="text-lg font-bold text-slate-900 dark:text-zinc-50">{{ target_user.full_name|default:target_user.email }}</h2>

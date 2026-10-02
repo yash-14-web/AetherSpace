@@ -6,6 +6,8 @@
 <div class="space-y-6 max-w-7xl mx-auto py-4 sm:py-6 px-4 sm:px-6" 
      x-data="{ 
          currentTab: 'directory',
+         hierarchyViewMode: 'organogram',
+         organogramZoom: 100,
          inviteModalOpen: false, 
          editModalOpen: false,
          directAddModalOpen: false,
@@ -278,17 +280,23 @@
                         <tr x-show="(roleFilter === 'ALL' || roleFilter === '{{ m.role }}') && (tagFilter === 'ALL' || tagFilter === '{{ m.role_tag }}') && ('{{ m.user.full_name|lower }} {{ m.user.email|lower }} {{ m.functional_role|lower }}'.includes(searchTerm.toLowerCase()))"
                             class="hover:bg-slate-50/50 dark:hover:bg-obsidian-800/40 transition-colors">
                             
-                            <!-- 1. Member info -->
+                            <!-- 1. Member info with Hover Card -->
                             <td class="py-3.5 px-5">
-                                <div class="flex items-center space-x-3">
-                                    <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-700 text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-sm">
-                                        {{ m.user.full_name|default:m.user.email|slice:":1"|upper }}
+                                    <div class="relative shrink-0">
+                                        {% include 'components/people_hover_card.html' with target_user=m.user workspace_slug=workspace.slug target_member=m show_name=False avatar_size='w-8 h-8' %}
+                                        <span class="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full ring-2 ring-white dark:ring-obsidian-900 pointer-events-none
+                                            {% if m.user.availability_status == 'available' %}bg-emerald-500
+                                            {% elif m.user.availability_status == 'busy' %}bg-rose-500
+                                            {% elif m.user.availability_status == 'dnd' %}bg-red-600
+                                            {% elif m.user.availability_status == 'away' %}bg-amber-400
+                                            {% elif m.user.availability_status == 'ooo' %}bg-slate-400
+                                            {% elif m.user.availability_status == 'offline' %}bg-zinc-500
+                                            {% else %}bg-emerald-500{% endif %}"
+                                            title="{{ m.user.availability_status|default:'available'|capfirst }}"></span>
                                     </div>
                                     <div class="min-w-0">
                                         <div class="flex items-center space-x-1.5 flex-wrap">
-                                            <a href="{% url 'accounts:public_profile' user_id=m.user.id %}" class="font-bold text-slate-900 dark:text-zinc-100 hover:text-blue-600 dark:hover:text-blue-400 transition-colors truncate">
-                                                {{ m.user.full_name|default:m.user.email }}
-                                            </a>
+                                            {% include 'components/people_hover_card.html' with target_user=m.user workspace_slug=workspace.slug target_member=m show_name=True avatar_size='hidden' %}
                                             {% if m.user == user %}
                                                 <span class="text-[10px] text-aether-blue font-normal">(You)</span>
                                             {% endif %}
@@ -345,13 +353,9 @@
                                     </span>
                                 {% elif m.effective_reporting_to %}
                                     <div class="flex items-center space-x-2">
-                                        <div class="w-5 h-5 rounded-full bg-slate-200 dark:bg-zinc-700 text-slate-700 dark:text-zinc-300 text-[9px] font-bold flex items-center justify-center shrink-0">
-                                            {{ m.effective_reporting_to.user.full_name|default:m.effective_reporting_to.user.email|slice:":1"|upper }}
-                                        </div>
+                                        {% include 'components/avatar.html' with user=m.effective_reporting_to.user size="w-6 h-6" rounded="rounded-full" text_size="text-[9px]" %}
                                         <div class="min-w-0">
-                                            <span class="font-medium text-slate-800 dark:text-zinc-200 truncate block text-[11px]">
-                                                {{ m.effective_reporting_to.user.full_name|default:m.effective_reporting_to.user.email }}
-                                            </span>
+                                            {% include 'components/people_hover_card.html' with target_user=m.effective_reporting_to.user workspace_slug=workspace.slug target_member=m.effective_reporting_to show_name=True avatar_size='hidden' %}
                                             <span class="text-[10px] text-slate-400 dark:text-zinc-500 block">
                                                 {{ m.effective_reporting_to.get_role_display }}{% if not m.reporting_to %} <span class="italic text-slate-400">(Default)</span>{% endif %}
                                             </span>
@@ -409,36 +413,308 @@
         </div>
     </div>
 
-    <!-- TAB 2: Team Hierarchy & Org Chart View -->
+    <!-- TAB 2: Team Hierarchy & Organogram View -->
     <div x-show="currentTab === 'hierarchy'" class="space-y-6">
-        <!-- Hierarchy Explanation Banner -->
-        <div class="aether-card p-4 rounded-2xl border border-indigo-200/80 dark:border-indigo-900/60 bg-indigo-50/50 dark:bg-indigo-950/20 text-xs text-slate-700 dark:text-zinc-300 flex items-start space-x-3">
-            <svg class="w-5 h-5 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-            </svg>
-            <div>
-                <p class="font-bold text-slate-900 dark:text-zinc-100">Workspace Reporting Hierarchy</p>
-                <p class="mt-0.5 text-slate-600 dark:text-zinc-400">
-                    By default, team members report to the <strong>Workspace Owner / Lead Admin</strong> unless assigned to a specific manager. 
-                    Only <strong>Workspace Admins</strong> have permission to update reporting lines and role tags.
+        <!-- Organogram Header Toolbar & Legend -->
+        <div class="aether-card p-4 sm:p-5 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <div class="space-y-1">
+                <div class="flex items-center space-x-2.5">
+                    <span class="px-2.5 py-1 text-xs font-mono font-black tracking-wider uppercase rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
+                        ORGANOGRAM
+                    </span>
+                    <h2 class="text-sm sm:text-base font-black text-slate-900 dark:text-zinc-100 tracking-tight">
+                        Organizational Structure & Reporting Lines
+                    </h2>
+                </div>
+                <p class="text-xs text-slate-500 dark:text-zinc-400">
+                    Hierarchical visualization of workspace leadership, functional managers, and team contributors.
                 </p>
+            </div>
+
+            <!-- Controls & Tier Legend -->
+            <div class="flex flex-wrap items-center gap-3">
+                <!-- Color Legend (Image 3 Reference) -->
+                <div class="hidden sm:flex items-center space-x-3 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-zinc-800/80 text-[11px] font-bold border border-slate-200 dark:border-zinc-700/60">
+                    <div class="flex items-center space-x-1.5">
+                        <span class="w-2.5 h-2.5 rounded-full bg-purple-500 ring-2 ring-purple-500/30"></span>
+                        <span class="text-slate-700 dark:text-zinc-300">Leadership</span>
+                    </div>
+                    <span class="text-slate-300 dark:text-zinc-600">•</span>
+                    <div class="flex items-center space-x-1.5">
+                        <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/30"></span>
+                        <span class="text-slate-700 dark:text-zinc-300">Managers / Leads</span>
+                    </div>
+                    <span class="text-slate-300 dark:text-zinc-600">•</span>
+                    <div class="flex items-center space-x-1.5">
+                        <span class="w-2.5 h-2.5 rounded-full bg-blue-500 ring-2 ring-blue-500/30"></span>
+                        <span class="text-slate-700 dark:text-zinc-300">Contributors</span>
+                    </div>
+                </div>
+
+                <!-- Zoom Controls (Only for Organogram) -->
+                <div x-show="hierarchyViewMode === 'organogram'" class="flex items-center space-x-1 bg-slate-100 dark:bg-zinc-800/80 p-1 rounded-xl border border-slate-200 dark:border-zinc-700 text-xs">
+                    <button type="button" @click="if (organogramZoom > 60) organogramZoom -= 10" title="Zoom Out" class="px-2 py-1 rounded-lg hover:bg-white dark:hover:bg-zinc-900 text-slate-600 dark:text-zinc-400 font-bold">
+                        &minus;
+                    </button>
+                    <span class="px-1.5 text-[11px] font-mono font-bold text-slate-700 dark:text-zinc-300" x-text="`${organogramZoom}%`">100%</span>
+                    <button type="button" @click="if (organogramZoom < 140) organogramZoom += 10" title="Zoom In" class="px-2 py-1 rounded-lg hover:bg-white dark:hover:bg-zinc-900 text-slate-600 dark:text-zinc-400 font-bold">
+                        +
+                    </button>
+                    <button type="button" @click="organogramZoom = 100" title="Reset Zoom" class="px-1.5 py-1 text-[10px] rounded hover:bg-white dark:hover:bg-zinc-900 text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200">
+                        Reset
+                    </button>
+                </div>
+
+                <!-- View Switcher -->
+                <div class="flex items-center p-1 bg-slate-100 dark:bg-zinc-800/80 rounded-xl border border-slate-200 dark:border-zinc-700 text-xs font-bold">
+                    <button type="button" 
+                            @click="hierarchyViewMode = 'organogram'"
+                            :class="hierarchyViewMode === 'organogram' ? 'bg-white dark:bg-zinc-900 text-purple-600 dark:text-purple-400 shadow-xs' : 'text-slate-500 hover:text-slate-800 dark:hover:text-zinc-200'"
+                            class="px-3 py-1.5 rounded-lg transition-all flex items-center space-x-1.5">
+                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"/>
+                        </svg>
+                        <span>Organogram</span>
+                    </button>
+                    <button type="button" 
+                            @click="hierarchyViewMode = 'tree_list'"
+                            :class="hierarchyViewMode === 'tree_list' ? 'bg-white dark:bg-zinc-900 text-purple-600 dark:text-purple-400 shadow-xs' : 'text-slate-500 hover:text-slate-800 dark:hover:text-zinc-200'"
+                            class="px-3 py-1.5 rounded-lg transition-all flex items-center space-x-1.5">
+                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"/>
+                        </svg>
+                        <span>Card List</span>
+                    </button>
+                </div>
             </div>
         </div>
 
-        <!-- Org Chart Tree Layout -->
-        <div class="space-y-8">
+        <!-- 1. VISUAL ORGANOGRAM CANVAS (Matching Image 3) -->
+        <div x-show="hierarchyViewMode === 'organogram'" 
+             class="aether-card p-6 sm:p-12 rounded-2xl overflow-x-auto min-h-[550px] flex justify-center bg-slate-50/50 dark:bg-[#070b14]/90 border border-slate-200/80 dark:border-zinc-800 shadow-inner select-none">
+            
+            <div :style="`transform: scale(${organogramZoom / 100}); transform-origin: top center; transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);`"
+                 class="inline-flex flex-col items-center space-y-12 min-w-max pb-8">
+                
+                {% for root in root_members %}
+                    <div class="flex flex-col items-center">
+                        
+                        <!-- LEVEL 1: Leadership / Root Node (Purple Theme) -->
+                        <div class="flex flex-col items-center group relative z-10">
+                            <!-- Concentric Circular Avatar Node (Image 3 Reference) -->
+                            <div class="w-24 h-24 rounded-full p-1.5 bg-white dark:bg-zinc-900 border-4 border-purple-500 shadow-xl shadow-purple-500/20 ring-8 ring-purple-500/15 flex items-center justify-center transition-all group-hover:scale-105 group-hover:ring-purple-500/30 cursor-pointer overflow-hidden">
+                                {% include 'components/avatar.html' with user=root.user size="w-full h-full" rounded="rounded-full" text_size="text-2xl" %}
+                            </div>
+
+                            <!-- Member Name & Position Pill -->
+                            <div class="mt-3 flex flex-col items-center text-center space-y-1">
+                                <div class="flex items-center space-x-1.5">
+                                    {% include 'components/people_hover_card.html' with target_user=root.user workspace_slug=workspace.slug target_member=root show_name=True avatar_size='hidden' %}
+                                    {% if root.user == workspace.owner %}
+                                        <span class="px-1.5 py-0.2 rounded text-[9px] font-black uppercase bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 border border-amber-300 dark:border-amber-800">
+                                            Owner
+                                        </span>
+                                    {% endif %}
+                                </div>
+
+                                <span class="text-[11px] font-black text-purple-600 dark:text-purple-400 uppercase tracking-wider">
+                                    {{ root.functional_role|default:"Lead Executive / Architect" }}
+                                </span>
+
+                                <div class="flex items-center space-x-1.5">
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
+                                        #{{ root.user.contributor_id|default:"ROOT" }}
+                                    </span>
+                                    <span class="text-[9px] px-1.5 py-0.2 rounded font-bold uppercase bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300">
+                                        {{ root.get_role_display }}
+                                    </span>
+                                </div>
+
+                                <span class="text-[10px] font-semibold text-slate-400 dark:text-zinc-500">
+                                    👥 {{ root.hierarchy_reports|length }} Direct Report{% if root.hierarchy_reports|length != 1 %}s{% endif %}
+                                </span>
+
+                                {% if membership.can_manage_workspace %}
+                                    <button type="button"
+                                            @click="openEditModal({
+                                                id: '{{ root.id }}',
+                                                name: '{{ root.user.full_name|default:root.user.email|escapejs }}',
+                                                email: '{{ root.user.email|escapejs }}',
+                                                role: '{{ root.role }}',
+                                                functional_role: '{{ root.functional_role|escapejs }}',
+                                                role_tag: '{{ root.role_tag|escapejs }}',
+                                                reporting_to_id: '{{ root.reporting_to_id|default:'' }}',
+                                                actionUrl: '{% url 'workspaces:update_member_role' slug=workspace.slug member_id=root.id %}'
+                                            })"
+                                            class="mt-1 text-[10px] font-bold text-purple-600 dark:text-purple-400 hover:underline px-2 py-0.5 rounded bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800">
+                                        Edit Role &rarr;
+                                    </button>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- LEVEL 1 -> LEVEL 2 Branching Connectors -->
+                        {% if root.hierarchy_reports %}
+                            <!-- Vertical Spine Stem Down (Purple) -->
+                            <div class="w-1 h-12 bg-purple-500 dark:bg-purple-400"></div>
+
+                            <!-- Level 2 Children Row -->
+                            <div class="flex items-start justify-center pt-0">
+                                {% for sub in root.hierarchy_reports %}
+                                    <div class="flex flex-col items-center px-6 relative">
+                                        
+                                        <!-- Horizontal Crossbar Connector (Purple) -->
+                                        {% if root.hierarchy_reports|length > 1 %}
+                                            {% if forloop.first %}
+                                                <div class="absolute top-0 left-1/2 right-0 h-1 bg-purple-500 dark:bg-purple-400"></div>
+                                            {% elif forloop.last %}
+                                                <div class="absolute top-0 left-0 right-1/2 h-1 bg-purple-500 dark:bg-purple-400"></div>
+                                            {% else %}
+                                                <div class="absolute top-0 left-0 right-0 h-1 bg-purple-500 dark:bg-purple-400"></div>
+                                            {% endif %}
+                                        {% endif %}
+
+                                        <!-- Vertical Drop Line into Child (Purple) -->
+                                        <div class="w-1 h-10 bg-purple-500 dark:bg-purple-400"></div>
+
+                                        <!-- LEVEL 2: Middle Manager / Lead Node (Emerald Green Theme) -->
+                                        <div class="flex flex-col items-center group relative z-10">
+                                            <!-- Concentric Circular Avatar Node -->
+                                            <div class="w-20 h-20 rounded-full p-1.5 bg-white dark:bg-zinc-900 border-4 border-emerald-500 shadow-lg shadow-emerald-500/20 ring-6 ring-emerald-500/15 flex items-center justify-center transition-all group-hover:scale-105 group-hover:ring-emerald-500/30 cursor-pointer overflow-hidden">
+                                                {% include 'components/avatar.html' with user=sub.user size="w-full h-full" rounded="rounded-full" text_size="text-lg" %}
+                                            </div>
+
+                                            <!-- Member Name & Position Pill -->
+                                            <div class="mt-2.5 flex flex-col items-center text-center space-y-1">
+                                                {% include 'components/people_hover_card.html' with target_user=sub.user workspace_slug=workspace.slug target_member=sub show_name=True avatar_size='hidden' %}
+
+                                                <span class="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
+                                                    {{ sub.functional_role|default:"Lead / Manager" }}
+                                                </span>
+
+                                                <div class="flex items-center space-x-1">
+                                                    <span class="px-1.5 py-0.2 rounded-full text-[9px] font-mono font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                                                        #{{ sub.user.contributor_id|default:"MGR" }}
+                                                    </span>
+                                                    <span class="text-[8px] px-1 py-0.2 rounded font-bold uppercase bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                                                        {{ sub.get_role_display }}
+                                                    </span>
+                                                </div>
+
+                                                {% if sub.hierarchy_reports %}
+                                                    <span class="text-[9px] font-bold text-emerald-600 dark:text-emerald-400">
+                                                        👥 {{ sub.hierarchy_reports|length }} Reports
+                                                    </span>
+                                                {% endif %}
+
+                                                {% if membership.can_manage_workspace %}
+                                                    <button type="button"
+                                                            @click="openEditModal({
+                                                                id: '{{ sub.id }}',
+                                                                name: '{{ sub.user.full_name|default:sub.user.email|escapejs }}',
+                                                                email: '{{ sub.user.email|escapejs }}',
+                                                                role: '{{ sub.role }}',
+                                                                functional_role: '{{ sub.functional_role|escapejs }}',
+                                                                role_tag: '{{ sub.role_tag|escapejs }}',
+                                                                reporting_to_id: '{{ sub.reporting_to_id|default:'' }}',
+                                                                actionUrl: '{% url 'workspaces:update_member_role' slug=workspace.slug member_id=sub.id %}'
+                                                            })"
+                                                            class="mt-0.5 text-[9px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline px-1.5 py-0.2 rounded bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800">
+                                                        Edit &rarr;
+                                                    </button>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+
+                                        <!-- LEVEL 2 -> LEVEL 3 Branching Connectors (Emerald Green) -->
+                                        {% if sub.hierarchy_reports %}
+                                            <!-- Vertical Spine Stem Down (Green) -->
+                                            <div class="w-1 h-10 bg-emerald-500 dark:bg-emerald-400"></div>
+
+                                            <!-- Level 3 Children Row -->
+                                            <div class="flex items-start justify-center pt-0">
+                                                {% for leaf in sub.hierarchy_reports %}
+                                                    <div class="flex flex-col items-center px-4 relative">
+                                                        
+                                                        <!-- Horizontal Crossbar Connector (Emerald Green) -->
+                                                        {% if sub.hierarchy_reports|length > 1 %}
+                                                            {% if forloop.first %}
+                                                                <div class="absolute top-0 left-1/2 right-0 h-1 bg-emerald-500 dark:bg-emerald-400"></div>
+                                                            {% elif forloop.last %}
+                                                                <div class="absolute top-0 left-0 right-1/2 h-1 bg-emerald-500 dark:bg-emerald-400"></div>
+                                                            {% else %}
+                                                                <div class="absolute top-0 left-0 right-0 h-1 bg-emerald-500 dark:bg-emerald-400"></div>
+                                                            {% endif %}
+                                                        {% endif %}
+
+                                                        <!-- Vertical Drop Line into Child (Green) -->
+                                                        <div class="w-1 h-8 bg-emerald-500 dark:bg-emerald-400"></div>
+
+                                                        <!-- LEVEL 3: Contributor / Engineer Node (Blue Theme) -->
+                                                        <div class="flex flex-col items-center group relative z-10">
+                                                            <!-- Concentric Circular Avatar Node -->
+                                                            <div class="w-16 h-16 rounded-full p-1 bg-white dark:bg-zinc-900 border-3 border-blue-500 shadow-md shadow-blue-500/15 ring-4 ring-blue-500/15 flex items-center justify-center transition-all group-hover:scale-105 group-hover:ring-blue-500/30 cursor-pointer overflow-hidden">
+                                                                {% include 'components/avatar.html' with user=leaf.user size="w-full h-full" rounded="rounded-full" text_size="text-sm" %}
+                                                            </div>
+
+                                                            <!-- Member Name & Position Pill -->
+                                                            <div class="mt-2 flex flex-col items-center text-center space-y-0.5">
+                                                                {% include 'components/people_hover_card.html' with target_user=leaf.user workspace_slug=workspace.slug target_member=leaf show_name=True avatar_size='hidden' %}
+
+                                                                <span class="text-[9px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">
+                                                                    {{ leaf.functional_role|default:"Contributor" }}
+                                                                </span>
+
+                                                                <span class="px-1.5 py-0.2 rounded-full text-[8px] font-mono font-medium bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+                                                                    #{{ leaf.user.contributor_id|default:"DEV" }}
+                                                                </span>
+
+                                                                {% if membership.can_manage_workspace %}
+                                                                    <button type="button"
+                                                                            @click="openEditModal({
+                                                                                id: '{{ leaf.id }}',
+                                                                                name: '{{ leaf.user.full_name|default:leaf.user.email|escapejs }}',
+                                                                                email: '{{ leaf.user.email|escapejs }}',
+                                                                                role: '{{ leaf.role }}',
+                                                                                functional_role: '{{ leaf.functional_role|escapejs }}',
+                                                                                role_tag: '{{ leaf.role_tag|escapejs }}',
+                                                                                reporting_to_id: '{{ leaf.reporting_to_id|default:'' }}',
+                                                                                actionUrl: '{% url 'workspaces:update_member_role' slug=workspace.slug member_id=leaf.id %}'
+                                                                            })"
+                                                                            class="mt-0.5 text-[8px] font-semibold text-blue-600 dark:text-blue-400 hover:underline">
+                                                                        Edit
+                                                                    </button>
+                                                                {% endif %}
+                                                            </div>
+                                                        </div>
+
+                                                    </div>
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+
+                    </div>
+                {% endfor %}
+
+            </div>
+        </div>
+
+        <!-- 2. DETAILED TREE CARDS LIST (Secondary Tabular View) -->
+        <div x-show="hierarchyViewMode === 'tree_list'" style="display: none;" class="space-y-6">
             {% for root in root_members %}
                 <div class="aether-card p-6 rounded-2xl border border-slate-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm space-y-6">
-                    
-                    <!-- Level 1: Root / Lead Card -->
-                    <div class="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-xl bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-950/40 dark:via-indigo-950/40 dark:to-purple-950/40 border border-blue-200/80 dark:border-blue-900/60 gap-4">
+                    <!-- Root Lead Card -->
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-xl bg-gradient-to-r from-purple-50 via-indigo-50 to-blue-50 dark:from-purple-950/40 dark:via-indigo-950/40 dark:to-blue-950/40 border border-purple-200/80 dark:border-purple-900/60 gap-4">
                         <div class="flex items-center space-x-3.5">
-                            <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-700 text-white font-black text-base flex items-center justify-center shadow-md shrink-0 ring-2 ring-white dark:ring-zinc-800">
-                                {{ root.user.full_name|default:root.user.email|slice:":1"|upper }}
-                            </div>
+                            {% include 'components/avatar.html' with user=root.user size="w-12 h-12" rounded="rounded-2xl" text_size="text-base" extra_classes="shadow-md ring-2 ring-white dark:ring-zinc-800" %}
                             <div>
                                 <div class="flex items-center space-x-2 flex-wrap">
-                                    <a href="{% url 'accounts:public_profile' user_id=root.user.id %}" class="text-sm font-black text-slate-900 dark:text-zinc-50 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+                                    <a href="{% url 'accounts:public_profile' user_id=root.user.id %}" class="text-sm font-black text-slate-900 dark:text-zinc-50 hover:text-purple-600 dark:hover:text-purple-400 transition-colors">
                                         {{ root.user.full_name|default:root.user.email }}
                                     </a>
                                     {% if root.user == workspace.owner %}
@@ -446,10 +722,7 @@
                                             Owner
                                         </span>
                                     {% endif %}
-                                    <span class="px-2 py-0.2 rounded text-[10px] font-bold uppercase
-                                        {% if root.is_admin %}bg-purple-100 text-purple-800 dark:bg-purple-900/60 dark:text-purple-300
-                                        {% elif root.is_manager %}bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-300
-                                        {% else %}bg-slate-200 text-slate-800 dark:bg-zinc-800 dark:text-zinc-300{% endif %}">
+                                    <span class="px-2 py-0.2 rounded text-[10px] font-bold uppercase bg-purple-100 text-purple-800 dark:bg-purple-900/60 dark:text-purple-300">
                                         {{ root.get_role_display }}
                                     </span>
                                 </div>
@@ -457,7 +730,7 @@
                                     <span>{{ root.functional_role|default:"Lead / Administrator" }}</span>
                                     {% if root.role_tag %}
                                         <span>&bull;</span>
-                                        <span class="text-blue-600 dark:text-blue-400 font-semibold">{{ root.role_tag }}</span>
+                                        <span class="text-purple-600 dark:text-purple-400 font-semibold">{{ root.role_tag }}</span>
                                     {% endif %}
                                 </div>
                             </div>
@@ -479,14 +752,14 @@
                                             reporting_to_id: '{{ root.reporting_to_id|default:'' }}',
                                             actionUrl: '{% url 'workspaces:update_member_role' slug=workspace.slug member_id=root.id %}'
                                         })"
-                                        class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors shadow-sm">
+                                        class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-purple-600 text-white hover:bg-purple-700 transition-colors shadow-sm">
                                     Edit
                                 </button>
                             {% endif %}
                         </div>
                     </div>
 
-                    <!-- Direct Reports (Sub-Tree Grid) -->
+                    <!-- Direct Reports List -->
                     {% if root.hierarchy_reports %}
                         <div class="pl-4 sm:pl-8 border-l-2 border-dashed border-slate-200 dark:border-zinc-800 space-y-4">
                             <p class="text-[11px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">
@@ -495,14 +768,12 @@
 
                             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
                                 {% for sub in root.hierarchy_reports %}
-                                    <div class="p-4 rounded-xl border border-slate-200/70 dark:border-zinc-800/80 bg-slate-50/50 dark:bg-zinc-800/40 hover:border-blue-500/50 transition-all flex flex-col justify-between space-y-3">
+                                    <div class="p-4 rounded-xl border border-slate-200/70 dark:border-zinc-800/80 bg-slate-50/50 dark:bg-zinc-800/40 hover:border-emerald-500/50 transition-all flex flex-col justify-between space-y-3">
                                         <div class="flex items-start justify-between gap-2">
                                             <div class="flex items-center space-x-2.5 min-w-0">
-                                                <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-indigo-600 to-blue-500 text-white font-bold text-xs flex items-center justify-center shrink-0">
-                                                    {{ sub.user.full_name|default:sub.user.email|slice:":1"|upper }}
-                                                </div>
+                                                {% include 'components/avatar.html' with user=sub.user size="w-8 h-8" rounded="rounded-lg" text_size="text-xs" %}
                                                 <div class="min-w-0">
-                                                    <a href="{% url 'accounts:public_profile' user_id=sub.user.id %}" class="text-xs font-bold text-slate-900 dark:text-zinc-100 hover:text-blue-600 truncate block">
+                                                    <a href="{% url 'accounts:public_profile' user_id=sub.user.id %}" class="text-xs font-bold text-slate-900 dark:text-zinc-100 hover:text-emerald-600 truncate block">
                                                         {{ sub.user.full_name|default:sub.user.email }}
                                                     </a>
                                                     <span class="text-[10px] text-slate-400 dark:text-zinc-500 truncate block">
@@ -513,7 +784,7 @@
 
                                             <span class="px-1.5 py-0.2 rounded text-[9px] font-bold uppercase
                                                 {% if sub.is_admin %}bg-purple-100 text-purple-700 dark:bg-purple-950/80 dark:text-purple-300
-                                                {% elif sub.is_manager %}bg-blue-100 text-blue-700 dark:bg-blue-950/80 dark:text-blue-300
+                                                {% elif sub.is_manager %}bg-emerald-100 text-emerald-700 dark:bg-emerald-950/80 dark:text-emerald-300
                                                 {% else %}bg-slate-200 text-slate-700 dark:bg-zinc-700 dark:text-zinc-300{% endif %}">
                                                 {{ sub.get_role_display }}
                                             </span>
@@ -533,7 +804,7 @@
                                                     </span>
                                                 {% endif %}
                                                 {% if sub.hierarchy_reports %}
-                                                    <span class="text-[10px] font-semibold text-purple-600 dark:text-purple-400">
+                                                    <span class="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
                                                         👥 {{ sub.hierarchy_reports|length }} reports
                                                     </span>
                                                 {% endif %}
@@ -553,7 +824,7 @@
                                                             reporting_to_id: '{{ sub.reporting_to_id|default:'' }}',
                                                             actionUrl: '{% url 'workspaces:update_member_role' slug=workspace.slug member_id=sub.id %}'
                                                         })"
-                                                        class="text-[11px] font-semibold text-blue-600 dark:text-blue-400 hover:underline">
+                                                        class="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 hover:underline">
                                                     Edit Reporting / Role &rarr;
                                                 </button>
                                             </div>
@@ -567,7 +838,6 @@
                             No direct reports assigned under this lead yet.
                         </p>
                     {% endif %}
-
                 </div>
             {% endfor %}
         </div>
@@ -956,13 +1226,20 @@
                                 <template x-for="candidate in directSearchResults" :key="candidate.id">
                                     <div class="py-2 px-2.5 flex items-center justify-between rounded-lg hover:bg-slate-50 dark:hover:bg-zinc-900/60 transition-colors">
                                         <div class="flex items-center space-x-2.5 truncate mr-2">
-                                            <div class="w-7 h-7 rounded-full bg-gradient-to-tr from-purple-600 to-indigo-700 text-white font-bold text-xs flex items-center justify-center shrink-0"
-                                                 x-text="candidate.initials">
-                                            </div>
+                                            <!-- Candidate Avatar -->
+                                            <template x-if="candidate.avatar && !candidate.avatar.startsWith('preset:')">
+                                                <img :src="candidate.avatar" class="w-7 h-7 rounded-full object-cover shrink-0 ring-1 ring-purple-500/30">
+                                            </template>
+                                            <template x-if="!candidate.avatar || candidate.avatar.startsWith('preset:')">
+                                                <div class="w-7 h-7 rounded-full bg-gradient-to-tr from-purple-600 to-indigo-700 text-white font-bold text-xs flex items-center justify-center shrink-0"
+                                                     x-text="candidate.initials">
+                                                </div>
+                                            </template>
                                             <div class="truncate">
-                                                <div class="flex items-center space-x-1.5">
+                                                <div class="flex items-center space-x-1.5 flex-wrap">
                                                     <span class="text-xs font-bold text-slate-900 dark:text-zinc-100 truncate" x-text="candidate.full_name"></span>
-                                                    <span class="font-mono text-[10px] font-bold px-1.5 py-0.2 rounded bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-300" x-text="candidate.contributor_id"></span>
+                                                    <span class="font-mono text-[10px] font-bold px-1.5 py-0.2 rounded bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 shrink-0" x-text="candidate.contributor_id"></span>
+                                                    <span class="text-[10px] font-medium px-1.5 py-0.2 rounded bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 shrink-0" x-text="candidate.system_role"></span>
                                                 </div>
                                                 <div class="text-[11px] text-slate-400 truncate" x-text="candidate.email"></div>
                                             </div>

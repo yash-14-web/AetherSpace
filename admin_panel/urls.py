@@ -42,6 +42,7 @@ urlpatterns = [
 
     # 9. Integrations (Screen 68)
     path('integrations/', views.integrations, name='integrations'),
+    path('integrations/<str:key>/test/', views.test_integration, name='test_integration'),
 
     # 10. Storage & Files — Real Sync (Screen 69)
     path('storage/', views.storage_files, name='storage_files'),
@@ -54,6 +55,9 @@ urlpatterns = [
     # 12. Backup & Restore (Screen 71)
     path('backup/', views.backup_restore, name='backup_restore'),
     path('backup/export/', views.export_data, name='export_data'),
+    path('backup/workspace/export/', views.export_workspace_backup, name='export_workspace_backup'),
+    path('backup/workspace/preview/', views.preview_backup_restore, name='preview_backup_restore'),
+    path('backup/workspace/confirm/', views.confirm_backup_restore, name='confirm_backup_restore'),
 
     # 13. Activity Monitor (Screen 72)
     path('activity/', views.activity_monitor, name='activity_monitor'),
@@ -63,8 +67,14 @@ urlpatterns = [
 
     # 15. Alerts (Screen 74)
     path('alerts/', views.alerts_list, name='alerts_list'),
+    path('alerts/sync/', views.sync_alerts, name='sync_alerts'),
     path('alerts/<uuid:alert_id>/resolve/', views.resolve_alert, name='resolve_alert'),
+
+    # 16. Module & Feature Status Management
+    path('modules/', views.module_status_list, name='module_status_list'),
+    path('modules/<str:module_key>/update/', views.update_module_status, name='update_module_status'),
 
     # Search-First People Search API
     path('api/people-search/', views.api_people_search, name='api_people_search'),
 ]
+

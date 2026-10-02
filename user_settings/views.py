@@ -78,43 +78,46 @@ def profile_settings(request):
 
             # Process Banner updates (upload file, URL, or preset)
             banner_file = request.FILES.get('banner_file')
-            banner_url = request.POST.get('banner_url', '').strip()
             banner_preset = request.POST.get('banner_preset', '').strip()
+            banner_url = request.POST.get('banner_url', '').strip()
 
             if banner_file:
                 success, msg = process_and_save_banner(request.user, file_obj=banner_file)
                 if not success:
                     messages.error(request, msg)
-            elif banner_url:
+            elif banner_preset:
+                process_and_save_banner(request.user, preset_gradient=banner_preset)
+            elif banner_url and banner_url != profile.banner and not banner_url.startswith('preset:'):
                 success, msg = process_and_save_banner(request.user, banner_url=banner_url)
                 if not success:
                     messages.error(request, msg)
-            elif banner_preset:
-                process_and_save_banner(request.user, preset_gradient=banner_preset)
 
             # Process Avatar updates (upload file, URL, or preset)
             avatar_file = request.FILES.get('avatar_file')
-            avatar_url = request.POST.get('avatar_url', '').strip()
             avatar_preset = request.POST.get('avatar_preset', '').strip()
+            avatar_url = form.cleaned_data.get('avatar_url', '').strip()
 
             if avatar_file:
                 success, msg = process_and_save_avatar(request.user, file_obj=avatar_file)
                 if not success:
                     messages.error(request, msg)
-            elif avatar_url and avatar_url != request.user.avatar:
+            elif avatar_preset:
+                process_and_save_avatar(request.user, preset_color=avatar_preset)
+            elif avatar_url and avatar_url != request.user.avatar and not avatar_url.startswith('/media/'):
                 success, msg = process_and_save_avatar(request.user, avatar_url=avatar_url)
                 if not success:
                     messages.error(request, msg)
-            elif avatar_preset:
-                process_and_save_avatar(request.user, preset_color=avatar_preset)
 
             messages.success(request, "Your public profile and banner have been updated.")
             return redirect('user_settings:profile')
     else:
+        current_avatar = request.user.avatar or ''
+        initial_avatar_url = current_avatar if (current_avatar.startswith(('http://', 'https://'))) else ''
         form = ProfileDetailsForm(
             instance=profile,
-            initial={'avatar_url': request.user.avatar}
+            initial={'avatar_url': initial_avatar_url}
         )
+
 
     context = {
         'active_tab': 'profile',

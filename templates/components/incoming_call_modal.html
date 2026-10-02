@@ -1,0 +1,168 @@
+<!-- Reusable Incoming Call Modal with Web Audio API Phone Ringtone Synthesizer -->
+<div x-data="incomingCallManager()" 
+     x-show="showCallModal" 
+     x-cloak
+     x-transition:enter="transition ease-out duration-300"
+     x-transition:enter-start="opacity-0 translate-y-[-20px] scale-95"
+     x-transition:enter-end="opacity-100 translate-y-0 scale-100"
+     x-transition:leave="transition ease-in duration-200"
+     x-transition:leave-start="opacity-100 translate-y-0 scale-100"
+     x-transition:leave-end="opacity-0 translate-y-[-20px] scale-95"
+     class="fixed top-6 right-6 z-[100] max-w-md w-full bg-slate-900/95 dark:bg-[#18181b]/95 backdrop-blur-md text-white rounded-3xl p-5 shadow-2xl border-2 border-blue-500/60 ring-4 ring-blue-500/20">
+    
+    <div class="flex items-start space-x-4">
+        <!-- Animated Ringing Icon / Caller Avatar -->
+        <div class="relative shrink-0">
+            <template x-if="callData.caller_avatar">
+                <img :src="callData.caller_avatar" class="w-14 h-14 rounded-2xl object-cover ring-2 ring-blue-400">
+            </template>
+            <template x-if="!callData.caller_avatar">
+                <div class="w-14 h-14 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white font-bold text-lg shadow-lg ring-2 ring-blue-400/50">
+                    <span x-text="callData.caller_name ? callData.caller_name.charAt(0).toUpperCase() : 'C'"></span>
+                </div>
+            </template>
+            <span class="absolute -bottom-1 -right-1 flex h-4 w-4">
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span class="relative inline-flex rounded-full h-4 w-4 bg-emerald-500 ring-2 ring-slate-900"></span>
+            </span>
+        </div>
+
+        <!-- Call Information -->
+        <div class="flex-1 min-w-0">
+            <div class="flex items-center space-x-2">
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                    <span x-text="callData.is_audio_only ? 'Audio Call' : 'Video Call'"></span>
+                </span>
+                <span class="text-xs text-zinc-400 animate-pulse">Incoming...</span>
+            </div>
+            <h4 class="text-base font-bold text-white truncate mt-1" x-text="callData.caller_name || 'Team Member'"></h4>
+            <p class="text-xs text-zinc-300 truncate font-medium" x-text="callData.title || 'AetherSpace Call'"></p>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="flex items-center justify-end space-x-3 mt-4 pt-3 border-t border-zinc-800">
+        <button @click="declineCall()" 
+                class="px-4 py-2 rounded-xl text-xs font-semibold text-zinc-300 hover:text-white bg-zinc-800 hover:bg-zinc-700 transition">
+            Decline
+        </button>
+        <button @click="acceptCall()" 
+                class="px-5 py-2 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500 transition shadow-lg flex items-center space-x-2">
+            <svg class="w-4 h-4 animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/>
+            </svg>
+            <span>Accept & Join</span>
+        </button>
+    </div>
+</div>
+
+<script>
+function incomingCallManager() {
+    return {
+        showCallModal: false,
+        callData: {},
+        audioCtx: null,
+        ringtoneInterval: null,
+        ringtoneTimeout: null,
+
+        init() {
+            // Listen for window-level incoming call events dispatched by Chat WebSocket or Channels
+            window.addEventListener('aetherspace:incoming_call', (e) => {
+                if (e.detail) {
+                    this.triggerIncomingCall(e.detail);
+                }
+            });
+        },
+
+        triggerIncomingCall(data) {
+            this.callData = data;
+            this.showCallModal = true;
+            this.startRingtone();
+
+            // Automatically dismiss after 45 seconds of ringing if not answered
+            if (this.ringtoneTimeout) clearTimeout(this.ringtoneTimeout);
+            this.ringtoneTimeout = setTimeout(() => {
+                this.declineCall();
+            }, 45000);
+        },
+
+        startRingtone() {
+            try {
+                const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                if (!AudioContextClass) return;
+                if (!this.audioCtx) {
+                    this.audioCtx = new AudioContextClass();
+                }
+                if (this.audioCtx.state === 'suspended') {
+                    this.audioCtx.resume();
+                }
+
+                const playDualToneBurst = () => {
+                    if (!this.showCallModal || !this.audioCtx) return;
+                    const now = this.audioCtx.currentTime;
+
+                    // Dual frequencies: 440 Hz + 480 Hz (US standard telephone ringing tone)
+                    const osc1 = this.audioCtx.createOscillator();
+                    const osc2 = this.audioCtx.createOscillator();
+                    const gain = this.audioCtx.createGain();
+
+                    osc1.type = 'sine';
+                    osc1.frequency.value = 440;
+                    osc2.type = 'sine';
+                    osc2.frequency.value = 480;
+
+                    // Ring for 1.8 seconds with soft attack and decay
+                    gain.gain.setValueAtTime(0, now);
+                    gain.gain.linearRampToValueAtTime(0.18, now + 0.08);
+                    gain.gain.setValueAtTime(0.18, now + 1.7);
+                    gain.gain.linearRampToValueAtTime(0, now + 1.8);
+
+                    osc1.connect(gain);
+                    osc2.connect(gain);
+                    gain.connect(this.audioCtx.destination);
+
+                    osc1.start(now);
+                    osc2.start(now);
+                    osc1.stop(now + 1.8);
+                    osc2.stop(now + 1.8);
+                };
+
+                // Play first burst immediately
+                playDualToneBurst();
+
+                // Repeat every 3.5 seconds
+                if (this.ringtoneInterval) clearInterval(this.ringtoneInterval);
+                this.ringtoneInterval = setInterval(playDualToneBurst, 3500);
+
+            } catch (err) {
+                console.warn("Could not start Web Audio ringtone synthesizer:", err);
+            }
+        },
+
+        stopRingtone() {
+            if (this.ringtoneInterval) {
+                clearInterval(this.ringtoneInterval);
+                this.ringtoneInterval = null;
+            }
+            if (this.ringtoneTimeout) {
+                clearTimeout(this.ringtoneTimeout);
+                this.ringtoneTimeout = null;
+            }
+        },
+
+        acceptCall() {
+            this.stopRingtone();
+            this.showCallModal = false;
+            if (this.callData.room_url) {
+                window.location.href = this.callData.room_url;
+            }
+        },
+
+        declineCall() {
+            this.stopRingtone();
+            this.showCallModal = false;
+            this.callData = {};
+        }
+    };
+}
+</script>

@@ -31,6 +31,19 @@ def _clean_code(meeting_code):
     return match.group(0) if match else raw.split(':')[0].strip()
 
 
+from core.models import ModuleStatus
+
+
+def check_meetings_maintenance(request, slug=None):
+    """Checks whether the meetings module is currently under maintenance or coming soon."""
+    status_obj = ModuleStatus.get_status_obj('meetings')
+    if status_obj and not status_obj.is_available:
+        return render(request, 'core/module_maintenance.html', {
+            'module_status': status_obj,
+            'workspace_slug': slug,
+        }, status=503)
+    return None
+
 
 @login_required
 def meet_router(request):
@@ -61,19 +74,21 @@ def meet_router(request):
 
 def cleanup_stale_meetings(workspace):
     """
-    Auto-close live meetings that have no active participants or haven't received
-    a heartbeat ping in over 90 seconds.
+    Auto-close live meetings that have no active participants and have been
+    abandoned for over 5 minutes.
     """
     now = timezone.now()
     live_meetings = Meeting.objects.filter(workspace=workspace, status=MeetingStatus.LIVE)
     for m in live_meetings:
-        no_active_participants = not m.participants.filter(left_at__isnull=True).exists()
-        stale_heartbeat = (now - m.updated_at).total_seconds() > 90
-        if no_active_participants or stale_heartbeat:
-            m.status = MeetingStatus.ENDED
-            m.actual_end = m.updated_at or now
-            m.save(update_fields=['status', 'actual_end', 'updated_at'])
-            m.participants.filter(left_at__isnull=True).update(left_at=m.actual_end)
+        active_participants = m.participants.filter(left_at__isnull=True).exists()
+        if not active_participants:
+            time_since_creation = (now - m.created_at).total_seconds()
+            time_since_update = (now - m.updated_at).total_seconds()
+            if time_since_creation > 300 and time_since_update > 180:
+                m.status = MeetingStatus.ENDED
+                m.actual_end = m.updated_at or now
+                m.save(update_fields=['status', 'actual_end', 'updated_at'])
+                m.participants.filter(left_at__isnull=True).update(left_at=m.actual_end)
 
 
 @workspace_member_required
@@ -132,6 +147,9 @@ def meet_hub_view(request, slug):
     join_form = JoinMeetingForm()
     personal_link = f"meet.aetherspace.dev/{request.user.username}"
 
+    meetings_status = ModuleStatus.get_status_obj('meetings')
+    is_maintenance = bool(meetings_status and not meetings_status.is_available)
+
     context = {
         'workspace': workspace,
         'membership': membership,
@@ -148,6 +166,8 @@ def meet_hub_view(request, slug):
         'join_form': join_form,
         'personal_link': personal_link,
         'MeetingType': MeetingType,
+        'meetings_status': meetings_status,
+        'is_maintenance': is_maintenance,
     }
     return render(request, 'meetings/meet_hub.html', context)
 
@@ -160,6 +180,10 @@ def meeting_start_view(request, slug):
     Creates an immediate LIVE meeting and redirects user directly to the room.
     """
     workspace = request.workspace
+
+    maintenance_resp = check_meetings_maintenance(request, slug=workspace.slug)
+    if maintenance_resp:
+        return maintenance_resp
 
     if request.method == 'POST':
         form = StartMeetingForm(request.POST)
@@ -195,10 +219,14 @@ def meeting_chat_call_view(request, slug, target_type=None, target_id=None, call
     Initiates an instant call bound to a Channel or Direct Message.
     Supports invocation via URL routes or POST body.
     """
+    workspace = request.workspace
+    maintenance_resp = check_meetings_maintenance(request, slug=workspace.slug)
+    if maintenance_resp:
+        return maintenance_resp
+
     if request.method != 'POST':
         return HttpResponseBadRequest("POST required")
 
-    workspace = request.workspace
     mode = (call_mode or request.POST.get('call_type', 'video')).lower()
     is_audio_only = (mode == 'audio')
 
@@ -256,6 +284,10 @@ def meeting_join_view(request, slug):
     Join meeting by human-facing meeting code (e.g. meet-k7xp-2m9q).
     """
     workspace = request.workspace
+    maintenance_resp = check_meetings_maintenance(request, slug=workspace.slug)
+    if maintenance_resp:
+        return maintenance_resp
+
     error_message = None
 
     if request.method == 'POST':
@@ -308,6 +340,10 @@ def meeting_room_view(request, slug, meeting_code):
     """
     workspace = request.workspace
     membership = request.membership
+
+    maintenance_resp = check_meetings_maintenance(request, slug=workspace.slug)
+    if maintenance_resp:
+        return maintenance_resp
 
     clean_code = _clean_code(meeting_code)
 
@@ -404,6 +440,23 @@ def meeting_room_view(request, slug, meeting_code):
     else:
         meeting_code_formatted = code_raw.lower()
 
+    ice_servers = getattr(settings, 'WEBRTC_ICE_SERVERS', [
+        {"urls": "stun:stun.l.google.com:19302"},
+        {"urls": "stun:stun1.l.google.com:19302"},
+        {"urls": "stun:stun2.l.google.com:19302"},
+    ])
+    ice_servers_json = json.dumps(ice_servers)
+
+    current_user_json = json.dumps({
+        'id': str(request.user.id),
+        'name': user_name,
+        'initials': user_initials,
+        'email': request.user.email,
+        'avatar': user_avatar_url,
+        'role': user_role_label,
+        'is_host': is_host,
+    })
+
     context = {
         'workspace': workspace,
         'membership': membership,
@@ -416,6 +469,9 @@ def meeting_room_view(request, slug, meeting_code):
         'user_initials': user_initials,
         'user_email': request.user.email,
         'user_avatar': user_avatar_url,
+        'user_id_str': str(request.user.id),
+        'current_user_json': current_user_json,
+        'ice_servers_json': ice_servers_json,
         'meeting_code_formatted': meeting_code_formatted,
         'participants': participants,
         'participants_json': participants_json,
@@ -432,6 +488,10 @@ def meeting_schedule_view(request, slug):
     """
     workspace = request.workspace
     membership = request.membership
+
+    maintenance_resp = check_meetings_maintenance(request, slug=workspace.slug)
+    if maintenance_resp:
+        return maintenance_resp
 
     if request.method == 'POST':
         form = ScheduleMeetingForm(request.POST, workspace=workspace)

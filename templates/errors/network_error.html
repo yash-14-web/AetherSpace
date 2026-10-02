@@ -1,0 +1,67 @@
+{% extends 'errors/base_error.html' %}
+
+{% block error_title_tag %}Connection Lost — AetherSpace{% endblock %}
+
+{% block status_code %}Offline{% endblock %}
+{% block status_code_color %}text-rose-500 dark:text-rose-400 text-5xl sm:text-6xl{% endblock %}
+{% block glow_color %}bg-rose-600{% endblock %}
+
+{% block headline %}Connection Lost{% endblock %}
+{% block description %}
+We couldn't connect to AetherSpace. Check your internet connection and try again.
+{% endblock %}
+
+{% block illustration %}
+<svg class="w-full h-full drop-shadow-[0_10px_25px_rgba(244,63,94,0.35)]" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Disconnected network wifi beacon illustration">
+    <!-- Star / Signal dots -->
+    <circle cx="32" cy="40" r="1.5" fill="#fca5a5" opacity="0.6"/>
+    <circle cx="170" cy="45" r="1.5" fill="#fca5a5" opacity="0.6"/>
+    <circle cx="25" cy="120" r="1.2" fill="#fb7185" opacity="0.4"/>
+    <circle cx="178" cy="125" r="1.2" fill="#fb7185" opacity="0.4"/>
+
+    <!-- Wifi Wave Concentric Arcs (Fading / Broken) -->
+    <!-- Outer Arc -->
+    <path d="M42 62 A80 80 0 0 1 158 62" stroke="#334155" stroke-width="6" stroke-linecap="round" fill="none"/>
+    <path d="M42 62 A80 80 0 0 1 110 44" stroke="#f43f5e" stroke-width="6" stroke-linecap="round" fill="none" opacity="0.85"/>
+
+    <!-- Mid-Outer Arc -->
+    <path d="M58 84 A60 60 0 0 1 142 84" stroke="#334155" stroke-width="6" stroke-linecap="round" fill="none"/>
+    <path d="M58 84 A60 60 0 0 1 105 70" stroke="#fb7185" stroke-width="6" stroke-linecap="round" fill="none" opacity="0.9"/>
+
+    <!-- Mid-Inner Arc -->
+    <path d="M74 106 A40 40 0 0 1 126 106" stroke="#334155" stroke-width="6" stroke-linecap="round" fill="none"/>
+    <path d="M74 106 A40 40 0 0 1 100 96" stroke="#fda4af" stroke-width="6" stroke-linecap="round" fill="none"/>
+
+    <!-- Wifi Base Dot with Signal Beacon -->
+    <circle cx="100" cy="132" r="8" fill="#1e293b" stroke="#f43f5e" stroke-width="2.5"/>
+    <circle cx="100" cy="132" r="3.5" fill="#f43f5e"/>
+
+    <!-- Disconnected / Alert Red Badge Overlay -->
+    <g transform="translate(125, 115)">
+        <circle cx="18" cy="18" r="18" fill="#991b1b" stroke="#f43f5e" stroke-width="2.5"/>
+        <!-- Cross / X icon -->
+        <path d="M12 12 L24 24 M24 12 L12 24" stroke="#ffffff" stroke-width="3" stroke-linecap="round"/>
+    </g>
+
+    <!-- Disconnected Ground Cable Graphic -->
+    <path d="M60 165 C75 165 80 155 92 155" stroke="#475569" stroke-width="3" stroke-linecap="round" fill="none"/>
+    <rect x="92" y="151" width="10" height="8" rx="2" fill="#64748b"/>
+    <path d="M102 153 L108 153" stroke="#94a3b8" stroke-width="2"/>
+
+    <path d="M140 165 C125 165 120 155 116 155" stroke="#475569" stroke-width="3" stroke-linecap="round" fill="none"/>
+    <rect x="108" y="151" width="10" height="8" rx="2" fill="#64748b"/>
+</svg>
+{% endblock %}
+
+{% block primary_button_style %}bg-rose-600 hover:bg-rose-500 focus:ring-rose-500 shadow-rose-500/20{% endblock %}
+{% block primary_button_text %}Retry Connection{% endblock %}
+{% block action_buttons %}
+    <button type="button" onclick="window.location.reload()"
+            class="w-full sm:w-auto px-6 py-2.5 rounded-lg text-sm font-semibold text-white shadow-lg bg-rose-600 hover:bg-rose-500 focus:ring-rose-500 shadow-rose-500/20 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2">
+        Retry Connection
+    </button>
+    <a href="{% if user.is_authenticated %}{% url 'workspaces:dashboard' %}{% else %}{% url 'core:landing' %}{% endif %}"
+       class="w-full sm:w-auto px-6 py-2.5 rounded-lg text-sm font-medium aether-error-btn-secondary bg-slate-100 dark:bg-zinc-800 text-slate-800 dark:text-zinc-100 border border-slate-300 dark:border-zinc-700 hover:bg-slate-200 dark:hover:bg-zinc-700 shadow-sm transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-slate-400 dark:focus:ring-zinc-600">
+        Go to Dashboard
+    </a>
+{% endblock %}

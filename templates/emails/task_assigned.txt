@@ -1,0 +1,14 @@
+Hello {{ user.full_name|default:user.email }},
+
+{% if actor %}{{ actor.full_name|default:actor.email }} has assigned you{% else %}You have been assigned{% endif %} to task #{{ task.task_code }}:
+
+Task: {{ task.title }}
+Priority: {{ task.get_priority_display }}
+Workspace: {{ task.workspace.name }}
+{% if task.description %}Description: {{ task.description|truncatechars:200 }}{% endif %}
+
+View Task in AetherSpace:
+{{ site_url|default:'http://127.0.0.1:8000' }}{{ action_url }}
+
+--
+AetherSpace Team Collaboration Platform

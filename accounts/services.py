@@ -279,6 +279,96 @@ def get_user_workspace_roles(user):
     return roles_data
 
 
+def get_user_primary_role_summary(user, viewer=None, workspace_slug=None):
+    """
+    Computes the primary professional role summary for profile displays:
+    Resolves designation, role_tag, workspace_name, workspace_role, and reporting hierarchy.
+    Prioritizes explicit workspace_slug, then shared workspace with viewer, then first active workspace.
+    """
+    memberships = WorkspaceMembership.objects.filter(
+        user=user,
+        status='ACTIVE'
+    ).select_related('workspace', 'workspace__owner', 'reporting_to', 'reporting_to__user')
+
+    selected_m = None
+    if workspace_slug:
+        selected_m = memberships.filter(workspace__slug=workspace_slug).first()
+
+    if not selected_m and viewer and viewer.id != user.id:
+        selected_m = memberships.filter(
+            workspace__memberships__user=viewer,
+            workspace__memberships__status='ACTIVE'
+        ).first()
+
+    if not selected_m:
+        selected_m = memberships.first()
+
+    profile = getattr(user, 'profile', None)
+    headline = getattr(profile, 'headline', '') if profile else ''
+
+    if selected_m:
+        functional_role = selected_m.functional_role or ''
+        role_tag = selected_m.role_tag or ''
+        workspace_name = selected_m.workspace.name
+        workspace_slug_res = selected_m.workspace.slug
+        workspace_role = selected_m.get_role_display()
+        is_owner = (selected_m.workspace.owner_id == user.id)
+
+        # Prioritize functional designation (e.g. "Engineering Lead", "Backend Developer", "QA / Test Engineer")
+        if functional_role:
+            designation = functional_role
+        elif headline:
+            designation = headline
+        elif role_tag:
+            designation = f"{role_tag} Specialist"
+        elif workspace_role:
+            designation = workspace_role
+        else:
+            designation = user.get_role_display() if hasattr(user, 'get_role_display') else str(user.role)
+
+        reporting_to = selected_m.effective_reporting_to
+        reporting_to_name = ''
+        reporting_to_role = ''
+        reporting_to_user = None
+        if reporting_to and reporting_to.user_id != user.id:
+            reporting_to_name = reporting_to.user.full_name or reporting_to.user.email
+            reporting_to_role = reporting_to.get_role_display()
+            reporting_to_user = reporting_to.user
+
+        return {
+            'has_role': True,
+            'designation': designation,
+            'functional_role': functional_role,
+            'role_tag': role_tag,
+            'workspace_name': workspace_name,
+            'workspace_slug': workspace_slug_res,
+            'workspace_role': workspace_role,
+            'is_owner': is_owner,
+            'reporting_to': reporting_to,
+            'reporting_to_name': reporting_to_name,
+            'reporting_to_role': reporting_to_role,
+            'reporting_to_user': reporting_to_user,
+            'direct_reports_count': selected_m.direct_reports_count,
+        }
+
+    sys_role = user.get_role_display() if hasattr(user, 'get_role_display') else str(user.role)
+    return {
+        'has_role': False,
+        'designation': headline or sys_role,
+        'functional_role': '',
+        'role_tag': '',
+        'workspace_name': '',
+        'workspace_slug': '',
+        'workspace_role': sys_role,
+        'is_owner': False,
+        'reporting_to': None,
+        'reporting_to_name': '',
+        'reporting_to_role': '',
+        'reporting_to_user': None,
+        'direct_reports_count': 0,
+    }
+
+
 def process_and_save_avatar(user, file_obj=None, avatar_url=None, preset_color=None):
     """
     Strict KB-only avatar processor:
@@ -297,12 +387,17 @@ def process_and_save_avatar(user, file_obj=None, avatar_url=None, preset_color=N
 
     if avatar_url:
         clean_url = avatar_url.strip()
+        if clean_url.startswith('preset:'):
+            return process_and_save_avatar(user, preset_color=clean_url[7:])
+        if clean_url and not clean_url.startswith(('http://', 'https://', '/media/')):
+            clean_url = 'https://' + clean_url
         parsed = urlparse(clean_url)
-        if parsed.scheme in ('http', 'https') and parsed.netloc:
+        if (parsed.scheme in ('http', 'https') and parsed.netloc) or clean_url.startswith('/media/'):
             user.avatar = clean_url
             user.save(update_fields=['avatar'])
             return True, "External profile photo linked successfully (0 KB storage used)."
         return False, "Please enter a valid HTTP/HTTPS image URL."
+
 
     if file_obj:
         # 1. Enforce hard 500 KB limit
@@ -432,12 +527,17 @@ def process_and_save_banner(user, file_obj=None, banner_url=None, preset_gradien
 
     if banner_url:
         clean_url = banner_url.strip()
+        if clean_url.startswith('preset:'):
+            return process_and_save_banner(user, preset_gradient=clean_url[7:])
+        if clean_url and not clean_url.startswith(('http://', 'https://', '/media/')):
+            clean_url = 'https://' + clean_url
         parsed = urlparse(clean_url)
-        if parsed.scheme in ('http', 'https') and parsed.netloc:
+        if (parsed.scheme in ('http', 'https') and parsed.netloc) or clean_url.startswith('/media/'):
             profile.banner = clean_url
             profile.save(update_fields=['banner', 'updated_at'])
             return True, "External banner photo linked successfully (0 KB storage used)."
         return False, "Please enter a valid HTTP/HTTPS image URL."
+
 
     if file_obj:
         if file_obj.size > MAX_BANNER_SIZE_BYTES:

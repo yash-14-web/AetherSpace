@@ -396,3 +396,173 @@ class CalendarViewsAndRBACTests(TestCase):
         admin_del_resp = self.client.post(delete_url)
         self.assertEqual(admin_del_resp.status_code, 302)
         self.assertFalse(CalendarEvent.objects.filter(pk=event.pk).exists())
+
+    def test_week_and_day_views(self):
+        self.client.login(username='mary@example.com', password=self.password)
+        base_url = reverse('calendars:calendar_view', kwargs={'slug': self.workspace.slug})
+
+        # 1. Week view
+        resp_week = self.client.get(f"{base_url}?view=week")
+        self.assertEqual(resp_week.status_code, 200)
+        self.assertIn('week_data', resp_week.context)
+        self.assertEqual(len(resp_week.context['week_data']['days']), 7)
+
+        # 2. Day view
+        resp_day = self.client.get(f"{base_url}?view=day")
+        self.assertEqual(resp_day.status_code, 200)
+        self.assertIn('day_data', resp_day.context)
+        self.assertEqual(len(resp_day.context['day_data']['hourly_slots']), 13)
+
+    def test_upcoming_deadlines_timeframes(self):
+        self.client.login(username='mary@example.com', password=self.password)
+        url = reverse('calendars:upcoming_deadlines', kwargs={'slug': self.workspace.slug})
+
+        # 14 days timeframe
+        resp_14 = self.client.get(f"{url}?days=14")
+        self.assertEqual(resp_14.status_code, 200)
+        self.assertContains(resp_14, 'Next 14 Days')
+
+        # 30 days timeframe
+        resp_30 = self.client.get(f"{url}?days=30")
+        self.assertEqual(resp_30.status_code, 200)
+        self.assertContains(resp_30, 'Next 30 Days')
+
+    def test_event_creation_with_agenda_and_reference_links(self):
+        import json
+        self.client.login(username='mary@example.com', password=self.password)
+        url = reverse('calendars:event_create', kwargs={'slug': self.workspace.slug})
+
+        now = timezone.now()
+        post_data = {
+            'title': 'Sprint Review & Architecture Sync',
+            'description': 'Discussion on backlog priorities.',
+            'event_type': 'MEETING',
+            'calendar_category': 'WORKSPACE',
+            'repeat': 'NONE',
+            'start_date': (now.date() + timedelta(days=3)).strftime('%Y-%m-%d'),
+            'start_time': '14:00',
+            'end_date': (now.date() + timedelta(days=3)).strftime('%Y-%m-%d'),
+            'end_time': '15:30',
+            'agenda': '1. System Demo\n2. Q&A\n3. Action Items',
+            'reference_links_raw': json.dumps([
+                {'title': 'System Spec Document', 'url': 'https://docs.aetherspace.io/spec'},
+                {'title': 'Figma Mockup', 'url': 'https://figma.com/file/123'}
+            ]),
+            'invitees': [str(self.contributor.id)],
+        }
+
+        post_resp = self.client.post(url, data=post_data)
+        self.assertEqual(post_resp.status_code, 302)
+
+        event = CalendarEvent.objects.filter(workspace=self.workspace, title='Sprint Review & Architecture Sync').first()
+        self.assertIsNotNone(event)
+        self.assertIn('System Demo', event.agenda)
+        self.assertEqual(len(event.reference_links), 2)
+        self.assertEqual(event.reference_links[0]['title'], 'System Spec Document')
+
+        # Verify Detail Page renders agenda and reference links
+        detail_url = reverse('calendars:event_detail', kwargs={'slug': self.workspace.slug, 'event_id': event.id})
+        detail_resp = self.client.get(detail_url)
+        self.assertEqual(detail_resp.status_code, 200)
+        self.assertContains(detail_resp, 'System Demo')
+        self.assertContains(detail_resp, 'System Spec Document')
+        self.assertContains(detail_resp, 'https://docs.aetherspace.io/spec')
+
+    def test_calendar_markdown_agenda_rendering_and_persistence(self):
+        """Markdown agenda is persisted in raw form and rendered as sanitized HTML in detail view."""
+        self.client.login(username='mary@example.com', password=self.password)
+        create_url = reverse('calendars:event_create', kwargs={'slug': self.workspace.slug})
+
+        raw_agenda = (
+            "### Architecture Review\n"
+            "**Key Principles**:\n"
+            "- [ ] Review DB schema\n"
+            "- [x] Validate RBAC rules\n"
+            "> Stability first.\n"
+            "`run_command`"
+        )
+        post_data = {
+            'title': 'Markdown Architecture Sync',
+            'event_type': 'MEETING',
+            'calendar_category': 'WORKSPACE',
+            'repeat': 'NONE',
+            'start_date': (timezone.now().date() + timedelta(days=2)).strftime('%Y-%m-%d'),
+            'start_time': '10:00',
+            'end_date': (timezone.now().date() + timedelta(days=2)).strftime('%Y-%m-%d'),
+            'end_time': '11:00',
+            'agenda': raw_agenda,
+            'invitees': [str(self.contributor.id)],
+        }
+        resp = self.client.post(create_url, data=post_data)
+        self.assertEqual(resp.status_code, 302)
+
+        # 1. Verify exact raw markdown is persisted in DB
+        event = CalendarEvent.objects.get(workspace=self.workspace, title='Markdown Architecture Sync')
+        self.assertEqual(event.agenda, raw_agenda)
+
+        # 2. Verify Detail view renders sanitized HTML rather than raw markdown syntax
+        detail_url = reverse('calendars:event_detail', kwargs={'slug': self.workspace.slug, 'event_id': event.id})
+        detail_resp = self.client.get(detail_url)
+        self.assertEqual(detail_resp.status_code, 200)
+        self.assertContains(detail_resp, '<h3')
+        self.assertContains(detail_resp, 'Architecture Review')
+        self.assertContains(detail_resp, '<strong>Key Principles</strong>')
+        self.assertContains(detail_resp, 'type="checkbox"')
+        self.assertContains(detail_resp, '<blockquote')
+        self.assertContains(detail_resp, '<code>run_command</code>')
+
+        # 3. Verify Edit view reloads exact raw markdown into textarea
+        edit_url = reverse('calendars:event_edit', kwargs={'slug': self.workspace.slug, 'event_id': event.id})
+        edit_resp = self.client.get(edit_url)
+        self.assertEqual(edit_resp.status_code, 200)
+        self.assertContains(edit_resp, '### Architecture Review')
+
+    def test_calendar_people_search_first_and_workspace_isolation(self):
+        """Calendar people picker operates search-first, returns real names, and enforces workspace isolation."""
+        self.client.login(username='mary@example.com', password=self.password)
+        search_api_url = reverse('workspaces:api_workspace_members_search', kwargs={'slug': self.workspace.slug})
+
+        # 1. Empty query must return empty list (search-first requirement)
+        empty_resp = self.client.get(f"{search_api_url}?q=")
+        self.assertEqual(empty_resp.status_code, 200)
+        empty_data = empty_resp.json()
+        self.assertEqual(empty_data['status'], 'ok')
+        self.assertEqual(len(empty_data['users']), 0)
+
+        # 2. Searching by name returns permitted member with real full name and Contributor ID
+        search_resp = self.client.get(f"{search_api_url}?q=Dan")
+        self.assertEqual(search_resp.status_code, 200)
+        search_data = search_resp.json()
+        self.assertEqual(search_data['status'], 'ok')
+        self.assertEqual(len(search_data['users']), 1)
+        user_info = search_data['users'][0]
+        self.assertEqual(user_info['full_name'], 'Dan Dev')
+        self.assertEqual(user_info['id'], str(self.contributor.id))
+        self.assertTrue('contributor_id' in user_info)
+
+        # 3. Searching for an outsider user not belonging to this workspace returns 0 results (isolation)
+        outsider_resp = self.client.get(f"{search_api_url}?q=Bob")
+        self.assertEqual(outsider_resp.status_code, 200)
+        outsider_data = outsider_resp.json()
+        self.assertEqual(len(outsider_data['users']), 0)
+
+        # 3. Searching for a user belonging to another workspace returns 0 results (isolation)
+        foreign_user = User.objects.create_user(
+            email='foreign@othercompany.com',
+            password='TestPassword123!',
+            full_name='Foreign Hacker'
+        )
+        foreign_ws = Workspace.objects.create(name='Foreign WS', slug='foreign-ws', owner=foreign_user)
+        WorkspaceMembership.objects.create(
+            workspace=foreign_ws,
+            user=foreign_user,
+            role=WorkspaceRole.ADMIN,
+            status=MembershipStatus.ACTIVE
+        )
+
+        isolated_resp = self.client.get(f"{search_api_url}?q=Foreign")
+        self.assertEqual(isolated_resp.status_code, 200)
+        isolated_data = isolated_resp.json()
+        self.assertEqual(len(isolated_data['users']), 0)
+
+

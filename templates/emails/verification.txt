@@ -1,0 +1,9 @@
+Hello {{ user.full_name|default:user.email }},
+
+Thank you for registering on AetherSpace! Please verify your email address to confirm your registration:
+{{ verify_url }}
+
+Contributor ID: {{ user.contributor_id }}
+
+--
+AetherSpace Team Collaboration Platform

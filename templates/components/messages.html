@@ -1,16 +1,142 @@
-<div class="fixed top-4 right-4 z-50 space-y-2 max-w-sm w-full" x-data="{ show: true }">
+<!-- Scoped Styles for Global Toast Notifications -->
+<style>
+.aether-toast-card {
+    background-color: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    color: #0f172a !important;
+    box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.12), 0 8px 10px -6px rgba(15, 23, 42, 0.06) !important;
+}
+html.dark .aether-toast-card, .dark .aether-toast-card {
+    background-color: #18181b !important;
+    border: 1px solid #27272a !important;
+    color: #f4f4f5 !important;
+    box-shadow: 0 20px 30px -8px rgba(0, 0, 0, 0.7), 0 10px 15px -5px rgba(0, 0, 0, 0.5) !important;
+}
+.aether-toast-card.toast-error {
+    border-left: 4px solid #f43f5e !important;
+}
+.aether-toast-card.toast-warning {
+    border-left: 4px solid #f59e0b !important;
+}
+.aether-toast-card.toast-success {
+    border-left: 4px solid #10b981 !important;
+}
+.aether-toast-card.toast-info {
+    border-left: 4px solid #3b82f6 !important;
+}
+.aether-toast-text {
+    color: #0f172a !important;
+    font-size: 0.8125rem !important;
+    line-height: 1.45 !important;
+    font-weight: 500 !important;
+}
+html.dark .aether-toast-text, .dark .aether-toast-text {
+    color: #f4f4f5 !important;
+}
+.aether-toast-close {
+    color: #64748b !important;
+    background: transparent !important;
+    border: none !important;
+    transition: color 0.15s ease, background-color 0.15s ease !important;
+}
+.aether-toast-close:hover {
+    color: #0f172a !important;
+    background-color: #f1f5f9 !important;
+}
+html.dark .aether-toast-close, .dark .aether-toast-close {
+    color: #a1a1aa !important;
+}
+html.dark .aether-toast-close:hover, .dark .aether-toast-close:hover {
+    color: #ffffff !important;
+    background-color: #27272a !important;
+}
+</style>
+
+<div class="fixed top-4 right-4 z-50 space-y-3 max-w-md w-full pointer-events-none px-4 sm:px-0" role="region" aria-label="Notifications">
     {% for message in messages %}
-        <div x-show="show" x-init="setTimeout(() => show = false, 5000)"
-             class="p-4 rounded-xl aether-card border shadow-lg flex items-start space-x-3 transition-all
-             {% if message.tags == 'error' %}border-rose-500/30 bg-rose-50/50 dark:bg-rose-950/20 text-rose-800 dark:text-rose-200
-             {% elif message.tags == 'success' %}border-emerald-500/30 bg-emerald-50/50 dark:bg-emerald-950/20 text-emerald-800 dark:text-emerald-200
-             {% else %}border-blue-500/30 bg-blue-50/50 dark:bg-blue-950/20 text-blue-800 dark:text-blue-200{% endif %}">
-            <div class="flex-1 text-xs font-medium">
-                {{ message }}
-            </div>
-            <button @click="show = false" class="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 text-xs font-bold focus:outline-none">
-                ✕
-            </button>
+    <div x-data="{
+            show: true,
+            timer: null,
+            duration: {% if 'error' in message.tags %}10000{% elif 'warning' in message.tags %}8000{% elif 'success' in message.tags %}5000{% else %}5000{% endif %},
+            startTimer() {
+                this.timer = setTimeout(() => { this.show = false; }, this.duration);
+            },
+            pauseTimer() {
+                if (this.timer) clearTimeout(this.timer);
+            },
+            resumeTimer() {
+                this.startTimer();
+            },
+            close() {
+                this.pauseTimer();
+                this.show = false;
+            }
+         }"
+         x-init="startTimer()"
+         x-show="show"
+         x-transition:enter="transform ease-out duration-300 transition"
+         x-transition:enter-start="translate-y-2 opacity-0 sm:translate-y-0 sm:translate-x-2"
+         x-transition:enter-end="translate-y-0 opacity-100 sm:translate-x-0"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         @mouseenter="pauseTimer()"
+         @mouseleave="resumeTimer()"
+         class="pointer-events-auto p-4 rounded-xl flex items-start space-x-3 transition-all aether-toast-card
+         {% if 'error' in message.tags %}
+             toast-error
+         {% elif 'warning' in message.tags %}
+             toast-warning
+         {% elif 'success' in message.tags %}
+             toast-success
+         {% else %}
+             toast-info
+         {% endif %}"
+         role="alert"
+         aria-live="polite">
+
+        <!-- Status Icon -->
+        <div class="shrink-0 mt-0.5">
+            {% if 'error' in message.tags %}
+            <span class="w-7 h-7 rounded-lg bg-rose-100 dark:bg-rose-950/80 text-rose-600 dark:text-rose-400 flex items-center justify-center font-bold border border-rose-200 dark:border-rose-900/60">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                </svg>
+            </span>
+            {% elif 'warning' in message.tags %}
+            <span class="w-7 h-7 rounded-lg bg-amber-100 dark:bg-amber-950/80 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold border border-amber-200 dark:border-amber-900/60">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                </svg>
+            </span>
+            {% elif 'success' in message.tags %}
+            <span class="w-7 h-7 rounded-lg bg-emerald-100 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold border border-emerald-200 dark:border-emerald-900/60">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                </svg>
+            </span>
+            {% else %}
+            <span class="w-7 h-7 rounded-lg bg-blue-100 dark:bg-blue-950/80 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold border border-blue-200 dark:border-blue-900/60">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+            </span>
+            {% endif %}
         </div>
+
+        <div class="flex-1 aether-toast-text">
+            {{ message }}
+        </div>
+
+        <!-- Accessible Close Button -->
+        <button type="button"
+                @click="close()"
+                class="shrink-0 p-1 rounded-lg aether-toast-close focus:outline-none focus:ring-2 focus:ring-purple-500 cursor-pointer"
+                aria-label="Close notification">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+        </button>
+    </div>
     {% endfor %}
 </div>

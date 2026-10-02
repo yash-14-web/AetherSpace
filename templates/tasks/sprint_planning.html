@@ -1,0 +1,921 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Sprint Planning • {{ workspace.name }} — AetherSpace{% endblock %}
+
+{% block content %}
+<div class="space-y-6 max-w-7xl mx-auto" 
+     x-data="{
+         createSprintModalOpen: false,
+         editSprintModalOpen: false,
+         completeSprintModalOpen: false,
+         quickTaskModalOpen: false,
+         selectedSprintForTask: '{% if active_sprint %}{{ active_sprint.id }}{% endif %}',
+         editSprintData: {
+             id: '',
+             name: '',
+             goal: '',
+             status: 'PLANNING',
+             start_date: '',
+             end_date: ''
+         },
+         openEditSprint(id, name, goal, start, end, status) {
+             this.editSprintData = {
+                 id: id,
+                 name: name,
+                 goal: goal,
+                 status: status || 'PLANNING',
+                 start_date: start,
+                 end_date: end
+             };
+             this.editSprintModalOpen = true;
+         }
+     }">
+    
+    <!-- Top Bar: Workspace Selector, View Switcher & Actions -->
+    <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <!-- Left: Workspace Selector -->
+        <div class="flex items-center space-x-3">
+            <div class="flex items-center space-x-2 px-3 py-1.5 rounded-xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 shadow-2xs">
+                {% if workspace.logo_url %}
+                    <img src="{{ workspace.logo_url }}" alt="{{ workspace.name }}" class="w-5 h-5 rounded-md object-cover shrink-0 border border-slate-200/50 dark:border-zinc-800 shadow-xs" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                    <div style="display:none;" class="w-5 h-5 rounded-md bg-gradient-to-tr from-blue-600 to-indigo-700 text-white font-bold text-[10px] items-center justify-center shrink-0">
+                        {{ workspace.name|slice:":2"|upper }}
+                    </div>
+                {% else %}
+                    <div class="w-5 h-5 rounded-md bg-gradient-to-tr from-blue-600 to-indigo-700 text-white font-bold text-[10px] flex items-center justify-center shrink-0">
+                        {{ workspace.name|slice:":2"|upper }}
+                    </div>
+                {% endif %}
+                <span class="text-xs font-bold text-slate-900 dark:text-zinc-100">{{ workspace.name }}</span>
+            </div>
+        </div>
+
+        <!-- Right: View Switcher & Primary Action Buttons -->
+        <div class="flex flex-wrap items-center gap-3">
+            <!-- View Switcher (List vs Board vs Sprints) -->
+            <div class="inline-flex rounded-xl bg-slate-100 dark:bg-zinc-800/80 p-1 border border-slate-200 dark:border-zinc-700/60 shrink-0">
+                <a href="{% url 'tasks:task_list' slug=workspace.slug %}" 
+                   class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200 transition-colors">
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
+                    </svg>
+                    <span>List</span>
+                </a>
+                <a href="{% url 'tasks:task_board' slug=workspace.slug %}" 
+                   class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200 transition-colors">
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"/>
+                    </svg>
+                    <span>Board</span>
+                </a>
+                <a href="{% url 'tasks:sprint_planning' slug=workspace.slug %}" 
+                   class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-white dark:bg-[#0c1322] text-aether-blue shadow-2xs">
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                    </svg>
+                    <span>Sprints</span>
+                </a>
+            </div>
+
+            {% if can_manage_sprint %}
+                <button type="button" @click="createSprintModalOpen = true"
+                        class="inline-flex items-center space-x-1.5 px-3.5 py-2 text-xs font-bold rounded-xl border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-800 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700/80 transition">
+                    <svg class="w-3.5 h-3.5 text-aether-blue" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    </svg>
+                    <span>Create Sprint</span>
+                </button>
+            {% else %}
+                <button type="button" disabled title="Only workspace Admins and Managers can create sprints."
+                        class="inline-flex items-center space-x-1.5 px-3.5 py-2 text-xs font-bold rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-100 dark:bg-zinc-800/50 text-slate-400 dark:text-zinc-500 cursor-not-allowed">
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    </svg>
+                    <span>Create Sprint</span>
+                </button>
+            {% endif %}
+
+            <!-- Quick Task Button -->
+            <button type="button" @click="selectedSprintForTask = '{% if active_sprint %}{{ active_sprint.id }}{% endif %}'; quickTaskModalOpen = true"
+                    class="inline-flex items-center space-x-1.5 px-4 py-2 text-xs font-bold rounded-xl bg-aether-blue text-white hover:bg-blue-700 shadow-md shadow-blue-500/20 transition shrink-0">
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                </svg>
+                <span>New Task</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Page Title & Header -->
+    <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-3 border-b border-slate-200 dark:border-zinc-800 pb-3">
+        <div>
+            <div class="flex items-center space-x-2">
+                <h1 class="text-xl sm:text-2xl font-black text-slate-900 dark:text-zinc-50 tracking-tight">
+                    Sprint Planning & Agile Iterations
+                </h1>
+                <span class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/60 text-aether-blue border border-blue-200 dark:border-blue-900/40">
+                    Scrum / Agile
+                </span>
+            </div>
+            <p class="text-xs text-slate-500 dark:text-zinc-400 mt-1">
+                Plan iterations, commit sprint backlogs, track real-time velocity, and transition tasks across development cycles.
+            </p>
+        </div>
+
+        <!-- Quick Summary Stats -->
+        <div class="flex items-center space-x-4 text-xs">
+            <div class="flex items-center space-x-1.5 text-slate-600 dark:text-zinc-400">
+                <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                <span>Active: <strong>{{ sprint_counts.active|default:0 }}</strong></span>
+            </div>
+            <div class="flex items-center space-x-1.5 text-slate-600 dark:text-zinc-400">
+                <span class="w-2 h-2 rounded-full bg-blue-500"></span>
+                <span>Planned: <strong>{{ sprint_counts.planned|default:0 }}</strong></span>
+            </div>
+            <div class="flex items-center space-x-1.5 text-slate-600 dark:text-zinc-400">
+                <span class="w-2 h-2 rounded-full bg-slate-400"></span>
+                <span>Backlog: <strong>{{ backlog_tasks|length }}</strong></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sprint Lifecycle Status Metrics KPI Row -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <!-- Planned -->
+        <div class="p-4 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200/80 dark:border-zinc-800 shadow-2xs hover:border-blue-500/40 transition">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">Planned Sprints</span>
+                <span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
+            </div>
+            <div class="mt-2 flex items-baseline justify-between">
+                <span class="text-2xl sm:text-3xl font-black text-slate-900 dark:text-zinc-50">{{ sprint_counts.planned|default:0 }}</span>
+                <span class="text-[11px] font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-2 py-0.5 rounded-full border border-blue-200/60 dark:border-blue-900/40">In Queue</span>
+            </div>
+        </div>
+
+        <!-- Active -->
+        <div class="p-4 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200/80 dark:border-zinc-800 shadow-2xs hover:border-emerald-500/40 transition">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">Active Sprint</span>
+                <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            </div>
+            <div class="mt-2 flex items-baseline justify-between">
+                <span class="text-2xl sm:text-3xl font-black text-slate-900 dark:text-zinc-50">{{ sprint_counts.active|default:0 }}</span>
+                <span class="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-200/60 dark:border-emerald-900/40">Running</span>
+            </div>
+        </div>
+
+        <!-- Completed -->
+        <div class="p-4 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200/80 dark:border-zinc-800 shadow-2xs hover:border-purple-500/40 transition">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">Completed Sprints</span>
+                <span class="w-2.5 h-2.5 rounded-full bg-purple-500"></span>
+            </div>
+            <div class="mt-2 flex items-baseline justify-between">
+                <span class="text-2xl sm:text-3xl font-black text-slate-900 dark:text-zinc-50">{{ sprint_counts.completed|default:0 }}</span>
+                <span class="text-[11px] font-semibold text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/60 px-2 py-0.5 rounded-full border border-purple-200/60 dark:border-purple-900/40">Delivered</span>
+            </div>
+        </div>
+
+        <!-- Cancelled -->
+        <div class="p-4 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200/80 dark:border-zinc-800 shadow-2xs hover:border-slate-400/40 transition">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">Cancelled Sprints</span>
+                <span class="w-2.5 h-2.5 rounded-full bg-rose-400 dark:bg-zinc-500"></span>
+            </div>
+            <div class="mt-2 flex items-baseline justify-between">
+                <span class="text-2xl sm:text-3xl font-black text-slate-900 dark:text-zinc-50">{{ sprint_counts.cancelled|default:0 }}</span>
+                <span class="text-[11px] font-semibold text-slate-600 dark:text-zinc-400 bg-slate-100 dark:bg-zinc-800 px-2 py-0.5 rounded-full border border-slate-200 dark:border-zinc-700">Archived</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Active Sprint Hero Card -->
+    {% if active_sprint %}
+        <div class="p-6 rounded-2xl bg-gradient-to-br from-white via-white to-blue-50/30 dark:from-[#0c1322] dark:via-[#0c1322] dark:to-blue-950/20 border border-blue-200/80 dark:border-blue-900/50 shadow-md relative overflow-hidden">
+            <!-- Accent glow on right -->
+            <div class="absolute -right-16 -top-16 w-48 h-48 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+            <div class="flex flex-col lg:flex-row lg:items-start justify-between gap-5 relative z-10">
+                <!-- Left: Sprint Info -->
+                <div class="space-y-3 max-w-2xl">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span class="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-md text-[11px] font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                            <span>ACTIVE SPRINT</span>
+                        </span>
+                        <span class="text-xs text-slate-500 dark:text-zinc-400 font-medium">
+                            {% if active_sprint.start_date %}{{ active_sprint.start_date|date:"M d, Y" }}{% else %}Start unset{% endif %}
+                            &rarr;
+                            {% if active_sprint.end_date %}{{ active_sprint.end_date|date:"M d, Y" }}{% else %}End unset{% endif %}
+                        </span>
+                        {% if active_sprint.days_remaining is not None %}
+                            <span class="text-xs px-2 py-0.5 rounded-md font-semibold {% if active_sprint.days_remaining <= 2 %}bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400 border border-rose-200 dark:border-rose-900/40{% else %}bg-slate-100 text-slate-700 dark:bg-zinc-800 dark:text-zinc-300{% endif %}">
+                                {% if active_sprint.days_remaining > 0 %}
+                                    {{ active_sprint.days_remaining }} day{{ active_sprint.days_remaining|pluralize }} remaining
+                                {% elif active_sprint.days_remaining == 0 %}
+                                    Ends today
+                                {% else %}
+                                    Overdue by {{ active_sprint.days_remaining|stringformat:"d"|slice:"1:" }} days
+                                {% endif %}
+                            </span>
+                        {% endif %}
+                    </div>
+
+                    <div>
+                        <h2 class="text-xl sm:text-2xl font-black text-slate-900 dark:text-zinc-50 tracking-tight">
+                            {{ active_sprint.name }}
+                        </h2>
+                        {% if active_sprint.goal %}
+                            <p class="text-xs sm:text-sm text-slate-600 dark:text-zinc-300 mt-1 italic leading-relaxed border-l-2 border-blue-500/60 pl-3">
+                                "{{ active_sprint.goal }}"
+                            </p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Right: Progress & Controls -->
+                <div class="flex flex-col sm:flex-row lg:flex-col items-start lg:items-end justify-between gap-4 shrink-0">
+                    <div class="flex items-center space-x-2">
+                        {% if can_manage_sprint %}
+                            <button type="button" 
+                                    @click="openEditSprint('{{ active_sprint.id }}', '{{ active_sprint.name|escapejs }}', '{{ active_sprint.goal|escapejs }}', '{{ active_sprint.start_date|date:'Y-m-d' }}', '{{ active_sprint.end_date|date:'Y-m-d' }}', '{{ active_sprint.status }}')"
+                                    class="px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-300 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition shadow-2xs">
+                                Edit Sprint
+                            </button>
+                            <button type="button" @click="completeSprintModalOpen = true"
+                                    class="px-3.5 py-1.5 text-xs font-bold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm transition flex items-center space-x-1.5">
+                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                </svg>
+                                <span>Complete Sprint</span>
+                            </button>
+                        {% else %}
+                            <button type="button" disabled title="Only workspace Admins and Managers can edit sprints."
+                                    class="px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 dark:border-zinc-800 text-slate-400 dark:text-zinc-500 cursor-not-allowed">
+                                Edit Sprint
+                            </button>
+                            <button type="button" disabled title="Only workspace Admins and Managers can complete sprints."
+                                    class="px-3.5 py-1.5 text-xs font-bold rounded-lg bg-slate-200 dark:bg-zinc-800 text-slate-400 dark:text-zinc-500 cursor-not-allowed flex items-center space-x-1.5">
+                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                </svg>
+                                <span>Complete Sprint</span>
+                            </button>
+                        {% endif %}
+                    </div>
+
+                    <!-- Burndown progress bar & status breakdown card -->
+                    <div class="w-full sm:w-72 p-3.5 rounded-xl bg-slate-50/90 dark:bg-zinc-900/90 border border-slate-200 dark:border-zinc-800 space-y-2.5">
+                        <div class="flex items-center justify-between text-xs">
+                            <span class="font-bold text-slate-700 dark:text-zinc-300">Completion</span>
+                            <span class="font-black text-aether-blue">{{ active_sprint.progress_percentage }}%</span>
+                        </div>
+                        <div class="w-full h-2 bg-slate-200 dark:bg-zinc-700 rounded-full overflow-hidden">
+                            <div class="h-full bg-gradient-to-r from-blue-500 to-emerald-500 rounded-full transition-all duration-500" style="width: {{ active_sprint.progress_percentage }}%;"></div>
+                        </div>
+                        <div class="flex items-center justify-between text-[10px] text-slate-500 dark:text-zinc-400 font-medium">
+                            <span>{{ active_sprint.completed_tasks_count }} of {{ active_sprint.total_tasks_count }} tasks done</span>
+                            <span>{{ active_sprint.total_estimated_hours }}h total</span>
+                        </div>
+                        <!-- Task Status Breakdown Pills -->
+                        <div class="pt-2 border-t border-slate-200 dark:border-zinc-800 flex items-center justify-between gap-1 text-[10px]">
+                            <span class="px-1.5 py-0.5 rounded bg-slate-200/70 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300" title="To Do">
+                                To Do: <strong>{{ active_sprint.task_status_breakdown.todo }}</strong>
+                            </span>
+                            <span class="px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300" title="In Progress">
+                                Active: <strong>{{ active_sprint.task_status_breakdown.in_progress }}</strong>
+                            </span>
+                            <span class="px-1.5 py-0.5 rounded bg-purple-100 dark:bg-purple-950/70 text-purple-700 dark:text-purple-300" title="Review / Testing">
+                                Review: <strong>{{ active_sprint.task_status_breakdown.code_review|add:active_sprint.task_status_breakdown.testing }}</strong>
+                            </span>
+                            <span class="px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300" title="Done">
+                                Done: <strong>{{ active_sprint.task_status_breakdown.done }}</strong>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Active Sprint Task List -->
+            <div class="mt-6 pt-5 border-t border-slate-200/80 dark:border-zinc-800/80">
+                <div class="flex items-center justify-between mb-3">
+                    <div class="flex items-center space-x-2">
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">
+                            Committed Sprint Tasks ({{ active_sprint.tasks.count }})
+                        </h3>
+                    </div>
+                    <button type="button" @click="selectedSprintForTask = '{{ active_sprint.id }}'; quickTaskModalOpen = true"
+                            class="text-xs font-semibold text-aether-blue hover:underline flex items-center space-x-1">
+                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                        </svg>
+                        <span>Add Task to Sprint</span>
+                    </button>
+                </div>
+
+                {% if active_sprint.tasks.all %}
+                    <div class="space-y-2">
+                        {% for task in active_sprint.tasks.all %}
+                            {% include 'tasks/partials/sprint_task_row.html' with task=task current_sprint=active_sprint %}
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="py-6 text-center rounded-xl border border-dashed border-slate-300 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-900/30">
+                        <p class="text-xs text-slate-500 dark:text-zinc-400">
+                            No tasks committed to this active sprint yet. Move tasks from the Product Backlog below or add a new task.
+                        </p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    {% else %}
+        <!-- Empty Active Sprint State -->
+        <div class="p-6 rounded-2xl bg-white dark:bg-[#0c1322] border border-dashed border-slate-300 dark:border-zinc-800 text-center space-y-3">
+            <div class="w-12 h-12 mx-auto rounded-full bg-blue-50 dark:bg-blue-950/60 flex items-center justify-center text-aether-blue">
+                <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                </svg>
+            </div>
+            <div>
+                <h3 class="text-base font-bold text-slate-900 dark:text-zinc-100">No Active Sprint Running</h3>
+                <p class="text-xs text-slate-500 dark:text-zinc-400 max-w-md mx-auto mt-1">
+                    Start one of the planned sprints below to begin tracking velocity, burndown progress, and team iteration deliverables.
+                </p>
+            </div>
+            {% if can_manage_sprint and planned_sprints %}
+                <form method="post" action="{% url 'tasks:sprint_action' slug=workspace.slug sprint_id=planned_sprints.first.id %}" class="inline-block">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="start">
+                    <button type="submit" class="inline-flex items-center space-x-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm transition">
+                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        <span>Start {{ planned_sprints.first.name }}</span>
+                    </button>
+                </form>
+            {% elif can_manage_sprint %}
+                <button type="button" @click="createSprintModalOpen = true"
+                        class="inline-flex items-center space-x-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-aether-blue text-white hover:bg-blue-700 shadow-sm transition">
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    </svg>
+                    <span>Create Your First Sprint</span>
+                </button>
+            {% else %}
+                <p class="text-xs text-slate-400 dark:text-zinc-500 italic">
+                    Workspace managers will activate the next planned sprint.
+                </p>
+            {% endif %}
+        </div>
+    {% endif %}
+
+    <!-- Planned Sprints Section -->
+    <div class="space-y-4">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+                <h2 class="text-base font-black text-slate-900 dark:text-zinc-100">
+                    Planned Iterations
+                </h2>
+                <span class="text-xs font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300">
+                    {{ planned_sprints|length }}
+                </span>
+            </div>
+            {% if can_manage_sprint %}
+                <button type="button" @click="createSprintModalOpen = true"
+                        class="text-xs font-bold text-aether-blue hover:underline flex items-center space-x-1">
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    </svg>
+                    <span>+ New Planned Sprint</span>
+                </button>
+            {% endif %}
+        </div>
+
+        {% if planned_sprints %}
+            <div class="space-y-4">
+                {% for sprint in planned_sprints %}
+                    <div class="p-5 rounded-xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 shadow-2xs space-y-4"
+                         x-data="{ expanded: true }">
+                        <!-- Sprint Header -->
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div class="flex items-center space-x-3 cursor-pointer" @click="expanded = !expanded">
+                                <button type="button" class="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200">
+                                    <svg class="w-4 h-4 transform transition-transform" :class="expanded ? 'rotate-90' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                                    </svg>
+                                </button>
+                                <div>
+                                    <div class="flex items-center space-x-2">
+                                        <h3 class="text-sm font-bold text-slate-900 dark:text-zinc-100">{{ sprint.name }}</h3>
+                                        <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded {{ sprint.status_badge.bg }} border">
+                                            {{ sprint.status_badge.label }}
+                                        </span>
+                                    </div>
+                                    <p class="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
+                                        {% if sprint.start_date %}{{ sprint.start_date|date:"M d, Y" }}{% else %}Start unset{% endif %}
+                                        &rarr;
+                                        {% if sprint.end_date %}{{ sprint.end_date|date:"M d, Y" }}{% else %}End unset{% endif %}
+                                        &bull; {{ sprint.tasks.count }} task{{ sprint.tasks.count|pluralize }} &bull; {{ sprint.total_estimated_hours }}h estimated
+                                    </p>
+                                </div>
+                            </div>
+
+                            <!-- Sprint Controls -->
+                            <div class="flex items-center space-x-2">
+                                {% if can_manage_sprint %}
+                                    <form method="post" action="{% url 'tasks:sprint_action' slug=workspace.slug sprint_id=sprint.id %}" class="inline">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="action" value="start">
+                                        <button type="submit" 
+                                                class="px-3 py-1 text-xs font-bold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 shadow-2xs transition flex items-center space-x-1"
+                                                onclick="return confirm('Starting this sprint will activate it for the workspace. {% if active_sprint %}Note: There is currently an active sprint which must be completed first or will be switched.{% endif %}')">
+                                            <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
+                                            </svg>
+                                            <span>Start Sprint</span>
+                                        </button>
+                                    </form>
+
+                                    <button type="button" 
+                                            @click="openEditSprint('{{ sprint.id }}', '{{ sprint.name|escapejs }}', '{{ sprint.goal|escapejs }}', '{{ sprint.start_date|date:'Y-m-d' }}', '{{ sprint.end_date|date:'Y-m-d' }}', '{{ sprint.status }}')"
+                                            class="px-2.5 py-1 text-xs font-semibold rounded-lg border border-slate-300 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition">
+                                        Edit
+                                    </button>
+
+                                    <form method="post" action="{% url 'tasks:sprint_action' slug=workspace.slug sprint_id=sprint.id %}" class="inline"
+                                          onsubmit="return confirm('Are you sure you want to delete this sprint? Its tasks will be returned to the Product Backlog.')">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="action" value="delete">
+                                        <button type="submit" class="p-1 rounded text-slate-400 hover:text-rose-600 transition" title="Delete Sprint">
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                            </svg>
+                                        </button>
+                                    </form>
+                                {% endif %}
+                                <button type="button" @click="selectedSprintForTask = '{{ sprint.id }}'; quickTaskModalOpen = true"
+                                        class="px-2.5 py-1 text-xs font-semibold rounded-lg text-aether-blue hover:bg-blue-50 dark:hover:bg-blue-950/40 transition">
+                                    + Add Task
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Sprint Goal if exists -->
+                        {% if sprint.goal %}
+                            <p class="text-xs text-slate-600 dark:text-zinc-400 italic pl-6 border-l border-slate-300 dark:border-zinc-700">
+                                Goal: {{ sprint.goal }}
+                            </p>
+                        {% endif %}
+
+                        <!-- Sprint Tasks List (Collapsible) -->
+                        <div x-show="expanded" class="space-y-2 pt-2 border-t border-slate-100 dark:border-zinc-800/60">
+                            {% if sprint.tasks.all %}
+                                {% for task in sprint.tasks.all %}
+                                    {% include 'tasks/partials/sprint_task_row.html' with task=task current_sprint=sprint %}
+                                {% endfor %}
+                            {% else %}
+                                <p class="text-xs text-slate-400 py-3 text-center italic">
+                                    No tasks planned in this iteration yet.
+                                </p>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="p-6 rounded-xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 text-center py-8">
+                <p class="text-xs text-slate-500 dark:text-zinc-400">
+                    No future planned sprints. Create a new iteration to schedule upcoming deliverables.
+                </p>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Product Backlog Section -->
+    <div class="space-y-4 pt-2">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+                <h2 class="text-base font-black text-slate-900 dark:text-zinc-100">
+                    Product Backlog
+                </h2>
+                <span class="text-xs font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300">
+                    {{ backlog_tasks|length }}
+                </span>
+            </div>
+            <button type="button" @click="selectedSprintForTask = ''; quickTaskModalOpen = true"
+                    class="inline-flex items-center space-x-1.5 px-3 py-1.5 text-xs font-bold rounded-xl border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-800 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700/80 transition">
+                <svg class="w-3.5 h-3.5 text-aether-blue" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                </svg>
+                <span>+ Add to Backlog</span>
+            </button>
+        </div>
+
+        {% if backlog_tasks %}
+            <div class="space-y-2">
+                {% for task in backlog_tasks %}
+                    {% include 'tasks/partials/sprint_task_row.html' with task=task current_sprint=None %}
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="p-8 rounded-xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 text-center">
+                <p class="text-xs text-slate-500 dark:text-zinc-400">
+                    Product Backlog is completely clear! Great job. Add new tasks anytime.
+                </p>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Completed Sprints History Section (Accordion / History) -->
+    {% if completed_sprints %}
+        <div class="space-y-3 pt-4 border-t border-slate-200 dark:border-zinc-800" x-data="{ historyOpen: false }">
+            <button type="button" @click="historyOpen = !historyOpen" 
+                    class="flex items-center space-x-2 text-xs font-bold text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100">
+                <svg class="w-4 h-4 transform transition-transform" :class="historyOpen ? 'rotate-90' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                </svg>
+                <span>Completed Sprints History ({{ completed_sprints|length }})</span>
+            </button>
+
+            <div x-show="historyOpen" class="space-y-3 pt-2">
+                {% for sprint in completed_sprints %}
+                    <div class="p-4 rounded-xl bg-slate-50 dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800 flex items-center justify-between">
+                        <div>
+                            <div class="flex items-center space-x-2">
+                                <h4 class="text-xs font-bold text-slate-800 dark:text-zinc-200">{{ sprint.name }}</h4>
+                                <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-200 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400">
+                                    COMPLETED
+                                </span>
+                            </div>
+                            <p class="text-[11px] text-slate-500 dark:text-zinc-400 mt-0.5">
+                                {{ sprint.tasks.count }} task{{ sprint.tasks.count|pluralize }} &bull; Completed {{ sprint.completed_at|date:"M d, Y"|default:sprint.updated_at|date:"M d, Y" }}
+                            </p>
+                        </div>
+                        <span class="text-xs font-black text-emerald-600 dark:text-emerald-400">100% Closed</span>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    {% endif %}
+
+    <!-- Cancelled Sprints Section (Accordion / History) -->
+    {% if cancelled_sprints %}
+        <div class="space-y-3 pt-4 border-t border-slate-200 dark:border-zinc-800" x-data="{ cancelledOpen: false }">
+            <button type="button" @click="cancelledOpen = !cancelledOpen" 
+                    class="flex items-center space-x-2 text-xs font-bold text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100">
+                <svg class="w-4 h-4 transform transition-transform" :class="cancelledOpen ? 'rotate-90' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                </svg>
+                <span>Cancelled Sprints Archive ({{ cancelled_sprints|length }})</span>
+            </button>
+
+            <div x-show="cancelledOpen" class="space-y-3 pt-2">
+                {% for sprint in cancelled_sprints %}
+                    <div class="p-4 rounded-xl bg-slate-50 dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800 flex items-center justify-between">
+                        <div>
+                            <div class="flex items-center space-x-2">
+                                <h4 class="text-xs font-bold text-slate-800 dark:text-zinc-200 line-through">{{ sprint.name }}</h4>
+                                <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border border-rose-200/60 dark:border-rose-900/40">
+                                    CANCELLED
+                                </span>
+                            </div>
+                            <p class="text-[11px] text-slate-500 dark:text-zinc-400 mt-0.5">
+                                {% if sprint.goal %}{{ sprint.goal }} &bull; {% endif %}Cancelled on {{ sprint.updated_at|date:"M d, Y" }}
+                            </p>
+                        </div>
+                        <span class="text-xs font-semibold text-slate-400 dark:text-zinc-500">Archived</span>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    {% endif %}
+
+    <!-- 1. CREATE SPRINT MODAL -->
+    <div x-show="createSprintModalOpen" 
+         class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs"
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-150"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         style="display: none;">
+        <div class="w-full max-w-lg rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 p-6 shadow-2xl space-y-4"
+             @click.away="createSprintModalOpen = false">
+            <div class="flex items-center justify-between border-b border-slate-100 dark:border-zinc-800 pb-3">
+                <h3 class="text-base font-bold text-slate-900 dark:text-zinc-100">Create New Sprint</h3>
+                <button type="button" @click="createSprintModalOpen = false" class="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+
+            <form method="post" action="{% url 'tasks:sprint_create' slug=workspace.slug %}" class="space-y-4">
+                {% csrf_token %}
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 dark:text-zinc-300 uppercase tracking-wider mb-1">
+                        Sprint Name *
+                    </label>
+                    <input type="text" name="name" required placeholder="e.g. Sprint 2 - Core Workflows & APIs" 
+                           class="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-aether-blue">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 dark:text-zinc-300 uppercase tracking-wider mb-1">
+                        Sprint Goal
+                    </label>
+                    <textarea name="goal" rows="2" placeholder="What is the objective of this sprint iteration?"
+                              class="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-aether-blue"></textarea>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 dark:text-zinc-300 uppercase tracking-wider mb-1">
+                        Initial Status
+                    </label>
+                    <select name="status"
+                            class="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-aether-blue">
+                        <option value="PLANNING" selected>Planned (Default)</option>
+                        <option value="ACTIVE">Active (Make Current Sprint)</option>
+                    </select>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 dark:text-zinc-300 uppercase tracking-wider mb-1">
+                            Start Date
+                        </label>
+                        <input type="date" name="start_date" 
+                               class="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-aether-blue">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 dark:text-zinc-300 uppercase tracking-wider mb-1">
+                            End Date
+                        </label>
+                        <input type="date" name="end_date" 
+                               class="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-aether-blue">
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-end space-x-3 pt-3 border-t border-slate-100 dark:border-zinc-800">
+                    <button type="button" @click="createSprintModalOpen = false"
+                            class="px-4 py-2 text-xs font-semibold rounded-xl border border-slate-300 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 transition">
+                        Cancel
+                    </button>
+                    <button type="submit" 
+                            class="px-4 py-2 text-xs font-bold rounded-xl bg-aether-blue text-white hover:bg-blue-700 shadow-md transition">
+                        Create Sprint
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 2. EDIT SPRINT MODAL -->
+    <div x-show="editSprintModalOpen" 
+         class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs"
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-150"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         style="display: none;">
+        <div class="w-full max-w-lg rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 p-6 shadow-2xl space-y-4"
+             @click.away="editSprintModalOpen = false">
+            <div class="flex items-center justify-between border-b border-slate-100 dark:border-zinc-800 pb-3">
+                <h3 class="text-base font-bold text-slate-900 dark:text-zinc-100">Edit Sprint Details</h3>
+                <button type="button" @click="editSprintModalOpen = false" class="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+
+            <form method="post" :action="'/tasks/w/{{ workspace.slug }}/sprints/' + editSprintData.id + '/edit/'" class="space-y-4">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="edit">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 dark:text-zinc-300 uppercase tracking-wider mb-1">
+                        Sprint Name *
+                    </label>
+                    <input type="text" name="name" x-model="editSprintData.name" required
+                           class="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-aether-blue">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 dark:text-zinc-300 uppercase tracking-wider mb-1">
+                        Sprint Goal
+                    </label>
+                    <textarea name="goal" rows="2" x-model="editSprintData.goal"
+                              class="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-aether-blue"></textarea>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 dark:text-zinc-300 uppercase tracking-wider mb-1">
+                        Sprint Status
+                    </label>
+                    <select name="status" x-model="editSprintData.status"
+                            class="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-aether-blue">
+                        <option value="PLANNING">Planned</option>
+                        <option value="ACTIVE">Active</option>
+                        <option value="COMPLETED">Completed</option>
+                        <option value="CANCELLED">Cancelled</option>
+                    </select>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 dark:text-zinc-300 uppercase tracking-wider mb-1">
+                            Start Date
+                        </label>
+                        <input type="date" name="start_date" x-model="editSprintData.start_date"
+                               class="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-aether-blue">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 dark:text-zinc-300 uppercase tracking-wider mb-1">
+                            End Date
+                        </label>
+                        <input type="date" name="end_date" x-model="editSprintData.end_date"
+                               class="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-aether-blue">
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-end space-x-3 pt-3 border-t border-slate-100 dark:border-zinc-800">
+                    <button type="button" @click="editSprintModalOpen = false"
+                            class="px-4 py-2 text-xs font-semibold rounded-xl border border-slate-300 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 transition">
+                        Cancel
+                    </button>
+                    <button type="submit" 
+                            class="px-4 py-2 text-xs font-bold rounded-xl bg-aether-blue text-white hover:bg-blue-700 shadow-md transition">
+                        Save Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 3. COMPLETE SPRINT MODAL -->
+    {% if active_sprint %}
+        <div x-show="completeSprintModalOpen" 
+             class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs"
+             x-transition:enter="transition ease-out duration-200"
+             x-transition:enter-start="opacity-0"
+             x-transition:enter-end="opacity-100"
+             x-transition:leave="transition ease-in duration-150"
+             x-transition:leave-start="opacity-100"
+             x-transition:leave-end="opacity-0"
+             style="display: none;">
+            <div class="w-full max-w-lg rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 p-6 shadow-2xl space-y-4"
+                 @click.away="completeSprintModalOpen = false">
+                <div class="flex items-center justify-between border-b border-slate-100 dark:border-zinc-800 pb-3">
+                    <div class="flex items-center space-x-2">
+                        <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                        <h3 class="text-base font-bold text-slate-900 dark:text-zinc-100">Complete {{ active_sprint.name }}</h3>
+                    </div>
+                    <button type="button" @click="completeSprintModalOpen = false" class="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200">
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="p-4 rounded-xl bg-slate-50 dark:bg-zinc-900/60 border border-slate-200 dark:border-zinc-800 space-y-2 text-xs">
+                    <div class="flex items-center justify-between">
+                        <span class="text-slate-600 dark:text-zinc-400">Completed Tasks:</span>
+                        <span class="font-bold text-emerald-600 dark:text-emerald-400">{{ active_sprint.completed_tasks_count }} task{{ active_sprint.completed_tasks_count|pluralize }}</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-slate-600 dark:text-zinc-400">Incomplete Tasks:</span>
+                        <span class="font-bold text-amber-600 dark:text-amber-400">{{ active_sprint.total_tasks_count|add:"-"|add:active_sprint.completed_tasks_count }} task{{ active_sprint.total_tasks_count|add:"-"|add:active_sprint.completed_tasks_count|pluralize }}</span>
+                    </div>
+                    <p class="text-[11px] text-slate-500 dark:text-zinc-400 pt-2 border-t border-slate-200 dark:border-zinc-800">
+                        Incomplete tasks will automatically be moved back to the <strong>Product Backlog</strong> for re-prioritization in subsequent sprints.
+                    </p>
+                </div>
+
+                <form method="post" action="{% url 'tasks:sprint_action' slug=workspace.slug sprint_id=active_sprint.id %}" class="space-y-4">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="complete">
+                    <div class="flex items-center justify-end space-x-3 pt-2">
+                        <button type="button" @click="completeSprintModalOpen = false"
+                                class="px-4 py-2 text-xs font-semibold rounded-xl border border-slate-300 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 transition">
+                            Keep Sprint Active
+                        </button>
+                        <button type="submit" 
+                                class="px-4 py-2 text-xs font-bold rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 shadow-md transition flex items-center space-x-1.5">
+                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                            </svg>
+                            <span>Confirm & Complete Sprint</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    {% endif %}
+
+    <!-- 4. QUICK TASK CREATION MODAL -->
+    <div x-show="quickTaskModalOpen" 
+         class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs"
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-150"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         style="display: none;">
+        <div class="w-full max-w-lg rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 p-6 shadow-2xl space-y-4"
+             @click.away="quickTaskModalOpen = false">
+            <div class="flex items-center justify-between border-b border-slate-100 dark:border-zinc-800 pb-3">
+                <h3 class="text-base font-bold text-slate-900 dark:text-zinc-100">Create Task</h3>
+                <button type="button" @click="quickTaskModalOpen = false" class="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+
+            <form method="post" action="{% url 'tasks:sprint_quick_create_task' slug=workspace.slug %}" class="space-y-4">
+                {% csrf_token %}
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 dark:text-zinc-300 uppercase tracking-wider mb-1">
+                        Task Title *
+                    </label>
+                    <input type="text" name="title" required placeholder="What needs to be done?" 
+                           class="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-aether-blue">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 dark:text-zinc-300 uppercase tracking-wider mb-1">
+                            Iteration / Sprint
+                        </label>
+                        <select name="sprint_id" x-model="selectedSprintForTask"
+                                class="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-aether-blue">
+                            <option value="">Product Backlog (No Sprint)</option>
+                            {% if active_sprint %}
+                                <option value="{{ active_sprint.id }}">★ {{ active_sprint.name }} (Active)</option>
+                            {% endif %}
+                            {% for sp in planned_sprints %}
+                                <option value="{{ sp.id }}">{{ sp.name }} (Planned)</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 dark:text-zinc-300 uppercase tracking-wider mb-1">
+                            Priority
+                        </label>
+                        <select name="priority" 
+                                class="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-aether-blue">
+                            <option value="MEDIUM">Medium</option>
+                            <option value="HIGH">High</option>
+                            <option value="URGENT">Urgent</option>
+                            <option value="LOW">Low</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 dark:text-zinc-300 uppercase tracking-wider mb-1">
+                            Assignee
+                        </label>
+                        <select name="assignee_id" 
+                                class="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-aether-blue">
+                            <option value="">Unassigned</option>
+                            {% for m in members %}
+                                <option value="{{ m.user.id }}">{{ m.user.get_full_name|default:m.user.username }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 dark:text-zinc-300 uppercase tracking-wider mb-1">
+                            Estimated Hours
+                        </label>
+                        <input type="number" step="0.5" min="0" name="estimated_hours" placeholder="e.g. 4.0"
+                               class="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-aether-blue">
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-end space-x-3 pt-3 border-t border-slate-100 dark:border-zinc-800">
+                    <button type="button" @click="quickTaskModalOpen = false"
+                            class="px-4 py-2 text-xs font-semibold rounded-xl border border-slate-300 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 transition">
+                        Cancel
+                    </button>
+                    <button type="submit" 
+                            class="px-4 py-2 text-xs font-bold rounded-xl bg-aether-blue text-white hover:bg-blue-700 shadow-md transition">
+                        Create Task
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

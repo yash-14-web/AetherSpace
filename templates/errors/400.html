@@ -1,29 +1,72 @@
-{% extends 'base.html' %}
+{% extends 'errors/base_error.html' %}
 
-{% block title %}400 — Bad Request{% endblock %}
+{% block error_title_tag %}400 — Bad Request{% endblock %}
 
-{% block sidebar %}{% endblock %}
+{% block status_code %}400{% endblock %}
+{% block status_code_color %}text-amber-500 dark:text-amber-400{% endblock %}
+{% block glow_color %}bg-amber-500{% endblock %}
 
-{% block content %}
-<div class="min-h-[70vh] flex items-center justify-center py-12 px-4">
-    <div class="max-w-md w-full aether-card p-8 text-center space-y-6 shadow-xl">
-        <div class="inline-flex px-3 py-1 rounded-full text-xs font-bold bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-900/50">
-            Error 400
-        </div>
-        <h1 class="text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-50">
-            Invalid Request
-        </h1>
-        <p class="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed">
-            The request could not be processed due to invalid parameters.
-        </p>
-        <div class="pt-4 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-center gap-3">
-            <button onclick="window.history.back()" class="aether-button-secondary text-xs py-2 px-4">
-                Go Back
-            </button>
-            <a href="{% if user.is_authenticated %}{% url 'workspaces:dashboard' %}{% else %}{% url 'core:landing' %}{% endif %}" class="aether-button-primary text-xs py-2 px-4">
-                Dashboard
-            </a>
-        </div>
-    </div>
-</div>
+{% block headline %}Invalid Request{% endblock %}
+{% block description %}
+The request could not be processed due to invalid parameters. Please verify the query and try again.
+{% endblock %}
+
+{% block illustration %}
+<svg class="w-full h-full drop-shadow-[0_10px_25px_rgba(245,158,11,0.3)]" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Terminal window with parameter syntax error illustration">
+    <!-- Starfield -->
+    <circle cx="30" cy="50" r="1.5" fill="#fde68a" opacity="0.6"/>
+    <circle cx="170" cy="45" r="1.2" fill="#fde68a" opacity="0.6"/>
+    <circle cx="160" cy="150" r="1.5" fill="#f59e0b" opacity="0.5"/>
+
+    <!-- Terminal Window Frame -->
+    <rect x="35" y="45" width="130" height="96" rx="8" fill="#1e293b" stroke="#f59e0b" stroke-width="2"/>
+    
+    <!-- Title Bar -->
+    <path d="M35 53 C35 48.5 38.5 45 43 45 H157 C161.5 45 165 48.5 165 53 V62 H35 Z" fill="#0f172a"/>
+    <!-- Terminal Dots -->
+    <circle cx="48" cy="53" r="3" fill="#ef4444"/>
+    <circle cx="58" cy="53" r="3" fill="#f59e0b"/>
+    <circle cx="68" cy="53" r="3" fill="#10b981"/>
+
+    <!-- Code / Parameter Lines -->
+    <rect x="48" y="72" width="40" height="3" rx="1.5" fill="#64748b"/>
+    <rect x="94" y="72" width="30" height="3" rx="1.5" fill="#f59e0b"/>
+    <rect x="48" y="82" width="70" height="3" rx="1.5" fill="#64748b"/>
+    
+    <!-- Broken Parameter Highlight -->
+    <rect x="48" y="92" width="55" height="4" rx="2" fill="#ef4444" opacity="0.8"/>
+    <!-- Squiggly Error Line Under Syntax -->
+    <path d="M48 99 Q52 97 56 99 T64 99 T72 99 T80 99 T88 99 T96 99 T104 99" stroke="#ef4444" stroke-width="1.2" fill="none"/>
+
+    <rect x="48" y="106" width="35" height="3" rx="1.5" fill="#64748b"/>
+    <rect x="88" y="106" width="25" height="3" rx="1.5" fill="#38bdf8"/>
+
+    <!-- Floating Warning Triangle Badge -->
+    <g transform="translate(108, 98)">
+        <polygon points="28,4 54,48 2,48" fill="#f59e0b" stroke="#fde68a" stroke-width="2"/>
+        <!-- Exclamation Mark -->
+        <line x1="28" y1="18" x2="28" y2="34" stroke="#78350f" stroke-width="3.5" stroke-linecap="round"/>
+        <circle cx="28" cy="41" r="2.2" fill="#78350f"/>
+    </g>
+
+    <!-- Floating Parameter Gear / Wrench -->
+    <g transform="translate(30, 115) rotate(-25)">
+        <path d="M12 2 A10 10 0 0 0 4 15 L20 31 A4 4 0 0 0 26 31 L31 26 A4 4 0 0 0 31 20 L15 4 A10 10 0 0 0 12 2 Z" 
+              fill="#475569" stroke="#94a3b8" stroke-width="1.5"/>
+        <circle cx="10" cy="10" r="4" fill="#1e293b"/>
+    </g>
+</svg>
+{% endblock %}
+
+{% block primary_button_style %}bg-amber-600 hover:bg-amber-500 focus:ring-amber-500 shadow-amber-500/20{% endblock %}
+{% block primary_button_text %}Go to Dashboard{% endblock %}
+{% block action_buttons %}
+    <button type="button" onclick="window.history.back()"
+            class="w-full sm:w-auto px-6 py-2.5 rounded-lg text-sm font-semibold text-white shadow-lg bg-amber-600 hover:bg-amber-500 focus:ring-amber-500 shadow-amber-500/20 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2">
+        Go Back
+    </button>
+    <a href="{% if user.is_authenticated %}{% url 'workspaces:dashboard' %}{% else %}{% url 'core:landing' %}{% endif %}"
+       class="w-full sm:w-auto px-6 py-2.5 rounded-lg text-sm font-medium aether-error-btn-secondary bg-slate-100 dark:bg-zinc-800 text-slate-800 dark:text-zinc-100 border border-slate-300 dark:border-zinc-700 hover:bg-slate-200 dark:hover:bg-zinc-700 shadow-sm transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-slate-400 dark:focus:ring-zinc-600">
+        Go to Dashboard
+    </a>
 {% endblock %}

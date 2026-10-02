@@ -9,11 +9,12 @@ from django.utils import timezone
 
 from workspaces.permissions import workspace_member_required
 from workspaces.models import Workspace, WorkspaceMembership, MembershipStatus
-from .models import CalendarEvent, CalendarEventType, CalendarCategory, EventStatus, CalendarEventAttendee
+from .models import CalendarEvent, CalendarEventType, CalendarCategory, EventStatus, CalendarEventAttendee, CalendarEventAttachment
 from .forms import CalendarEventForm
 from .services import (
-    build_month_calendar_matrix, build_agenda_stream,
-    build_upcoming_deadlines, create_calendar_event
+    build_month_calendar_matrix, build_week_calendar_matrix,
+    build_day_calendar_matrix, build_agenda_stream,
+    build_upcoming_deadlines, create_calendar_event, attach_file_to_event
 )
 from meetings.services import generate_unique_meeting_code
 
@@ -72,6 +73,19 @@ def calendar_view(request, slug):
     if active_view == 'agenda':
         return redirect(f"{reverse('calendars:agenda_view', kwargs={'slug': workspace.slug})}?date={year}-{month:02d}-01")
 
+    # Target date for week / day views
+    date_str = request.GET.get('date', '').strip()
+    if date_str:
+        try:
+            target_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        except ValueError:
+            target_date = today
+    else:
+        if year == today.year and month == today.month:
+            target_date = today
+        else:
+            target_date = date(year, month, 1)
+
     # Categories filter
     cats_param = request.GET.get('cats')
     if cats_param is not None:
@@ -91,6 +105,30 @@ def calendar_view(request, slug):
         categories=active_cats,
         member_id=member_id
     )
+
+    week_data = None
+    day_data = None
+    if active_view == 'week':
+        week_data = build_week_calendar_matrix(
+            workspace=workspace,
+            target_date=target_date,
+            categories=active_cats,
+            member_id=member_id
+        )
+        prev_date = target_date - timedelta(days=7)
+        next_date = target_date + timedelta(days=7)
+    elif active_view == 'day':
+        day_data = build_day_calendar_matrix(
+            workspace=workspace,
+            target_date=target_date,
+            categories=active_cats,
+            member_id=member_id
+        )
+        prev_date = target_date - timedelta(days=1)
+        next_date = target_date + timedelta(days=1)
+    else:
+        prev_date = None
+        next_date = None
 
     # Compute prev and next month
     if month == 1:
@@ -113,8 +151,13 @@ def calendar_view(request, slug):
         'membership': membership,
         'year': year,
         'month': month,
+        'target_date': target_date,
+        'prev_date': prev_date,
+        'next_date': next_date,
         'month_name': py_calendar.month_name[month],
         'weeks': calendar_data['weeks'],
+        'week_data': week_data,
+        'day_data': day_data,
         'mini_calendar': calendar_data['mini_calendar'],
         'total_items_count': calendar_data['total_items_count'],
         'active_view': active_view,
@@ -218,6 +261,8 @@ def upcoming_deadlines_view(request, slug):
         'today_items': deadlines_data['today'],
         'tomorrow_items': deadlines_data['tomorrow'],
         'next_7_items': deadlines_data['next_7_days'],
+        'next_14_items': deadlines_data['next_14_days'],
+        'next_30_items': deadlines_data['next_30_days'],
         'later_items': deadlines_data['later'],
         'overdue_items': deadlines_data['overdue_items'],
         'deadline_summary': deadlines_data['deadline_summary'],
@@ -229,9 +274,8 @@ def upcoming_deadlines_view(request, slug):
 @workspace_member_required
 def event_create_view(request, slug):
     """
-    2-Column Create New Event page matching Screen 3:
-    Left: Title, type, start/end dates, all day, repeat, location, description
-    Right: Connect with Tasks/Bugs/Milestones and Invite People
+    Create New Event page with formatted Agenda toolbar, Documents upload,
+    Reference Links, and quick connects matching Screen 3.
     """
     workspace = request.workspace
     membership = request.membership
@@ -245,11 +289,13 @@ def event_create_view(request, slug):
         form = CalendarEventForm(request.POST, workspace=workspace)
         if form.is_valid():
             invitees = form.cleaned_data.get('invitees')
+            uploaded_files = request.FILES.getlist('document_files')
             event = create_calendar_event(
                 workspace=workspace,
                 user=request.user,
                 data=form.cleaned_data,
-                invitees=invitees
+                invitees=invitees,
+                uploaded_files=uploaded_files
             )
             messages.success(request, f"Event '{event.title}' scheduled successfully.")
             return redirect('calendars:event_detail', slug=workspace.slug, event_id=event.id)
@@ -309,12 +355,13 @@ def event_detail_view(request, slug, event_id):
     event = get_object_or_404(
         CalendarEvent.objects.select_related(
             'workspace', 'created_by', 'linked_task', 'linked_bug', 'linked_meeting'
-        ).prefetch_related('attendees__user'),
+        ).prefetch_related('attendees__user', 'attachments__file'),
         workspace=workspace,
         id=event_id
     )
 
     attendees = event.attendees.select_related('user').all()
+    attachments = event.attachments.select_related('file').all()
     can_manage = (event.created_by == request.user or membership.can_manage_content)
 
     context = {
@@ -322,7 +369,9 @@ def event_detail_view(request, slug, event_id):
         'membership': membership,
         'event': event,
         'attendees': attendees,
+        'attachments': attachments,
         'attendee_count': attendees.count(),
+        'attachment_count': attachments.count(),
         'can_manage': can_manage,
     }
     return render(request, 'calendars/event_detail.html', context)
@@ -348,7 +397,13 @@ def event_edit_view(request, slug, event_id):
             event = form.save(commit=False)
             event.start_at = form.cleaned_data['computed_start_at']
             event.end_at = form.cleaned_data['computed_end_at']
+            event.agenda = form.cleaned_data.get('agenda', '')
+            event.reference_links = form.cleaned_data.get('reference_links', [])
             event.save()
+
+            # Upload new files if provided
+            for f in request.FILES.getlist('document_files'):
+                attach_file_to_event(event, f, request.user)
 
             # Sync attendees
             invitees = form.cleaned_data.get('invitees')
@@ -375,6 +430,8 @@ def event_edit_view(request, slug, event_id):
         status=MembershipStatus.ACTIVE
     ).select_related('user').order_by('user__first_name', 'user__username')
 
+    attachments = event.attachments.select_related('file').all()
+
     if event.linked_meeting:
         auto_meet_code = event.linked_meeting.meeting_code
     elif event.meeting_link and 'meet-' in event.meeting_link:
@@ -389,6 +446,7 @@ def event_edit_view(request, slug, event_id):
         'membership': membership,
         'event': event,
         'form': form,
+        'attachments': attachments,
         'workspace_members': workspace_members,
         'auto_meet_code': auto_meet_code,
     }

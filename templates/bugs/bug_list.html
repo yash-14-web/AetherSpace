@@ -260,14 +260,7 @@
                                 </td>
                                 <td class="py-3 px-4 whitespace-nowrap">
                                     {% if bug.assignee %}
-                                        <div class="flex items-center space-x-2">
-                                            <div class="w-6 h-6 rounded-full bg-slate-200 dark:bg-zinc-700 text-slate-700 dark:text-zinc-200 font-bold text-[10px] flex items-center justify-center shrink-0">
-                                                {{ bug.assignee.full_name|default:bug.assignee.email|slice:":1"|upper }}
-                                            </div>
-                                            <span class="text-slate-800 dark:text-zinc-200 truncate max-w-[110px]">
-                                                {{ bug.assignee.full_name|default:bug.assignee.email }}
-                                            </span>
-                                        </div>
+                                        {% include 'components/people_hover_card.html' with target_user=bug.assignee workspace_slug=workspace.slug show_name=True avatar_size='w-6 h-6' %}
                                     {% else %}
                                         <span class="text-slate-400 dark:text-zinc-500 italic">Unassigned</span>
                                     {% endif %}
@@ -345,29 +338,16 @@
             </div>
 
         {% else %}
-            <!-- Empty state -->
-            <div class="text-center py-16 px-4 space-y-3">
-                <svg class="w-12 h-12 mx-auto text-slate-300 dark:text-zinc-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <h3 class="text-sm font-bold text-slate-900 dark:text-zinc-100">No bugs found</h3>
-                <p class="text-xs text-slate-500 dark:text-zinc-400 max-w-sm mx-auto">
-                    {% if current_q or current_status or current_priority or current_severity or current_module %}
-                        No defects match your active filter criteria. Try clearing some filters.
-                    {% else %}
-                        Your project has zero logged defects! Click the button below if you need to report one.
-                    {% endif %}
-                </p>
-                <div class="pt-2">
-                    <a href="{% url 'bugs:bug_create' slug=workspace.slug %}" 
-                       class="inline-flex items-center space-x-1.5 px-4 py-2 text-xs font-bold rounded-xl bg-rose-600 text-white hover:bg-rose-700 shadow-md shadow-rose-600/20 transition">
-                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                        </svg>
-                        <span>Raise Bug</span>
-                    </a>
-                </div>
-            </div>
+            <!-- Connected Vector Empty State -->
+            {% url 'bugs:bug_create' slug=workspace.slug as create_bug_url %}
+            {% url 'bugs:bug_list' slug=workspace.slug as bug_list_url %}
+            {% if current_q %}
+                {% include 'components/empty_states.html' with state_type='no_search_results' title='No Bugs Found' message='No bugs match your search query.' query=current_q secondary_url=bug_list_url secondary_text='Clear Search' action_url=create_bug_url action_text='Raise Bug' %}
+            {% elif current_status or current_priority or current_severity or current_module %}
+                {% include 'components/empty_states.html' with state_type='no_bugs' title='No Bugs Match Filters' message='No defects match your active filter criteria. Try clearing active filters.' secondary_url=bug_list_url secondary_text='Clear All Filters' action_url=create_bug_url action_text='Raise Bug' %}
+            {% else %}
+                {% include 'components/empty_states.html' with state_type='no_bugs' title='No Bugs Found' message='All systems green! Your project has zero logged defects. Report any issues discovered during QA or testing.' action_url=create_bug_url action_text='Raise Bug' %}
+            {% endif %}
         {% endif %}
     </div>
 

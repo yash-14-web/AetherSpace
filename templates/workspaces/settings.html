@@ -35,7 +35,7 @@
                     </p>
                 </div>
 
-                <form method="post" action="{% url 'workspaces:settings' slug=workspace.slug %}" class="space-y-5">
+                <form method="post" action="{% url 'workspaces:settings' slug=workspace.slug %}" enctype="multipart/form-data" class="space-y-5">
                     {% csrf_token %}
 
                     <!-- Workspace Name -->
@@ -88,26 +88,137 @@
                         </div>
                     </div>
 
-                    <!-- Workspace Logo section -->
-                    <div class="space-y-1.5">
-                        <label class="block text-xs font-semibold text-slate-700 dark:text-zinc-300">
-                            Workspace Logo
-                        </label>
-                        <div class="flex items-center space-x-4 p-3 rounded-lg border border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-[#0c1322]/50">
-                            <div class="w-12 h-12 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-700 text-white font-bold flex items-center justify-center text-base shadow-sm shrink-0">
-                                {{ workspace.name|slice:":2"|upper }}
+                    <!-- Workspace Logo section (Supabase Storage Backed) -->
+                    <div class="space-y-2" x-data="{
+                        logoPreview: '{% if workspace.logo_url %}{{ workspace.logo_url }}{% endif %}',
+                        hasLogo: {% if workspace.logo %}true{% else %}false{% endif %},
+                        removeLogo: false,
+                        fileSelected: false,
+                        fileName: '',
+                        handleFile(e) {
+                            const file = e.target.files[0];
+                            if (file) {
+                                if (file.size > 2 * 1024 * 1024) {
+                                    alert('Logo file size exceeds the 2 MB limit.');
+                                    e.target.value = '';
+                                    return;
+                                }
+                                this.fileName = file.name;
+                                this.fileSelected = true;
+                                this.removeLogo = false;
+                                const reader = new FileReader();
+                                reader.onload = (event) => {
+                                    this.logoPreview = event.target.result;
+                                };
+                                reader.readAsDataURL(file);
+                            }
+                        },
+                        resetLogo() {
+                            this.logoPreview = '';
+                            this.removeLogo = true;
+                            this.fileSelected = false;
+                            this.fileName = '';
+                            const input = document.getElementById('workspace-logo-file-input');
+                            if (input) input.value = '';
+                            const urlInput = document.getElementById('workspace-logo-url-input');
+                            if (urlInput) urlInput.value = '';
+                        }
+                    }">
+                        <div class="flex items-center justify-between">
+                            <label class="block text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                                Workspace Logo & Emblem
+                            </label>
+                            <span class="inline-flex items-center space-x-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/40">
+                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                                <span>Supabase Storage</span>
+                            </span>
+                        </div>
+
+                        <!-- Hidden remove_logo input -->
+                        <input type="hidden" name="remove_logo" :value="removeLogo ? '1' : '0'">
+
+                        <div class="p-4 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50/60 dark:bg-[#0c1322]/60 space-y-3.5">
+                            <div class="flex items-center space-x-4">
+                                <!-- Logo preview container -->
+                                <div class="w-14 h-14 rounded-2xl overflow-hidden shadow-sm shrink-0 border border-slate-200 dark:border-zinc-700 bg-slate-100 dark:bg-zinc-800 flex items-center justify-center relative">
+                                    <template x-if="logoPreview && !removeLogo">
+                                        <img :src="logoPreview" alt="{{ workspace.name }} Logo" class="w-full h-full object-cover" @error="logoPreview = ''">
+                                    </template>
+                                    <template x-if="!logoPreview || removeLogo">
+                                        <div class="w-full h-full bg-gradient-to-tr from-blue-600 to-indigo-700 text-white font-bold flex items-center justify-center text-lg">
+                                            {{ workspace.name|slice:":2"|upper }}
+                                        </div>
+                                    </template>
+                                </div>
+
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex items-center space-x-2">
+                                        <p class="text-xs text-slate-900 dark:text-zinc-100 font-bold truncate">
+                                            {{ workspace.name }}
+                                        </p>
+                                        <span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-200 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 font-mono">
+                                            Emblem
+                                        </span>
+                                    </div>
+                                    <p class="text-[11px] text-slate-400 dark:text-zinc-500 mt-0.5">
+                                        Recommended 256×256px. PNG, JPG, WEBP, or SVG (max 2MB).
+                                    </p>
+                                    <template x-if="fileSelected">
+                                        <p class="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium mt-1 truncate" x-text="'Selected: ' + fileName"></p>
+                                    </template>
+                                </div>
+
+                                <div class="flex items-center space-x-2 shrink-0">
+                                    <!-- Choose File button trigger -->
+                                    <button type="button"
+                                            @click="document.getElementById('workspace-logo-file-input').click()"
+                                            class="aether-button-secondary text-xs px-3 py-1.5 flex items-center space-x-1.5">
+                                        <svg class="w-3.5 h-3.5 text-slate-500 dark:text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                        </svg>
+                                        <span>Change Logo</span>
+                                    </button>
+
+                                    <!-- Reset to default emblem initials -->
+                                    {% if workspace.logo %}
+                                    <button type="submit"
+                                            name="action"
+                                            value="remove_logo"
+                                            class="text-xs text-rose-500 hover:text-rose-600 dark:hover:text-rose-400 px-2 py-1.5 font-medium transition-colors">
+                                        Reset
+                                    </button>
+                                    {% else %}
+                                    <button type="button"
+                                            x-show="logoPreview && !removeLogo"
+                                            @click="resetLogo()"
+                                            class="text-xs text-rose-500 hover:text-rose-600 dark:hover:text-rose-400 px-2 py-1.5 font-medium transition-colors">
+                                        Cancel
+                                    </button>
+                                    {% endif %}
+                                </div>
                             </div>
-                            <div class="flex-1 min-w-0">
-                                <p class="text-xs text-slate-700 dark:text-zinc-200 font-medium">
-                                    {{ workspace.name }} Emblem
-                                </p>
-                                <p class="text-[11px] text-slate-400 dark:text-zinc-500">
-                                    Recommended 256x256px. PNG or SVG.
-                                </p>
+
+                            <!-- Hidden file input -->
+                            <input type="file" 
+                                   id="workspace-logo-file-input" 
+                                   name="logo_file" 
+                                   accept="image/png,image/jpeg,image/webp,image/svg+xml,image/gif"
+                                   @change="handleFile($event)" 
+                                   class="hidden">
+
+                            <!-- Or paste external URL -->
+                            <div class="pt-2.5 border-t border-slate-200/60 dark:border-zinc-800/60 flex items-center space-x-2">
+                                <label for="workspace-logo-url-input" class="text-[11px] font-semibold text-slate-500 dark:text-zinc-400 shrink-0">
+                                    Or Image URL:
+                                </label>
+                                <input type="url" 
+                                       id="workspace-logo-url-input" 
+                                       name="logo_url" 
+                                       value="{% if workspace.logo and workspace.logo|slice:':4' == 'http' %}{{ workspace.logo }}{% endif %}"
+                                       @input="if ($event.target.value.trim().length > 7) { logoPreview = $event.target.value.trim(); removeLogo = false; }"
+                                       placeholder="https://images.unsplash.com/... or Supabase public asset URL"
+                                       class="flex-1 px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-aether-blue">
                             </div>
-                            <button type="button" onclick="alert('File upload to Supabase Storage will be enabled with the files module.');" class="aether-button-secondary text-xs px-3 py-1.5 shrink-0">
-                                Change Logo
-                            </button>
                         </div>
                     </div>
 

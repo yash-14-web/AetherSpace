@@ -255,11 +255,123 @@
                 {% endif %}
             </div>
 
-            <!-- 4. LATER SECTION -->
+            <!-- 4. NEXT 14 DAYS SECTION (Days 8 to 14) -->
+            {% if timeframe_days >= 14 %}
+            <div class="space-y-3">
+                <div class="flex items-center space-x-2 pb-1 border-b border-slate-200 dark:border-zinc-800">
+                    <h2 class="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-zinc-200">Next 14 Days (Week 2)</h2>
+                    <span class="text-[11px] text-slate-400 font-medium">({{ next_14_items|length }})</span>
+                </div>
+
+                {% if next_14_items %}
+                    <div class="space-y-2">
+                        {% for item in next_14_items %}
+                            <div class="p-3.5 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 shadow-2xs hover:shadow-sm transition flex items-center justify-between gap-3 border-l-4
+                                {% if item.color == 'amber' %}border-l-amber-500{% elif item.color == 'emerald' %}border-l-emerald-500{% elif item.color == 'purple' %}border-l-purple-500{% elif item.color == 'rose' %}border-l-rose-500{% else %}border-l-blue-500{% endif %}">
+                                
+                                <div class="flex items-center space-x-3 min-w-0">
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider
+                                        {% if item.color == 'amber' %}bg-amber-100 dark:bg-amber-950/70 text-amber-700 dark:text-amber-300
+                                        {% elif item.color == 'emerald' %}bg-emerald-100 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300
+                                        {% elif item.color == 'purple' %}bg-purple-100 dark:bg-purple-950/70 text-purple-700 dark:text-purple-300
+                                        {% elif item.color == 'rose' %}bg-rose-100 dark:bg-rose-950/70 text-rose-700 dark:text-rose-300
+                                        {% else %}bg-blue-100 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300{% endif %}">
+                                        {{ item.category_label }}
+                                    </span>
+                                    <div class="min-w-0">
+                                        <a href="{{ item.detail_url }}" class="text-xs font-bold text-slate-900 dark:text-zinc-100 hover:text-blue-600 dark:hover:text-blue-400 truncate block">
+                                            {% if item.code %}<span class="font-mono text-slate-400 dark:text-zinc-500">#{{ item.code }}</span>{% endif %}
+                                            {{ item.title }}
+                                        </a>
+                                        <span class="text-[11px] text-slate-500 font-mono">{{ item.date|date:"l, M d" }} • {{ item.start_time }}</span>
+                                    </div>
+                                </div>
+
+                                <div class="flex items-center space-x-3 shrink-0">
+                                    {% if item.priority %}
+                                        <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-900/60">
+                                            {{ item.priority }}
+                                        </span>
+                                    {% endif %}
+                                    {% if item.status %}
+                                        <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300">
+                                            {{ item.status }}
+                                        </span>
+                                    {% endif %}
+                                    <div class="w-6 h-6 rounded-full bg-slate-200 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 font-bold text-[10px] flex items-center justify-center shrink-0" title="{{ item.assignee_name }}">
+                                        {{ item.assignee_initials }}
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-xs text-slate-400 italic py-1">No deadlines due between day 8 and day 14.</p>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            <!-- 5. NEXT 30 DAYS SECTION (Days 15 to 30) -->
+            {% if timeframe_days >= 30 %}
+            <div class="space-y-3">
+                <div class="flex items-center space-x-2 pb-1 border-b border-slate-200 dark:border-zinc-800">
+                    <h2 class="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-zinc-200">Next 30 Days (Days 15 - 30)</h2>
+                    <span class="text-[11px] text-slate-400 font-medium">({{ next_30_items|length }})</span>
+                </div>
+
+                {% if next_30_items %}
+                    <div class="space-y-2">
+                        {% for item in next_30_items %}
+                            <div class="p-3.5 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 shadow-2xs hover:shadow-sm transition flex items-center justify-between gap-3 border-l-4
+                                {% if item.color == 'amber' %}border-l-amber-500{% elif item.color == 'emerald' %}border-l-emerald-500{% elif item.color == 'purple' %}border-l-purple-500{% elif item.color == 'rose' %}border-l-rose-500{% else %}border-l-blue-500{% endif %}">
+                                
+                                <div class="flex items-center space-x-3 min-w-0">
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider
+                                        {% if item.color == 'amber' %}bg-amber-100 dark:bg-amber-950/70 text-amber-700 dark:text-amber-300
+                                        {% elif item.color == 'emerald' %}bg-emerald-100 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300
+                                        {% elif item.color == 'purple' %}bg-purple-100 dark:bg-purple-950/70 text-purple-700 dark:text-purple-300
+                                        {% elif item.color == 'rose' %}bg-rose-100 dark:bg-rose-950/70 text-rose-700 dark:text-rose-300
+                                        {% else %}bg-blue-100 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300{% endif %}">
+                                        {{ item.category_label }}
+                                    </span>
+                                    <div class="min-w-0">
+                                        <a href="{{ item.detail_url }}" class="text-xs font-bold text-slate-900 dark:text-zinc-100 hover:text-blue-600 dark:hover:text-blue-400 truncate block">
+                                            {% if item.code %}<span class="font-mono text-slate-400 dark:text-zinc-500">#{{ item.code }}</span>{% endif %}
+                                            {{ item.title }}
+                                        </a>
+                                        <span class="text-[11px] text-slate-500 font-mono">{{ item.date|date:"l, M d" }} • {{ item.start_time }}</span>
+                                    </div>
+                                </div>
+
+                                <div class="flex items-center space-x-3 shrink-0">
+                                    {% if item.priority %}
+                                        <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-900/60">
+                                            {{ item.priority }}
+                                        </span>
+                                    {% endif %}
+                                    {% if item.status %}
+                                        <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300">
+                                            {{ item.status }}
+                                        </span>
+                                    {% endif %}
+                                    <div class="w-6 h-6 rounded-full bg-slate-200 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 font-bold text-[10px] flex items-center justify-center shrink-0" title="{{ item.assignee_name }}">
+                                        {{ item.assignee_initials }}
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-xs text-slate-400 italic py-1">No deadlines due between day 15 and day 30.</p>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            <!-- 6. LATER SECTION (> 30 Days) -->
             {% if later_items %}
             <div class="space-y-3">
                 <div class="flex items-center space-x-2 pb-1 border-b border-slate-200 dark:border-zinc-800">
-                    <h2 class="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-zinc-200">Later</h2>
+                    <h2 class="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-zinc-200">Later (After 30 Days)</h2>
                     <span class="text-[11px] text-slate-400 font-medium">({{ later_items|length }})</span>
                 </div>
 
@@ -374,7 +486,7 @@
                             <div class="flex items-center justify-between text-[11px] text-slate-400">
                                 <span>{{ ov.category }}</span>
                                 {% if ov.assignee %}
-                                    <span>{{ ov.assignee.get_full_name|default:ov.assignee.username }}</span>
+                                    <span>{{ ov.assignee.full_name|default:ov.assignee.get_full_name }}</span>
                                 {% endif %}
                             </div>
                         </div>

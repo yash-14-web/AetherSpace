@@ -79,13 +79,17 @@ def create_bug(
     )
 
     if linked_task:
-        BugActivity.objects.create(
-            bug=bug,
-            actor=reporter,
-            action=BugActivity.Action.UPDATED,
-            new_value=linked_task.task_code,
-            message=f"Linked bug to task #{linked_task.task_code} ({linked_task.title}).",
-        )
+        try:
+            from tasks.services import attach_bug_to_task
+            attach_bug_to_task(task=linked_task, bug=bug, actor=reporter)
+        except Exception:
+            BugActivity.objects.create(
+                bug=bug,
+                actor=reporter,
+                action=BugActivity.Action.UPDATED,
+                new_value=linked_task.task_code,
+                message=f"Linked bug to task #{linked_task.task_code} ({linked_task.title}).",
+            )
 
     if assignee:
         assignee_name = assignee.full_name or assignee.email
@@ -110,6 +114,15 @@ def create_bug(
                 actor=reporter,
                 action_url=bug.get_absolute_url()
             )
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"Failed to create bug assigned notification: {e}")
+
+        # Email assignee
+        try:
+            from notifications.email_service import send_bug_assigned_email
+            if not reporter or assignee.id != reporter.id:
+                send_bug_assigned_email(bug=bug, assignee=assignee, actor=reporter)
         except Exception:
             pass
 
@@ -123,6 +136,17 @@ def update_bug(bug, actor, **kwargs):
     """
     changes = []
 
+    # Check title change
+    if 'title' in kwargs and kwargs['title'] and kwargs['title'] != bug.title:
+        old_title = bug.title
+        bug.title = kwargs['title']
+        changes.append({
+            'action': BugActivity.Action.UPDATED,
+            'old': old_title,
+            'new': bug.title,
+            'msg': f"Changed title from '{old_title}' to '{bug.title}'."
+        })
+
     # Check status change
     if 'status' in kwargs and kwargs['status'] and kwargs['status'] != bug.status:
         old_status = bug.get_status_display()
@@ -132,7 +156,7 @@ def update_bug(bug, actor, **kwargs):
             'action': BugActivity.Action.STATUS_CHANGED,
             'old': old_status,
             'new': new_status,
-            'msg': f"Changed status from '{old_status}' to '{new_status}'."
+            'msg': f"Status updated from '{old_status}' to '{new_status}'."
         })
         # Notify reporter if someone else updated status
         try:
@@ -154,26 +178,26 @@ def update_bug(bug, actor, **kwargs):
 
     # Check priority change
     if 'priority' in kwargs and kwargs['priority'] and kwargs['priority'] != bug.priority:
-        old_p = bug.get_priority_display()
+        old_priority = bug.get_priority_display()
         bug.priority = kwargs['priority']
-        new_p = bug.get_priority_display()
+        new_priority = bug.get_priority_display()
         changes.append({
             'action': BugActivity.Action.PRIORITY_CHANGED,
-            'old': old_p,
-            'new': new_p,
-            'msg': f"Changed priority from '{old_p}' to '{new_p}'."
+            'old': old_priority,
+            'new': new_priority,
+            'msg': f"Priority updated from '{old_priority}' to '{new_priority}'."
         })
 
     # Check severity change
     if 'severity' in kwargs and kwargs['severity'] and kwargs['severity'] != bug.severity:
-        old_s = bug.get_severity_display()
+        old_severity = bug.get_severity_display()
         bug.severity = kwargs['severity']
-        new_s = bug.get_severity_display()
+        new_severity = bug.get_severity_display()
         changes.append({
             'action': BugActivity.Action.SEVERITY_CHANGED,
-            'old': old_s,
-            'new': new_s,
-            'msg': f"Changed severity from '{old_s}' to '{new_s}'."
+            'old': old_severity,
+            'new': new_severity,
+            'msg': f"Severity updated from '{old_severity}' to '{new_severity}'."
         })
 
     # Check assignee change
@@ -205,6 +229,14 @@ def update_bug(bug, actor, **kwargs):
         except Exception:
             pass
 
+        # Email new assignee
+        try:
+            from notifications.email_service import send_bug_assigned_email
+            if bug.assignee and actor and bug.assignee.id != actor.id:
+                send_bug_assigned_email(bug=bug, assignee=bug.assignee, actor=actor)
+        except Exception:
+            pass
+
     # Check reporter change
     if 'reporter' in kwargs and kwargs['reporter'] and kwargs['reporter'] != bug.reporter:
         old_reporter = bug.reporter.full_name or bug.reporter.email if bug.reporter else "None"
@@ -231,15 +263,25 @@ def update_bug(bug, actor, **kwargs):
 
     # Check linked_task change
     if 'linked_task' in kwargs and kwargs['linked_task'] != bug.linked_task:
+        old_task_obj = bug.linked_task
+        new_task_obj = kwargs['linked_task']
         old_task = f"#{bug.linked_task.task_code}" if bug.linked_task else "None"
         new_task = f"#{kwargs['linked_task'].task_code}" if kwargs['linked_task'] else "None"
-        bug.linked_task = kwargs['linked_task']
-        changes.append({
-            'action': BugActivity.Action.UPDATED,
-            'old': old_task,
-            'new': new_task,
-            'msg': f"Changed linked task from {old_task} to {new_task}."
-        })
+        
+        try:
+            from tasks.services import attach_bug_to_task, detach_bug_from_task
+            if old_task_obj:
+                detach_bug_from_task(task=old_task_obj, bug=bug, actor=actor)
+            if new_task_obj:
+                attach_bug_to_task(task=new_task_obj, bug=bug, actor=actor)
+        except Exception:
+            bug.linked_task = kwargs['linked_task']
+            changes.append({
+                'action': BugActivity.Action.UPDATED,
+                'old': old_task,
+                'new': new_task,
+                'msg': f"Changed linked task from {old_task} to {new_task}."
+            })
 
     # Update other scalar fields
     for field in [

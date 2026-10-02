@@ -1,0 +1,68 @@
+{% extends 'errors/base_error.html' %}
+
+{% block error_title_tag %}401 — Authentication Required{% endblock %}
+
+{% block status_code %}401{% endblock %}
+{% block status_code_color %}text-cyan-500 dark:text-cyan-400{% endblock %}
+{% block glow_color %}bg-cyan-500{% endblock %}
+
+{% block headline %}Authentication Required{% endblock %}
+{% block description %}
+Please sign in with your AetherSpace credentials to access this workspace and its resources.
+{% endblock %}
+
+{% block illustration %}
+<svg class="w-full h-full drop-shadow-[0_10px_25px_rgba(6,182,212,0.35)]" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Security keycard with biometric lock illustration">
+    <!-- Starfield -->
+    <circle cx="35" cy="40" r="1.5" fill="#a5f3fc" opacity="0.6"/>
+    <circle cx="165" cy="45" r="1.2" fill="#a5f3fc" opacity="0.7"/>
+    <circle cx="175" cy="115" r="1.5" fill="#06b6d4" opacity="0.4"/>
+    <circle cx="25" cy="130" r="1.2" fill="#06b6d4" opacity="0.4"/>
+
+    <!-- Floating ID / Access Card Frame -->
+    <g transform="translate(48, 38) rotate(6)">
+        <rect x="0" y="0" width="104" height="124" rx="10" fill="#0f172a" stroke="#06b6d4" stroke-width="2.5"/>
+        
+        <!-- Card Header Lanyard Hole -->
+        <rect x="42" y="8" width="20" height="5" rx="2.5" fill="#1e293b" stroke="#0891b2" stroke-width="1"/>
+        
+        <!-- Holographic Chip / Core -->
+        <rect x="16" y="24" width="24" height="20" rx="3" fill="#0284c7" stroke="#38bdf8" stroke-width="1.2"/>
+        <line x1="16" y1="34" x2="40" y2="34" stroke="#0369a1" stroke-width="1"/>
+        <line x1="28" y1="24" x2="28" y2="44" stroke="#0369a1" stroke-width="1"/>
+
+        <!-- User Silhouette Placeholder -->
+        <circle cx="76" cy="34" r="10" fill="#1e293b" stroke="#0891b2" stroke-width="1.2"/>
+        <path d="M64 50 C64 45 70 43 76 43 C82 43 88 45 88 50 Z" fill="#1e293b" stroke="#0891b2" stroke-width="1.2"/>
+
+        <!-- Security Badge Text Bars -->
+        <rect x="16" y="56" width="45" height="3.5" rx="1.5" fill="#22d3ee" opacity="0.85"/>
+        <rect x="16" y="64" width="65" height="2.5" rx="1" fill="#64748b"/>
+        <rect x="16" y="70" width="55" height="2.5" rx="1" fill="#64748b"/>
+
+        <!-- Biometric Fingerprint / Key Glow -->
+        <g transform="translate(36, 80)">
+            <circle cx="16" cy="16" r="16" fill="#083344" stroke="#06b6d4" stroke-width="1.5"/>
+            <!-- Keyhole shape -->
+            <circle cx="16" cy="12" r="3.5" fill="#22d3ee"/>
+            <path d="M14 14 L13 22 H19 L18 14 Z" fill="#22d3ee"/>
+        </g>
+    </g>
+
+    <!-- Scan Beam / Laser Sweep -->
+    <path d="M35 125 L165 110" stroke="#22d3ee" stroke-width="2" stroke-dasharray="4 4" opacity="0.7"/>
+</svg>
+{% endblock %}
+
+{% block primary_button_style %}bg-cyan-600 hover:bg-cyan-500 focus:ring-cyan-500 shadow-cyan-500/20{% endblock %}
+{% block primary_button_text %}Sign In{% endblock %}
+{% block action_buttons %}
+    <a href="{% url 'accounts:login' %}?next={{ request.path }}"
+       class="w-full sm:w-auto px-6 py-2.5 rounded-lg text-sm font-semibold text-white shadow-lg bg-cyan-600 hover:bg-cyan-500 focus:ring-cyan-500 shadow-cyan-500/20 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2">
+        Sign In
+    </a>
+    <button type="button" onclick="window.history.back()"
+            class="w-full sm:w-auto px-6 py-2.5 rounded-lg text-sm font-medium aether-error-btn-secondary bg-slate-100 dark:bg-zinc-800 text-slate-800 dark:text-zinc-100 border border-slate-300 dark:border-zinc-700 hover:bg-slate-200 dark:hover:bg-zinc-700 shadow-sm transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-slate-400 dark:focus:ring-zinc-600">
+        Go Back
+    </button>
+{% endblock %}

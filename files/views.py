@@ -4,11 +4,14 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.urls import reverse
+from urllib.parse import quote
+from django.views.decorators.clickjacking import xframe_options_sameorigin
 from django.http import (
     HttpResponse,
     JsonResponse,
     HttpResponseForbidden,
     HttpResponseBadRequest,
+    HttpResponseNotFound,
     Http404,
 )
 from django.utils import timezone
@@ -484,10 +487,91 @@ def shared_files(request, slug):
 
 
 @workspace_member_required
+@xframe_options_sameorigin
+def file_preview(request, slug, file_id):
+    """
+    Inline preview endpoint for viewing images, PDFs, media, and documents inside AetherSpace.
+    Sets Content-Disposition: inline and enforces safe preview headers without triggering browser downloads.
+    Allows iframe embedding from the same origin via X-Frame-Options: SAMEORIGIN and frame-ancestors 'self'.
+    """
+    workspace = request.workspace
+    stored_file = get_object_or_404(StoredFile, id=file_id, workspace=workspace)
+
+    if stored_file.is_external_link:
+        return redirect(stored_file.external_url)
+
+    content, content_type = SupabaseStorageService.get_file_content(stored_file.storage_path)
+    if not content:
+        return HttpResponseNotFound("File content not found or unavailable.")
+
+    # Determine accurate content type for inline rendering
+    guessed_type, _ = mimetypes.guess_type(stored_file.original_name)
+    resolved_content_type = stored_file.mime_type or guessed_type or content_type or 'application/octet-stream'
+
+    ext = stored_file.extension.lower()
+    if ext == 'pdf':
+        resolved_content_type = 'application/pdf'
+    elif ext in ['jpg', 'jpeg']:
+        resolved_content_type = 'image/jpeg'
+    elif ext == 'png':
+        resolved_content_type = 'image/png'
+    elif ext == 'gif':
+        resolved_content_type = 'image/gif'
+    elif ext == 'webp':
+        resolved_content_type = 'image/webp'
+    elif ext == 'svg':
+        resolved_content_type = 'image/svg+xml'
+    elif ext == 'bmp':
+        resolved_content_type = 'image/bmp'
+    elif ext == 'ico':
+        resolved_content_type = 'image/x-icon'
+    elif ext in ['mp3', 'wav', 'ogg', 'm4a', 'aac']:
+        if ext == 'mp3':
+            resolved_content_type = 'audio/mpeg'
+        elif ext == 'wav':
+            resolved_content_type = 'audio/wav'
+        elif ext == 'ogg':
+            resolved_content_type = 'audio/ogg'
+        elif ext in ['m4a', 'aac']:
+            resolved_content_type = 'audio/mp4'
+    elif ext in ['mp4', 'webm', 'mov']:
+        if ext == 'mp4':
+            resolved_content_type = 'video/mp4'
+        elif ext == 'webm':
+            resolved_content_type = 'video/webm'
+        elif ext == 'mov':
+            resolved_content_type = 'video/quicktime'
+    elif ext in ['txt', 'md', 'py', 'js', 'html', 'css', 'json', 'yml', 'yaml', 'sql', 'sh', 'ts', 'csv']:
+        resolved_content_type = 'text/plain; charset=utf-8'
+
+    response = HttpResponse(content, content_type=resolved_content_type)
+
+    try:
+        clean_name = stored_file.original_name.encode('ascii').decode('ascii').replace('"', '\\"')
+        response['Content-Disposition'] = f'inline; filename="{clean_name}"'
+    except UnicodeEncodeError:
+        encoded_name = quote(stored_file.original_name)
+        response['Content-Disposition'] = f"inline; filename*=UTF-8''{encoded_name}"
+
+    response['Content-Length'] = len(content)
+    response['X-Content-Type-Options'] = 'nosniff'
+    response['X-Frame-Options'] = 'SAMEORIGIN'
+    response['Accept-Ranges'] = 'bytes'
+
+    # Security sandbox header for SVG files to prevent script execution
+    if resolved_content_type == 'image/svg+xml' or ext == 'svg':
+        response['Content-Security-Policy'] = "default-src 'none'; style-src 'unsafe-inline'; sandbox; frame-ancestors 'self'"
+    else:
+        response['Content-Security-Policy'] = "frame-ancestors 'self'"
+
+    return response
+
+
+@workspace_member_required
 def file_download(request, slug, file_id):
     """
     Secure server-side file download endpoint.
-    Verifies workspace permissions and streams or redirects to content.
+    Verifies workspace permissions and forces download via Content-Disposition: attachment.
     """
     workspace = request.workspace
     stored_file = get_object_or_404(StoredFile, id=file_id, workspace=workspace)
@@ -504,7 +588,14 @@ def file_download(request, slug, file_id):
     log_file_activity(stored_file, request.user, 'DOWNLOADED', f"Downloaded {stored_file.original_name}")
 
     response = HttpResponse(content, content_type=content_type or 'application/octet-stream')
-    response['Content-Disposition'] = f'attachment; filename="{stored_file.original_name}"'
+
+    try:
+        clean_name = stored_file.original_name.encode('ascii').decode('ascii').replace('"', '\\"')
+        response['Content-Disposition'] = f'attachment; filename="{clean_name}"'
+    except UnicodeEncodeError:
+        encoded_name = quote(stored_file.original_name)
+        response['Content-Disposition'] = f"attachment; filename*=UTF-8''{encoded_name}"
+
     response['Content-Length'] = len(content)
     return response
 

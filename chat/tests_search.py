@@ -22,7 +22,8 @@ class PeopleSearchUXTests(TestCase):
             password='TestPassword123!',
             first_name='Alice',
             last_name='Engineer',
-            username='alice_eng'
+            username='alice_eng',
+            approval_status='APPROVED',
         )
 
         # Teammate in same workspace
@@ -31,7 +32,8 @@ class PeopleSearchUXTests(TestCase):
             password='TestPassword123!',
             first_name='Bob',
             last_name='Designer',
-            username='bob_des'
+            username='bob_des',
+            approval_status='APPROVED',
         )
 
         # External registered user (different or no workspace)
@@ -40,7 +42,8 @@ class PeopleSearchUXTests(TestCase):
             password='TestPassword123!',
             first_name='Charlie',
             last_name='Consultant',
-            username='charlie_ext'
+            username='charlie_ext',
+            approval_status='APPROVED',
         )
 
         # Workspace

@@ -1,29 +1,97 @@
-{% extends 'base.html' %}
+{% extends 'errors/base_error.html' %}
 
-{% block title %}500 — Internal Server Error{% endblock %}
+{% block error_title_tag %}500 — Internal Server Error{% endblock %}
 
-{% block sidebar %}{% endblock %}
+{% block status_code %}500{% endblock %}
+{% block status_code_color %}text-red-500 dark:text-red-500{% endblock %}
+{% block glow_color %}bg-red-600{% endblock %}
 
-{% block content %}
-<div class="min-h-[70vh] flex items-center justify-center py-12 px-4">
-    <div class="max-w-md w-full aether-card p-8 text-center space-y-6 shadow-xl">
-        <div class="inline-flex px-3 py-1 rounded-full text-xs font-bold bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900/50">
-            Error 500
-        </div>
-        <h1 class="text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-50">
-            Internal Server Error
-        </h1>
-        <p class="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed">
-            Something went wrong on our end. Our engineering team has been notified.
-        </p>
-        <div class="pt-4 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-center gap-3">
-            <button onclick="window.location.reload()" class="aether-button-secondary text-xs py-2 px-4">
-                Reload Page
-            </button>
-            <a href="{% if user.is_authenticated %}{% url 'workspaces:dashboard' %}{% else %}{% url 'core:landing' %}{% endif %}" class="aether-button-primary text-xs py-2 px-4">
-                Return to Dashboard
-            </a>
-        </div>
-    </div>
+{% block headline %}Something Went Wrong{% endblock %}
+{% block description %}
+Something went wrong on our end. Our engineering team has been notified. Please try again.
+{% endblock %}
+
+{% block error_id_badge %}
+<div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-md bg-red-50 dark:bg-red-950/60 border border-red-200 dark:border-red-900/60 text-xs font-mono font-medium text-red-600 dark:text-red-400 mt-2">
+    <span>Error ID:</span>
+    <span class="font-bold tracking-wider">ERR-500-{{ error_id|default:"8X7F3A9D" }}</span>
 </div>
+{% endblock %}
+
+{% block illustration %}
+<svg class="w-full h-full drop-shadow-[0_10px_25px_rgba(239,68,68,0.35)]" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Sparking damaged robot satellite illustration">
+    <!-- Red ambient spark sparks -->
+    <g fill="#f87171">
+        <polygon points="32,70 34,74 38,75 34,77 32,81 30,77 26,75 30,74" />
+        <polygon points="172,60 174,64 178,65 174,67 172,71 170,67 166,65 170,64" />
+        <polygon points="160,140 161,143 164,144 161,145 160,148 159,145 156,144 159,143" />
+        <polygon points="40,145 41,148 44,149 41,150 40,153 39,150 36,149 39,148" />
+        <circle cx="25" cy="115" r="1.5" fill="#fca5a5" />
+        <circle cx="180" cy="110" r="1.5" fill="#fca5a5" />
+        <circle cx="90" cy="30" r="1.2" fill="#ef4444" />
+    </g>
+
+    <!-- Floating broken metal debris -->
+    <g fill="#334155" stroke="#ef4444" stroke-width="0.8">
+        <polygon points="36,95 44,88 48,96 40,102" />
+        <polygon points="156,92 165,96 160,104 152,100" />
+        <polygon points="135,160 144,165 138,172 130,166" />
+    </g>
+
+    <!-- Main Robot Satellite Spherical Shell -->
+    <circle cx="100" cy="105" r="48" fill="url(#mechShellGrad)" stroke="#475569" stroke-width="2"/>
+
+    <!-- Dark Mechanical Segment Plates -->
+    <path d="M60 90 Q100 75 140 90" stroke="#1e293b" stroke-width="3" fill="none"/>
+    <path d="M60 120 Q100 135 140 120" stroke="#1e293b" stroke-width="3" fill="none"/>
+    <path d="M100 57 V153" stroke="#1e293b" stroke-width="2.5" fill="none"/>
+
+    <!-- Fracture / Crack Lines -->
+    <path d="M78 80 L92 94 L88 108 L100 115" stroke="#ef4444" stroke-width="2" stroke-linecap="round" fill="none"/>
+    <path d="M92 94 L106 88 L114 96" stroke="#f87171" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+
+    <!-- Robot Eye Sensor (Glowing Red Core) -->
+    <circle cx="100" cy="105" r="16" fill="#1e1b4b" stroke="#7f1d1d" stroke-width="2.5"/>
+    <circle cx="100" cy="105" r="10" fill="#dc2626"/>
+    <circle cx="100" cy="105" r="5" fill="#fecaca"/>
+
+    <!-- Red Sensor Iris Beam -->
+    <ellipse cx="100" cy="105" rx="14" ry="2" fill="#f87171" opacity="0.8"/>
+
+    <!-- Smoke & Spark Plumes -->
+    <path d="M130 75 Q145 60 140 45" stroke="#64748b" stroke-width="2.5" stroke-linecap="round" opacity="0.4" fill="none"/>
+    <path d="M125 70 Q130 55 122 42" stroke="#94a3b8" stroke-width="1.8" stroke-linecap="round" opacity="0.3" fill="none"/>
+
+    <!-- Electric Arcs -->
+    <path d="M68 95 L72 102 L66 106 L74 112" stroke="#fca5a5" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+    <path d="M134 110 L128 116 L136 122" stroke="#fca5a5" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+
+    <!-- Robot Antennas / Thruster Ports -->
+    <rect x="96" y="44" width="8" height="14" rx="2" fill="#475569"/>
+    <circle cx="100" cy="42" r="3.5" fill="#ef4444"/>
+    
+    <rect x="42" y="101" width="12" height="8" rx="2" fill="#334155"/>
+    <rect x="146" y="101" width="12" height="8" rx="2" fill="#334155"/>
+
+    <defs>
+        <radialGradient id="mechShellGrad" cx="0.35" cy="0.35" r="0.75">
+            <stop stop-color="#334155"/>
+            <stop offset="0.6" stop-color="#1e293b"/>
+            <stop offset="1" stop-color="#090d16"/>
+        </radialGradient>
+    </defs>
+</svg>
+{% endblock %}
+
+{% block primary_button_style %}bg-red-600 hover:bg-red-500 focus:ring-red-500 shadow-red-500/20{% endblock %}
+{% block primary_button_text %}Try Again{% endblock %}
+{% block action_buttons %}
+    <button type="button" onclick="window.location.reload()"
+            class="w-full sm:w-auto px-6 py-2.5 rounded-lg text-sm font-semibold text-white shadow-lg bg-red-600 hover:bg-red-500 focus:ring-red-500 shadow-red-500/20 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2">
+        Try Again
+    </button>
+    <a href="{% if user.is_authenticated %}{% url 'workspaces:dashboard' %}{% else %}{% url 'core:landing' %}{% endif %}"
+       class="w-full sm:w-auto px-6 py-2.5 rounded-lg text-sm font-medium aether-error-btn-secondary bg-slate-100 dark:bg-zinc-800 text-slate-800 dark:text-zinc-100 border border-slate-300 dark:border-zinc-700 hover:bg-slate-200 dark:hover:bg-zinc-700 shadow-sm transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-slate-400 dark:focus:ring-zinc-600">
+        Go to Dashboard
+    </a>
 {% endblock %}

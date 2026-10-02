@@ -1,0 +1,329 @@
+<!-- Global Request Access Centralized Component -->
+<script>
+function globalAccessRequestModal() {
+    return {
+        isOpen: false,
+        submitting: false,
+        feedback: '',
+        isError: false,
+        formData: {
+            workspaceSlug: '',
+            workspaceId: '',
+            workspaceName: '',
+            action: 'task.create',
+            targetResource: '',
+            reason: '',
+            goalDescription: '',
+            urgency: 'NORMAL',
+            evidenceUrl: '',
+            duration: '1_HOUR'
+        },
+        open(detail) {
+            this.isOpen = true;
+            this.feedback = '';
+            this.isError = false;
+            if (detail) {
+                if (detail.action) this.formData.action = detail.action;
+                if (detail.workspaceSlug) this.formData.workspaceSlug = detail.workspaceSlug;
+                if (detail.workspaceId) this.formData.workspaceId = detail.workspaceId;
+                if (detail.workspaceName) this.formData.workspaceName = detail.workspaceName;
+                if (!this.formData.workspaceSlug && detail.workspaceName) {
+                    this.formData.workspaceSlug = detail.workspaceName;
+                }
+                if (detail.targetResource) this.formData.targetResource = detail.targetResource;
+            }
+            if (!this.formData.workspaceSlug) {
+                {% if active_workspace %}
+                this.formData.workspaceSlug = '{{ active_workspace.slug }}';
+                this.formData.workspaceId = '{{ active_workspace.id }}';
+                {% elif workspace %}
+                this.formData.workspaceSlug = '{{ workspace.slug }}';
+                this.formData.workspaceId = '{{ workspace.id }}';
+                {% endif %}
+            }
+        },
+        close() {
+            this.isOpen = false;
+        },
+        async submitForm(formEl) {
+            this.submitting = true;
+            this.feedback = '';
+            this.isError = false;
+            const formDataPayload = new FormData(formEl);
+            const csrfToken = (formEl.querySelector('[name=csrfmiddlewaretoken]') || {}).value || '';
+            try {
+                const response = await fetch(formEl.action, {
+                    method: 'POST',
+                    body: formDataPayload,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    }
+                });
+                let data = null;
+                const contentType = response.headers.get('content-type') || '';
+                if (contentType.includes('application/json')) {
+                    try {
+                        data = await response.json();
+                    } catch (jsonErr) {
+                        data = null;
+                    }
+                }
+                if (!data) {
+                    let extractedError = '';
+                    try {
+                        const rawText = await response.text();
+                        const titleMatch = rawText.match(/<title>([^<]+)<\/title>/i);
+                        if (titleMatch && titleMatch[1]) {
+                            extractedError = titleMatch[1].trim();
+                        }
+                    } catch (textErr) {}
+
+                    data = {
+                        status: response.ok ? 'ok' : 'error',
+                        message: extractedError || (response.status === 403 
+                            ? 'Permission denied or CSRF session expired. Please refresh the page.' 
+                            : (response.status === 404 ? 'Target endpoint not found.' : 'Server error (HTTP ' + response.status + ').'))
+                    };
+                }
+
+                this.submitting = false;
+                if (response.ok && data.status !== 'error') {
+                    this.feedback = data.message || 'Access request successfully dispatched to administrators.';
+                    this.isError = false;
+                    setTimeout(() => { this.close(); }, 2200);
+                } else {
+                    const errorDetail = (data && (data.message || data.error)) 
+                        ? (data.message || data.error)
+                        : ('Failed to submit request (HTTP ' + response.status + '). Please check required fields.');
+                    this.feedback = errorDetail;
+                    this.isError = true;
+                }
+            } catch (err) {
+                this.submitting = false;
+                console.error('Request Access Error:', err);
+                this.feedback = 'Submission failed: ' + (err.message || 'Please check your connection and try again.');
+                this.isError = true;
+            }
+        }
+    };
+}
+</script>
+
+<div x-data="globalAccessRequestModal()"
+     @open-access-request.window="open($event.detail)"
+     x-cloak>
+
+    <!-- Modal Backdrop -->
+    <div x-show="isOpen"
+         x-transition:enter="ease-out duration-200"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="ease-in duration-150"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm overflow-y-auto"
+         style="display: none;">
+
+        <div @click.away="close()"
+             class="w-full max-w-xl my-8 aether-card rounded-2xl shadow-2xl text-left space-y-5 overflow-hidden transition-all">
+
+            <!-- Modal Header -->
+            <div class="px-6 py-4 border-b border-slate-100 dark:border-zinc-800 flex items-center justify-between bg-slate-50/50 dark:bg-zinc-950/40">
+                <div class="flex items-center space-x-2.5">
+                    <span class="w-8 h-8 rounded-lg bg-purple-100 dark:bg-purple-950/70 text-purple-600 dark:text-purple-400 flex items-center justify-center font-bold">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                        </svg>
+                    </span>
+                    <div>
+                        <h3 class="text-base font-bold text-slate-900 dark:text-zinc-50">Request Access & Temporary Permission</h3>
+                        <p class="text-xs text-slate-500 dark:text-zinc-400">Scoped, auditable, and time-bounded without permanent role escalation.</p>
+                    </div>
+                </div>
+                <button type="button" @click="close()" class="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 text-sm focus:outline-none">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Form Content -->
+            <form action="{% url 'workspaces:submit_access_request' %}"
+                  method="POST"
+                  enctype="multipart/form-data"
+                  @submit.prevent="submitForm($el)"
+                  class="px-6 pb-6 space-y-4 text-xs">
+                {% csrf_token %}
+                <input type="hidden" name="workspace_id" :value="formData.workspaceId">
+
+                <!-- Requester Identity Card (Readonly) -->
+                <div class="p-3 bg-slate-50 dark:bg-zinc-950/60 rounded-xl border border-slate-200/70 dark:border-zinc-800 flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-8 h-8 rounded-full bg-purple-600 text-white font-bold flex items-center justify-center text-xs">
+                            {{ request.user.email|slice:":1"|upper }}
+                        </div>
+                        <div>
+                            <span class="font-bold text-slate-800 dark:text-zinc-200 block text-xs">
+                                {{ request.user.full_name|default:request.user.email }}
+                            </span>
+                            <span class="text-[11px] text-slate-400 dark:text-zinc-500 font-mono">
+                                ID: {{ request.user.contributor_id|default:"CONTRIB" }} • {{ request.user.email }}
+                            </span>
+                        </div>
+                    </div>
+                    <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-slate-200 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300">
+                        {{ request.user.get_role_display }}
+                    </span>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <!-- Workspace -->
+                    <div>
+                        <label class="block font-semibold text-slate-700 dark:text-zinc-300 mb-1">Target Workspace</label>
+                        <input type="text"
+                               name="workspace_slug"
+                               x-model="formData.workspaceSlug"
+                               placeholder="e.g. flora-ai"
+                               class="w-full text-xs rounded-lg bg-slate-50 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 p-2 text-slate-900 dark:text-zinc-100 font-mono focus:ring-2 focus:ring-purple-500 focus:outline-none">
+                    </div>
+
+                    <!-- Requested Action -->
+                    <div>
+                        <label class="block font-semibold text-slate-700 dark:text-zinc-300 mb-1">Requested Action</label>
+                        <select name="action"
+                                x-model="formData.action"
+                                class="w-full text-xs rounded-lg bg-slate-50 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 p-2 text-slate-900 dark:text-zinc-100 focus:ring-2 focus:ring-purple-500 focus:outline-none">
+                            <option value="task.create">Create Task</option>
+                            <option value="task.edit">Edit Task</option>
+                            <option value="task.delete">Delete Task</option>
+                            <option value="bug.create">Raise / Report Bug</option>
+                            <option value="bug.edit">Edit Bug</option>
+                            <option value="file.upload">Upload File / Asset</option>
+                            <option value="calendar.create">Create Calendar Event</option>
+                            <option value="meeting.create">Schedule Meeting</option>
+                            <option value="workspace.access">Workspace Access</option>
+                            <option value="custom">Custom Permission</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Target Resource (Optional) -->
+                <div>
+                    <label class="block font-semibold text-slate-700 dark:text-zinc-300 mb-1">
+                        Target Resource ID / Code <span class="font-normal text-slate-400 dark:text-zinc-500">(Optional)</span>
+                    </label>
+                    <input type="text"
+                           name="target_resource_id"
+                           x-model="formData.targetResource"
+                           placeholder="e.g. Task #619347 or Bug #B-882316"
+                           class="w-full text-xs rounded-lg bg-slate-50 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 p-2 text-slate-900 dark:text-zinc-100 font-mono focus:ring-2 focus:ring-purple-500 focus:outline-none">
+                </div>
+
+                <!-- Reason (Required) -->
+                <div>
+                    <label class="block font-semibold text-slate-700 dark:text-zinc-300 mb-1">
+                        Reason for Access <span class="text-rose-500 font-bold">*</span>
+                    </label>
+                    <textarea name="reason"
+                              x-model="formData.reason"
+                              required
+                              rows="2"
+                              placeholder="Explain why this access is required for your team deliverables..."
+                              class="w-full text-xs rounded-lg bg-slate-50 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 p-2.5 text-slate-900 dark:text-zinc-100 focus:ring-2 focus:ring-purple-500 focus:outline-none"></textarea>
+                </div>
+
+                <!-- Goal Description (Required for action/emergency) -->
+                <div>
+                    <label class="block font-semibold text-slate-700 dark:text-zinc-300 mb-1">
+                        What are you trying to accomplish? <span class="text-rose-500 font-bold">*</span>
+                    </label>
+                    <textarea name="goal_description"
+                              x-model="formData.goalDescription"
+                              rows="2"
+                              placeholder="Describe the exact action or emergency objective you need to complete..."
+                              class="w-full text-xs rounded-lg bg-slate-50 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 p-2.5 text-slate-900 dark:text-zinc-100 focus:ring-2 focus:ring-purple-500 focus:outline-none"></textarea>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <!-- Urgency -->
+                    <div>
+                        <label class="block font-semibold text-slate-700 dark:text-zinc-300 mb-1">Urgency</label>
+                        <select name="urgency"
+                                x-model="formData.urgency"
+                                class="w-full text-xs rounded-lg bg-slate-50 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 p-2 text-slate-900 dark:text-zinc-100 focus:ring-2 focus:ring-purple-500 focus:outline-none">
+                            <option value="NORMAL">Normal</option>
+                            <option value="URGENT">Urgent</option>
+                            <option value="EMERGENCY">Emergency (Blocker)</option>
+                        </select>
+                    </div>
+
+                    <!-- Requested Duration -->
+                    <div>
+                        <label class="block font-semibold text-slate-700 dark:text-zinc-300 mb-1">Requested Duration</label>
+                        <select name="requested_duration"
+                                x-model="formData.duration"
+                                class="w-full text-xs rounded-lg bg-slate-50 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 p-2 text-slate-900 dark:text-zinc-100 focus:ring-2 focus:ring-purple-500 focus:outline-none">
+                            <option value="ONE_TIME">One-time action</option>
+                            <option value="1_HOUR">1 hour</option>
+                            <option value="4_HOURS">4 hours</option>
+                            <option value="TODAY">Today (until midnight)</option>
+                            <option value="CUSTOM">Custom Duration</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Evidence (Screenshot or URL) -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                    <div>
+                        <label class="block font-semibold text-slate-700 dark:text-zinc-300 mb-1">
+                            Screenshot Evidence <span class="font-normal text-slate-400 dark:text-zinc-500">(Optional)</span>
+                        </label>
+                        <input type="file"
+                               name="evidence_file"
+                               accept="image/*"
+                               class="w-full text-[11px] text-slate-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-[11px] file:font-semibold file:bg-purple-50 dark:file:bg-purple-950/60 file:text-purple-700 dark:file:text-purple-300 hover:file:bg-purple-100">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-slate-700 dark:text-zinc-300 mb-1">
+                            Evidence URL <span class="font-normal text-slate-400 dark:text-zinc-500">(Optional)</span>
+                        </label>
+                        <input type="url"
+                               name="evidence_url"
+                               x-model="formData.evidenceUrl"
+                               placeholder="https://..."
+                               class="w-full text-xs rounded-lg bg-slate-50 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 p-2 text-slate-900 dark:text-zinc-100 font-mono focus:ring-2 focus:ring-purple-500 focus:outline-none">
+                    </div>
+                </div>
+
+                <!-- Feedback Banner -->
+                <div x-show="feedback"
+                     :class="isError ? 'bg-rose-50 dark:bg-rose-950/50 border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300' : 'bg-emerald-50 dark:bg-emerald-950/50 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300'"
+                     class="p-3 rounded-lg border text-xs leading-relaxed transition-all">
+                    <span x-text="feedback"></span>
+                </div>
+
+                <!-- Footer Action Buttons -->
+                <div class="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-zinc-800">
+                    <span class="text-[11px] text-slate-400 dark:text-zinc-500">
+                        Approval creates a time-limited grant.
+                    </span>
+                    <div class="flex items-center gap-2">
+                        <button type="button"
+                                @click="close()"
+                                class="px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-300 text-xs font-semibold transition-colors">
+                            Cancel
+                        </button>
+                        <button type="submit"
+                                :disabled="submitting"
+                                class="px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white text-xs font-semibold shadow-sm transition-colors flex items-center gap-1.5 cursor-pointer">
+                            <span x-show="!submitting">Submit Request</span>
+                            <span x-show="submitting">Submitting...</span>
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

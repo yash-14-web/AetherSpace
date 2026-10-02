@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{% block error_title_tag %}AetherSpace — Error{% endblock %}{% endblock %}
+
+{% block content %}
+<div class="min-h-[75vh] flex flex-col items-center justify-center py-8 px-4 sm:px-6 lg:px-8 text-center"
+     x-data="{ showRequestModal: false, submittingRequest: false, requestSent: false, requestFeedback: '' }">
+    <div class="w-full max-w-xl flex flex-col items-center space-y-6">
+
+        <!-- Error Status Code Number -->
+        <div class="space-y-2">
+            <h1 class="text-6xl sm:text-7xl font-black tracking-tight font-mono select-none {% block status_code_color %}text-blue-500 dark:text-blue-400{% endblock %}">
+                {% block status_code %}404{% endblock %}
+            </h1>
+
+            <!-- Headline -->
+            <h2 class="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-zinc-50">
+                {% block headline %}Page Not Found{% endblock %}
+            </h2>
+
+            <!-- Subtitle Description -->
+            <p class="text-sm sm:text-base text-slate-500 dark:text-zinc-400 max-w-md mx-auto leading-relaxed">
+                {% block description %}The page you're looking for doesn't exist or may have been moved.{% endblock %}
+            </p>
+
+            <!-- Optional Error Correlation ID (e.g. for 500) -->
+            {% block error_id_badge %}{% endblock %}
+        </div>
+
+        <!-- Center SVG Graphic Container with Ambient Glow -->
+        <div class="relative my-4 flex items-center justify-center select-none">
+            <!-- Ambient Glow Filter -->
+            <div class="absolute inset-0 rounded-full blur-3xl opacity-20 dark:opacity-25 pointer-events-none {% block glow_color %}bg-blue-500{% endblock %}"></div>
+            
+            <!-- Graphic Wrapper -->
+            <div class="relative z-10 w-48 h-48 sm:w-56 sm:h-56 flex items-center justify-center transition-transform duration-300 hover:scale-105">
+                {% block illustration %}{% endblock %}
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="pt-2 flex flex-wrap items-center justify-center gap-3 w-full max-w-xs sm:max-w-md">
+            {% block action_buttons %}
+                <a href="{% if user.is_authenticated %}{% url 'workspaces:dashboard' %}{% else %}{% url 'core:landing' %}{% endif %}"
+                   class="w-full sm:w-auto px-6 py-2.5 rounded-lg text-sm font-semibold text-white shadow-lg transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2 {% block primary_button_style %}bg-blue-600 hover:bg-blue-500 focus:ring-blue-500 shadow-blue-500/20{% endblock %}">
+                    {% block primary_button_text %}Go to Dashboard{% endblock %}
+                </a>
+                <button type="button" onclick="window.history.back()"
+                        class="w-full sm:w-auto px-6 py-2.5 rounded-lg text-sm font-medium aether-error-btn-secondary bg-slate-100 dark:bg-zinc-800 text-slate-800 dark:text-zinc-100 border border-slate-300 dark:border-zinc-700 hover:bg-slate-200 dark:hover:bg-zinc-700 shadow-sm transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-slate-400 dark:focus:ring-zinc-600">
+                    Go Back
+                </button>
+            {% endblock %}
+        </div>
+
+        <!-- Need Help Sub-footer -->
+        <div class="pt-4 text-xs text-slate-400 dark:text-zinc-500">
+            Need help?
+            <a href="{% url 'core:about' %}" class="text-blue-600 dark:text-blue-400 hover:underline font-medium ml-1">
+                Contact support
+            </a>
+        </div>
+    </div>
+
+    <!-- Optional Request Access Modal (for 403) -->
+    {% block extra_modals %}{% endblock %}
+</div>
+{% endblock %}

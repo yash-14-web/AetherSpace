@@ -1,0 +1,354 @@
+{% comment %}
+Reusable People Hover Profile Card
+Props:
+  target_user: User object or user dict with id, full_name, email, contributor_id, avatar
+  workspace_slug: string (optional)
+  target_member: WorkspaceMembership object (optional)
+  designation: string (optional)
+  tagging_role: string (optional)
+  workspace_name: string (optional)
+  show_name: boolean (optional, default false)
+  avatar_size: string (optional, default 'w-8 h-8')
+  extra_classes: string (optional)
+{% endcomment %}
+{% if target_user %}
+<div x-data="{
+    open: false,
+    showTimeout: null,
+    hideTimeout: null,
+    cardTop: 0,
+    cardLeft: 0,
+    placement: 'bottom',
+    loading: false,
+    loaded: false,
+    data: {
+        full_name: '{{ target_user.full_name|default:target_user.email|escapejs }}',
+        email: '{{ target_user.email|escapejs }}',
+        contributor_id: '{{ target_user.contributor_id|default:''|escapejs }}',
+        avatar: '{{ target_user.avatar|default:''|escapejs }}',
+        initials: '{{ target_user.full_name|slice:':2'|upper|default:'U'|escapejs }}',
+        system_role: '{{ target_user.get_role_display|default:target_user.role|default:'CONTRIBUTOR'|escapejs }}',
+        workspace_role: '{% if target_member %}{{ target_member.get_role_display|escapejs }}{% endif %}',
+        workspace_name: '{% if workspace_name %}{{ workspace_name|escapejs }}{% elif workspace %}{{ workspace.name|escapejs }}{% endif %}',
+        designation: '{% if designation %}{{ designation|escapejs }}{% elif target_member and target_member.functional_role %}{{ target_member.functional_role|escapejs }}{% endif %}',
+        tagging_role: '{% if tagging_role %}{{ tagging_role|escapejs }}{% elif target_member and target_member.role_tag %}{{ target_member.role_tag|escapejs }}{% endif %}',
+        functional_role: '{% if target_member and target_member.functional_role %}{{ target_member.functional_role|escapejs }}{% endif %}',
+        is_owner: {% if workspace and target_user.id == workspace.owner_id %}true{% else %}false{% endif %},
+        availability_status: '{{ target_user.availability_status|default:'available'|escapejs }}',
+        status_message: '{{ target_user.status_message|default:''|escapejs }}',
+        headline: '',
+        reporting_to_name: '',
+        reporting_to_role: '',
+        dm_url: '{% if workspace_slug and request.user.id != target_user.id %}/chat/w/{{ workspace_slug }}/dm/{{ target_user.id }}/{% endif %}',
+        mailto_url: 'mailto:{{ target_user.email|escapejs }}',
+        profile_url: '/auth/profile/u/{{ target_user.id }}/',
+        is_self: {% if request.user.id == target_user.id %}true{% else %}false{% endif %}
+    },
+    computePosition() {
+        const trigger = this.$refs.trigger || this.$el;
+        const rect = trigger.getBoundingClientRect();
+        const cardWidth = 320;  // w-80 = 20rem = 320px
+        const cardHeight = 280; // estimated max card height
+
+        const spaceAbove = rect.top;
+        const spaceBelow = window.innerHeight - rect.bottom;
+
+        // In comments, sidebars, and cards: if space below allows or is greater than space above, place below
+        if (spaceBelow >= cardHeight || spaceBelow >= spaceAbove) {
+            this.placement = 'bottom';
+            this.cardTop = rect.bottom + 6;
+        } else {
+            this.placement = 'top';
+            this.cardTop = rect.top - cardHeight - 6;
+        }
+
+        // Clamp vertically within viewport
+        if (this.cardTop < 10) this.cardTop = 10;
+        if (this.cardTop + cardHeight > window.innerHeight - 10) {
+            this.cardTop = Math.max(10, window.innerHeight - cardHeight - 10);
+        }
+
+        // Horizontal alignment: clamp within viewport
+        let left = rect.left;
+        if (left + cardWidth > window.innerWidth - 16) {
+            left = window.innerWidth - cardWidth - 16;
+        }
+        if (left < 16) left = 16;
+        this.cardLeft = left;
+    },
+    show() {
+        clearTimeout(this.hideTimeout);
+        if (this.open) return;
+        this.showTimeout = setTimeout(() => {
+            this.computePosition();
+            this.open = true;
+            if (!this.loaded) {
+                this.fetchData();
+            }
+        }, 120);
+    },
+    hide() {
+        clearTimeout(this.showTimeout);
+        this.hideTimeout = setTimeout(() => {
+            this.open = false;
+        }, 180);
+    },
+    cancelHide() {
+        clearTimeout(this.hideTimeout);
+    },
+    async fetchData() {
+        this.loading = true;
+        try {
+            const wsParam = '{{ workspace_slug|default:''|escapejs }}';
+            const url = `/auth/api/user-card/{{ target_user.id }}/?workspace=${encodeURIComponent(wsParam)}`;
+            const res = await fetch(url);
+            if (res.ok) {
+                const json = await res.json();
+                this.data = { ...this.data, ...json };
+                this.loaded = true;
+            }
+        } catch (e) {
+            console.error('Failed to load user card:', e);
+        } finally {
+            this.loading = false;
+        }
+    }
+}" 
+x-init="
+    window.addEventListener('scroll', () => { if (open) open = false; }, { passive: true, capture: true });
+"
+@mouseenter="show()" 
+@mouseleave="hide()" 
+class="relative inline-flex items-center {{ extra_classes|default:'' }}">
+
+    {# Trigger with Full Keyboard Accessibility #}
+    <div x-ref="trigger" 
+         tabindex="0"
+         role="button"
+         aria-haspopup="dialog"
+         :aria-expanded="open"
+         @focus="show()"
+         @blur="hide()"
+         @keydown.escape="open = false"
+         class="inline-flex items-center gap-2 cursor-pointer group focus:outline-none focus:ring-2 focus:ring-purple-500/50 rounded-lg">
+        {% if avatar_size != 'hidden' %}
+            {% include 'components/avatar.html' with user=target_user size=avatar_size text_size='text-xs' %}
+        {% endif %}
+        {% if show_name %}
+        <span class="text-xs font-medium text-slate-700 dark:text-zinc-200 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition truncate max-w-[140px]">
+            {{ target_user.full_name|default:target_user.email }}
+        </span>
+        {% endif %}
+    </div>
+
+    {# Teleported Popover Card (Bulletproof Portal immune to container overflow clipping) #}
+    <template x-teleport="body">
+        <div x-show="open"
+             @mouseenter="cancelHide()"
+             @mouseleave="hide()"
+             x-transition:enter="transition ease-out duration-150"
+             x-transition:enter-start="opacity-0 scale-95"
+             x-transition:enter-end="opacity-100 scale-100"
+             x-transition:leave="transition ease-in duration-100"
+             x-transition:leave-start="opacity-100 scale-100"
+             x-transition:leave-end="opacity-0 scale-95"
+             x-cloak
+             :style="`top: ${cardTop}px; left: ${cardLeft}px;`"
+             :class="placement === 'bottom' ? 'before:-top-3 before:h-3' : 'before:-bottom-3 before:h-3'"
+             class="aether-hover-card fixed z-[99999] w-80 rounded-2xl text-left pointer-events-auto shadow-2xl before:absolute before:inset-x-0 overflow-hidden bg-white dark:bg-[#111827] border border-slate-200 dark:border-zinc-800">
+
+            <!-- Decorative Gradient Top Accent Bar -->
+            <div class="h-1.5 w-full bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600"></div>
+
+            <div class="p-4 space-y-3">
+                <!-- 1. Header: Avatar + User Identity -->
+                <div class="flex items-start gap-3">
+                    <!-- Avatar with Status Dot -->
+                    <div class="relative w-12 h-12 rounded-full ring-2 ring-blue-500/30 overflow-hidden bg-slate-100 dark:bg-zinc-800 flex items-center justify-center shrink-0">
+                        <template x-if="data.avatar && !data.avatar.startsWith('preset:')">
+                            <img :src="data.avatar" alt="" class="w-full h-full object-cover">
+                        </template>
+                        <template x-if="!data.avatar || data.avatar.startsWith('preset:')">
+                            <div class="w-full h-full bg-gradient-to-tr from-blue-600 to-indigo-700 text-white font-bold text-sm flex items-center justify-center">
+                                <span x-text="data.initials"></span>
+                            </div>
+                        </template>
+
+                        <!-- Online/Offline Status Indicator Dot -->
+                        <span class="absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white dark:border-[#111827]"
+                              :class="{
+                                  'bg-emerald-500': data.availability_status === 'available' || !data.availability_status,
+                                  'bg-rose-500': data.availability_status === 'busy',
+                                  'bg-red-600': data.availability_status === 'dnd',
+                                  'bg-amber-400': data.availability_status === 'away',
+                                  'bg-slate-400': data.availability_status === 'ooo',
+                                  'bg-zinc-500': data.availability_status === 'offline'
+                              }">
+                        </span>
+                    </div>
+
+                    <!-- Name, Email, & ID -->
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-1.5 flex-wrap">
+                            <h4 class="text-sm font-black text-slate-900 dark:text-zinc-50 truncate" x-text="data.full_name"></h4>
+                            
+                            <template x-if="data.is_owner">
+                                <span class="text-[9px] px-1.5 py-0.2 rounded font-black uppercase tracking-wider bg-amber-50 text-amber-700 dark:bg-amber-950/70 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                                    ★ Owner
+                                </span>
+                            </template>
+                        </div>
+
+                        <!-- Email -->
+                        <p class="text-xs text-slate-500 dark:text-zinc-400 truncate mt-0.5" x-text="data.email"></p>
+
+                        <!-- Contributor ID & Status Pill -->
+                        <div class="flex items-center gap-2 mt-1 flex-wrap">
+                            <template x-if="data.contributor_id">
+                                <span class="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] font-mono font-bold bg-blue-50 dark:bg-blue-950/60 text-aether-blue dark:text-sky-400 border border-blue-200/80 dark:border-blue-900/50">
+                                    <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2" />
+                                    </svg>
+                                    <span x-text="data.contributor_id"></span>
+                                </span>
+                            </template>
+
+                            <span class="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full text-[9px] font-semibold border"
+                                  :class="{
+                                      'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20': data.availability_status === 'available' || !data.availability_status,
+                                      'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20': data.availability_status === 'busy',
+                                      'bg-red-600/10 text-red-600 dark:text-red-400 border-red-600/20': data.availability_status === 'dnd',
+                                      'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20': data.availability_status === 'away',
+                                      'bg-slate-400/10 text-slate-600 dark:text-slate-400 border-slate-400/20': data.availability_status === 'ooo',
+                                      'bg-zinc-500/10 text-zinc-500 dark:text-zinc-400 border-zinc-500/20': data.availability_status === 'offline'
+                                  }">
+                                <span class="w-1.5 h-1.5 rounded-full"
+                                      :class="{
+                                          'bg-emerald-500': data.availability_status === 'available' || !data.availability_status,
+                                          'bg-rose-500': data.availability_status === 'busy',
+                                          'bg-red-600': data.availability_status === 'dnd',
+                                          'bg-amber-400': data.availability_status === 'away',
+                                          'bg-slate-400': data.availability_status === 'ooo',
+                                          'bg-zinc-500': data.availability_status === 'offline'
+                                      }"></span>
+                                <span x-text="data.availability_status ? (data.availability_status === 'dnd' ? 'Do Not Disturb' : (data.availability_status === 'ooo' ? 'Out of Office' : data.availability_status.charAt(0).toUpperCase() + data.availability_status.slice(1))) : 'Available'"></span>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. PRIMARY RESPONSIBILITY & SCOPE STRIP (User requirement: {designation role • tagging role • workspace name}) -->
+                <div class="p-2.5 rounded-xl bg-slate-50 dark:bg-zinc-900/90 border border-slate-200/80 dark:border-zinc-800/80 shadow-2xs space-y-1">
+                    <div class="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500">
+                        <span class="flex items-center gap-1">
+                            <svg class="w-3 h-3 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                            </svg>
+                            Role &amp; Responsibility
+                        </span>
+                        <template x-if="data.workspace_role">
+                            <span class="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider"
+                                  :class="{
+                                      'bg-purple-50 dark:bg-purple-950/70 text-purple-600 dark:text-purple-300 border border-purple-200 dark:border-purple-800/60': data.workspace_role === 'Admin',
+                                      'bg-blue-50 dark:bg-blue-950/70 text-blue-600 dark:text-blue-300 border border-blue-200 dark:border-blue-800/60': data.workspace_role === 'Manager',
+                                      'bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 border border-slate-200 dark:border-zinc-700': data.workspace_role !== 'Admin' && data.workspace_role !== 'Manager'
+                                  }"
+                                  x-text="data.workspace_role">
+                            </span>
+                        </template>
+                    </div>
+
+                    <!-- Highlight: {designation role • tagging role • workspace name} -->
+                    <div class="flex items-center gap-1.5 flex-wrap text-xs pt-0.5">
+                        <!-- Designation (e.g. Engineering Lead, Full Stack Developer, QA / Test Engineer, Backend Developer) -->
+                        <span class="font-bold text-slate-900 dark:text-zinc-100"
+                              x-text="data.designation || data.functional_role || 'Team Member'">
+                        </span>
+
+                        <!-- Bullet separator -->
+                        <template x-if="data.tagging_role">
+                            <span class="text-slate-400 dark:text-zinc-500 font-black text-[10px]">&bull;</span>
+                        </template>
+
+                        <!-- Tagging Role Badge (e.g. Management, Backend, Full Stack, QA) -->
+                        <template x-if="data.tagging_role">
+                            <span class="px-2 py-0.5 rounded-md text-[10px] font-bold tracking-wide bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800/60"
+                                  x-text="data.tagging_role">
+                            </span>
+                        </template>
+
+                        <!-- Bullet separator -->
+                        <template x-if="data.workspace_name">
+                            <span class="text-slate-400 dark:text-zinc-500 font-black text-[10px]">&bull;</span>
+                        </template>
+
+                        <!-- Workspace Name (e.g. AetherSpace Core) -->
+                        <template x-if="data.workspace_name">
+                            <span class="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-600 dark:text-zinc-300 truncate max-w-[150px]"
+                                  :title="data.workspace_name">
+                                <svg class="w-3 h-3 text-blue-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                                </svg>
+                                <span x-text="data.workspace_name"></span>
+                            </span>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- 3. Reports To (Hierarchy Line) -->
+                <template x-if="data.reporting_to_name">
+                    <div class="px-2.5 py-1.5 rounded-lg bg-slate-100/70 dark:bg-zinc-800/40 border border-slate-200/60 dark:border-zinc-800/80 flex items-center justify-between text-[11px]">
+                        <div class="flex items-center gap-1.5 text-slate-500 dark:text-zinc-400 truncate">
+                            <svg class="w-3.5 h-3.5 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                            </svg>
+                            <span>Reports to:</span>
+                            <span class="font-bold text-slate-800 dark:text-zinc-200 truncate" x-text="data.reporting_to_name"></span>
+                        </div>
+                        <template x-if="data.reporting_to_role">
+                            <span class="text-[10px] font-medium text-slate-400 shrink-0 ml-1" x-text="data.reporting_to_role"></span>
+                        </template>
+                    </div>
+                </template>
+
+                <!-- 4. Custom Status Message / Headline (if available) -->
+                <template x-if="data.status_message">
+                    <div class="px-2.5 py-1 rounded-lg bg-blue-50/50 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900/40 flex items-center gap-1.5 text-xs text-slate-700 dark:text-zinc-200 italic">
+                        <span>💬</span>
+                        <span class="truncate" x-text="data.status_message"></span>
+                    </div>
+                </template>
+                <template x-if="data.headline && !data.status_message">
+                    <p class="text-[11px] text-slate-500 dark:text-zinc-400 line-clamp-2 italic px-0.5" x-text="data.headline"></p>
+                </template>
+
+                <!-- 5. Quick Actions -->
+                <div class="pt-2 border-t border-slate-100 dark:border-zinc-800/80 grid grid-cols-2 gap-2">
+                    <template x-if="data.dm_url">
+                        <a :href="data.dm_url" class="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-aether-blue hover:bg-blue-700 text-white transition shadow-sm">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                            </svg>
+                            <span>Message</span>
+                        </a>
+                    </template>
+                    <template x-if="!data.dm_url">
+                        <a :href="data.mailto_url" class="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700 transition">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                            </svg>
+                            <span>Email</span>
+                        </a>
+                    </template>
+                    <a :href="data.profile_url" class="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700 transition">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                        <span>Profile</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </template>
+</div>
+{% endif %}

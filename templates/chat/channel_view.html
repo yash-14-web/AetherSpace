@@ -1,5 +1,5 @@
 {% extends 'chat/base_chat.html' %}
-{% load static meeting_tags %}
+{% load static meeting_tags rich_text %}
 
 {% block chat_content %}
 <div class="flex-1 flex overflow-hidden" 
@@ -18,23 +18,113 @@
         <!-- 1. Channel Header matching Panel 2 -->
         <div class="h-14 px-4 sm:px-6 border-b border-slate-200 dark:border-zinc-800 flex items-center justify-between bg-white dark:bg-[#0c1322] shrink-0 z-10">
             <div class="flex items-center space-x-3 min-w-0">
+                <button type="button" 
+                        @click="toggleChatNav()" 
+                        x-show="chatNavCollapsed"
+                        class="hidden lg:flex items-center space-x-1 px-2 py-1 text-xs font-semibold rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 hover:bg-blue-100 transition mr-1 shrink-0" 
+                        title="Show Channels Sidebar">
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                    </svg>
+                    <span>Channels</span>
+                </button>
                 <span class="text-lg font-bold text-slate-400 dark:text-zinc-500">
                     {% if channel.is_private %}🔒{% else %}#{% endif %}
                 </span>
-                <div class="min-w-0">
-                    <div class="flex items-center space-x-2">
-                        <h2 class="text-sm font-bold text-slate-900 dark:text-zinc-100 truncate">
-                            {{ channel.name }}
-                        </h2>
-                        {% if channel.is_private %}
-                            <span class="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-900/60">
-                                Private
-                            </span>
-                        {% endif %}
-                    </div>
-                    <p class="text-xs text-slate-500 dark:text-zinc-400 truncate">
+                <div class="min-w-0 relative">
+                    <button type="button" 
+                            @click="spaceMenuOpen = !spaceMenuOpen" 
+                            class="flex items-center space-x-1.5 hover:bg-slate-100 dark:hover:bg-zinc-800/60 rounded-xl px-2 py-1 -ml-2 transition-colors text-left group">
+                        <div class="flex items-center space-x-2 truncate">
+                            <h2 class="text-sm font-bold text-slate-900 dark:text-zinc-100 truncate">
+                                {{ channel.name }}
+                            </h2>
+                            {% if channel.is_private %}
+                                <span class="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-900/60">
+                                    Private
+                                </span>
+                            {% endif %}
+                        </div>
+                        <svg class="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-600 dark:group-hover:text-zinc-300 transition-transform duration-200" 
+                             :class="{'rotate-180': spaceMenuOpen}"
+                             fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </button>
+                    <p class="text-xs text-slate-500 dark:text-zinc-400 truncate -mt-0.5 pl-0.5">
                         {{ channel.topic|default:channel.description|default:"No topic set" }}
                     </p>
+
+                    <!-- Google Chat Style Space Dropdown Menu -->
+                    <div x-show="spaceMenuOpen" 
+                         @click.away="spaceMenuOpen = false"
+                         x-transition:enter="transition ease-out duration-100"
+                         x-transition:enter-start="opacity-0 scale-95"
+                         x-transition:enter-end="opacity-100 scale-100"
+                         x-transition:leave="transition ease-in duration-75"
+                         x-transition:leave-start="opacity-100 scale-100"
+                         x-transition:leave-end="opacity-0 scale-95"
+                         class="absolute left-0 top-full mt-1.5 w-60 bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 rounded-2xl shadow-xl py-1.5 z-50 text-xs"
+                         style="display: none;">
+                        
+                        <!-- Space details -->
+                        <a href="{% url 'chat:channel_details' slug=workspace.slug channel_slug=channel.slug %}" 
+                           class="flex items-center space-x-2.5 px-4 py-2 text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800/60 transition-colors">
+                            <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                            <span>Space details</span>
+                        </a>
+
+                        <!-- Manage members -->
+                        <a href="{% url 'chat:channel_details' slug=workspace.slug channel_slug=channel.slug %}?tab=members" 
+                           class="flex items-center space-x-2.5 px-4 py-2 text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800/60 transition-colors">
+                            <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                            </svg>
+                            <span>Manage members</span>
+                        </a>
+
+                        <!-- Add people -->
+                        {% if can_manage or not channel.is_private %}
+                        <button type="button" 
+                                @click="spaceMenuOpen = false; addPeopleModal = true"
+                                class="w-full flex items-center space-x-2.5 px-4 py-2 text-left text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800/60 transition-colors">
+                            <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                            </svg>
+                            <span>Add people & apps</span>
+                        </button>
+                        {% endif %}
+
+                        {% if not is_default or can_delete %}
+                        <hr class="border-slate-100 dark:border-zinc-800 my-1.5">
+                        {% endif %}
+
+                        <!-- Leave space -->
+                        {% if not is_default %}
+                        <button type="button" 
+                                @click="spaceMenuOpen = false; leaveSpaceModal = true"
+                                class="w-full flex items-center space-x-2.5 px-4 py-2 text-left text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800/60 transition-colors">
+                            <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                            </svg>
+                            <span>Leave space</span>
+                        </button>
+                        {% endif %}
+
+                        <!-- Delete space -->
+                        {% if can_delete %}
+                        <button type="button" 
+                                @click="spaceMenuOpen = false; deleteSpaceModal = true"
+                                class="w-full flex items-center space-x-2.5 px-4 py-2 text-left text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors font-medium">
+                            <svg class="w-4 h-4 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                            <span>Delete space</span>
+                        </button>
+                        {% endif %}
+                    </div>
                 </div>
             </div>
 
@@ -119,17 +209,15 @@
             <!-- Existing Server-Rendered Messages -->
             {% for msg in chat_messages %}
                 <div class="flex items-start space-x-3 group relative p-2 -mx-2 rounded-xl hover:bg-slate-50 dark:hover:bg-zinc-800/40 transition-colors" id="msg-{{ msg.id }}">
-                    <!-- Avatar -->
-                    <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-bold text-xs flex items-center justify-center shrink-0">
-                        {{ msg.sender.first_name|slice:":1"|default:msg.sender.email|slice:":1"|upper }}
+                    <!-- Avatar with Hover Card -->
+                    <div class="shrink-0">
+                        {% include 'components/people_hover_card.html' with target_user=msg.sender workspace_slug=workspace.slug show_name=False avatar_size='w-8 h-8' %}
                     </div>
 
                     <!-- Body -->
                     <div class="flex-1 min-w-0">
                         <div class="flex items-baseline space-x-2">
-                            <span class="text-xs font-bold text-slate-900 dark:text-zinc-100">
-                                {{ msg.sender.full_name|default:msg.sender.email }}
-                            </span>
+                            {% include 'components/people_hover_card.html' with target_user=msg.sender workspace_slug=workspace.slug show_name=True avatar_size='hidden' %}
                             <span class="text-[10px] text-slate-400 dark:text-zinc-500">
                                 {{ msg.created_at|date:"h:i A" }}
                             </span>
@@ -199,7 +287,7 @@
                             {% endwith %}
                         {% else %}
                             <div class="text-xs text-slate-800 dark:text-zinc-200 mt-1 whitespace-pre-line break-words leading-relaxed font-normal">
-                                {{ msg.content }}
+                                {{ msg.content|render_rich_text }}
                             </div>
                         {% endif %}
 
@@ -223,24 +311,50 @@
                             </div>
                         {% endif %}
 
-                        <!-- Emoji Reactions Badges -->
+                        <!-- Emoji Reactions Badges (Google Chat style with counts & active state) -->
                         <div class="flex items-center flex-wrap gap-1.5 mt-2" id="reactions-{{ msg.id }}">
-                            {% for r in msg.reactions.all %}
+                            {% for r in msg.grouped_reactions %}
                                 <button type="button" @click="toggleReaction('{{ msg.id }}', '{{ r.emoji }}')"
                                         id="reaction-btn-{{ msg.id }}-{{ r.emoji }}"
-                                        class="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-xs bg-slate-100 dark:bg-zinc-800 hover:bg-blue-50 dark:hover:bg-blue-950/60 border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 transition-transform active:scale-95">
+                                        class="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-xs transition-all active:scale-95 {% if request.user.id in r.user_ids %}bg-blue-50/90 dark:bg-blue-950/60 border border-blue-400 dark:border-blue-600 text-blue-700 dark:text-blue-300 font-semibold ring-1 ring-blue-400/30{% else %}bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 dark:hover:bg-zinc-700 border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-300{% endif %}">
                                     <span>{{ r.emoji }}</span>
+                                    {% if r.count > 1 %}
+                                        <span class="text-[10px] font-bold ml-1">{{ r.count }}</span>
+                                    {% endif %}
                                 </button>
                             {% endfor %}
                         </div>
                     </div>
 
-                    <!-- Message Floating Action Menu -->
-                    <div class="absolute right-2 top-2 hidden group-hover:flex items-center space-x-1 bg-white dark:bg-obsidian-950 border border-slate-200 dark:border-zinc-700 rounded-lg p-0.5 shadow-sm">
-                        <button type="button" @click="toggleReaction('{{ msg.id }}', '👍')" class="p-1 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-xs transition-transform active:scale-125" title="React 👍">👍</button>
-                        <button type="button" @click="toggleReaction('{{ msg.id }}', '❤️')" class="p-1 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-xs transition-transform active:scale-125" title="React ❤️">❤️</button>
-                        <button type="button" @click="toggleReaction('{{ msg.id }}', '🚀')" class="p-1 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-xs transition-transform active:scale-125" title="React 🚀">🚀</button>
-                        <button type="button" @click="togglePin('{{ msg.id }}')" class="p-1 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-xs text-slate-500" title="Pin / Unpin">📌</button>
+                    <!-- Message Floating Action Menu (Google Chat style) -->
+                    <div class="absolute right-2 top-2 hidden group-hover:flex items-center space-x-0.5 bg-white/95 dark:bg-[#111a2e]/95 backdrop-blur-sm border border-slate-200 dark:border-zinc-700 rounded-lg p-0.5 shadow-md z-10" x-data="{ showMoreEmojis: false }">
+                        <button type="button" @click="toggleReaction('{{ msg.id }}', '😊')" class="p-1.5 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-xs transition-transform active:scale-125" title="React 😊">😊</button>
+                        <button type="button" @click="toggleReaction('{{ msg.id }}', '👍')" class="p-1.5 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-xs transition-transform active:scale-125" title="React 👍">👍</button>
+                        <button type="button" @click="toggleReaction('{{ msg.id }}', '❤️')" class="p-1.5 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-xs transition-transform active:scale-125" title="React ❤️">❤️</button>
+                        <button type="button" @click="toggleReaction('{{ msg.id }}', '😂')" class="p-1.5 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-xs transition-transform active:scale-125" title="React 😂">😂</button>
+                        
+                        <div class="relative">
+                            <button type="button" @click="showMoreEmojis = !showMoreEmojis" class="p-1.5 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-xs text-slate-500 hover:text-slate-700 dark:hover:text-zinc-200 font-bold" title="More Reactions">➕</button>
+                            <div x-show="showMoreEmojis" @click.outside="showMoreEmojis = false" style="display: none;" class="absolute right-0 top-full mt-1 p-1.5 bg-white dark:bg-[#18181b] border border-slate-200 dark:border-zinc-700 rounded-xl shadow-xl flex items-center gap-1 z-30">
+                                <button type="button" @click="toggleReaction('{{ msg.id }}', '🚀'); showMoreEmojis = false" class="p-1.5 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-xs active:scale-125" title="🚀">🚀</button>
+                                <button type="button" @click="toggleReaction('{{ msg.id }}', '🎉'); showMoreEmojis = false" class="p-1.5 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-xs active:scale-125" title="🎉">🎉</button>
+                                <button type="button" @click="toggleReaction('{{ msg.id }}', '🔥'); showMoreEmojis = false" class="p-1.5 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-xs active:scale-125" title="🔥">🔥</button>
+                                <button type="button" @click="toggleReaction('{{ msg.id }}', '👀'); showMoreEmojis = false" class="p-1.5 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-xs active:scale-125" title="👀">👀</button>
+                                <button type="button" @click="toggleReaction('{{ msg.id }}', '👏'); showMoreEmojis = false" class="p-1.5 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-xs active:scale-125" title="👏">👏</button>
+                                <button type="button" @click="toggleReaction('{{ msg.id }}', '✅'); showMoreEmojis = false" class="p-1.5 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-xs active:scale-125" title="✅">✅</button>
+                            </div>
+                        </div>
+
+                        <span class="h-3.5 w-px bg-slate-200 dark:bg-zinc-700 mx-0.5"></span>
+
+                        <button type="button" @click="setReply('{{ msg.id }}', '{{ msg.sender.full_name|default:msg.sender.email|escapejs }}', '{{ msg.content|truncatechars:80|escapejs }}')" class="flex items-center space-x-1 px-2 py-1 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-xs text-slate-600 dark:text-zinc-300 transition" title="Reply to message">
+                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/>
+                            </svg>
+                            <span class="text-[11px] font-medium hidden sm:inline">Reply</span>
+                        </button>
+
+                        <button type="button" @click="togglePin('{{ msg.id }}')" class="p-1.5 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-xs text-slate-500" title="Pin / Unpin">📌</button>
                     </div>
                 </div>
             {% endfor %}
@@ -284,30 +398,129 @@
                             </div>
                         </template>
                         <template x-if="!item.content || !item.content.startsWith('CALL_INVITE:')">
-                            <div class="text-xs text-slate-800 dark:text-zinc-200 mt-1 whitespace-pre-line break-words leading-relaxed font-normal" x-text="item.content"></div>
+                            <div class="text-xs text-slate-800 dark:text-zinc-200 mt-1 whitespace-pre-line break-words leading-relaxed font-normal" x-html="formatMessageContent(item.content)"></div>
                         </template>
                         <!-- Live Reactions Container -->
                         <div class="flex items-center flex-wrap gap-1.5 mt-2" :id="'reactions-' + item.id"></div>
                     </div>
                     <!-- Action Menu -->
-                    <div class="absolute right-2 top-2 hidden group-hover:flex items-center space-x-1 bg-white dark:bg-obsidian-950 border border-slate-200 dark:border-zinc-700 rounded-lg p-0.5 shadow-sm">
+                    <div class="absolute right-2 top-2 hidden group-hover:flex items-center space-x-0.5 bg-white dark:bg-[#111a2e] border border-slate-200 dark:border-zinc-700 rounded-lg p-0.5 shadow-md z-10" x-data="{ showMoreEmojis: false }">
                         <button type="button" @click="toggleReaction(item.id, '👍')" class="p-1 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-xs transition-transform active:scale-125" title="React 👍">👍</button>
                         <button type="button" @click="toggleReaction(item.id, '❤️')" class="p-1 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-xs transition-transform active:scale-125" title="React ❤️">❤️</button>
                         <button type="button" @click="toggleReaction(item.id, '🚀')" class="p-1 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-xs transition-transform active:scale-125" title="React 🚀">🚀</button>
+                        <button type="button" @click="toggleReaction(item.id, '🎉')" class="p-1 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-xs transition-transform active:scale-125" title="React 🎉">🎉</button>
+                        <button type="button" @click="toggleReaction(item.id, '😂')" class="p-1 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-xs transition-transform active:scale-125" title="React 😂">😂</button>
+                        <button type="button" @click="toggleReaction(item.id, '🔥')" class="p-1 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-xs transition-transform active:scale-125" title="React 🔥">🔥</button>
+
+                        <div class="relative">
+                            <button type="button" @click="showMoreEmojis = !showMoreEmojis" class="p-1 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-xs text-slate-500 hover:text-slate-700 dark:hover:text-zinc-200" title="More Reactions">➕</button>
+                            <div x-show="showMoreEmojis" @click.outside="showMoreEmojis = false" style="display: none;" class="absolute right-0 top-full mt-1 p-1.5 bg-white dark:bg-[#18181b] border border-slate-200 dark:border-zinc-700 rounded-xl shadow-xl flex items-center gap-1 z-30">
+                                <button type="button" @click="toggleReaction(item.id, '👀'); showMoreEmojis = false" class="p-1 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-xs active:scale-125" title="👀">👀</button>
+                                <button type="button" @click="toggleReaction(item.id, '💯'); showMoreEmojis = false" class="p-1 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-xs active:scale-125" title="💯">💯</button>
+                                <button type="button" @click="toggleReaction(item.id, '👏'); showMoreEmojis = false" class="p-1 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-xs active:scale-125" title="👏">👏</button>
+                                <button type="button" @click="toggleReaction(item.id, '💡'); showMoreEmojis = false" class="p-1 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-xs active:scale-125" title="💡">💡</button>
+                                <button type="button" @click="toggleReaction(item.id, '✅'); showMoreEmojis = false" class="p-1 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-xs active:scale-125" title="✅">✅</button>
+                                <button type="button" @click="toggleReaction(item.id, '👎'); showMoreEmojis = false" class="p-1 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-xs active:scale-125" title="👎">👎</button>
+                            </div>
+                        </div>
+
+                        <span class="h-3 w-px bg-slate-200 dark:bg-zinc-700 mx-0.5"></span>
+
+                        <button type="button" @click="setReply(item.id, item.sender_name, (item.content || '').substring(0, 80))" class="flex items-center space-x-1 px-1.5 py-1 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-xs text-slate-600 dark:text-zinc-300 transition" title="Reply to message">
+                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/>
+                            </svg>
+                            <span class="text-[11px] font-medium hidden sm:inline">Reply</span>
+                        </button>
                     </div>
                 </div>
             </template>
         </div>
 
         <!-- 3. Message Input Footer matching Panel 2 -->
-        <div class="p-4 border-t border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322]">
+        <div class="p-4 border-t border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] relative">
             {% if can_post %}
+                <!-- Mention Autocomplete Popup Dropdown -->
+                <div x-show="showMentions" @click.outside="showMentions = false" style="display: none;"
+                     class="absolute bottom-full left-4 mb-2 w-80 max-h-80 overflow-y-auto rounded-2xl shadow-2xl bg-white dark:bg-[#18181b] border border-slate-200 dark:border-zinc-800 z-50 py-1.5 focus:outline-none">
+                    
+                    <!-- PEOPLE SECTION -->
+                    <template x-if="people.length > 0">
+                        <div>
+                            <div class="px-3 pt-2 pb-1 text-[10px] font-bold tracking-wider text-slate-400 dark:text-zinc-500 uppercase">
+                                Teammates
+                            </div>
+                            <template x-for="(p, pIdx) in people" :key="'p-' + p.id">
+                                <div @click="selectMention(p)"
+                                     @mouseenter="activeIndex = pIdx"
+                                     :class="activeIndex === pIdx ? 'bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-zinc-50' : 'text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800/60'"
+                                     class="px-3 py-2 flex items-center space-x-2.5 cursor-pointer transition-colors text-xs">
+                                    <template x-if="p.avatar">
+                                        <img :src="p.avatar" class="w-7 h-7 rounded-full object-cover ring-1 ring-slate-200 dark:ring-zinc-700 shrink-0">
+                                    </template>
+                                    <template x-if="!p.avatar">
+                                        <div class="w-7 h-7 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-bold text-[10px] flex items-center justify-center shrink-0 shadow-xs">
+                                            <span x-text="p.initials"></span>
+                                        </div>
+                                    </template>
+                                    <div class="min-w-0 flex-1">
+                                        <div class="flex items-center justify-between gap-1">
+                                            <span class="font-bold truncate text-slate-900 dark:text-zinc-100 text-xs" x-text="p.full_name"></span>
+                                            <template x-if="p.contributor_id">
+                                                <span class="font-mono text-[9px] font-bold text-blue-600 dark:text-blue-400 px-1 py-0.2 rounded bg-blue-50 dark:bg-blue-950/60 shrink-0" x-text="p.contributor_id"></span>
+                                            </template>
+                                        </div>
+                                        <span class="text-[11px] text-slate-400 dark:text-zinc-400 truncate block" x-text="'@' + (p.username || p.email)"></span>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+
+                    <!-- FILES SECTION -->
+                    <template x-if="files.length > 0">
+                        <div class="mt-1 border-t border-slate-100 dark:border-zinc-800">
+                            <div class="px-3 pt-2 pb-1 text-[10px] font-bold tracking-wider text-slate-400 dark:text-zinc-500 uppercase">
+                                Files
+                            </div>
+                            <template x-for="(f, fIdx) in files" :key="'f-' + f.id">
+                                <div @click="selectMention(f)"
+                                     @mouseenter="activeIndex = (people.length + fIdx)"
+                                     :class="activeIndex === (people.length + fIdx) ? 'bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-zinc-50' : 'text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800/60'"
+                                     class="px-3 py-2 flex items-center space-x-2.5 cursor-pointer transition-colors text-xs">
+                                    <div class="w-7 h-7 rounded-lg bg-slate-100 dark:bg-zinc-800 flex items-center justify-center text-slate-500 dark:text-zinc-400 shrink-0 border border-slate-200 dark:border-zinc-700">
+                                        📄
+                                    </div>
+                                    <div class="min-w-0 flex-1">
+                                        <span class="font-medium truncate text-slate-800 dark:text-zinc-200 text-xs block" x-text="f.name"></span>
+                                        <span class="text-[10px] text-slate-400 dark:text-zinc-500 block" x-text="f.size"></span>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+                </div>
+
                 <form action="{% url 'chat:channel_view' slug=workspace.slug channel_slug=channel.slug %}" 
                       method="POST" 
                       enctype="multipart/form-data" 
                       @submit.prevent="handleSendMessage($event)">
                     {% csrf_token %}
                     
+                    <!-- Replying To Banner Preview -->
+                    <div x-show="replyingTo" style="display: none;" class="flex items-center justify-between px-3 py-1.5 mb-2 bg-blue-50/90 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-900/60 rounded-xl text-xs text-slate-700 dark:text-zinc-300 animate-fadeIn">
+                        <div class="flex items-center space-x-2 truncate">
+                            <span class="text-blue-600 dark:text-blue-400 font-bold flex items-center gap-1 shrink-0">
+                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>
+                                Replying to <span x-text="'@' + (replyingTo ? replyingTo.author : '')"></span>:
+                            </span>
+                            <span class="text-slate-500 dark:text-zinc-400 truncate italic" x-text="replyingTo ? replyingTo.snippet : ''"></span>
+                        </div>
+                        <button type="button" @click="cancelReply()" class="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 p-0.5 rounded ml-2 transition-colors" title="Cancel Reply">
+                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                        </button>
+                    </div>
+
                     <!-- File attachment preview chips -->
                     <div x-show="selectedFiles.length > 0" class="flex flex-wrap gap-2 mb-2" style="display: none;">
                         <template x-for="(file, idx) in selectedFiles" :key="idx">
@@ -319,33 +532,64 @@
                         </template>
                     </div>
 
-                    <div class="flex items-end space-x-2 bg-slate-50 dark:bg-zinc-900 rounded-2xl border border-slate-200 dark:border-zinc-800 p-2 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20 transition-all">
-                        
-                        <!-- File Upload Button -->
-                        <label class="p-2 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer rounded-xl hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors" title="Attach file">
-                            <input type="file" name="files" multiple class="hidden" @change="onFilesSelected($event)" x-ref="fileInput">
-                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
-                            </svg>
-                        </label>
+                    <div class="rounded-2xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900 overflow-hidden focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20 transition-all">
+                        <!-- Format Options Toolbar (.comment-toolbar) -->
+                        <div class="comment-toolbar px-2.5 py-1.5 flex items-center flex-wrap gap-1 text-xs select-none">
+                            <button type="button" @click="applyFormat('bold')" class="px-2 py-0.5 rounded font-bold transition" title="Bold (Ctrl+B)">B</button>
+                            <button type="button" @click="applyFormat('italic')" class="px-2 py-0.5 rounded italic font-serif transition" title="Italic (Ctrl+I)">I</button>
+                            <button type="button" @click="applyFormat('strike')" class="px-2 py-0.5 rounded line-through transition" title="Strikethrough (~~text~~)">S</button>
+                            <span class="opacity-30 select-none text-xs">|</span>
+                            <button type="button" @click="applyFormat('code')" class="px-2 py-0.5 rounded text-[11px] font-mono transition" title="Inline Code (`code`)">&lt;/&gt;</button>
+                            <button type="button" @click="applyFormat('codeblock')" class="px-2 py-0.5 rounded font-mono transition" title="Code Block (```)">&lbrace; &rbrace;</button>
+                            <button type="button" @click="applyFormat('quote')" class="px-2 py-0.5 rounded font-serif transition" title="Quote (> text)">&ldquo;</button>
+                            <span class="opacity-30 select-none text-xs">|</span>
+                            <button type="button" @click="applyFormat('bullet')" class="px-2 py-0.5 rounded transition" title="Bullet List (- item)">&bull; List</button>
+                            <button type="button" @click="applyFormat('number')" class="px-2 py-0.5 rounded transition" title="Numbered List (1. item)">1. List</button>
+                            <button type="button" @click="applyFormat('link')" class="px-2 py-0.5 rounded transition" title="Link (Ctrl+K)">🔗</button>
+                            <button type="button" @click="applyFormat('mention')" class="ml-auto px-2 py-0.5 rounded-lg bg-blue-500/15 hover:bg-blue-500/25 text-blue-600 dark:text-blue-400 font-bold transition flex items-center space-x-1" title="Mention teammate (@)">
+                                <span>@ Mention</span>
+                            </button>
+                        </div>
 
-                        <!-- Textarea Input -->
-                        <textarea name="content" 
-                                  x-model="messageContent" 
-                                  @keydown.enter.prevent="if(!$event.shiftKey){ handleSendMessage($event); }"
-                                  placeholder="Message #{{ channel.name }} (Enter to send, Shift+Enter for newline)..." 
-                                  rows="1" 
-                                  class="flex-1 bg-transparent border-0 resize-none text-xs text-slate-900 dark:text-zinc-100 focus:ring-0 placeholder:text-slate-400 max-h-32 py-2"></textarea>
+                        <!-- Textarea & Send Button Row -->
+                        <div class="flex items-end space-x-2 px-3 pb-2 pt-1">
+                            <!-- File Upload Button -->
+                            <label class="p-1.5 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors shrink-0" title="Attach file">
+                                <input type="file" name="files" multiple class="hidden" @change="onFilesSelected($event)" x-ref="fileInput">
+                                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
+                                </svg>
+                            </label>
 
-                        <!-- Send Button -->
-                        <button type="submit" 
-                                :disabled="!messageContent.trim() && selectedFiles.length === 0"
-                                class="p-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed shadow-sm transition-all"
-                                title="Send Message">
-                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
-                            </svg>
-                        </button>
+                            <!-- Textarea Input with Native & Formatting Commands -->
+                            <textarea name="content" 
+                                      x-ref="chatInput"
+                                      x-model="messageContent" 
+                                      @input="onChatInput($event)"
+                                      @keydown.ctrl.b.prevent="applyFormat('bold')"
+                                      @keydown.meta.b.prevent="applyFormat('bold')"
+                                      @keydown.ctrl.i.prevent="applyFormat('italic')"
+                                      @keydown.meta.i.prevent="applyFormat('italic')"
+                                      @keydown.ctrl.k.prevent="applyFormat('link')"
+                                      @keydown.meta.k.prevent="applyFormat('link')"
+                                      @keydown.arrow-down.prevent="if (showMentions) navigateMentions(1)"
+                                      @keydown.arrow-up.prevent="if (showMentions) navigateMentions(-1)"
+                                      @keydown.enter="if (showMentions) { $event.preventDefault(); selectActiveMention(); } else if (!$event.shiftKey) { $event.preventDefault(); handleSendMessage($event); }"
+                                      @keydown.escape="showMentions = false"
+                                      placeholder="Message #{{ channel.name }} (Type @ to mention, Enter to send)..." 
+                                      rows="2" 
+                                      class="flex-1 bg-transparent border-0 resize-none text-xs text-slate-900 dark:text-zinc-100 focus:ring-0 placeholder:text-slate-400 max-h-36 py-1.5"></textarea>
+
+                            <!-- Send Button -->
+                            <button type="submit" 
+                                    :disabled="!messageContent.trim() && selectedFiles.length === 0"
+                                    class="p-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed shadow-sm transition-all shrink-0"
+                                    title="Send Message">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+                                </svg>
+                            </button>
+                        </div>
                     </div>
                 </form>
             {% else %}
@@ -403,6 +647,42 @@
                 </div>
             </div>
 
+            <!-- Google Chat Space Actions in Drawer -->
+            <div class="space-y-2 pt-2 border-t border-slate-100 dark:border-zinc-800">
+                {% if can_manage or not channel.is_private %}
+                <button type="button" 
+                        @click="addPeopleModal = true"
+                        class="w-full flex items-center justify-center space-x-2 py-2 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold transition-colors shadow-xs">
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                    </svg>
+                    <span>Add People</span>
+                </button>
+                {% endif %}
+
+                {% if not is_default %}
+                <button type="button" 
+                        @click="leaveSpaceModal = true"
+                        class="w-full flex items-center justify-center space-x-2 py-2 px-3 rounded-xl bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-700 font-medium transition-colors">
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                    </svg>
+                    <span>Leave Space</span>
+                </button>
+                {% endif %}
+
+                {% if can_delete %}
+                <button type="button" 
+                        @click="deleteSpaceModal = true"
+                        class="w-full flex items-center justify-center space-x-2 py-2 px-3 rounded-xl text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 border border-red-200 dark:border-red-900/40 font-medium transition-colors">
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                    <span>Delete Space</span>
+                </button>
+                {% endif %}
+            </div>
+
             <!-- Full Details Link -->
             <a href="{% url 'chat:channel_details' slug=workspace.slug channel_slug=channel.slug %}" 
                class="block w-full py-2.5 px-4 text-center rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-900/60 font-bold hover:bg-blue-100 transition-colors">
@@ -410,6 +690,206 @@
             </a>
         </div>
     </aside>
+
+    <!-- MODAL 1: ADD PEOPLE (Google Chat Style) -->
+    <div x-show="addPeopleModal" 
+         class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs" 
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0 scale-95"
+         x-transition:enter-end="opacity-100 scale-100"
+         x-transition:leave="transition ease-in duration-150"
+         x-transition:leave-start="opacity-100 scale-100"
+         x-transition:leave-end="opacity-0 scale-95"
+         style="display: none;"
+         @keydown.escape.window="addPeopleModal = false">
+        
+        <div class="w-full max-w-lg bg-white dark:bg-[#0c1322] rounded-2xl border border-slate-200 dark:border-zinc-800 shadow-2xl overflow-hidden"
+             @click.away="addPeopleModal = false">
+            
+            <form method="post" action="{% url 'chat:channel_add_members' slug=workspace.slug channel_slug=channel.slug %}">
+                {% csrf_token %}
+                
+                <!-- Modal Header -->
+                <div class="px-6 py-4 border-b border-slate-100 dark:border-zinc-800 flex items-center justify-between">
+                    <div class="flex items-center space-x-2.5">
+                        <div class="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 class="text-sm font-bold text-slate-900 dark:text-zinc-100">Add people to #{{ channel.name }}</h3>
+                            <p class="text-[11px] text-slate-500 dark:text-zinc-400">Select teammates from this workspace to join</p>
+                        </div>
+                    </div>
+                    <button type="button" @click="addPeopleModal = false" class="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 text-lg leading-none">&times;</button>
+                </div>
+
+                <!-- Modal Body -->
+                <div class="p-6 space-y-4">
+                    <!-- Member Search Filter -->
+                    <div class="relative">
+                        <svg class="w-4 h-4 text-slate-400 absolute left-3 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                        </svg>
+                        <input type="text" 
+                               x-model="searchMemberQuery" 
+                               placeholder="Search teammates by ID (e.g. 26457C), name, or email..." 
+                               class="w-full pl-9 pr-4 py-2 text-xs bg-slate-50 dark:bg-zinc-900/60 border border-slate-200 dark:border-zinc-800 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-hidden text-slate-900 dark:text-zinc-100 placeholder-slate-400">
+                    </div>
+
+                    <!-- Role Selector (Google Chat: Space Manager vs Member) -->
+                    <div class="flex items-center justify-between text-xs py-1 px-1">
+                        <span class="text-slate-500 dark:text-zinc-400 font-medium">Assign role:</span>
+                        <select name="role" x-model="selectedRole" 
+                                class="text-xs font-semibold bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-lg px-2.5 py-1 text-slate-700 dark:text-zinc-300 focus:ring-2 focus:ring-blue-500">
+                            <option value="MEMBER">Member (Can post & view)</option>
+                            <option value="ADMIN">Space Manager / Admin</option>
+                        </select>
+                    </div>
+
+                    <!-- Member Checklist (Only shows results upon typing search, Google Chat style) -->
+                    <div class="border border-slate-200 dark:border-zinc-800 rounded-xl min-h-36 max-h-64 overflow-y-auto divide-y divide-slate-100 dark:divide-zinc-800/60 p-1">
+                        <!-- Initial prompt when user hasn't typed yet -->
+                        <div class="py-8 px-4 text-center" x-show="!searchMemberQuery.trim() && selectedMembers.length === 0">
+                            <div class="w-10 h-10 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-400 dark:text-zinc-500 flex items-center justify-center mx-auto mb-2">
+                                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                                </svg>
+                            </div>
+                            <p class="text-xs font-semibold text-slate-700 dark:text-zinc-300">Type a name, ID, or email to search</p>
+                            <p class="text-[11px] text-slate-400 dark:text-zinc-500 mt-0.5">Search for workspace members by their name, contributor ID, or email</p>
+                        </div>
+
+                        <!-- Only show member rows when search query is entered or already selected -->
+                        {% for u in available_members %}
+                            <label class="flex items-center space-x-3 p-2.5 hover:bg-slate-50 dark:hover:bg-zinc-800/50 rounded-xl cursor-pointer transition-colors group"
+                                   x-show="(searchMemberQuery.trim().length > 0 && ('{{ u.full_name|lower|escapejs }}'.includes(searchMemberQuery.toLowerCase().trim()) || '{{ u.email|lower|escapejs }}'.includes(searchMemberQuery.toLowerCase().trim()) || '{{ u.contributor_id|lower|escapejs }}'.includes(searchMemberQuery.toLowerCase().trim()) || '{{ u.username|lower|escapejs }}'.includes(searchMemberQuery.toLowerCase().trim()))) || selectedMembers.includes('{{ u.id }}')">
+                                <input type="checkbox" 
+                                       name="user_ids" 
+                                       value="{{ u.id }}" 
+                                       x-model="selectedMembers"
+                                       class="rounded text-blue-600 focus:ring-blue-500 border-slate-300 dark:border-zinc-700 w-4 h-4 shrink-0">
+                                
+                                <!-- Profile Photo with People Hover Card -->
+                                <div class="shrink-0">
+                                    {% include 'components/people_hover_card.html' with target_user=u workspace_slug=workspace.slug show_name=False avatar_size='w-8 h-8' %}
+                                </div>
+                                
+                                <div class="min-w-0 flex-1">
+                                    <div class="flex items-center space-x-2 flex-wrap">
+                                        {% include 'components/people_hover_card.html' with target_user=u workspace_slug=workspace.slug show_name=True avatar_size='hidden' %}
+                                        {% if u.contributor_id %}
+                                            <span class="px-1.5 py-0.2 rounded text-[10px] font-mono font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 shrink-0" title="Contributor ID">
+                                                {{ u.contributor_id }}
+                                            </span>
+                                        {% endif %}
+                                        <span class="px-1.5 py-0.2 rounded text-[10px] font-medium bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 shrink-0" title="Workspace Role">
+                                            {{ u.get_role_display }}
+                                        </span>
+                                    </div>
+                                    <p class="text-[10px] text-slate-400 truncate">{{ u.email }}</p>
+                                </div>
+                                
+                                <span x-show="selectedMembers.includes('{{ u.id }}')" class="text-[10px] text-blue-600 dark:text-blue-400 font-semibold px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/60 shrink-0">
+                                    Selected
+                                </span>
+                            </label>
+                        {% empty %}
+                            <div class="p-6 text-center text-xs text-slate-400">
+                                All workspace members are already members of this space.
+                            </div>
+                        {% endfor %}
+                    </div>
+                    
+                    <div class="flex items-center justify-between text-[11px] text-slate-500 dark:text-zinc-400 px-1">
+                        <span x-text="selectedMembers.length + ' teammate(s) selected'">0 teammate(s) selected</span>
+                    </div>
+                </div>
+
+                <!-- Modal Footer -->
+                <div class="px-6 py-3.5 bg-slate-50 dark:bg-zinc-900/60 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-end space-x-2">
+                    <button type="button" 
+                            @click="addPeopleModal = false"
+                            class="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-800 rounded-xl transition-colors">
+                        Cancel
+                    </button>
+                    <button type="submit" 
+                            :disabled="selectedMembers.length === 0"
+                            :class="selectedMembers.length === 0 ? 'opacity-50 cursor-not-allowed bg-blue-600 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm'"
+                            class="px-5 py-2 text-xs font-bold rounded-xl transition-colors">
+                        Add
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 2: LEAVE SPACE -->
+    <div x-show="leaveSpaceModal" 
+         class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs" 
+         style="display: none;"
+         @keydown.escape.window="leaveSpaceModal = false">
+        
+        <div class="w-full max-w-md bg-white dark:bg-[#0c1322] rounded-2xl border border-slate-200 dark:border-zinc-800 shadow-2xl overflow-hidden"
+             @click.away="leaveSpaceModal = false">
+            
+            <form method="post" action="{% url 'chat:channel_leave' slug=workspace.slug channel_slug=channel.slug %}">
+                {% csrf_token %}
+                <div class="p-6">
+                    <div class="w-10 h-10 rounded-2xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold text-lg mb-4">
+                        🚪
+                    </div>
+                    <h3 class="text-base font-bold text-slate-900 dark:text-zinc-100">Leave #{{ channel.name }}?</h3>
+                    <p class="text-xs text-slate-500 dark:text-zinc-400 mt-2 leading-relaxed">
+                        You won't receive any more notifications or messages from this space unless someone invites you back.
+                    </p>
+                </div>
+                <div class="px-6 py-3.5 bg-slate-50 dark:bg-zinc-900/60 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-end space-x-2">
+                    <button type="button" @click="leaveSpaceModal = false" class="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-800 rounded-xl transition-colors">
+                        Cancel
+                    </button>
+                    <button type="submit" class="px-5 py-2 text-xs font-bold bg-slate-800 hover:bg-slate-900 text-white rounded-xl shadow-sm transition-colors">
+                        Leave space
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 3: DELETE SPACE (Google Chat Style Danger Modal) -->
+    <div x-show="deleteSpaceModal" 
+         class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs" 
+         style="display: none;"
+         @keydown.escape.window="deleteSpaceModal = false">
+        
+        <div class="w-full max-w-md bg-white dark:bg-[#0c1322] rounded-2xl border border-red-200 dark:border-red-900/60 shadow-2xl overflow-hidden"
+             @click.away="deleteSpaceModal = false">
+            
+            <form method="post" action="{% url 'chat:channel_delete' slug=workspace.slug channel_slug=channel.slug %}">
+                {% csrf_token %}
+                <div class="p-6">
+                    <div class="w-10 h-10 rounded-2xl bg-red-50 dark:bg-red-950/60 text-red-600 dark:text-red-400 flex items-center justify-center font-bold text-lg mb-4">
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                    </div>
+                    <h3 class="text-base font-bold text-slate-900 dark:text-zinc-100">Delete space #{{ channel.name }}?</h3>
+                    <p class="text-xs text-slate-500 dark:text-zinc-400 mt-2 leading-relaxed">
+                        Deleting this space will permanently delete all messages, pinned assets, and shared files for all members. This action <strong class="text-red-600 dark:text-red-400">cannot be undone</strong>.
+                    </p>
+                </div>
+                <div class="px-6 py-3.5 bg-slate-50 dark:bg-zinc-900/60 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-end space-x-2">
+                    <button type="button" @click="deleteSpaceModal = false" class="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-800 rounded-xl transition-colors">
+                        Cancel
+                    </button>
+                    <button type="submit" class="px-5 py-2 text-xs font-bold bg-red-600 hover:bg-red-700 text-white rounded-xl shadow-sm transition-colors">
+                        Delete space
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
 
 </div>
 
@@ -419,14 +899,202 @@ function chatChannelStream(config) {
     return {
         wsConnected: false,
         aboutDrawerOpen: false,
+        spaceMenuOpen: false,
+        addPeopleModal: false,
+        deleteSpaceModal: false,
+        leaveSpaceModal: false,
+        searchMemberQuery: '',
+        selectedMembers: [],
+        selectedRole: 'MEMBER',
         messageContent: '',
         selectedFiles: [],
         liveMessages: [],
         socket: null,
+        replyingTo: null,
+
+        showMentions: false,
+        mentionQuery: '',
+        people: [],
+        files: [],
+        activeIndex: 0,
+        cursorPos: 0,
+
+        setReply(id, author, snippet) {
+            this.replyingTo = { id, author, snippet };
+            this.$nextTick(() => {
+                if (this.$refs.chatInput) {
+                    this.$refs.chatInput.focus();
+                }
+            });
+        },
+
+        cancelReply() {
+            this.replyingTo = null;
+        },
+
+        applyFormat(type) {
+            const el = this.$refs.chatInput;
+            if (!el) return;
+            const start = el.selectionStart || 0;
+            const end = el.selectionEnd || 0;
+            const val = this.messageContent || '';
+            const selected = val.substring(start, end);
+            let before = val.substring(0, start);
+            let after = val.substring(end);
+            let replacement = '';
+            let newCursor = start;
+
+            switch(type) {
+                case 'bold':
+                    replacement = `**${selected || 'bold text'}**`;
+                    newCursor = selected ? start + replacement.length : start + 2;
+                    break;
+                case 'italic':
+                    replacement = `*${selected || 'italic text'}*`;
+                    newCursor = selected ? start + replacement.length : start + 1;
+                    break;
+                case 'strike':
+                    replacement = `~~${selected || 'strikethrough'}~~`;
+                    newCursor = selected ? start + replacement.length : start + 2;
+                    break;
+                case 'code':
+                    replacement = `\`${selected || 'code'}\``;
+                    newCursor = selected ? start + replacement.length : start + 1;
+                    break;
+                case 'codeblock':
+                    replacement = `\n\`\`\`\n${selected || 'code block'}\n\`\`\`\n`;
+                    newCursor = selected ? start + replacement.length : start + 5;
+                    break;
+                case 'quote':
+                    replacement = `\n> ${selected || 'quote'}\n`;
+                    newCursor = selected ? start + replacement.length : start + 3;
+                    break;
+                case 'bullet':
+                    replacement = `\n- ${selected || 'list item'}\n`;
+                    newCursor = selected ? start + replacement.length : start + 3;
+                    break;
+                case 'number':
+                    replacement = `\n1. ${selected || 'list item'}\n`;
+                    newCursor = selected ? start + replacement.length : start + 4;
+                    break;
+                case 'link':
+                    replacement = selected ? `[${selected}](https://)` : `[link text](https://)`;
+                    newCursor = selected ? start + replacement.length - 1 : start + 1;
+                    break;
+                case 'mention':
+                    replacement = '@';
+                    newCursor = start + 1;
+                    this.messageContent = before + replacement + after;
+                    this.$nextTick(() => {
+                        el.focus();
+                        el.setSelectionRange(newCursor, newCursor);
+                        this.cursorPos = newCursor;
+                        this.mentionQuery = '';
+                        this.searchMentions('');
+                    });
+                    return;
+            }
+            this.messageContent = before + replacement + after;
+            this.$nextTick(() => {
+                el.focus();
+                el.setSelectionRange(newCursor, newCursor);
+            });
+        },
 
         init() {
             this.connectWebSocket();
             this.scrollToBottom();
+            window.addEventListener('load', () => this.scrollToBottom());
+        },
+
+        onChatInput(e) {
+            const val = e.target.value;
+            const pos = e.target.selectionStart;
+            this.cursorPos = pos;
+            const beforeCursor = val.slice(0, pos);
+            const match = beforeCursor.match(/@([a-zA-Z0-9._-]*)$/);
+            if (match) {
+                this.mentionQuery = match[1];
+                this.searchMentions(this.mentionQuery);
+            } else {
+                this.showMentions = false;
+            }
+        },
+
+        async searchMentions(q) {
+            try {
+                const res = await fetch(`/workspaces/w/${config.workspaceSlug}/api/mentions/?q=${encodeURIComponent(q)}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    this.people = data.people || [];
+                    this.files = data.files || [];
+                    const total = this.people.length + this.files.length;
+                    this.showMentions = total > 0;
+                    this.activeIndex = 0;
+                }
+            } catch (err) {}
+        },
+
+        navigateMentions(dir) {
+            const total = this.people.length + this.files.length;
+            if (total === 0) return;
+            this.activeIndex = (this.activeIndex + dir + total) % total;
+        },
+
+        selectActiveMention() {
+            const total = this.people.length + this.files.length;
+            if (total === 0) return;
+            if (this.activeIndex < this.people.length) {
+                this.selectMention(this.people[this.activeIndex]);
+            } else {
+                this.selectMention(this.files[this.activeIndex - this.people.length]);
+            }
+        },
+
+        selectMention(item) {
+            const textarea = this.$refs.chatInput;
+            const text = this.messageContent;
+            const before = text.slice(0, this.cursorPos);
+            const after = text.slice(this.cursorPos);
+            let insertText = '';
+            if (item.type === 'file') {
+                insertText = `[${item.name}](${item.url}) `;
+            } else {
+                const displayName = (item.full_name || item.name || (item.username && !item.username.includes('@') ? item.username : item.email.split('@')[0])).trim();
+                insertText = `@${displayName} `;
+            }
+            const newBefore = before.replace(/@([a-zA-Z0-9._\s-]*)$/, insertText);
+            this.messageContent = newBefore + after;
+            this.showMentions = false;
+            this.$nextTick(() => {
+                if (textarea) {
+                    textarea.focus();
+                    const nextPos = newBefore.length;
+                    textarea.setSelectionRange(nextPos, nextPos);
+                }
+            });
+        },
+
+        formatMessageContent(content) {
+            if (!content) return '';
+            let esc = String(content).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            // Quotes / Replying to: lines starting with &gt;
+            esc = esc.replace(/^&gt;\s*(.*?)$/gm, '<blockquote class="border-l-2 border-blue-500/60 pl-2.5 py-0.5 my-1 text-slate-500 dark:text-zinc-400 italic bg-blue-50/40 dark:bg-blue-950/30 rounded-r text-[11px]">$1</blockquote>');
+            // Bold: **text**
+            esc = esc.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            // Italic: *text*
+            esc = esc.replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, '<em>$1</em>');
+            // Strike: ~~text~~
+            esc = esc.replace(/~~(.*?)~~/g, '<span class="line-through opacity-75">$1</span>');
+            // Inline code: `code`
+            esc = esc.replace(/`([^`]+)`/g, '<code class="px-1.5 py-0.5 rounded bg-slate-200/80 dark:bg-zinc-800 font-mono text-[11px]">$1</code>');
+            // Complex mentions: @[Full Name](ID)
+            esc = esc.replace(/@\[([^\]]+)\]\(([a-zA-Z0-9_-]+)\)/g, '<span class="aether-mention inline-flex items-center space-x-0.5 px-1.5 py-0.5 rounded-full text-xs font-semibold bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/25 hover:bg-blue-500/25 cursor-pointer transition" data-user-hover data-user-id="$2" data-user-name="$1">@$1</span>');
+            // Contributor ID mentions: @26457C
+            esc = esc.replace(/(?<![a-zA-Z0-9_])@(\d{5}[A-Za-z])\b/g, '<span class="aether-mention inline-flex items-center space-x-0.5 px-1.5 py-0.5 rounded-full text-xs font-mono font-bold bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/25 hover:bg-blue-500/25 cursor-pointer transition" data-user-hover data-contributor-id="$1" data-user-name="$1">@$1</span>');
+            // Text name mentions: @Full Name or @username
+            esc = esc.replace(/(?<![a-zA-Z0-9_])@([A-Z][a-zA-Z0-9_]*(?:\s+[A-Z][a-zA-Z0-9_]*)*|[a-zA-Z0-9_]+)\b/g, '<span class="aether-mention inline-flex items-center space-x-0.5 px-1.5 py-0.5 rounded-full text-xs font-medium bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/25 hover:bg-blue-500/25 cursor-pointer transition" data-user-hover data-user-name="$1">@$1</span>');
+            return esc;
         },
 
         extractCallCode(content) {
@@ -477,6 +1145,23 @@ function chatChannelStream(config) {
                                 });
                             }
                             this.scrollToBottom();
+
+                            // Trigger ringtone and modal if CALL_INVITE is received from peer
+                            if (m.content && m.content.startsWith('CALL_INVITE:') && String(m.sender_id) !== String("{{ request.user.id }}")) {
+                                const parts = m.content.replace('CALL_INVITE:', '').split(':');
+                                window.dispatchEvent(new CustomEvent('aetherspace:incoming_call', {
+                                    detail: {
+                                        meeting_code: parts[0] || '',
+                                        is_audio_only: (parts[1] || '').toUpperCase() === 'AUDIO',
+                                        title: parts[2] || 'Team Call',
+                                        caller_name: m.sender_name || 'Team Member',
+                                        caller_avatar: m.sender_avatar || '',
+                                        room_url: `/meetings/w/{{ workspace.slug }}/room/${parts[0] || ''}/`
+                                    }
+                                }));
+                            }
+                        } else if (data.event === 'incoming_call' && data.call) {
+                            window.dispatchEvent(new CustomEvent('aetherspace:incoming_call', { detail: data.call }));
                         } else if (data.event === 'reaction_updated' && data.data) {
                             const rData = data.data;
                             const container = document.getElementById('reactions-' + rData.message_id);
@@ -538,17 +1223,27 @@ function chatChannelStream(config) {
         },
 
         handleSendMessage(e) {
-            const text = this.messageContent.trim();
+            let text = this.messageContent.trim();
             const hasFiles = this.selectedFiles.length > 0;
 
             if (!text && !hasFiles) return;
+
+            if (this.replyingTo && text) {
+                text = `> Replying to @${this.replyingTo.author}: "${this.replyingTo.snippet.replace(/\n/g, ' ')}"\n\n` + text;
+                this.replyingTo = null;
+                this.messageContent = text;
+            }
 
             const form = (e && e.target) ? (e.target.closest('form') || document.querySelector('form')) : document.querySelector('form');
             const socketReady = this.socket && this.socket.readyState === WebSocket.OPEN;
 
             // If files attached or socket not connected/ready, fallback to standard multipart form submit
             if (hasFiles || !this.wsConnected || !socketReady) {
-                if (form) form.submit();
+                if (form) {
+                    const txtEl = form.querySelector('[name=content]');
+                    if (txtEl) txtEl.value = text;
+                    form.submit();
+                }
                 return;
             }
 
@@ -576,7 +1271,11 @@ function chatChannelStream(config) {
                 }));
             } catch (err) {
                 console.error('WebSocket send failed, submitting via HTTP form:', err);
-                if (form) form.submit();
+                if (form) {
+                    const txtEl = form.querySelector('[name=content]');
+                    if (txtEl) txtEl.value = text;
+                    form.submit();
+                }
             }
         },
 
@@ -675,6 +1374,11 @@ function chatChannelStream(config) {
                     this.$refs.messageBox.scrollTop = this.$refs.messageBox.scrollHeight;
                 }
             });
+            setTimeout(() => {
+                if (this.$refs.messageBox) {
+                    this.$refs.messageBox.scrollTop = this.$refs.messageBox.scrollHeight;
+                }
+            }, 120);
         }
     };
 }

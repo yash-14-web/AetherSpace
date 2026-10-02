@@ -1,6 +1,15 @@
 {% load static %}
 <!-- Desktop & Mobile Shell Navigation -->
-<div class="flex shrink-0">
+<div class="flex shrink-0"
+     x-data="{
+         treeSidebarCollapsed: localStorage.getItem('aether_tree_sidebar_collapsed') === 'true',
+         toggleTreeSidebar() {
+             this.treeSidebarCollapsed = !this.treeSidebarCollapsed;
+             localStorage.setItem('aether_tree_sidebar_collapsed', this.treeSidebarCollapsed);
+         }
+     }"
+     @keydown.window.ctrl.b="if (!['INPUT', 'TEXTAREA'].includes($event.target.tagName) && !$event.target.isContentEditable) { $event.preventDefault(); toggleTreeSidebar(); }"
+     @keydown.window.meta.b="if (!['INPUT', 'TEXTAREA'].includes($event.target.tagName) && !$event.target.isContentEditable) { $event.preventDefault(); toggleTreeSidebar(); }">
     
     <!-- Mobile Backdrop Overlay -->
     <div x-show="mobileSidebarOpen" 
@@ -21,14 +30,34 @@
         
         <!-- 1. Global Narrow Icon Rail (Obsidian Dark / Slate Light - 64px) -->
         <aside class="w-16 bg-white dark:bg-obsidian-950 border-r border-slate-200 dark:border-zinc-800/80 flex flex-col items-center py-4 justify-between shrink-0 select-none z-30 shadow-sm">
-            <div class="flex flex-col items-center space-y-4">
+            <div class="flex flex-col items-center space-y-3">
                 <!-- App Logo Icon -->
                 <a href="{% if user.is_authenticated %}{% url 'workspaces:dashboard' %}{% else %}{% url 'core:landing' %}{% endif %}" class="w-10 h-10 rounded-xl flex items-center justify-center shadow-md hover:scale-105 transition-transform overflow-hidden group" title="AetherSpace">
                     <img src="{% static 'images/logo.png' %}" alt="AetherSpace Logo" class="w-full h-full object-contain drop-shadow-md">
                 </a>
 
+                <!-- Sidebar Collapse / Expand Toggle Button -->
+                <button type="button" 
+                        @click="toggleTreeSidebar()" 
+                        class="w-9 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-800 dark:hover:text-zinc-100 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-all focus:outline-none"
+                        :class="treeSidebarCollapsed ? 'bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-sky-400 ring-1 ring-blue-500/30' : ''"
+                        :title="treeSidebarCollapsed ? 'Expand Navigation Sidebar (Ctrl+B)' : 'Collapse Navigation Sidebar to save screen space (Ctrl+B)'">
+                    <template x-if="treeSidebarCollapsed">
+                        <!-- Expand Icon -->
+                        <svg class="w-4 h-4 text-blue-600 dark:text-sky-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                        </svg>
+                    </template>
+                    <template x-if="!treeSidebarCollapsed">
+                        <!-- Collapse Icon -->
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+                        </svg>
+                    </template>
+                </button>
+
                 <!-- 10 Global Rail Icons (per AGENTS.md) -->
-                <nav class="flex flex-col space-y-1.5 pt-2">
+                <nav class="flex flex-col space-y-1.5 pt-1">
                     <!-- 1. Dashboard -->
                     <a href="{% if current_workspace %}{% url 'workspaces:workspace_dashboard' slug=current_workspace.slug %}{% else %}{% url 'workspaces:master_dashboard' %}{% endif %}" 
                        class="p-2.5 rounded-xl text-slate-500 dark:text-zinc-400 hover:text-aether-blue dark:hover:text-zinc-100 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-all group relative" 
@@ -58,11 +87,14 @@
 
                     <!-- 5. Meet Hub -->
                     <a href="{% if current_workspace %}{% url 'meetings:meet_hub' slug=current_workspace.slug %}{% else %}{% url 'meetings:meet_router' %}{% endif %}" 
-                       class="p-2.5 rounded-xl text-slate-500 dark:text-zinc-400 hover:text-aether-blue dark:hover:text-zinc-100 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-all" 
-                       title="Meet Hub">
+                       class="p-2.5 rounded-xl text-slate-500 dark:text-zinc-400 hover:text-aether-blue dark:hover:text-zinc-100 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-all relative" 
+                       title="Meet Hub{% if MODULE_STATUSES.meetings.is_under_maintenance %} (Under Maintenance){% endif %}">
                         <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
                         </svg>
+                        {% if MODULE_STATUSES.meetings.is_under_maintenance %}
+                            <span class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-amber-500 ring-2 ring-white dark:ring-obsidian-950" title="Under Maintenance"></span>
+                        {% endif %}
                     </a>
 
                     <!-- 6. Chat -->
@@ -138,38 +170,56 @@
             </div>
         </aside>
 
-        <!-- 2. Workspace / Admin Navigation Tree (240px wide) -->
-        <div class="w-60 bg-slate-50 dark:bg-obsidian-900 border-r border-slate-200 dark:border-zinc-800 flex flex-col py-4 px-3 overflow-y-auto shrink-0 z-20">
+        <!-- 2. Workspace / Admin Navigation Tree (240px wide or 0px when collapsed) -->
+        <div x-show="!treeSidebarCollapsed"
+             :style="treeSidebarCollapsed ? 'display: none !important; width: 0 !important; max-width: 0 !important; min-width: 0 !important; border: 0 !important; padding: 0 !important;' : ''"
+             class="w-64 py-4 px-3.5 bg-slate-50 dark:bg-obsidian-900 border-r border-slate-200 dark:border-zinc-800 flex flex-col overflow-y-auto shrink-0 z-20 transition-all duration-200 ease-in-out">
             
             {% if request.resolver_match.app_name == 'admin_panel' %}
                 <!-- Admin Panel Navigation Tree -->
                 {% include 'admin_panel/partials/admin_tree.html' %}
             {% elif current_workspace %}
                 <!-- Active Workspace Header Card -->
-                <div class="p-2.5 rounded-xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 shadow-sm mb-3">
+                <div class="p-3 rounded-xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 shadow-xs mb-3">
                     <div class="flex items-center justify-between">
-                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500">Active Workspace</span>
-                        <span class="text-[10px] font-bold px-1.5 py-0.5 rounded {% if current_membership.is_admin %}bg-purple-50 dark:bg-purple-950/70 text-purple-600 dark:text-purple-300 border border-purple-200 dark:border-purple-800/60{% elif current_membership.is_manager %}bg-blue-50 dark:bg-blue-950/70 text-blue-600 dark:text-blue-300 border border-blue-200 dark:border-blue-800/60{% else %}bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 border border-slate-200 dark:border-zinc-700{% endif %}">
-                            {{ current_membership.get_role_display }}
-                        </span>
-                    </div>
-                    <div class="flex items-center space-x-2 mt-1.5 truncate">
-                        <div class="w-6 h-6 rounded-md bg-gradient-to-tr from-blue-600 to-indigo-700 text-white font-bold text-[10px] flex items-center justify-center shrink-0">
-                            {{ current_workspace.name|slice:":2"|upper }}
+                        <span class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">Workspace</span>
+                        <div class="flex items-center space-x-1.5">
+                            <span class="text-[11px] font-bold px-2 py-0.5 rounded {% if current_membership.is_admin %}bg-purple-50 dark:bg-purple-950/70 text-purple-600 dark:text-purple-300 border border-purple-200 dark:border-purple-800/60{% elif current_membership.is_manager %}bg-blue-50 dark:bg-blue-950/70 text-blue-600 dark:text-blue-300 border border-blue-200 dark:border-blue-800/60{% else %}bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 border border-slate-200 dark:border-zinc-700{% endif %}">
+                                {{ current_membership.get_role_display }}
+                            </span>
+                            <button type="button" @click="toggleTreeSidebar()" 
+                                    title="Collapse sidebar to save screen space (Ctrl+B)" 
+                                    class="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 transition">
+                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                                </svg>
+                            </button>
                         </div>
-                        <span class="text-xs font-bold text-slate-900 dark:text-zinc-100 truncate">{{ current_workspace.name }}</span>
+                    </div>
+                    <div class="flex items-center space-x-2.5 mt-2 truncate">
+                        {% if current_workspace.logo_url %}
+                            <img src="{{ current_workspace.logo_url }}" alt="{{ current_workspace.name }}" class="w-7 h-7 rounded-lg object-cover shrink-0 border border-slate-200/50 dark:border-zinc-800 shadow-sm" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                            <div style="display:none;" class="w-7 h-7 rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-700 text-white font-bold text-xs items-center justify-center shrink-0">
+                                {{ current_workspace.name|slice:":2"|upper }}
+                            </div>
+                        {% else %}
+                            <div class="w-7 h-7 rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-700 text-white font-bold text-xs flex items-center justify-center shrink-0">
+                                {{ current_workspace.name|slice:":2"|upper }}
+                            </div>
+                        {% endif %}
+                        <span class="text-[14.5px] font-bold text-slate-900 dark:text-zinc-100 truncate tracking-tight">{{ current_workspace.name }}</span>
                     </div>
                 </div>
 
                 <!-- Workspace Tree Items (per AGENTS.md: Workspace, Team, Dashboard, Project Details, Chat) -->
                 <div class="space-y-1">
-                    <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500 px-2.5 py-1 block">
+                    <span class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 px-3 py-1.5 block">
                         Workspace
                     </span>
 
                     <!-- Overview & Dashboard -->
                     <a href="{% url 'workspaces:workspace_dashboard' slug=current_workspace.slug %}" 
-                       class="flex items-center space-x-2.5 px-3 py-2 text-xs font-semibold rounded-lg hover:bg-slate-200/60 dark:hover:bg-zinc-800/60 text-slate-800 dark:text-zinc-200 transition-colors">
+                       class="flex items-center space-x-2.5 px-3 py-2.5 text-[14px] font-semibold rounded-xl hover:bg-slate-200/60 dark:hover:bg-zinc-800/60 text-slate-800 dark:text-zinc-200 transition-colors">
                         <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/>
                         </svg>
@@ -179,20 +229,24 @@
                     <!-- Tasks (List & Board) -->
                     <div>
                         <a href="{% url 'tasks:task_list' slug=current_workspace.slug %}" 
-                           class="flex items-center space-x-2.5 px-3 py-2 text-xs font-semibold rounded-lg text-slate-700 dark:text-zinc-300 hover:bg-slate-200/60 dark:hover:bg-zinc-800/60 transition-colors">
+                           class="flex items-center space-x-2.5 px-3 py-2.5 text-[14px] font-semibold rounded-xl text-slate-700 dark:text-zinc-300 hover:bg-slate-200/60 dark:hover:bg-zinc-800/60 transition-colors">
                             <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
                             </svg>
                             <span>Tasks</span>
                         </a>
-                        <div class="pl-7 pr-2 space-y-0.5 pb-1">
+                        <div class="pl-7 pr-1 space-y-0.5 pb-1.5">
                             <a href="{% url 'tasks:task_list' slug=current_workspace.slug %}" 
-                               class="block py-1 text-[11px] font-medium text-slate-500 dark:text-zinc-400 hover:text-aether-blue dark:hover:text-zinc-200 transition-colors">
+                               class="block py-1.5 px-2.5 text-[13.5px] font-medium text-slate-600 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-zinc-100 hover:bg-slate-100 dark:hover:bg-zinc-800/50 rounded-lg transition-colors">
                                 • Task List
                             </a>
                             <a href="{% url 'tasks:task_board' slug=current_workspace.slug %}" 
-                               class="block py-1 text-[11px] font-medium text-slate-500 dark:text-zinc-400 hover:text-aether-blue dark:hover:text-zinc-200 transition-colors">
+                               class="block py-1.5 px-2.5 text-[13.5px] font-medium text-slate-600 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-zinc-100 hover:bg-slate-100 dark:hover:bg-zinc-800/50 rounded-lg transition-colors">
                                 • Kanban Board
+                            </a>
+                            <a href="{% url 'tasks:sprint_planning' slug=current_workspace.slug %}" 
+                               class="block py-1.5 px-2.5 text-[13.5px] font-medium text-slate-600 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-zinc-100 hover:bg-slate-100 dark:hover:bg-zinc-800/50 rounded-lg transition-colors">
+                                • Sprint Planning
                             </a>
                         </div>
                     </div>
@@ -200,19 +254,19 @@
                     <!-- Bugs (Dashboard & List) -->
                     <div>
                         <a href="{% url 'bugs:bug_list' slug=current_workspace.slug %}" 
-                           class="flex items-center space-x-2.5 px-3 py-2 text-xs font-semibold rounded-lg text-slate-700 dark:text-zinc-300 hover:bg-slate-200/60 dark:hover:bg-zinc-800/60 transition-colors">
+                           class="flex items-center space-x-2.5 px-3 py-2.5 text-[14px] font-semibold rounded-xl text-slate-700 dark:text-zinc-300 hover:bg-slate-200/60 dark:hover:bg-zinc-800/60 transition-colors">
                             <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
                             <span>Bugs</span>
                         </a>
-                        <div class="pl-7 pr-2 space-y-0.5 pb-1">
+                        <div class="pl-7 pr-1 space-y-0.5 pb-1.5">
                             <a href="{% url 'bugs:bug_dashboard' slug=current_workspace.slug %}" 
-                               class="block py-1 text-[11px] font-medium text-slate-500 dark:text-zinc-400 hover:text-rose-500 dark:hover:text-zinc-200 transition-colors">
+                               class="block py-1.5 px-2.5 text-[13.5px] font-medium text-slate-600 dark:text-zinc-400 hover:text-rose-500 dark:hover:text-zinc-100 hover:bg-slate-100 dark:hover:bg-zinc-800/50 rounded-lg transition-colors">
                                 • Bug Dashboard
                             </a>
                             <a href="{% url 'bugs:bug_list' slug=current_workspace.slug %}" 
-                               class="block py-1 text-[11px] font-medium text-slate-500 dark:text-zinc-400 hover:text-rose-500 dark:hover:text-zinc-200 transition-colors">
+                               class="block py-1.5 px-2.5 text-[13.5px] font-medium text-slate-600 dark:text-zinc-400 hover:text-rose-500 dark:hover:text-zinc-100 hover:bg-slate-100 dark:hover:bg-zinc-800/50 rounded-lg transition-colors">
                                 • Bug List
                             </a>
                         </div>
@@ -220,7 +274,7 @@
 
                     <!-- Team Members -->
                     <a href="{% url 'workspaces:team' slug=current_workspace.slug %}" 
-                       class="flex items-center space-x-2.5 px-3 py-2 text-xs font-semibold rounded-lg text-slate-700 dark:text-zinc-300 hover:bg-slate-200/60 dark:hover:bg-zinc-800/60 transition-colors">
+                       class="flex items-center space-x-2.5 px-3 py-2.5 text-[14px] font-semibold rounded-xl text-slate-700 dark:text-zinc-300 hover:bg-slate-200/60 dark:hover:bg-zinc-800/60 transition-colors">
                         <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
                         </svg>
@@ -229,7 +283,7 @@
 
                     <!-- Project Details -->
                     <a href="{% url 'workspaces:project_details' slug=current_workspace.slug %}" 
-                       class="flex items-center space-x-2.5 px-3 py-2 text-xs font-semibold rounded-lg text-slate-700 dark:text-zinc-300 hover:bg-slate-200/60 dark:hover:bg-zinc-800/60 transition-colors">
+                       class="flex items-center space-x-2.5 px-3 py-2.5 text-[14px] font-semibold rounded-xl text-slate-700 dark:text-zinc-300 hover:bg-slate-200/60 dark:hover:bg-zinc-800/60 transition-colors">
                         <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                         </svg>
@@ -239,23 +293,23 @@
                     <!-- Team Chat -->
                     <div>
                         <a href="{% url 'chat:chat_home' slug=current_workspace.slug %}" 
-                           class="flex items-center space-x-2.5 px-3 py-2 text-xs font-semibold rounded-lg text-slate-700 dark:text-zinc-300 hover:bg-slate-200/60 dark:hover:bg-zinc-800/60 transition-colors">
+                           class="flex items-center space-x-2.5 px-3 py-2.5 text-[14px] font-semibold rounded-xl text-slate-700 dark:text-zinc-300 hover:bg-slate-200/60 dark:hover:bg-zinc-800/60 transition-colors">
                             <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
                             </svg>
                             <span>Team Chat</span>
                         </a>
-                        <div class="pl-7 pr-2 space-y-0.5 pb-1">
+                        <div class="pl-7 pr-1 space-y-0.5 pb-1.5">
                             <a href="{% url 'chat:chat_home' slug=current_workspace.slug %}" 
-                               class="block py-1 text-[11px] font-medium text-slate-500 dark:text-zinc-400 hover:text-aether-blue dark:hover:text-zinc-200 transition-colors">
+                               class="block py-1.5 px-2.5 text-[13.5px] font-medium text-slate-600 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-zinc-100 hover:bg-slate-100 dark:hover:bg-zinc-800/50 rounded-lg transition-colors">
                                 • Chat Home
                             </a>
                             <a href="{% url 'chat:pinned_assets' slug=current_workspace.slug %}" 
-                               class="block py-1 text-[11px] font-medium text-slate-500 dark:text-zinc-400 hover:text-aether-blue dark:hover:text-zinc-200 transition-colors">
+                               class="block py-1.5 px-2.5 text-[13.5px] font-medium text-slate-600 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-zinc-100 hover:bg-slate-100 dark:hover:bg-zinc-800/50 rounded-lg transition-colors">
                                 • Pinned Assets
                             </a>
                             <a href="{% url 'chat:shared_files' slug=current_workspace.slug %}" 
-                               class="block py-1 text-[11px] font-medium text-slate-500 dark:text-zinc-400 hover:text-aether-blue dark:hover:text-zinc-200 transition-colors">
+                               class="block py-1.5 px-2.5 text-[13.5px] font-medium text-slate-600 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-zinc-100 hover:bg-slate-100 dark:hover:bg-zinc-800/50 rounded-lg transition-colors">
                                 • Shared Files
                             </a>
                         </div>
@@ -264,27 +318,32 @@
                     <!-- Meet Hub -->
                     <div>
                         <a href="{% url 'meetings:meet_hub' slug=current_workspace.slug %}" 
-                           class="flex items-center space-x-2.5 px-3 py-2 text-xs font-semibold rounded-lg text-slate-700 dark:text-zinc-300 hover:bg-slate-200/60 dark:hover:bg-zinc-800/60 transition-colors">
-                            <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
-                            </svg>
-                            <span>Meet Hub</span>
+                           class="flex items-center justify-between px-3 py-2.5 text-[14px] font-semibold rounded-xl text-slate-700 dark:text-zinc-300 hover:bg-slate-200/60 dark:hover:bg-zinc-800/60 transition-colors">
+                            <div class="flex items-center space-x-2.5">
+                                <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                                </svg>
+                                <span>Meet Hub</span>
+                            </div>
+                            {% if MODULE_STATUSES.meetings.is_under_maintenance %}
+                                <span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 border border-amber-300 dark:border-amber-700/50">MNT</span>
+                            {% endif %}
                         </a>
-                        <div class="pl-7 pr-2 space-y-0.5 pb-1">
+                        <div class="pl-7 pr-1 space-y-0.5 pb-1.5">
                             <a href="{% url 'meetings:meet_hub' slug=current_workspace.slug %}" 
-                               class="block py-1 text-[11px] font-medium text-slate-500 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-zinc-200 transition-colors">
+                               class="block py-1.5 px-2.5 text-[13.5px] font-medium text-slate-600 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-zinc-100 hover:bg-slate-100 dark:hover:bg-zinc-800/50 rounded-lg transition-colors">
                                 • Meet Overview
                             </a>
                             <a href="{% url 'meetings:meeting_start' slug=current_workspace.slug %}" 
-                               class="block py-1 text-[11px] font-medium text-slate-500 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-zinc-200 transition-colors">
+                               class="block py-1.5 px-2.5 text-[13.5px] font-medium text-slate-600 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-zinc-100 hover:bg-slate-100 dark:hover:bg-zinc-800/50 rounded-lg transition-colors">
                                 • Start Instant Call
                             </a>
                             <a href="{% url 'meetings:meeting_schedule' slug=current_workspace.slug %}" 
-                               class="block py-1 text-[11px] font-medium text-slate-500 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-zinc-200 transition-colors">
+                               class="block py-1.5 px-2.5 text-[13.5px] font-medium text-slate-600 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-zinc-100 hover:bg-slate-100 dark:hover:bg-zinc-800/50 rounded-lg transition-colors">
                                 • Schedule Meeting
                             </a>
                             <a href="{% url 'meetings:meeting_history' slug=current_workspace.slug %}" 
-                               class="block py-1 text-[11px] font-medium text-slate-500 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-zinc-200 transition-colors">
+                               class="block py-1.5 px-2.5 text-[13.5px] font-medium text-slate-600 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-zinc-100 hover:bg-slate-100 dark:hover:bg-zinc-800/50 rounded-lg transition-colors">
                                 • History & Logs
                             </a>
                         </div>
@@ -293,23 +352,23 @@
                     <!-- Calendar & Agenda -->
                     <div>
                         <a href="{% url 'calendars:calendar_view' slug=current_workspace.slug %}" 
-                           class="flex items-center space-x-2.5 px-3 py-2 text-xs font-semibold rounded-lg text-slate-700 dark:text-zinc-300 hover:bg-slate-200/60 dark:hover:bg-zinc-800/60 transition-colors">
+                           class="flex items-center space-x-2.5 px-3 py-2.5 text-[14px] font-semibold rounded-xl text-slate-700 dark:text-zinc-300 hover:bg-slate-200/60 dark:hover:bg-zinc-800/60 transition-colors">
                             <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
                             </svg>
                             <span>Calendar</span>
                         </a>
-                        <div class="pl-7 pr-2 space-y-0.5 pb-1">
+                        <div class="pl-7 pr-1 space-y-0.5 pb-1.5">
                             <a href="{% url 'calendars:calendar_view' slug=current_workspace.slug %}" 
-                               class="block py-1 text-[11px] font-medium text-slate-500 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-zinc-200 transition-colors">
+                               class="block py-1.5 px-2.5 text-[13.5px] font-medium text-slate-600 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-zinc-100 hover:bg-slate-100 dark:hover:bg-zinc-800/50 rounded-lg transition-colors">
                                 • Month Calendar
                             </a>
                             <a href="{% url 'calendars:agenda_view' slug=current_workspace.slug %}" 
-                               class="block py-1 text-[11px] font-medium text-slate-500 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-zinc-200 transition-colors">
+                               class="block py-1.5 px-2.5 text-[13.5px] font-medium text-slate-600 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-zinc-100 hover:bg-slate-100 dark:hover:bg-zinc-800/50 rounded-lg transition-colors">
                                 • Agenda
                             </a>
                             <a href="{% url 'calendars:upcoming_deadlines' slug=current_workspace.slug %}" 
-                               class="block py-1 text-[11px] font-medium text-slate-500 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-zinc-200 transition-colors">
+                               class="block py-1.5 px-2.5 text-[13.5px] font-medium text-slate-600 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-zinc-100 hover:bg-slate-100 dark:hover:bg-zinc-800/50 rounded-lg transition-colors">
                                 • Upcoming Deadlines
                             </a>
                         </div>
@@ -318,23 +377,23 @@
                     <!-- Files & Storage -->
                     <div>
                         <a href="{% url 'files:files_home' slug=current_workspace.slug %}" 
-                           class="flex items-center space-x-2.5 px-3 py-2 text-xs font-semibold rounded-lg text-slate-700 dark:text-zinc-300 hover:bg-slate-200/60 dark:hover:bg-zinc-800/60 transition-colors">
+                           class="flex items-center space-x-2.5 px-3 py-2.5 text-[14px] font-semibold rounded-xl text-slate-700 dark:text-zinc-300 hover:bg-slate-200/60 dark:hover:bg-zinc-800/60 transition-colors">
                             <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
                             </svg>
                             <span>Files</span>
                         </a>
-                        <div class="pl-7 pr-2 space-y-0.5 pb-1">
+                        <div class="pl-7 pr-1 space-y-0.5 pb-1.5">
                             <a href="{% url 'files:files_home' slug=current_workspace.slug %}" 
-                               class="block py-1 text-[11px] font-medium text-slate-500 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-zinc-200 transition-colors">
+                               class="block py-1.5 px-2.5 text-[13.5px] font-medium text-slate-600 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-zinc-100 hover:bg-slate-100 dark:hover:bg-zinc-800/50 rounded-lg transition-colors">
                                 • Files Home
                             </a>
                             <a href="{% url 'files:recent_files' slug=current_workspace.slug %}" 
-                               class="block py-1 text-[11px] font-medium text-slate-500 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-zinc-200 transition-colors">
+                               class="block py-1.5 px-2.5 text-[13.5px] font-medium text-slate-600 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-zinc-100 hover:bg-slate-100 dark:hover:bg-zinc-800/50 rounded-lg transition-colors">
                                 • Recent Files
                             </a>
                             <a href="{% url 'files:shared_files' slug=current_workspace.slug %}" 
-                               class="block py-1 text-[11px] font-medium text-slate-500 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-zinc-200 transition-colors">
+                               class="block py-1.5 px-2.5 text-[13.5px] font-medium text-slate-600 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-zinc-100 hover:bg-slate-100 dark:hover:bg-zinc-800/50 rounded-lg transition-colors">
                                 • Shared Files
                             </a>
                         </div>
@@ -343,7 +402,7 @@
                     <!-- Workspace Notifications -->
                     <div>
                         <a href="{% url 'notifications:workspace_notifications' slug=current_workspace.slug %}" 
-                           class="flex items-center justify-between px-3 py-2 text-xs font-semibold rounded-lg text-slate-700 dark:text-zinc-300 hover:bg-slate-200/60 dark:hover:bg-zinc-800/60 transition-colors">
+                           class="flex items-center justify-between px-3 py-2.5 text-[14px] font-semibold rounded-xl text-slate-700 dark:text-zinc-300 hover:bg-slate-200/60 dark:hover:bg-zinc-800/60 transition-colors">
                             <div class="flex items-center space-x-2.5">
                                 <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
@@ -362,7 +421,7 @@
                     {% if current_membership.can_manage_workspace %}
                         <div class="pt-2 mt-2 border-t border-slate-200/60 dark:border-zinc-800/60">
                             <a href="{% url 'workspaces:settings' slug=current_workspace.slug %}" 
-                               class="flex items-center space-x-2.5 px-3 py-2 text-xs font-semibold rounded-lg text-slate-700 dark:text-zinc-300 hover:bg-slate-200/60 dark:hover:bg-zinc-800/60 transition-colors">
+                               class="flex items-center space-x-2.5 px-3 py-2.5 text-[14px] font-semibold rounded-xl text-slate-700 dark:text-zinc-300 hover:bg-slate-200/60 dark:hover:bg-zinc-800/60 transition-colors">
                                 <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
@@ -393,7 +452,7 @@
             {% else %}
                 <!-- No Active Workspace / Master Dashboard Context -->
                 <div class="px-2 mb-3">
-                    <span class="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">Navigation</span>
+                    <span class="text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">Navigation</span>
                     <div class="flex items-center justify-between mt-1">
                         <span class="text-sm font-bold text-slate-800 dark:text-zinc-200">Workspaces</span>
                     </div>
@@ -401,14 +460,14 @@
 
                 <div class="space-y-1">
                     <a href="{% url 'workspaces:master_dashboard' %}" 
-                       class="flex items-center space-x-2 px-3 py-2 text-xs font-semibold rounded-lg bg-white dark:bg-[#0c1322] text-slate-900 dark:text-zinc-100 shadow-sm border border-slate-200 dark:border-zinc-800">
+                       class="flex items-center space-x-2 px-3 py-2.5 text-[14px] font-semibold rounded-xl bg-white dark:bg-[#0c1322] text-slate-900 dark:text-zinc-100 shadow-sm border border-slate-200 dark:border-zinc-800">
                         <svg class="w-4 h-4 text-aether-blue" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/>
                         </svg>
                         <span>Master Dashboard</span>
                     </a>
                     <a href="{% url 'workspaces:create' %}" 
-                       class="flex items-center space-x-2 px-3 py-2 text-xs font-semibold rounded-lg text-slate-600 dark:text-zinc-400 hover:bg-slate-200/60 dark:hover:bg-zinc-800/60 transition-colors">
+                       class="flex items-center space-x-2 px-3 py-2.5 text-[14px] font-semibold rounded-xl text-slate-600 dark:text-zinc-400 hover:bg-slate-200/60 dark:hover:bg-zinc-800/60 transition-colors">
                         <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                         </svg>
@@ -419,7 +478,7 @@
                 <!-- List of accessible workspaces for rapid switching -->
                 {% if user_workspaces %}
                     <div class="mt-5 pt-4 border-t border-slate-200 dark:border-zinc-800/80">
-                        <span class="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider px-2 block mb-2">
+                        <span class="text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider px-2.5 block mb-2">
                             My Workspaces
                         </span>
                         <div class="space-y-1">

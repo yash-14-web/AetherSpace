@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load rich_text %}
 
 {% block title %}{{ bug.bug_code }} {{ bug.title }} • {{ workspace.name }} — AetherSpace{% endblock %}
 
@@ -121,7 +122,7 @@
             <button @click="activeTab = 'attachments'" 
                     :class="activeTab === 'attachments' ? 'border-rose-500 text-rose-600 dark:text-rose-400' : 'border-transparent text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-300 hover:border-slate-300'"
                     class="py-3 px-1 border-b-2 font-bold text-xs sm:text-sm transition-colors">
-                Attachments <span class="ml-1 px-1.5 py-0.5 rounded-full text-[10px] bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400">0</span>
+                Attachments <span class="ml-1 px-1.5 py-0.5 rounded-full text-[10px] bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400">{{ attachments|length }}</span>
             </button>
             <button @click="activeTab = 'activity'" 
                     :class="activeTab === 'activity' ? 'border-rose-500 text-rose-600 dark:text-rose-400' : 'border-transparent text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-300 hover:border-slate-300'"
@@ -144,7 +145,13 @@
                     <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500">
                         Description
                     </h3>
-                    <div class="text-xs sm:text-sm text-slate-800 dark:text-zinc-200 leading-relaxed break-words whitespace-pre-line">{{ bug.description|default:"No description provided for this defect." }}</div>
+                    {% if bug.description %}
+                        <div class="prose dark:prose-invert max-w-none text-xs sm:text-sm text-slate-800 dark:text-zinc-200 leading-relaxed font-sans">
+                            {{ bug.description|render_rich_text }}
+                        </div>
+                    {% else %}
+                        <p class="text-xs text-slate-400 dark:text-zinc-500 italic">No description provided for this defect.</p>
+                    {% endif %}
                 </div>
 
                 <!-- Steps to Reproduce Card (Panel 3 Reference) -->
@@ -156,7 +163,9 @@
                         <span>Steps to Reproduce</span>
                     </h3>
                     {% if bug.steps_to_reproduce %}
-                        <div class="text-xs sm:text-sm text-slate-800 dark:text-zinc-200 leading-relaxed break-words whitespace-pre-line bg-slate-50 dark:bg-[#0c1322] p-4 rounded-xl border border-slate-100 dark:border-zinc-800/80 font-mono">{{ bug.steps_to_reproduce }}</div>
+                        <div class="prose dark:prose-invert max-w-none text-xs sm:text-sm text-slate-800 dark:text-zinc-200 leading-relaxed font-sans bg-slate-50 dark:bg-[#0c1322] p-4 rounded-xl border border-slate-100 dark:border-zinc-800/80">
+                            {{ bug.steps_to_reproduce|render_rich_text }}
+                        </div>
                     {% else %}
                         <p class="text-xs text-slate-400 dark:text-zinc-500 italic">No structured steps provided.</p>
                     {% endif %}
@@ -172,7 +181,13 @@
                             </svg>
                             <span>Expected Result</span>
                         </h3>
-                        <p class="text-xs text-slate-800 dark:text-zinc-200 leading-relaxed break-words whitespace-pre-line">{{ bug.expected_result|default:"No expected result specified." }}</p>
+                        <div class="prose dark:prose-invert max-w-none text-xs text-slate-800 dark:text-zinc-200 leading-relaxed font-sans">
+                            {% if bug.expected_result %}
+                                {{ bug.expected_result|render_rich_text }}
+                            {% else %}
+                                <p class="italic text-slate-400">No expected result specified.</p>
+                            {% endif %}
+                        </div>
                     </div>
 
                     <!-- Actual Result -->
@@ -183,59 +198,344 @@
                             </svg>
                             <span>Actual Result</span>
                         </h3>
-                        <p class="text-xs text-slate-800 dark:text-zinc-200 leading-relaxed break-words whitespace-pre-line">{{ bug.actual_result|default:"No actual result specified." }}</p>
+                        <div class="prose dark:prose-invert max-w-none text-xs text-slate-800 dark:text-zinc-200 leading-relaxed font-sans">
+                            {% if bug.actual_result %}
+                                {{ bug.actual_result|render_rich_text }}
+                            {% else %}
+                                <p class="italic text-slate-400">No actual result specified.</p>
+                            {% endif %}
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Tab: COMMENTS (Task Discussion matching Panel 3 Reference) -->
-            <div x-show="activeTab === 'comments'" style="display: none;" class="aether-card p-6 space-y-6">
-                <div class="flex items-center justify-between border-b border-slate-100 dark:border-zinc-800 pb-3">
+            <!-- Tab: COMMENTS (Newest First Toggle & Top Composer with @mention Autocomplete) -->
+            <div x-show="activeTab === 'comments'" style="display: none;" class="space-y-4 flex flex-col"
+                 x-data="{ sortNewestFirst: true }">
+                <div class="aether-card p-5 flex items-center justify-between border-b border-slate-100 dark:border-zinc-800">
                     <h3 class="text-sm font-bold text-slate-900 dark:text-zinc-100">Bug Discussion</h3>
-                    <span class="text-xs text-slate-400 dark:text-zinc-500">{{ comments|length }} comment{{ comments|length|pluralize }}</span>
+                    <div class="flex items-center space-x-2.5">
+                        <button type="button" @click="sortNewestFirst = !sortNewestFirst" 
+                                class="inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg text-xs font-medium border border-slate-200 dark:border-zinc-700 hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-700 dark:text-zinc-300 transition"
+                                title="Toggle comment order">
+                            <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"/>
+                            </svg>
+                            <span x-text="sortNewestFirst ? 'Newest First' : 'Oldest First'">Newest First</span>
+                        </button>
+                        <span class="text-xs text-slate-400 dark:text-zinc-500">{{ comments|length }} comment{{ comments|length|pluralize }}</span>
+                    </div>
                 </div>
 
-                <!-- Add Comment Form -->
-                <form method="post" action="{% url 'bugs:bug_comment_add' slug=workspace.slug bug_code=bug.bug_code %}" class="space-y-3">
-                    {% csrf_token %}
-                    <div class="flex items-start space-x-3">
-                        <div class="w-8 h-8 rounded-full bg-rose-600 text-white font-bold text-xs flex items-center justify-center shrink-0">
-                            {{ request.user.full_name|default:request.user.email|slice:":1"|upper }}
-                        </div>
-                        <div class="flex-1">
-                            <textarea name="content" rows="3" required placeholder="Leave a comment or triage update..." 
-                                      class="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-[#0c1322] text-slate-800 dark:text-zinc-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500 transition"></textarea>
-                            <div class="mt-2 flex items-center justify-between">
-                                <span class="text-[11px] text-slate-400 dark:text-zinc-500">Supports markdown and triage updates</span>
-                                <button type="submit" class="inline-flex items-center space-x-1 px-4 py-1.5 text-xs font-bold rounded-xl bg-rose-600 text-white hover:bg-rose-700 shadow-sm transition">
-                                    <span>Comment</span>
-                                </button>
+                <!-- Top Comment Composer -->
+                <div class="aether-card p-5 border-b border-slate-100 dark:border-zinc-800"
+                     x-data="{
+                         content: '',
+                         composerTab: 'write',
+                         composerPreviewHtml: '',
+                         showMentions: false,
+                         mentionQuery: '',
+                         people: [],
+                         files: [],
+                         activeIndex: 0,
+                         cursorPos: 0,
+                         applyFormat(type) {
+                             const el = this.$refs.bugCommentInput;
+                             if (!el) return;
+                             const start = el.selectionStart || 0;
+                             const end = el.selectionEnd || 0;
+                             const val = this.content || '';
+                             const selected = val.substring(start, end);
+                             let before = val.substring(0, start);
+                             let after = val.substring(end);
+                             let replacement = '';
+                             let newCursor = start;
+
+                             switch(type) {
+                                 case 'bold':
+                                     replacement = `**${selected || 'bold text'}**`;
+                                     newCursor = selected ? start + replacement.length : start + 2;
+                                     break;
+                                 case 'italic':
+                                     replacement = `*${selected || 'italic text'}*`;
+                                     newCursor = selected ? start + replacement.length : start + 1;
+                                     break;
+                                 case 'strike':
+                                     replacement = `~~${selected || 'strikethrough'}~~`;
+                                     newCursor = selected ? start + replacement.length : start + 2;
+                                     break;
+                                 case 'code':
+                                     replacement = `\`${selected || 'code'}\``;
+                                     newCursor = selected ? start + replacement.length : start + 1;
+                                     break;
+                                 case 'codeblock':
+                                     replacement = `\n\`\`\`\n${selected || 'code block'}\n\`\`\`\n`;
+                                     newCursor = selected ? start + replacement.length : start + 5;
+                                     break;
+                                 case 'quote':
+                                     replacement = `\n> ${selected || 'quote'}\n`;
+                                     newCursor = selected ? start + replacement.length : start + 3;
+                                     break;
+                                 case 'bullet':
+                                     replacement = `\n- ${selected || 'list item'}\n`;
+                                     newCursor = selected ? start + replacement.length : start + 3;
+                                     break;
+                                 case 'number':
+                                     replacement = `\n1. ${selected || 'list item'}\n`;
+                                     newCursor = selected ? start + replacement.length : start + 4;
+                                     break;
+                                 case 'link':
+                                     replacement = selected ? `[${selected}](https://)` : `[link text](https://)`;
+                                     newCursor = selected ? start + replacement.length - 1 : start + 1;
+                                     break;
+                                 case 'mention':
+                                     replacement = '@';
+                                     newCursor = start + 1;
+                                     this.content = before + replacement + after;
+                                     this.$nextTick(() => {
+                                         el.focus();
+                                         el.setSelectionRange(newCursor, newCursor);
+                                         this.cursorPos = newCursor;
+                                         this.mentionQuery = '';
+                                         this.searchMentions('');
+                                     });
+                                     return;
+                             }
+                             this.content = before + replacement + after;
+                             this.$nextTick(() => {
+                                 el.focus();
+                                 el.setSelectionRange(newCursor, newCursor);
+                             });
+                         },
+                         onInput(e) {
+                             const val = e.target.value;
+                             const pos = e.target.selectionStart;
+                             this.cursorPos = pos;
+                             const beforeCursor = val.slice(0, pos);
+                             const match = beforeCursor.match(/@([a-zA-Z0-9._-]*)$/);
+                             if (match) {
+                                 this.mentionQuery = match[1];
+                                 this.searchMentions(this.mentionQuery);
+                             } else {
+                                 this.showMentions = false;
+                             }
+                         },
+                         async searchMentions(q) {
+                             try {
+                                 const res = await fetch(`{% url 'workspaces:api_workspace_mentions' slug=workspace.slug %}?q=${encodeURIComponent(q)}`);
+                                 if (res.ok) {
+                                     const data = await res.json();
+                                     this.people = data.people || [];
+                                     this.files = data.files || [];
+                                     const total = this.people.length + this.files.length;
+                                     this.showMentions = total > 0;
+                                     this.activeIndex = 0;
+                                 }
+                             } catch (err) {}
+                         },
+                         navigate(dir) {
+                             const total = this.people.length + this.files.length;
+                             if (total === 0) return;
+                             this.activeIndex = (this.activeIndex + dir + total) % total;
+                         },
+                         selectActive() {
+                             const total = this.people.length + this.files.length;
+                             if (total === 0) return;
+                             if (this.activeIndex < this.people.length) {
+                                 this.selectMention(this.people[this.activeIndex]);
+                             } else {
+                                 this.selectMention(this.files[this.activeIndex - this.people.length]);
+                             }
+                         },
+                         selectMention(item) {
+                             const textarea = this.$refs.bugCommentInput;
+                             const text = this.content;
+                             const beforeCursor = text.slice(0, this.cursorPos);
+                             const afterCursor = text.slice(this.cursorPos);
+                             let insertText = '';
+                             if (item.type === 'file') {
+                                 insertText = `[${item.name}](${item.url}) `;
+                             } else {
+                                 const displayName = (item.full_name || item.name || (item.username && !item.username.includes('@') ? item.username : item.email.split('@')[0])).trim();
+                                 insertText = `@${displayName} `;
+                             }
+                             const newBefore = beforeCursor.replace(/@([a-zA-Z0-9._\s-]*)$/, insertText);
+                             this.content = newBefore + afterCursor;
+                             this.showMentions = false;
+                             this.$nextTick(() => {
+                                 textarea.focus();
+                                 const nextPos = newBefore.length;
+                                 textarea.setSelectionRange(nextPos, nextPos);
+                             });
+                         }
+                     }">
+                    <form method="post" action="{% url 'bugs:bug_comment_add' slug=workspace.slug bug_code=bug.bug_code %}" class="space-y-3 relative">
+                        {% csrf_token %}
+                        <div class="flex items-start space-x-3">
+                            <div class="shrink-0 mt-1">
+                                {% include 'components/people_hover_card.html' with target_user=request.user workspace_slug=workspace.slug show_name=False avatar_size='w-8 h-8' %}
+                            </div>
+                            <div class="flex-1 relative">
+                                <div class="rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-[#0c1322] overflow-hidden focus-within:ring-2 focus-within:ring-rose-500 transition">
+                                    <!-- Format Options Toolbar & Write/Preview Tabs -->
+                                    <div class="comment-toolbar px-2.5 py-1.5 flex items-center flex-wrap gap-1 text-xs select-none border-b border-slate-200/60 dark:border-zinc-800/80 bg-slate-100/60 dark:bg-zinc-900/60">
+                                        <div class="flex items-center space-x-1 mr-2 border-r border-slate-200 dark:border-zinc-700 pr-2">
+                                            <button type="button" @click="composerTab = 'write'" :class="composerTab === 'write' ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-zinc-100 font-bold shadow-xs' : 'text-slate-500 hover:text-slate-700 dark:hover:text-zinc-300'" class="px-2 py-0.5 rounded text-xs transition">Write</button>
+                                            <button type="button" @click="composerTab = 'preview'; AetherMarkdown.render(content, h => composerPreviewHtml = h)" :class="composerTab === 'preview' ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-zinc-100 font-bold shadow-xs' : 'text-slate-500 hover:text-slate-700 dark:hover:text-zinc-300'" class="px-2 py-0.5 rounded text-xs transition">Preview</button>
+                                        </div>
+                                        <button type="button" @click="applyFormat('bold')" class="px-2 py-0.5 rounded font-bold transition" title="Bold (Ctrl+B)">B</button>
+                                        <button type="button" @click="applyFormat('italic')" class="px-2 py-0.5 rounded italic font-serif transition" title="Italic (Ctrl+I)">I</button>
+                                        <button type="button" @click="applyFormat('strike')" class="px-2 py-0.5 rounded line-through transition" title="Strikethrough (~~text~~)">S</button>
+                                        <span class="opacity-30 select-none text-xs">|</span>
+                                        <button type="button" @click="applyFormat('code')" class="px-2 py-0.5 rounded text-[11px] font-mono transition" title="Inline Code (`code`)">&lt;/&gt;</button>
+                                        <button type="button" @click="applyFormat('codeblock')" class="px-2 py-0.5 rounded font-mono transition" title="Code Block (```)">&lbrace; &rbrace;</button>
+                                        <button type="button" @click="applyFormat('quote')" class="px-2 py-0.5 rounded font-serif transition" title="Quote (> text)">&ldquo;</button>
+                                        <span class="opacity-30 select-none text-xs">|</span>
+                                        <button type="button" @click="applyFormat('bullet')" class="px-2 py-0.5 rounded transition" title="Bullet List (- item)">&bull; List</button>
+                                        <button type="button" @click="applyFormat('number')" class="px-2 py-0.5 rounded transition" title="Numbered List (1. item)">1. List</button>
+                                        <button type="button" @click="applyFormat('link')" class="px-2 py-0.5 rounded transition" title="Link (Ctrl+K)">🔗</button>
+                                        <button type="button" @click="applyFormat('mention')" class="ml-auto px-2 py-0.5 rounded-lg bg-blue-500/15 hover:bg-blue-500/25 text-blue-600 dark:text-blue-400 font-bold transition flex items-center space-x-1" title="Mention teammate (@)">
+                                            <span>@ Mention</span>
+                                        </button>
+                                    </div>
+
+                                    <div x-show="composerTab === 'write'">
+                                        <textarea x-ref="bugCommentInput" x-model="content" 
+                                                  @input="onInput($event)"
+                                                  @keydown.ctrl.b.prevent="applyFormat('bold')"
+                                                  @keydown.meta.b.prevent="applyFormat('bold')"
+                                                  @keydown.ctrl.i.prevent="applyFormat('italic')"
+                                                  @keydown.meta.i.prevent="applyFormat('italic')"
+                                                  @keydown.ctrl.k.prevent="applyFormat('link')"
+                                                  @keydown.meta.k.prevent="applyFormat('link')"
+                                                  @keydown.arrow-down.prevent="if (showMentions) navigate(1)"
+                                                  @keydown.arrow-up.prevent="if (showMentions) navigate(-1)"
+                                                  @keydown.enter="if (showMentions) { $event.preventDefault(); selectActive(); }"
+                                                  @keydown.escape="showMentions = false"
+                                                  name="content" rows="3" required 
+                                                  placeholder="Leave a comment... Type @ to mention, or use formatting options above" 
+                                                  class="w-full px-3 py-2.5 text-xs bg-transparent text-slate-800 dark:text-zinc-200 placeholder-slate-400 dark:placeholder-zinc-600 focus:outline-none border-0 transition resize-y"></textarea>
+                                    </div>
+
+                                    <div x-show="composerTab === 'preview'" style="display: none;" class="p-3.5 min-h-[90px] text-xs prose dark:prose-invert max-w-none text-slate-800 dark:text-zinc-200 bg-white dark:bg-[#18181b]" x-html="composerPreviewHtml || '<p class=\'text-slate-400 dark:text-zinc-500 italic text-xs\'>Nothing to preview</p>'"></div>
+                                </div>
+
+                                <!-- Mention Popup Dropdown (Downwards opening: top-full mt-2) -->
+                                <div x-show="showMentions" @click.outside="showMentions = false" style="display: none;"
+                                     class="absolute top-full left-0 mt-2 w-80 max-h-80 overflow-y-auto rounded-2xl shadow-2xl bg-white dark:bg-[#18181b] border border-slate-200 dark:border-zinc-800 z-50 py-1.5 focus:outline-none">
+                                    
+                                    <!-- PEOPLE SECTION -->
+                                    <template x-if="people.length > 0">
+                                        <div>
+                                            <div class="px-3 pt-2 pb-1 text-[10px] font-bold tracking-wider text-slate-400 dark:text-zinc-500 uppercase">
+                                                People
+                                            </div>
+                                            <template x-for="(p, pIdx) in people" :key="'p-' + p.id">
+                                                <div @click="selectMention(p)"
+                                                     @mouseenter="activeIndex = pIdx"
+                                                     :class="activeIndex === pIdx ? 'bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-zinc-50' : 'text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800/60'"
+                                                     class="px-3 py-2 flex items-center space-x-2.5 cursor-pointer transition-colors text-xs">
+                                                    <template x-if="p.avatar">
+                                                        <img :src="p.avatar" class="w-7 h-7 rounded-full object-cover ring-1 ring-slate-200 dark:ring-zinc-700 shrink-0">
+                                                    </template>
+                                                    <template x-if="!p.avatar">
+                                                        <div class="w-7 h-7 rounded-full bg-gradient-to-tr from-rose-600 to-amber-600 text-white font-bold text-[10px] flex items-center justify-center shrink-0 shadow-xs">
+                                                            <span x-text="p.initials"></span>
+                                                        </div>
+                                                    </template>
+                                                    <div class="min-w-0 flex-1">
+                                                        <div class="flex items-center justify-between gap-1">
+                                                            <span class="font-bold truncate text-slate-900 dark:text-zinc-100 text-xs" x-text="p.full_name"></span>
+                                                            <template x-if="p.contributor_id">
+                                                                <span class="font-mono text-[9px] font-bold text-rose-600 dark:text-rose-400 px-1 py-0.2 rounded bg-rose-50 dark:bg-rose-950/60 shrink-0" x-text="p.contributor_id"></span>
+                                                            </template>
+                                                        </div>
+                                                        <span class="text-[11px] text-slate-400 dark:text-zinc-400 truncate block" x-text="p.email"></span>
+                                                    </div>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </template>
+
+                                    <!-- FILES SECTION -->
+                                    <template x-if="files.length > 0">
+                                        <div class="mt-1 border-t border-slate-100 dark:border-zinc-800">
+                                            <div class="px-3 pt-2 pb-1 text-[10px] font-bold tracking-wider text-slate-400 dark:text-zinc-500 uppercase">
+                                                Files
+                                            </div>
+                                            <template x-for="(f, fIdx) in files" :key="'f-' + f.id">
+                                                <div @click="selectMention(f)"
+                                                     @mouseenter="activeIndex = (people.length + fIdx)"
+                                                     :class="activeIndex === (people.length + fIdx) ? 'bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-zinc-50' : 'text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800/60'"
+                                                     class="px-3 py-2 flex items-center space-x-2.5 cursor-pointer transition-colors text-xs">
+                                                    <div class="w-7 h-7 rounded-lg bg-slate-100 dark:bg-zinc-800 flex items-center justify-center text-slate-500 dark:text-zinc-400 shrink-0 border border-slate-200 dark:border-zinc-700">
+                                                        <svg class="w-4 h-4 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                                                        </svg>
+                                                    </div>
+                                                    <div class="min-w-0 flex-1">
+                                                        <span class="font-medium truncate text-slate-800 dark:text-zinc-200 text-xs block" x-text="f.name"></span>
+                                                        <span class="text-[10px] text-slate-400 dark:text-zinc-500 block" x-text="f.size"></span>
+                                                    </div>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </template>
+
+                                    <!-- FOOTER -->
+                                    <div class="mt-1 pt-1.5 pb-1 text-center border-t border-slate-100 dark:border-zinc-800/80">
+                                        <span class="text-[10px] text-slate-400 dark:text-zinc-500 tracking-wide">No more results</span>
+                                    </div>
+                                </div>
+
+                                <div class="mt-2 flex items-center justify-between">
+                                    <span class="text-[11px] text-slate-400 dark:text-zinc-500">Supports Markdown & @mentions</span>
+                                    <button type="submit" class="inline-flex items-center space-x-1 px-4 py-1.5 text-xs font-bold rounded-xl bg-rose-600 text-white hover:bg-rose-700 shadow-sm transition">
+                                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+                                        </svg>
+                                        <span>Post Comment</span>
+                                    </button>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                </form>
+                    </form>
+                </div>
 
-                <!-- Comments List -->
-                <div class="space-y-4 pt-2">
+                <!-- Clean Rectangular Comments Cards -->
+                <div class="w-full space-y-3.5">
                     {% if comments %}
-                        <div class="space-y-5 divide-y divide-slate-100 dark:divide-zinc-800/80">
+                        <div class="w-full flex flex-col space-y-3.5"
+                             :style="sortNewestFirst ? 'display: flex !important; flex-direction: column-reverse !important; gap: 0.875rem; width: 100%;' : 'display: flex !important; flex-direction: column !important; gap: 0.875rem; width: 100%;'">
                             {% for comment in comments %}
-                                <div class="pt-4 first:pt-0 flex items-start space-x-3">
-                                    <div class="w-8 h-8 rounded-full bg-slate-200 dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 font-bold text-xs flex items-center justify-center shrink-0 mt-0.5">
-                                        {{ comment.author.full_name|default:comment.author.email|slice:":1"|upper }}
-                                    </div>
-                                    <div class="flex-1 space-y-1 min-w-0">
-                                        <div class="flex items-center justify-between">
-                                            <div class="flex items-center space-x-2">
-                                                <span class="text-xs font-bold text-slate-900 dark:text-zinc-100">
-                                                    {{ comment.author.full_name|default:comment.author.email }}
+                                <div class="comment-card aether-card p-5 space-y-3 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#18181b] shadow-xs w-full"
+                                     x-data="{ expanded: false, isLong: false, isEditing: false, editContent: '{{ comment.content|escapejs }}', editTab: 'write', editPreviewHtml: '' }"
+                                     x-init="$nextTick(() => { const el = $refs.bugCommentText_{{ comment.id }}; if (el && el.scrollHeight > 160) isLong = true; })">
+                                    <!-- Comment Header -->
+                                    <div class="flex items-center justify-between gap-2 border-b border-slate-100 dark:border-zinc-800/80 pb-2.5">
+                                        <div class="flex items-center space-x-2.5 min-w-0 flex-wrap">
+                                            {% include 'components/people_hover_card.html' with target_user=comment.author workspace_slug=workspace.slug show_name=True avatar_size='w-7 h-7' %}
+                                            <span class="text-slate-400 dark:text-zinc-500 text-xs shrink-0">
+                                                commented {{ comment.created_at|timesince }} ago ({{ comment.created_at|date:"M d, Y H:i" }})
+                                            </span>
+                                            {% if comment.updated_at != comment.created_at %}
+                                                <span class="text-[10px] text-slate-400 dark:text-zinc-500 italic shrink-0">
+                                                    (edited)
                                                 </span>
-                                                <span class="text-slate-400 dark:text-zinc-500 text-[11px]">
-                                                    {{ comment.created_at|timesince }} ago
-                                                </span>
-                                            </div>
-                                            {% if request.user == comment.author or membership.can_manage_content %}
-                                                <form method="post" action="{% url 'bugs:bug_comment_delete' slug=workspace.slug bug_code=bug.bug_code comment_id=comment.id %}" onsubmit="return confirm('Delete this comment?');">
+                                            {% endif %}
+                                        </div>
+
+                                        {% if request.user == comment.author or membership.can_manage_content %}
+                                            <div class="flex items-center space-x-1 shrink-0">
+                                                <!-- Edit Comment Button -->
+                                                <button type="button" @click="isEditing = !isEditing; if(isEditing) { editTab = 'write'; }" title="Edit comment" class="text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200 transition p-1 text-xs">
+                                                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                    </svg>
+                                                </button>
+
+                                                <!-- Delete Comment Button -->
+                                                <form method="post" action="{% url 'bugs:bug_comment_delete' slug=workspace.slug bug_code=bug.bug_code comment_id=comment.id %}" onsubmit="return confirm('Delete this comment?');" class="shrink-0">
                                                     {% csrf_token %}
                                                     <button type="submit" title="Delete comment" class="text-slate-400 hover:text-rose-500 transition p-1 text-xs">
                                                         <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -243,31 +543,128 @@
                                                         </svg>
                                                     </button>
                                                 </form>
-                                            {% endif %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+
+                                    <!-- Edit Mode Form (If user clicked Edit) -->
+                                    <div x-show="isEditing" style="display: none;" class="space-y-3 pt-1">
+                                        <form method="post" action="{% url 'bugs:bug_comment_edit' slug=workspace.slug bug_code=bug.bug_code comment_id=comment.id %}" class="space-y-2">
+                                            {% csrf_token %}
+                                            <div class="flex items-center justify-between border-b border-slate-100 dark:border-zinc-800 pb-1.5">
+                                                <span class="text-xs font-bold text-slate-600 dark:text-zinc-400">Edit Comment (Markdown)</span>
+                                                <div class="flex items-center space-x-1 text-xs">
+                                                    <button type="button" @click="editTab = 'write'" :class="editTab === 'write' ? 'bg-slate-200 dark:bg-zinc-700 text-slate-900 dark:text-zinc-100 font-bold' : 'text-slate-500 hover:text-slate-700 dark:hover:text-zinc-300'" class="px-2 py-0.5 rounded">Write</button>
+                                                    <button type="button" @click="editTab = 'preview'; AetherMarkdown.render(editContent, h => editPreviewHtml = h)" :class="editTab === 'preview' ? 'bg-slate-200 dark:bg-zinc-700 text-slate-900 dark:text-zinc-100 font-bold' : 'text-slate-500 hover:text-slate-700 dark:hover:text-zinc-300'" class="px-2 py-0.5 rounded">Preview</button>
+                                                </div>
+                                            </div>
+                                            <div x-show="editTab === 'write'">
+                                                <textarea name="content" x-model="editContent" rows="4" required class="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-zinc-700 bg-slate-50 dark:bg-[#0c1322] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-rose-500 resize-y font-sans"></textarea>
+                                            </div>
+                                            <div x-show="editTab === 'preview'" class="min-h-[70px] p-3 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-[#0c1322] text-xs prose dark:prose-invert max-w-none" x-html="editPreviewHtml || '<p class=\'text-slate-400 italic text-xs\'>Nothing to preview</p>'"></div>
+                                            <div class="flex items-center justify-end space-x-2 pt-1">
+                                                <button type="button" @click="isEditing = false" class="px-3 py-1 text-xs font-semibold rounded-lg border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800">Cancel</button>
+                                                <button type="submit" class="px-3 py-1 text-xs font-bold rounded-lg bg-rose-600 text-white hover:bg-rose-700 shadow-xs">Save Changes</button>
+                                            </div>
+                                        </form>
+                                    </div>
+
+                                    <!-- Normal Comment Content (Comfortable medium typography, auto height, collapsible) -->
+                                    <div x-show="!isEditing" class="relative">
+                                        <div x-ref="bugCommentText_{{ comment.id }}"
+                                             :class="{ 'max-h-36 overflow-hidden': !expanded && isLong }"
+                                             class="prose dark:prose-invert max-w-none text-sm text-slate-800 dark:text-zinc-200 leading-relaxed font-sans break-words transition-all duration-200">
+                                            {{ comment.content|render_rich_text }}
                                         </div>
-                                        <p class="text-xs text-slate-700 dark:text-zinc-300 leading-relaxed break-words whitespace-pre-line">{{ comment.content }}</p>
+                                        <template x-if="isLong">
+                                            <button type="button" 
+                                                    @click="expanded = !expanded" 
+                                                    class="mt-1.5 text-xs font-bold text-rose-600 dark:text-rose-400 hover:underline flex items-center space-x-1">
+                                                <span x-text="expanded ? 'Show less' : 'Show full comment'"></span>
+                                                <svg class="w-3 h-3 transition-transform" :class="{ 'rotate-180': expanded }" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                                                </svg>
+                                            </button>
+                                        </template>
                                     </div>
                                 </div>
                             {% endfor %}
                         </div>
                     {% else %}
                         <div class="text-center py-8 rounded-xl border border-dashed border-slate-200 dark:border-zinc-800 text-slate-400 dark:text-zinc-500 text-xs">
-                            <p>No comments on this defect yet. Start the discussion above.</p>
+                            <p>No comments on this defect yet. Start the conversation above.</p>
                         </div>
                     {% endif %}
                 </div>
             </div>
 
-            <!-- Tab: ATTACHMENTS -->
-            <div x-show="activeTab === 'attachments'" style="display: none;" class="aether-card p-6 space-y-4">
-                <h3 class="text-sm font-bold text-slate-900 dark:text-zinc-100">Attachments</h3>
-                <div class="border-2 border-dashed border-slate-200 dark:border-zinc-800 rounded-xl p-8 text-center space-y-2">
-                    <svg class="w-8 h-8 mx-auto text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
-                    </svg>
-                    <p class="text-xs text-slate-500 dark:text-zinc-400">Drag & drop error logs, traces, or screenshots here</p>
-                    <span class="text-[10px] text-slate-400 dark:text-zinc-500 block">Max file size: 10MB</span>
+            <!-- Tab: ATTACHMENTS (Supabase Storage Backed) -->
+            <div x-show="activeTab === 'attachments'" style="display: none;" class="aether-card p-6 space-y-4" x-data="{ showUploadModal: false }">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="text-sm font-bold text-slate-900 dark:text-zinc-100">Files & Attachments</h3>
+                        <p class="text-xs text-slate-500 dark:text-zinc-400">{{ attachments|length }} file{{ attachments|length|pluralize }} attached</p>
+                    </div>
+                    <button type="button" @click="showUploadModal = !showUploadModal" 
+                            class="inline-flex items-center space-x-1.5 px-3 py-1.5 text-xs font-bold rounded-xl bg-rose-600 text-white hover:bg-rose-700 shadow-sm transition">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                        <span>Upload File</span>
+                    </button>
                 </div>
+
+                <!-- Upload Form Dropzone -->
+                <div x-show="showUploadModal" style="display: none;" class="p-4 rounded-xl border border-rose-200 dark:border-rose-900/50 bg-rose-50/40 dark:bg-rose-950/20 space-y-3">
+                    <form method="post" action="{% url 'bugs:bug_attachment_upload' slug=workspace.slug bug_code=bug.bug_code %}" enctype="multipart/form-data" class="space-y-3">
+                        {% csrf_token %}
+                        <div class="flex flex-col sm:flex-row items-center gap-3">
+                            <input type="file" name="file" required class="text-xs text-slate-600 dark:text-zinc-300 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-rose-600 file:text-white hover:file:bg-rose-700 cursor-pointer flex-1">
+                            <div class="flex items-center space-x-2">
+                                <button type="submit" class="px-4 py-1.5 text-xs font-bold rounded-lg bg-rose-600 text-white hover:bg-rose-700 transition">Upload to Bug</button>
+                                <button type="button" @click="showUploadModal = false" class="px-3 py-1.5 text-xs font-medium text-slate-500 hover:text-slate-700 dark:text-zinc-400">Cancel</button>
+                            </div>
+                        </div>
+                        <p class="text-[11px] text-slate-500 dark:text-zinc-400">Attach logs, stacktraces, or screenshots. Max size: 25MB. Securely stored in Supabase Storage.</p>
+                    </form>
+                </div>
+
+                <!-- Attachments Grid -->
+                {% if attachments %}
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {% for att in attachments %}
+                            <div class="p-3 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-[#0c1322] flex items-center justify-between space-x-3 group hover:border-slate-300 dark:hover:border-zinc-700 transition">
+                                <div class="flex items-center space-x-3 min-w-0">
+                                    <div class="w-10 h-10 rounded-lg bg-rose-100 dark:bg-rose-950/60 text-rose-600 flex items-center justify-center font-bold text-xs uppercase shrink-0">
+                                        {{ att.file.extension|default:'FILE'|slice:":4" }}
+                                    </div>
+                                    <div class="min-w-0 flex-1">
+                                        <a href="{% url 'files:file_detail' slug=workspace.slug file_id=att.file.id %}" target="_blank" class="text-xs font-bold text-slate-800 dark:text-zinc-200 hover:text-rose-600 dark:hover:text-rose-400 transition truncate block" title="{{ att.file.filename }}">{{ att.file.filename }}</a>
+                                        <span class="text-[10px] text-slate-400 dark:text-zinc-500">
+                                            {{ att.file.size_display }} • {{ att.created_at|date:"M d, Y" }}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="flex items-center space-x-1 shrink-0">
+                                    <a href="{{ att.file.file_url }}" target="_blank" download title="Download" class="p-1.5 text-slate-400 hover:text-rose-600 transition">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                                    </a>
+                                    {% if request.user == att.file.uploaded_by or membership.can_manage_content %}
+                                        <form method="post" action="{% url 'bugs:bug_attachment_delete' slug=workspace.slug bug_code=bug.bug_code attachment_id=att.id %}" onsubmit="return confirm('Remove this attachment?');" class="inline">
+                                            {% csrf_token %}
+                                            <button type="submit" title="Delete attachment" class="p-1.5 text-slate-400 hover:text-rose-500 transition">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                            </button>
+                                        </form>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-8 rounded-xl border border-dashed border-slate-200 dark:border-zinc-800 text-slate-400 dark:text-zinc-500 text-xs space-y-2">
+                        <svg class="w-8 h-8 mx-auto opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
+                        <p>No attachments uploaded yet. Attach error logs, traces, or screenshots.</p>
+                    </div>
+                {% endif %}
             </div>
 
             <!-- Tab: ACTIVITY & HISTORY (Panel 7 Reference) -->
@@ -286,9 +683,11 @@
                                 <span class="absolute -left-[27px] top-1 w-3 h-3 rounded-full border-2 border-white dark:border-obsidian-900 {% if act.action == 'CREATED' %}bg-rose-500{% elif act.action == 'STATUS_CHANGED' %}bg-blue-500{% elif act.action == 'ASSIGNED' %}bg-purple-500{% elif act.action == 'COMMENTED' %}bg-amber-500{% else %}bg-slate-400{% endif %}"></span>
                                 <div class="space-y-1">
                                     <div class="flex items-center space-x-2 text-xs">
-                                        <span class="font-bold text-slate-900 dark:text-zinc-100">
-                                            {{ act.actor.full_name|default:act.actor.email|default:"System" }}
-                                        </span>
+                                        {% if act.actor %}
+                                            {% include 'components/people_hover_card.html' with target_user=act.actor workspace_slug=workspace.slug show_name=True avatar_size='w-5 h-5' %}
+                                        {% else %}
+                                            <span class="font-bold text-slate-900 dark:text-zinc-100">System</span>
+                                        {% endif %}
                                         <span class="text-slate-400 dark:text-zinc-500">•</span>
                                         <span class="text-[11px] text-slate-500 dark:text-zinc-400">
                                             {{ act.created_at|timesince }} ago ({{ act.created_at|date:"M d, Y H:i" }})
@@ -342,30 +741,24 @@
                 </h3>
 
                 <div class="space-y-3 text-xs">
-                    <!-- Assignee -->
+                    <!-- Assignee with Hover Card -->
                     <div class="flex items-center justify-between">
                         <span class="text-slate-500 dark:text-zinc-400">Assignee</span>
                         {% if bug.assignee %}
-                            <div class="flex items-center space-x-1.5">
-                                <div class="w-5 h-5 rounded-full bg-slate-200 dark:bg-zinc-700 text-slate-700 dark:text-zinc-200 font-bold text-[10px] flex items-center justify-center shrink-0">
-                                    {{ bug.assignee.full_name|default:bug.assignee.email|slice:":1"|upper }}
-                                </div>
-                                <span class="font-bold text-slate-900 dark:text-zinc-100">{{ bug.assignee.full_name|default:bug.assignee.email }}</span>
+                            <div>
+                                {% include 'components/people_hover_card.html' with target_user=bug.assignee workspace_slug=workspace.slug show_name=True %}
                             </div>
                         {% else %}
                             <span class="text-slate-400 dark:text-zinc-500 italic">Unassigned</span>
                         {% endif %}
                     </div>
 
-                    <!-- Reporter -->
+                    <!-- Reporter with Hover Card -->
                     <div class="flex items-center justify-between">
                         <span class="text-slate-500 dark:text-zinc-400">Reporter</span>
                         {% if bug.reporter %}
-                            <div class="flex items-center space-x-1.5">
-                                <div class="w-5 h-5 rounded-full bg-slate-200 dark:bg-zinc-700 text-slate-700 dark:text-zinc-200 font-bold text-[10px] flex items-center justify-center shrink-0">
-                                    {{ bug.reporter.full_name|default:bug.reporter.email|slice:":1"|upper }}
-                                </div>
-                                <span class="font-semibold text-slate-800 dark:text-zinc-200">{{ bug.reporter.full_name|default:bug.reporter.email }}</span>
+                            <div>
+                                {% include 'components/people_hover_card.html' with target_user=bug.reporter workspace_slug=workspace.slug show_name=True %}
                             </div>
                         {% else %}
                             <span class="text-slate-400 dark:text-zinc-500">—</span>

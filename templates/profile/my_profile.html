@@ -53,7 +53,36 @@
                 <span>Account Information</span>
             </h2>
 
-            <div class="space-y-3 text-xs">
+            <div class="space-y-2.5 text-xs">
+                <div class="flex justify-between items-center py-1.5 border-b border-slate-100 dark:border-zinc-800/60">
+                    <span class="text-slate-500 dark:text-zinc-400">Designation Role</span>
+                    <span class="font-bold text-slate-800 dark:text-zinc-100">{{ primary_role.designation|default:profile_user.get_role_display|default:profile_user.role }}</span>
+                </div>
+                {% if primary_role.role_tag %}
+                    <div class="flex justify-between items-center py-1.5 border-b border-slate-100 dark:border-zinc-800/60">
+                        <span class="text-slate-500 dark:text-zinc-400">Tagging Role</span>
+                        <span class="px-2 py-0.5 rounded-md font-bold text-[11px] bg-purple-50 dark:bg-purple-950/70 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800/60">
+                            {{ primary_role.role_tag }}
+                        </span>
+                    </div>
+                {% endif %}
+                {% if primary_role.workspace_name %}
+                    <div class="flex justify-between items-center py-1.5 border-b border-slate-100 dark:border-zinc-800/60">
+                        <span class="text-slate-500 dark:text-zinc-400">Primary Workspace</span>
+                        <span class="font-semibold text-slate-800 dark:text-zinc-200">{{ primary_role.workspace_name }}</span>
+                    </div>
+                {% endif %}
+                {% if primary_role.reporting_to_name and not primary_role.is_owner %}
+                    <div class="flex justify-between items-center py-1.5 border-b border-slate-100 dark:border-zinc-800/60">
+                        <span class="text-slate-500 dark:text-zinc-400">Reports To</span>
+                        <div class="flex items-center gap-1.5">
+                            {% if primary_role.reporting_to_user %}
+                                {% include 'components/avatar.html' with user=primary_role.reporting_to_user size="w-4 h-4" rounded="rounded-full" text_size="text-[8px]" %}
+                            {% endif %}
+                            <span class="font-bold text-slate-800 dark:text-zinc-200">{{ primary_role.reporting_to_name }}</span>
+                        </div>
+                    </div>
+                {% endif %}
                 <div class="flex justify-between py-1.5 border-b border-slate-100 dark:border-zinc-800/60">
                     <span class="text-slate-500 dark:text-zinc-400">Email Address</span>
                     <span class="font-semibold text-slate-800 dark:text-zinc-200">{{ profile_user.email }}</span>

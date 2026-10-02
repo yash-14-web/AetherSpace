@@ -378,6 +378,39 @@ class BugTrackingTests(TestCase):
         # Activity was logged
         self.assertTrue(bug.activities.filter(action=BugActivity.Action.COMMENTED).exists())
 
+        # Author can edit the comment
+        edit_url = reverse('bugs:bug_comment_edit', kwargs={
+            'slug': self.workspace1.slug,
+            'bug_code': bug.bug_code,
+            'comment_id': comment.id
+        })
+        edit_resp = self.client.post(edit_url, {'content': '**I Saw the Issues I will soon fixed as soon as possible **'})
+        self.assertEqual(edit_resp.status_code, 302)
+        comment.refresh_from_db()
+        self.assertEqual(comment.content, '**I Saw the Issues I will soon fixed as soon as possible **')
+
+        # Bug detail view renders the comment as strong tag without raw asterisks
+        detail_url = reverse('bugs:bug_detail', kwargs={'slug': self.workspace1.slug, 'bug_code': bug.bug_code})
+        detail_resp = self.client.get(detail_url + '?tab=comments')
+        self.assertEqual(detail_resp.status_code, 200)
+        self.assertContains(detail_resp, '<strong>I Saw the Issues I will soon fixed as soon as possible</strong>')
+
+        # Another normal contributor cannot edit this comment
+        other_user = User.objects.create_user(
+            email='other_contrib@example.com',
+            password='Password123!',
+            full_name='Other Contributor'
+        )
+        WorkspaceMembership.objects.create(
+            workspace=self.workspace1,
+            user=other_user,
+            role=WorkspaceRole.CONTRIBUTOR,
+            status=MembershipStatus.ACTIVE
+        )
+        self.client.force_login(other_user)
+        unauth_resp = self.client.post(edit_url, {'content': 'Malicious overwrite'})
+        self.assertEqual(unauth_resp.status_code, 403)
+
     # 11. My Bugs View
     def test_my_bugs_view(self):
         self.client.force_login(self.contributor_user)
@@ -404,6 +437,8 @@ class BugTrackingTests(TestCase):
         self.assertNotContains(resp, b_reported.bug_code)
 
         # Reported tab
+        from notifications.models import Notification
+        Notification.objects.filter(recipient=self.contributor_user).delete()
         resp = self.client.get(my_bugs_url + '?tab=reported')
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, b_reported.bug_code)

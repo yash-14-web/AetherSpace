@@ -1,0 +1,20 @@
+{% extends 'emails/base_email.html' %}
+
+{% block email_content %}
+    <span class="badge badge-blue">Team Discussion &bull; Mention</span>
+    <h1>You were mentioned by {{ actor.full_name|default:actor.email }}</h1>
+    <p>Hello <strong>{{ user.full_name|default:user.email }}</strong>,</p>
+    <p>
+        <strong>{{ actor.full_name|default:actor.email }}</strong> mentioned you in a comment on <strong>{{ context_title }}</strong>:
+    </p>
+
+    <div style="background-color: #09090b; border: 1px solid #27272a; border-radius: 12px; padding: 16px; margin: 20px 0;">
+        <p style="font-size: 13px; color: #f4f4f5; margin: 0; line-height: 1.6; font-style: italic;">
+            "{{ snippet }}"
+        </p>
+    </div>
+
+    <a href="{{ site_url|default:'http://127.0.0.1:8000' }}{{ action_url }}" class="btn">
+        View Discussion in AetherSpace &rarr;
+    </a>
+{% endblock %}

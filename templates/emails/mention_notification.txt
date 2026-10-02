@@ -1,0 +1,11 @@
+Hello {{ user.full_name|default:user.email }},
+
+{{ actor.full_name|default:actor.email }} mentioned you in a comment on {{ context_title }}:
+
+"{{ snippet }}"
+
+View Discussion in AetherSpace:
+{{ site_url|default:'http://127.0.0.1:8000' }}{{ action_url }}
+
+--
+AetherSpace Team Collaboration Platform

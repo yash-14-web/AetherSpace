@@ -1,0 +1,275 @@
+{% extends "admin_panel/base_admin.html" %}
+
+{% block admin_content %}
+<div class="space-y-6" x-data="{
+    editModalOpen: false,
+    selectedModule: null,
+    statusForm: {
+        key: '',
+        name: '',
+        status: 'AVAILABLE',
+        public_message: '',
+        maintenance_explanation: ''
+    },
+    openEditModal(mod) {
+        this.selectedModule = mod;
+        this.statusForm.key = mod.key;
+        this.statusForm.name = mod.name;
+        this.statusForm.status = mod.status;
+        this.statusForm.public_message = mod.public_message;
+        this.statusForm.maintenance_explanation = mod.maintenance_explanation;
+        this.editModalOpen = true;
+    }
+}">
+
+    <!-- Top KPI Stat Metric Cards -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- Total Modules -->
+        <div class="p-4 rounded-xl bg-white dark:bg-[#121826] border border-slate-200 dark:border-zinc-800 shadow-xs">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-semibold text-slate-500 dark:text-zinc-400">Total Modules</span>
+                <span class="p-1.5 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/>
+                    </svg>
+                </span>
+            </div>
+            <div class="text-2xl font-bold text-slate-900 dark:text-zinc-100 mt-2">{{ total_modules }}</div>
+            <div class="text-[11px] text-slate-500 dark:text-zinc-400 mt-1">Core platform components</div>
+        </div>
+
+        <!-- Fully Available -->
+        <div class="p-4 rounded-xl bg-white dark:bg-[#121826] border border-slate-200 dark:border-zinc-800 shadow-xs">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-semibold text-slate-500 dark:text-zinc-400">Available</span>
+                <span class="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                    </svg>
+                </span>
+            </div>
+            <div class="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-2">{{ available_count }}</div>
+            <div class="text-[11px] text-slate-500 dark:text-zinc-400 mt-1">Operational without restrictions</div>
+        </div>
+
+        <!-- Under Maintenance -->
+        <div class="p-4 rounded-xl bg-white dark:bg-[#121826] border {% if maintenance_count > 0 %}border-amber-400 dark:border-amber-700/80 bg-amber-500/5{% else %}border-slate-200 dark:border-zinc-800{% endif %} shadow-xs">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-semibold text-slate-500 dark:text-zinc-400">Under Maintenance</span>
+                <span class="p-1.5 rounded-lg bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                    </svg>
+                </span>
+            </div>
+            <div class="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-2">{{ maintenance_count }}</div>
+            <div class="text-[11px] text-slate-500 dark:text-zinc-400 mt-1">Locked with server-side enforcement</div>
+        </div>
+
+        <!-- Coming Soon -->
+        <div class="p-4 rounded-xl bg-white dark:bg-[#121826] border border-slate-200 dark:border-zinc-800 shadow-xs">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-semibold text-slate-500 dark:text-zinc-400">Coming Soon</span>
+                <span class="p-1.5 rounded-lg bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                    </svg>
+                </span>
+            </div>
+            <div class="text-2xl font-bold text-purple-600 dark:text-purple-400 mt-2">{{ coming_soon_count }}</div>
+            <div class="text-[11px] text-slate-500 dark:text-zinc-400 mt-1">Pre-release roadmap items</div>
+        </div>
+    </div>
+
+    <!-- Informational Policy Callout -->
+    <div class="p-4 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-900 dark:text-purple-200 text-xs flex items-start space-x-3 shadow-xs">
+        <span class="text-lg">🛡️</span>
+        <div class="leading-relaxed">
+            <span class="font-bold">Global Enforcement Architecture:</span>
+            When a module is marked <strong>Under Maintenance</strong>, direct URL access, action triggers, and API endpoints are rejected with HTTP 503 server-side. Users immediately see the custom public status message across navigation, dashboards, and error views. Switching status back to <strong>Available</strong> instantly restores full functionality without code deployment.
+        </div>
+    </div>
+
+    <!-- Modules Table Card -->
+    <div class="rounded-xl bg-white dark:bg-[#121826] border border-slate-200 dark:border-zinc-800 shadow-xs overflow-hidden">
+        <div class="p-4 sm:p-5 border-b border-slate-200 dark:border-zinc-800 flex items-center justify-between">
+            <div>
+                <h3 class="text-sm font-bold text-slate-900 dark:text-zinc-100">Configured System Modules</h3>
+                <p class="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">Manage operational status and user-facing communications</p>
+            </div>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs text-slate-600 dark:text-zinc-300">
+                <thead class="bg-slate-50 dark:bg-zinc-900/80 text-slate-500 dark:text-zinc-400 uppercase text-[10px] font-bold tracking-wider border-b border-slate-200 dark:border-zinc-800">
+                    <tr>
+                        <th class="py-3 px-4">Module Name</th>
+                        <th class="py-3 px-4">Current Status</th>
+                        <th class="py-3 px-4">Public Status Message</th>
+                        <th class="py-3 px-4">Last Updated</th>
+                        <th class="py-3 px-4 text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 dark:divide-zinc-800/80">
+                    {% for m in modules %}
+                    <tr class="hover:bg-slate-50/60 dark:hover:bg-zinc-800/40 transition-colors">
+                        <td class="py-3.5 px-4">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm {% if m.is_under_maintenance %}bg-amber-100 text-amber-700 dark:bg-amber-950/80 dark:text-amber-400 border border-amber-300 dark:border-amber-700/60{% elif m.is_coming_soon %}bg-purple-100 text-purple-700 dark:bg-purple-950/80 dark:text-purple-400 border border-purple-300 dark:border-purple-700/60{% else %}bg-blue-50 text-blue-600 dark:bg-blue-950/80 dark:text-blue-400 border border-blue-200 dark:border-blue-800/60{% endif %}">
+                                    {% if m.is_under_maintenance %}🚧{% elif m.is_coming_soon %}🚀{% else %}✓{% endif %}
+                                </div>
+                                <div>
+                                    <span class="font-bold text-slate-900 dark:text-zinc-100 block">{{ m.name }}</span>
+                                    <span class="text-[10px] font-mono text-slate-400 dark:text-zinc-500">{{ m.module_key }}</span>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="py-3.5 px-4">
+                            {% if m.is_available %}
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800/60">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5"></span>
+                                    Available
+                                </span>
+                            {% elif m.is_under_maintenance %}
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 border border-amber-300 dark:border-amber-800/60">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-amber-500 mr-1.5"></span>
+                                    Under Maintenance
+                                </span>
+                            {% else %}
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-purple-100 text-purple-800 dark:bg-purple-950/80 dark:text-purple-300 border border-purple-300 dark:border-purple-800/60">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-purple-500 mr-1.5"></span>
+                                    Coming Soon
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td class="py-3.5 px-4 max-w-xs truncate">
+                            <span class="text-xs text-slate-700 dark:text-zinc-300" title="{{ m.effective_message }}">
+                                {{ m.effective_message }}
+                            </span>
+                            {% if m.maintenance_explanation %}
+                            <p class="text-[10px] text-slate-400 dark:text-zinc-500 truncate mt-0.5" title="Explanation: {{ m.maintenance_explanation }}">
+                                Note: {{ m.maintenance_explanation }}
+                            </p>
+                            {% endif %}
+                        </td>
+                        <td class="py-3.5 px-4 whitespace-nowrap text-[11px] text-slate-500 dark:text-zinc-400">
+                            <div>{{ m.updated_at|date:"M d, Y H:i" }}</div>
+                            {% if m.updated_by %}
+                            <div class="text-[10px] text-slate-400 dark:text-zinc-500">by {{ m.updated_by.get_full_name|default:m.updated_by.username }}</div>
+                            {% endif %}
+                        </td>
+                        <td class="py-3.5 px-4 text-right whitespace-nowrap">
+                            <button type="button"
+                                    @click="openEditModal({
+                                        key: '{{ m.module_key }}',
+                                        name: '{{ m.name|escapejs }}',
+                                        status: '{{ m.status }}',
+                                        public_message: '{{ m.public_message|escapejs }}',
+                                        maintenance_explanation: '{{ m.maintenance_explanation|escapejs }}'
+                                    })"
+                                    class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-purple-50 dark:hover:bg-purple-950/60 hover:text-purple-600 dark:hover:text-purple-300 border border-slate-200 dark:border-zinc-700 transition-colors">
+                                Edit Status
+                            </button>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="py-8 text-center text-slate-400 dark:text-zinc-500">
+                            No modules configured.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Edit Status Modal -->
+    <div x-show="editModalOpen" 
+         x-transition:enter="transition ease-out duration-150"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-100"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs"
+         style="display: none;"
+         @keydown.escape.window="editModalOpen = false">
+
+        <div @click.away="editModalOpen = false"
+             class="w-full max-w-lg rounded-2xl bg-white dark:bg-[#121826] border border-slate-200 dark:border-zinc-800 shadow-xl overflow-hidden">
+            
+            <div class="p-5 border-b border-slate-200 dark:border-zinc-800 flex items-center justify-between">
+                <div class="flex items-center space-x-2.5">
+                    <div class="w-8 h-8 rounded-lg bg-purple-100 dark:bg-purple-950/80 text-purple-600 dark:text-purple-400 flex items-center justify-center font-bold text-sm">
+                        ⚙️
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-bold text-slate-900 dark:text-zinc-100">Configure Module Status</h3>
+                        <p class="text-xs text-slate-500 dark:text-zinc-400" x-text="statusForm.name"></p>
+                    </div>
+                </div>
+                <button type="button" @click="editModalOpen = false" class="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+
+            <form :action="'/admin-panel/modules/' + statusForm.key + '/update/'" method="post" class="p-5 space-y-4">
+                {% csrf_token %}
+
+                <!-- Status Selector -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1.5">
+                        Operational Status <span class="text-rose-500">*</span>
+                    </label>
+                    <select name="status" x-model="statusForm.status"
+                            class="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-purple-500">
+                        {% for code, label in status_choices %}
+                            <option value="{{ code }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Public Status Message -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1.5">
+                        Public Status Message
+                    </label>
+                    <input type="text" name="public_message" x-model="statusForm.public_message"
+                           placeholder="e.g. Meet Hub is temporarily unavailable while we complete improvements."
+                           class="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-purple-500">
+                    <span class="text-[10px] text-slate-400 dark:text-zinc-500 mt-1 block">
+                        Displayed on navigation banners and error states across the platform.
+                    </span>
+                </div>
+
+                <!-- Internal Maintenance Explanation -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1.5">
+                        Internal / Administrator Explanation
+                    </label>
+                    <textarea name="maintenance_explanation" x-model="statusForm.maintenance_explanation" rows="3"
+                              placeholder="Reason for maintenance, QA findings, or expected completion notes..."
+                              class="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-purple-500"></textarea>
+                </div>
+
+                <!-- Modal Actions -->
+                <div class="pt-3 border-t border-slate-200 dark:border-zinc-800 flex items-center justify-end space-x-2.5">
+                    <button type="button" @click="editModalOpen = false"
+                            class="px-4 py-2 text-xs font-semibold rounded-xl text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 transition">
+                        Cancel
+                    </button>
+                    <button type="submit"
+                            class="px-5 py-2 text-xs font-bold rounded-xl bg-purple-600 hover:bg-purple-500 text-white shadow-sm transition">
+                        Save Status Changes
+                    </button>
+                </div>
+            </form>
+
+        </div>
+    </div>
+
+</div>
+{% endblock %}

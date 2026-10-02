@@ -94,17 +94,61 @@ def create_chat_call(workspace, host, channel=None, conversation=None, is_audio_
     # Post meeting invitation card message to Chat thread
     try:
         from chat.models import Message
+        from asgiref.sync import async_to_sync
+        from channels.layers import get_channel_layer
+
         card_content = (
             f"CALL_INVITE:{meeting.meeting_code}:{'AUDIO' if is_audio_only else 'VIDEO'}:{meeting.title}"
         )
-        Message.objects.create(
+        msg = Message.objects.create(
             workspace=workspace,
             sender=host,
             channel=channel,
             conversation=conversation,
             content=card_content
         )
-    except Exception:
+
+        channel_layer = get_channel_layer()
+        if channel_layer:
+            group_name = f"chat_dm_{conversation.id}" if conversation else f"chat_channel_{channel.id}"
+            sender_name = host.full_name or host.email if host else "Someone"
+            sender_avatar = host.avatar_url if host and hasattr(host, 'avatar_url') else ""
+
+            # Broadcast new message card
+            async_to_sync(channel_layer.group_send)(
+                group_name,
+                {
+                    "type": "chat_broadcast",
+                    "event": "new_message",
+                    "message": {
+                        "id": str(msg.id),
+                        "sender_id": str(host.id) if host else "",
+                        "sender_name": sender_name,
+                        "sender_avatar": sender_avatar,
+                        "content": card_content,
+                        "created_at": msg.created_at.strftime("%I:%M %p"),
+                        "reactions": [],
+                    }
+                }
+            )
+
+            # Broadcast incoming call event with ringtone trigger data
+            async_to_sync(channel_layer.group_send)(
+                group_name,
+                {
+                    "type": "chat_broadcast",
+                    "event": "incoming_call",
+                    "call": {
+                        "meeting_code": meeting.meeting_code,
+                        "title": meeting.title,
+                        "is_audio_only": is_audio_only,
+                        "caller_name": sender_name,
+                        "caller_avatar": sender_avatar,
+                        "room_url": f"/meetings/w/{workspace.slug}/room/{meeting.meeting_code}/"
+                    }
+                }
+            )
+    except Exception as e:
         # Non-blocking if chat is offline
         pass
 

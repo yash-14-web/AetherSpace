@@ -384,3 +384,112 @@ class FilesModuleTests(TestCase):
         resp_shared = self.client.get(reverse('files:shared_files', kwargs={'slug': self.workspace_a.slug}))
         self.assertEqual(resp_shared.status_code, 200)
         self.assertContains(resp_shared, "Shared Files")
+
+    def test_file_preview_and_download_distinction(self):
+        """
+        Verify distinct behavior for file preview vs file download:
+        - file_preview returns Content-Disposition: inline and accurate MIME types
+        - file_preview applies CSP sandbox to SVGs
+        - file_download returns Content-Disposition: attachment
+        - workspace isolation is enforced on both endpoints (403 for unauthorized users)
+        - Model URL properties return expected routes
+        """
+        # Upload a dummy PDF
+        pdf_file = SimpleUploadedFile(
+            'contract.pdf',
+            b'%PDF-1.4 dummy pdf content for testing inline preview',
+            content_type='application/pdf'
+        )
+        storage_path = SupabaseStorageService.upload_file(
+            file_obj=pdf_file,
+            workspace_id=self.workspace_a.id,
+            filename='contract.pdf',
+            content_type='application/pdf'
+        )
+        stored_pdf = StoredFile.objects.create(
+            workspace=self.workspace_a,
+            uploaded_by=self.owner,
+            name='Contract Agreement.pdf',
+            original_name='contract.pdf',
+            storage_path=storage_path,
+            mime_type='application/pdf',
+            size_bytes=len(pdf_file.read()),
+            category=FileCategory.DOCUMENT
+        )
+
+        # Upload a dummy SVG
+        svg_file = SimpleUploadedFile(
+            'badge.svg',
+            b'<svg xmlns="http://www.w3.org/2000/svg"><circle r="10"/></svg>',
+            content_type='image/svg+xml'
+        )
+        svg_storage_path = SupabaseStorageService.upload_file(
+            file_obj=svg_file,
+            workspace_id=self.workspace_a.id,
+            filename='badge.svg',
+            content_type='image/svg+xml'
+        )
+        stored_svg = StoredFile.objects.create(
+            workspace=self.workspace_a,
+            uploaded_by=self.owner,
+            name='Badge Icon',
+            original_name='badge.svg',
+            storage_path=svg_storage_path,
+            mime_type='image/svg+xml',
+            size_bytes=len(svg_file.read()),
+            category=FileCategory.IMAGE
+        )
+
+        # Verify model helper properties
+        self.assertTrue(stored_pdf.is_pdf)
+        self.assertTrue(stored_pdf.is_previewable)
+        self.assertIn('/preview/', stored_pdf.preview_url)
+        self.assertIn('/download/', stored_pdf.download_url)
+        self.assertIn(str(stored_pdf.id), stored_pdf.detail_url)
+
+        self.assertTrue(stored_svg.is_image)
+        self.assertTrue(stored_svg.is_previewable)
+
+        # 1. Preview PDF: Must be inline, application/pdf, allow iframe embedding via SAMEORIGIN
+        self.client.force_login(self.contributor)
+        preview_resp = self.client.get(
+            reverse('files:file_preview', kwargs={'slug': self.workspace_a.slug, 'file_id': stored_pdf.id})
+        )
+        self.assertEqual(preview_resp.status_code, 200)
+        self.assertEqual(preview_resp['Content-Type'], 'application/pdf')
+        self.assertIn('inline', preview_resp['Content-Disposition'])
+        self.assertNotIn('attachment', preview_resp['Content-Disposition'])
+        self.assertEqual(preview_resp['X-Content-Type-Options'], 'nosniff')
+        self.assertEqual(preview_resp['X-Frame-Options'], 'SAMEORIGIN')
+        self.assertEqual(preview_resp['Accept-Ranges'], 'bytes')
+        self.assertIn("frame-ancestors 'self'", preview_resp['Content-Security-Policy'])
+
+        # 2. Preview SVG: Must be inline and include CSP sandbox header
+        svg_preview_resp = self.client.get(
+            reverse('files:file_preview', kwargs={'slug': self.workspace_a.slug, 'file_id': stored_svg.id})
+        )
+        self.assertEqual(svg_preview_resp.status_code, 200)
+        self.assertEqual(svg_preview_resp['Content-Type'], 'image/svg+xml')
+        self.assertIn('inline', svg_preview_resp['Content-Disposition'])
+        self.assertIn('sandbox', svg_preview_resp.get('Content-Security-Policy', ''))
+
+        # 3. Download PDF: Must be attachment, forcing explicit browser download
+        download_resp = self.client.get(
+            reverse('files:file_download', kwargs={'slug': self.workspace_a.slug, 'file_id': stored_pdf.id})
+        )
+        self.assertEqual(download_resp.status_code, 200)
+        self.assertIn('attachment', download_resp['Content-Disposition'])
+        self.assertIn('contract.pdf', download_resp['Content-Disposition'])
+
+        # 4. Workspace isolation: Unauthorized user from Workspace B cannot preview or download
+        self.client.force_login(self.other_user)
+        unauth_preview = self.client.get(
+            reverse('files:file_preview', kwargs={'slug': self.workspace_a.slug, 'file_id': stored_pdf.id})
+        )
+        self.assertEqual(unauth_preview.status_code, 403)
+
+        unauth_download = self.client.get(
+            reverse('files:file_download', kwargs={'slug': self.workspace_a.slug, 'file_id': stored_pdf.id})
+        )
+        self.assertEqual(unauth_download.status_code, 403)
+

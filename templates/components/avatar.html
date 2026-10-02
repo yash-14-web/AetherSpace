@@ -1,0 +1,62 @@
+{% comment %}
+AetherSpace Reusable Real Avatar Component
+Rules:
+1. Real uploaded photo -> <img> with graceful onerror initials fallback.
+2. Preset gradient (preset:color) -> curated background gradient with user initials.
+3. Empty -> deterministic initials fallback.
+4. ZERO static or random stock avatars.
+Props:
+  user: User instance or user dictionary (keys: avatar, full_name, email)
+  size: CSS size class (default 'w-8 h-8')
+  text_size: font size class for initials (default 'text-xs')
+  extra_classes: additional Tailwind classes
+  rounded: CSS rounded class (default 'rounded-full')
+{% endcomment %}
+{% if user %}
+<div class="{{ size|default:'w-8 h-8' }} {{ rounded|default:'rounded-full' }} overflow-hidden flex items-center justify-center shrink-0 select-none relative {{ extra_classes|default:'' }}"
+     title="{{ user.full_name|default:user.email }}">
+    {% if user.avatar and user.avatar|slice:":7" != "preset:" %}
+        {# Real Photo URL from Supabase Storage or Media #}
+        <img src="{{ user.avatar }}" 
+             alt="{{ user.full_name|default:user.email }}" 
+             class="w-full h-full object-cover {{ rounded|default:'rounded-full' }}"
+             loading="lazy"
+             onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';">
+        <div style="display:none;" class="w-full h-full {{ rounded|default:'rounded-full' }} bg-gradient-to-tr from-blue-600 to-indigo-700 text-white font-bold {{ text_size|default:'text-xs' }} items-center justify-center">
+            {{ user.full_name|default:user.email|slice:":2"|upper }}
+        </div>
+    {% elif user.avatar and user.avatar|slice:":7" == "preset:" %}
+        {# Preset Color Gradient #}
+        {% if user.avatar == 'preset:teal' %}
+            <div class="w-full h-full {{ rounded|default:'rounded-full' }} bg-gradient-to-tr from-teal-500 to-emerald-600 text-white font-bold {{ text_size|default:'text-xs' }} flex items-center justify-center">
+                {{ user.full_name|default:user.email|slice:":2"|upper }}
+            </div>
+        {% elif user.avatar == 'preset:purple' %}
+            <div class="w-full h-full {{ rounded|default:'rounded-full' }} bg-gradient-to-tr from-purple-600 to-indigo-600 text-white font-bold {{ text_size|default:'text-xs' }} flex items-center justify-center">
+                {{ user.full_name|default:user.email|slice:":2"|upper }}
+            </div>
+        {% elif user.avatar == 'preset:emerald' %}
+            <div class="w-full h-full {{ rounded|default:'rounded-full' }} bg-gradient-to-tr from-emerald-600 to-green-700 text-white font-bold {{ text_size|default:'text-xs' }} flex items-center justify-center">
+                {{ user.full_name|default:user.email|slice:":2"|upper }}
+            </div>
+        {% elif user.avatar == 'preset:amber' %}
+            <div class="w-full h-full {{ rounded|default:'rounded-full' }} bg-gradient-to-tr from-amber-500 to-orange-600 text-white font-bold {{ text_size|default:'text-xs' }} flex items-center justify-center">
+                {{ user.full_name|default:user.email|slice:":2"|upper }}
+            </div>
+        {% elif user.avatar == 'preset:rose' %}
+            <div class="w-full h-full {{ rounded|default:'rounded-full' }} bg-gradient-to-tr from-rose-500 to-pink-600 text-white font-bold {{ text_size|default:'text-xs' }} flex items-center justify-center">
+                {{ user.full_name|default:user.email|slice:":2"|upper }}
+            </div>
+        {% else %}
+            <div class="w-full h-full {{ rounded|default:'rounded-full' }} bg-gradient-to-tr from-blue-600 to-indigo-700 text-white font-bold {{ text_size|default:'text-xs' }} flex items-center justify-center">
+                {{ user.full_name|default:user.email|slice:":2"|upper }}
+            </div>
+        {% endif %}
+    {% else %}
+        {# Initials fallback when no photo exists #}
+        <div class="w-full h-full {{ rounded|default:'rounded-full' }} bg-gradient-to-tr from-blue-600 to-indigo-700 text-white font-bold {{ text_size|default:'text-xs' }} flex items-center justify-center shadow-xs">
+            {{ user.full_name|default:user.email|slice:":2"|upper }}
+        </div>
+    {% endif %}
+</div>
+{% endif %}

@@ -10,7 +10,7 @@ from django.utils import timezone
 from django.contrib.auth import get_user_model
 from accounts.models import ApprovalStatus
 
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import PermissionDenied, ValidationError
 from workspaces.models import Workspace, WorkspaceMembership, MembershipStatus, WorkspaceRole
 from workspaces.permissions import workspace_member_required
 from .models import (
@@ -21,7 +21,9 @@ from .forms import ChannelForm, MessageForm
 from .services import (
     ensure_default_channels, get_or_create_dm_conversation,
     post_channel_message, post_direct_message,
-    toggle_pin_message, toggle_reaction, mark_channel_as_read
+    toggle_pin_message, toggle_reaction, mark_channel_as_read,
+    is_default_channel, can_manage_channel, can_delete_channel,
+    add_channel_member, remove_channel_member, leave_channel, delete_channel
 )
 
 User = get_user_model()
@@ -178,6 +180,19 @@ def channel_view(request, slug, channel_slug):
         'attachments', 'reactions', 'reactions__user'
     ).order_by('created_at')
 
+    can_manage = can_manage_channel(channel, user)
+    can_delete = can_delete_channel(channel, user)
+    is_default = is_default_channel(channel)
+    user_channel_membership = channel.memberships.filter(user=user).first()
+
+    # Active workspace members not in channel
+    existing_member_ids = channel.memberships.values_list('user_id', flat=True)
+    available_members = User.objects.filter(
+        workspace_memberships__workspace=workspace,
+        workspace_memberships__status=MembershipStatus.ACTIVE,
+        is_active=True
+    ).exclude(id__in=existing_member_ids).order_by('full_name', 'email')
+
     context = {
         'title': f"#{channel.name} — {workspace.name} — AetherSpace",
         'workspace': workspace,
@@ -185,6 +200,11 @@ def channel_view(request, slug, channel_slug):
         'channel': channel,
         'chat_messages': messages_qs,
         'can_post': channel.can_post(user),
+        'can_manage': can_manage,
+        'can_delete': can_delete,
+        'is_default': is_default,
+        'user_channel_membership': user_channel_membership,
+        'available_members': available_members,
         **sidebar_ctx,
     }
     return render(request, 'chat/channel_view.html', context)
@@ -234,7 +254,7 @@ def direct_message_view(request, slug, user_id):
             messages.error(request, str(e))
 
     messages_qs = conversation.messages.filter(is_deleted=False).select_related(
-        'sender', 'recipient', 'pinned_by'
+        'sender', 'sender__profile', 'recipient', 'pinned_by'
     ).prefetch_related(
         'attachments', 'reactions', 'reactions__user'
     ).order_by('created_at')
@@ -316,6 +336,19 @@ def channel_details_view(request, slug, channel_slug):
     # Files in channel
     files = MessageAttachment.objects.filter(message__channel=channel, message__is_deleted=False).select_related('message', 'message__sender')
 
+    can_manage = can_manage_channel(channel, user)
+    can_delete = can_delete_channel(channel, user)
+    is_default = is_default_channel(channel)
+    user_channel_membership = channel.memberships.filter(user=user).first()
+
+    # Active workspace members not in channel
+    existing_member_ids = channel.memberships.values_list('user_id', flat=True)
+    available_members = User.objects.filter(
+        workspace_memberships__workspace=workspace,
+        workspace_memberships__status=MembershipStatus.ACTIVE,
+        is_active=True
+    ).exclude(id__in=existing_member_ids).order_by('full_name', 'email')
+
     context = {
         'title': f"#{channel.name} Details — {workspace.name} — AetherSpace",
         'workspace': workspace,
@@ -324,9 +357,137 @@ def channel_details_view(request, slug, channel_slug):
         'memberships': memberships,
         'pinned_messages': pinned_messages,
         'files': files,
+        'can_manage': can_manage,
+        'can_delete': can_delete,
+        'is_default': is_default,
+        'user_channel_membership': user_channel_membership,
+        'available_members': available_members,
         **sidebar_ctx,
     }
     return render(request, 'chat/channel_details.html', context)
+
+
+@require_POST
+@workspace_member_required
+def channel_delete_view(request, slug, channel_slug):
+    """
+    Delete a space/channel with strict permissions:
+    - Default channels cannot be deleted
+    - Must be workspace Admin/Manager, Channel Creator, or Channel Owner
+    """
+    workspace = request.workspace
+    channel = get_object_or_404(Channel, workspace=workspace, slug=channel_slug)
+
+    try:
+        channel_name = delete_channel(channel, request.user)
+        messages.success(request, f"Space #{channel_name} was deleted successfully.")
+        return redirect('chat:chat_home', slug=slug)
+    except (PermissionDenied, ValidationError) as e:
+        messages.error(request, str(e))
+        return redirect('chat:channel_view', slug=slug, channel_slug=channel_slug)
+
+
+@require_POST
+@workspace_member_required
+def channel_add_members_view(request, slug, channel_slug):
+    """
+    Add member(s) to a space/channel.
+    Accepts user_ids (list) or single user_id and role.
+    Supports both standard form POST and JSON AJAX.
+    """
+    workspace = request.workspace
+    channel = get_object_or_404(Channel, workspace=workspace, slug=channel_slug)
+
+    user_ids = request.POST.getlist('user_ids')
+    single_user_id = request.POST.get('user_id')
+    if single_user_id and single_user_id not in user_ids:
+        user_ids.append(single_user_id)
+
+    role_str = request.POST.get('role', ChannelRole.MEMBER).upper()
+    role = ChannelRole.ADMIN if role_str in ['ADMIN', 'OWNER'] else ChannelRole.MEMBER
+
+    if not user_ids:
+        if request.content_type == 'application/json':
+            try:
+                data = json.loads(request.body)
+                user_ids = data.get('user_ids', [])
+                if data.get('user_id'):
+                    user_ids.append(data.get('user_id'))
+                if data.get('role'):
+                    role = ChannelRole.ADMIN if data.get('role').upper() == 'ADMIN' else ChannelRole.MEMBER
+            except Exception:
+                pass
+
+    if not user_ids:
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.content_type == 'application/json':
+            return JsonResponse({'status': 'error', 'message': 'No members selected.'}, status=400)
+        messages.warning(request, "No members were selected to add.")
+        return redirect(request.META.get('HTTP_REFERER') or f"/chat/w/{slug}/c/{channel_slug}/details/")
+
+    added_count = 0
+    errors = []
+    for uid in user_ids:
+        try:
+            target_user = User.objects.get(id=uid)
+            add_channel_member(channel, target_user, request.user, role=role)
+            added_count += 1
+        except User.DoesNotExist:
+            continue
+        except (PermissionDenied, ValidationError) as e:
+            errors.append(str(e))
+
+    if added_count > 0:
+        messages.success(request, f"Added {added_count} member(s) to #{channel.name}.")
+    if errors:
+        messages.warning(request, " ".join(set(errors)))
+
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.content_type == 'application/json':
+        return JsonResponse({'status': 'ok', 'added': added_count, 'errors': errors})
+
+    return redirect(request.META.get('HTTP_REFERER') or f"/chat/w/{slug}/c/{channel_slug}/details/")
+
+
+@require_POST
+@workspace_member_required
+def channel_remove_member_view(request, slug, channel_slug, user_id):
+    """
+    Remove a member from a space/channel.
+    Only authorized space managers/owners can remove members.
+    """
+    workspace = request.workspace
+    channel = get_object_or_404(Channel, workspace=workspace, slug=channel_slug)
+    target_user = get_object_or_404(User, id=user_id)
+
+    try:
+        remove_channel_member(channel, target_user, request.user)
+        target_name = target_user.full_name or target_user.email
+        messages.success(request, f"Removed {target_name} from #{channel.name}.")
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return JsonResponse({'status': 'ok'})
+    except (PermissionDenied, ValidationError) as e:
+        messages.error(request, str(e))
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=403)
+
+    return redirect(request.META.get('HTTP_REFERER') or f"/chat/w/{slug}/c/{channel_slug}/details/")
+
+
+@require_POST
+@workspace_member_required
+def channel_leave_view(request, slug, channel_slug):
+    """
+    Voluntarily leave a space/channel.
+    """
+    workspace = request.workspace
+    channel = get_object_or_404(Channel, workspace=workspace, slug=channel_slug)
+
+    try:
+        leave_channel(channel, request.user)
+        messages.info(request, f"You left #{channel.name}.")
+        return redirect('chat:chat_home', slug=slug)
+    except (PermissionDenied, ValidationError) as e:
+        messages.error(request, str(e))
+        return redirect('chat:channel_view', slug=slug, channel_slug=channel_slug)
 
 
 @workspace_member_required
@@ -611,9 +772,12 @@ def api_search_users(request, slug):
             'contributor_id': u.contributor_id or '',
             'name': u.full_name or u.email.split('@')[0],
             'email': u.email,
+            'avatar': str(u.avatar) if u.avatar and not u.avatar.startswith('preset:') else '',
             'initial': (u.first_name[:1] if u.first_name else u.email[:1]).upper(),
             'is_member': mem is not None,
-            'role_display': 'Workspace Member' if mem else 'Direct Chat',
+            'role_display': 'Workspace Member' if mem is not None else 'Direct Chat',
+            'workspace_role': mem.get_role_display() if mem else '',
+            'system_role': u.get_role_display() if hasattr(u, 'get_role_display') else str(u.role),
             'dm_url': f"/chat/w/{workspace.slug}/dm/{u.id}/"
         })
 

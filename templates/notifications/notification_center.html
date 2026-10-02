@@ -237,10 +237,8 @@
                         <div class="flex items-center space-x-3 text-[11px] text-slate-400 dark:text-zinc-500 mt-2">
                             {% if n.actor %}
                                 <div class="flex items-center space-x-1.5">
-                                    <div class="w-4 h-4 rounded-full bg-slate-200 dark:bg-zinc-700 text-slate-700 dark:text-zinc-300 font-bold text-[9px] flex items-center justify-center">
-                                        {{ n.actor.first_name|default:n.actor.email|slice:":1"|upper }}
-                                    </div>
-                                    <span>{{ n.actor.full_name|default:n.actor.email }}</span>
+                                    {% include 'components/avatar.html' with user=n.actor size="w-4 h-4" rounded="rounded-full" text_size="text-[8px]" %}
+                                    {% include 'components/people_hover_card.html' with target_user=n.actor show_name=True avatar_size='hidden' %}
                                 </div>
                                 <span>•</span>
                             {% endif %}
@@ -304,64 +302,18 @@
                 </div>
             </div>
         {% empty %}
-            <!-- 5. Empty States -->
-            <div class="py-16 text-center rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200/80 dark:border-zinc-800 p-8 space-y-3">
-                <div class="w-14 h-14 mx-auto rounded-2xl bg-slate-100 dark:bg-zinc-800/80 text-slate-400 dark:text-zinc-500 flex items-center justify-center shadow-inner">
-                    {% if active_tab == 'unread' %}
-                        <svg class="w-7 h-7 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                        </svg>
-                    {% elif active_tab == 'tasks' %}
-                        <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-                        </svg>
-                    {% elif active_tab == 'bugs' %}
-                        <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-                        </svg>
-                    {% elif active_tab == 'mentions' %}
-                        <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207"/>
-                        </svg>
-                    {% else %}
-                        <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
-                        </svg>
-                    {% endif %}
-                </div>
-
-                <div class="max-w-sm mx-auto">
-                    <h3 class="text-sm font-bold text-slate-800 dark:text-zinc-200">
-                        {% if search_query %}
-                            No matching notifications
-                        {% elif active_tab == 'unread' %}
-                            All caught up!
-                        {% elif active_tab == 'tasks' %}
-                            No task alerts
-                        {% elif active_tab == 'bugs' %}
-                            No bug alerts
-                        {% elif active_tab == 'mentions' %}
-                            No mentions found
-                        {% else %}
-                            No notifications yet
-                        {% endif %}
-                    </h3>
-                    <p class="text-xs text-slate-500 dark:text-zinc-400 mt-1">
-                        {% if search_query %}
-                            No notifications matched your query "{{ search_query }}". Try searching for different keywords.
-                        {% elif active_tab == 'unread' %}
-                            You have zero unread notifications. New task updates, mentions, or invites will appear here.
-                        {% elif active_tab == 'tasks' %}
-                            You don't have any task assignments or deadline alerts for this workspace yet.
-                        {% elif active_tab == 'bugs' %}
-                            No open bug tickets or triage notifications requiring your attention.
-                        {% elif active_tab == 'mentions' %}
-                            No one has mentioned you in channels or direct messages recently.
-                        {% else %}
-                            When you receive task assignments, bug reports, or chat mentions, they will appear here.
-                        {% endif %}
-                    </p>
-                </div>
+            <!-- Connected Vector Empty State -->
+            <div class="rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200/80 dark:border-zinc-800">
+                {% url 'notifications:notifications_router' as notif_home_url %}
+                {% if search_query %}
+                    {% include 'components/empty_states.html' with state_type='no_search_results' title='No Notifications Found' message='No notifications match your search query.' query=search_query secondary_url=notif_home_url secondary_text='Clear Search' %}
+                {% elif active_tab == 'tasks' %}
+                    {% include 'components/empty_states.html' with state_type='no_tasks' title='No Task Alerts' message='You don’t have any task assignments or deadline alerts for this workspace.' secondary_url=notif_home_url secondary_text='View All Notifications' %}
+                {% elif active_tab == 'bugs' %}
+                    {% include 'components/empty_states.html' with state_type='no_bugs' title='No Bug Alerts' message='No open bug tickets or triage notifications requiring your attention.' secondary_url=notif_home_url secondary_text='View All Notifications' %}
+                {% else %}
+                    {% include 'components/empty_states.html' with state_type='no_notifications' title='You’re All Caught Up!' message='Zero unread notifications right now. New task updates, mentions, or invites will appear here.' %}
+                {% endif %}
             </div>
         {% endfor %}
     </div>

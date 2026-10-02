@@ -5,6 +5,13 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 
+class TimerStatus(models.TextChoices):
+    IDLE = 'IDLE', _('Idle')
+    RUNNING = 'RUNNING', _('Running')
+    PAUSED = 'PAUSED', _('Paused')
+    COMPLETED = 'COMPLETED', _('Completed')
+
+
 class TimeEntryType(models.TextChoices):
     TIMER = 'TIMER', _('Live Timer')
     MANUAL = 'MANUAL', _('Manual Entry')
@@ -39,7 +46,19 @@ class TimeEntry(models.Model):
     description = models.CharField(max_length=255, blank=True, default='')
     started_at = models.DateTimeField(default=timezone.now, db_index=True)
     ended_at = models.DateTimeField(null=True, blank=True)
+    last_resumed_at = models.DateTimeField(null=True, blank=True)
+    paused_at = models.DateTimeField(null=True, blank=True)
+    accumulated_seconds = models.PositiveIntegerField(
+        default=0,
+        help_text=_("Total accumulated active running seconds (excluding paused intervals).")
+    )
     duration_seconds = models.PositiveIntegerField(default=0, help_text=_("Total elapsed duration in seconds."))
+    status = models.CharField(
+        max_length=15,
+        choices=TimerStatus.choices,
+        default=TimerStatus.COMPLETED,
+        db_index=True
+    )
     is_running = models.BooleanField(default=False, db_index=True)
     entry_type = models.CharField(
         max_length=10,
@@ -53,9 +72,19 @@ class TimeEntry(models.Model):
         ordering = ['-started_at']
         indexes = [
             models.Index(fields=['workspace', 'user', '-started_at']),
+            models.Index(fields=['workspace', 'status']),
+            models.Index(fields=['user', 'status']),
             models.Index(fields=['workspace', 'is_running']),
             models.Index(fields=['user', 'is_running']),
         ]
+
+    def save(self, *args, **kwargs):
+        if self.is_running:
+            if self.status in [TimerStatus.COMPLETED, TimerStatus.IDLE]:
+                self.status = TimerStatus.RUNNING
+            if not self.last_resumed_at:
+                self.last_resumed_at = self.started_at
+        super().save(*args, **kwargs)
 
     def __str__(self):
         task_str = f" (#{self.task.task_code})" if self.task else ""
@@ -63,9 +92,17 @@ class TimeEntry(models.Model):
 
     @property
     def current_duration_seconds(self):
-        """Returns elapsed seconds, dynamically computing live duration if timer is running."""
-        if self.is_running:
-            return max(0, int((timezone.now() - self.started_at).total_seconds()))
+        """
+        Returns elapsed seconds, dynamically computing live duration if timer is running.
+        Excludes paused intervals.
+        """
+        if self.status == TimerStatus.RUNNING or (self.is_running and self.status != TimerStatus.PAUSED):
+            now = timezone.now()
+            resumed_ref = self.last_resumed_at or self.started_at
+            active_interval = max(0, int((now - resumed_ref).total_seconds()))
+            return self.accumulated_seconds + active_interval
+        elif self.status == TimerStatus.PAUSED:
+            return self.accumulated_seconds
         return self.duration_seconds
 
     @property
@@ -89,11 +126,45 @@ class TimeEntry(models.Model):
         """Decimal hours representation (e.g. 1.75)."""
         return round(self.current_duration_seconds / 3600.0, 2)
 
-    def stop(self):
-        """Stop running timer and finalize duration."""
-        if self.is_running:
+    def pause(self):
+        """Pause running timer without finalizing. Preserves accumulated duration."""
+        if self.status == TimerStatus.RUNNING or self.is_running:
             now = timezone.now()
-            self.ended_at = now
-            self.duration_seconds = max(1, int((now - self.started_at).total_seconds()))
+            resumed_ref = self.last_resumed_at or self.started_at
+            active_interval = max(0, int((now - resumed_ref).total_seconds()))
+            self.accumulated_seconds += active_interval
+            self.duration_seconds = self.accumulated_seconds
+            self.paused_at = now
+            self.status = TimerStatus.PAUSED
             self.is_running = False
-            self.save(update_fields=['ended_at', 'duration_seconds', 'is_running', 'updated_at'])
+            self.save(update_fields=['accumulated_seconds', 'duration_seconds', 'paused_at', 'status', 'is_running', 'updated_at'])
+            return True
+        return False
+
+    def resume(self):
+        """Resume a paused timer. Begins a new running interval from preserved accumulated duration."""
+        if self.status == TimerStatus.PAUSED:
+            now = timezone.now()
+            self.last_resumed_at = now
+            self.paused_at = None
+            self.status = TimerStatus.RUNNING
+            self.is_running = True
+            self.save(update_fields=['last_resumed_at', 'paused_at', 'status', 'is_running', 'updated_at'])
+            return True
+        return False
+
+    def stop(self):
+        """Stop running or paused timer and finalize duration."""
+        if self.status in [TimerStatus.RUNNING, TimerStatus.PAUSED] or self.is_running:
+            now = timezone.now()
+            if self.status == TimerStatus.RUNNING or self.is_running:
+                resumed_ref = self.last_resumed_at or self.started_at
+                active_interval = max(0, int((now - resumed_ref).total_seconds()))
+                self.accumulated_seconds += active_interval
+            self.ended_at = now
+            self.duration_seconds = max(1, self.accumulated_seconds)
+            self.status = TimerStatus.COMPLETED
+            self.is_running = False
+            self.save(update_fields=['ended_at', 'accumulated_seconds', 'duration_seconds', 'status', 'is_running', 'updated_at'])
+            return True
+        return False

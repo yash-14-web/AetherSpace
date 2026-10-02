@@ -16,6 +16,7 @@ urlpatterns = [
     path('w/<slug:slug>/shared/', views.shared_files, name='shared_files'),
 
     # File & Folder operations
+    path('w/<slug:slug>/<uuid:file_id>/preview/', views.file_preview, name='file_preview'),
     path('w/<slug:slug>/<uuid:file_id>/download/', views.file_download, name='file_download'),
     path('w/<slug:slug>/<uuid:file_id>/star/', views.file_star_toggle, name='file_star_toggle'),
     path('w/<slug:slug>/folders/<uuid:folder_id>/star/', views.folder_star_toggle, name='folder_star_toggle'),

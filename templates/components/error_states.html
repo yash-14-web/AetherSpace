@@ -1,0 +1,150 @@
+{% comment %}
+AetherSpace Component-Level Error States & States Library
+Adheres directly to AetherSpace_Designs/a_high_resolution_dark_ui_graphic_design_showcase.png
+{% endcomment %}
+
+<!-- 1. Card / Chart Error State -->
+{% if component_type == 'chart_error' %}
+<div class="aether-card p-6 text-center flex flex-col items-center justify-center space-y-3 border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/90 rounded-xl min-h-[220px]">
+    <div class="w-10 h-10 rounded-lg bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800/60 flex items-center justify-center text-amber-500">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+        </svg>
+    </div>
+    <div class="space-y-1">
+        <h4 class="text-sm font-bold text-slate-900 dark:text-zinc-100">{{ error_title|default:"Unable to load chart" }}</h4>
+        <p class="text-xs text-slate-500 dark:text-zinc-400 max-w-xs">{{ error_message|default:"Something went wrong while loading this data." }}</p>
+    </div>
+    <button type="button" onclick="{{ retry_action|default:'window.location.reload()' }}"
+            class="px-4 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 hover:bg-blue-500 text-white shadow-sm transition-colors">
+        Retry
+    </button>
+</div>
+
+<!-- 2. Table Error State -->
+{% elif component_type == 'table_error' %}
+<div class="aether-card p-8 text-center flex flex-col items-center justify-center space-y-3 border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/90 rounded-xl">
+    <div class="w-10 h-10 rounded-lg bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800/60 flex items-center justify-center text-amber-500">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+        </svg>
+    </div>
+    <div class="space-y-1">
+        <h4 class="text-sm font-bold text-slate-900 dark:text-zinc-100">{{ error_title|default:"Unable to load data" }}</h4>
+        <p class="text-xs text-slate-500 dark:text-zinc-400 max-w-xs">{{ error_message|default:"We couldn't load the task list. Please try again." }}</p>
+    </div>
+    <button type="button" onclick="{{ retry_action|default:'window.location.reload()' }}"
+            class="px-4 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 hover:bg-blue-500 text-white shadow-sm transition-colors">
+        Retry
+    </button>
+</div>
+
+<!-- 3. Inline API Error Banner -->
+{% elif component_type == 'api_inline_error' %}
+<div class="p-3 rounded-xl bg-red-50/80 dark:bg-red-950/40 border border-red-200 dark:border-red-900/50 flex items-center justify-between gap-3 text-left">
+    <div class="flex items-center gap-2.5">
+        <div class="w-7 h-7 rounded-full bg-red-100 dark:bg-red-900/80 flex items-center justify-center text-red-600 dark:text-red-400 flex-shrink-0">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="9" stroke-width="2"/>
+                <line x1="12" y1="8" x2="12" y2="12" stroke-width="2" stroke-linecap="round"/>
+                <circle cx="12" cy="16" r="1" fill="currentColor"/>
+            </svg>
+        </div>
+        <div>
+            <div class="text-xs font-bold text-red-900 dark:text-red-300">{{ error_title|default:"Failed to fetch data" }}</div>
+            <div class="text-[11px] text-red-700 dark:text-red-400">{{ error_message|default:"API returned an unexpected response." }}</div>
+        </div>
+    </div>
+    <button type="button" onclick="{{ retry_action|default:'window.location.reload()' }}"
+            class="px-3 py-1 text-xs font-semibold rounded-lg bg-white dark:bg-zinc-800 text-red-600 dark:text-red-300 border border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-zinc-700">
+        Retry
+    </button>
+</div>
+
+<!-- 4. Widget Storage Error -->
+{% elif component_type == 'widget_error' %}
+<div class="aether-card p-5 text-center flex flex-col items-center justify-center space-y-2.5 border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-xl">
+    <div class="w-8 h-8 rounded-lg bg-amber-50 dark:bg-amber-950/50 flex items-center justify-center text-amber-500">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+        </svg>
+    </div>
+    <div class="space-y-0.5">
+        <h5 class="text-xs font-bold text-slate-900 dark:text-zinc-100">{{ error_title|default:"Failed to load storage info" }}</h5>
+        <p class="text-[11px] text-slate-500 dark:text-zinc-400">{{ error_message|default:"We couldn't retrieve storage details right now." }}</p>
+    </div>
+    <button type="button" onclick="{{ retry_action|default:'window.location.reload()' }}"
+            class="px-3 py-1 text-xs font-medium rounded-md bg-blue-600 hover:bg-blue-500 text-white">
+        Retry
+    </button>
+</div>
+
+<!-- 5. Action Error Toast -->
+{% elif component_type == 'action_toast' %}
+<div x-data="{ show: true }" x-show="show"
+     class="p-3 rounded-xl bg-slate-900 dark:bg-zinc-900 border border-red-500/50 shadow-xl flex items-center justify-between gap-3 text-white max-w-sm">
+    <div class="flex items-center gap-2">
+        <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+        <div class="text-xs">
+            <span class="font-bold text-red-400">{{ error_title|default:"Failed to delete task" }}</span>
+            <span class="text-zinc-400 ml-1">{{ error_message|default:"Please try again." }}</span>
+        </div>
+    </div>
+    <button @click="show = false" class="text-zinc-400 hover:text-white p-1 text-xs">✕</button>
+</div>
+
+<!-- 6. File Upload Failed Card -->
+{% elif component_type == 'upload_failed' %}
+<div class="p-4 rounded-xl border border-rose-200 dark:border-rose-900/60 bg-rose-50/50 dark:bg-rose-950/30 text-center space-y-2">
+    <div class="w-8 h-8 rounded-full bg-rose-100 dark:bg-rose-900/60 text-rose-600 dark:text-rose-400 mx-auto flex items-center justify-center">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+        </svg>
+    </div>
+    <span class="text-rose-600 dark:text-rose-400 font-bold text-xs block">{{ error_title|default:"Upload Failed" }}</span>
+    <p class="text-[11px] text-slate-600 dark:text-zinc-300 max-w-xs mx-auto">{{ error_message|default:"File could not be saved to Supabase Storage. Please try again." }}</p>
+    {% if retry_action %}
+    <button type="button" onclick="{{ retry_action }}" class="px-3 py-1 text-xs font-semibold rounded-lg bg-rose-600 text-white hover:bg-rose-500 transition">
+        Try Again
+    </button>
+    {% endif %}
+</div>
+
+<!-- 7. File Too Large Card -->
+{% elif component_type == 'file_too_large' %}
+<div class="p-4 rounded-xl border border-amber-200 dark:border-amber-900/60 bg-amber-50/50 dark:bg-amber-950/30 text-center space-y-2">
+    <div class="w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-900/60 text-amber-600 dark:text-amber-400 mx-auto flex items-center justify-center">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+    </div>
+    <span class="text-amber-600 dark:text-amber-400 font-bold text-xs block">{{ error_title|default:"File Too Large" }}</span>
+    <p class="text-[11px] text-slate-600 dark:text-zinc-300 max-w-xs mx-auto">{{ error_message|default:"File exceeds the 25 MB free-tier storage limit." }}</p>
+</div>
+
+<!-- 8. Storage Limit Reached Card -->
+{% elif component_type == 'storage_reached' %}
+<div class="p-4 rounded-xl border border-purple-200 dark:border-purple-900/60 bg-purple-50/50 dark:bg-purple-950/30 text-center space-y-2">
+    <div class="w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-900/60 text-purple-600 dark:text-purple-400 mx-auto flex items-center justify-center">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"/>
+        </svg>
+    </div>
+    <span class="text-purple-600 dark:text-purple-400 font-bold text-xs block">{{ error_title|default:"Storage Quota Reached" }}</span>
+    <p class="text-[11px] text-slate-600 dark:text-zinc-300 max-w-xs mx-auto">{{ error_message|default:"Workspace storage is full. Please delete or archive old assets." }}</p>
+</div>
+
+<!-- 9. Calendar Event Failed Card -->
+{% elif component_type == 'event_failed' %}
+<div class="p-4 rounded-xl border border-rose-200 dark:border-rose-900/60 bg-rose-50/50 dark:bg-rose-950/30 text-center space-y-2">
+    <span class="text-rose-600 dark:text-rose-400 font-bold text-xs block">{{ error_title|default:"Event Creation Failed" }}</span>
+    <p class="text-[11px] text-slate-600 dark:text-zinc-300 max-w-xs mx-auto">{{ error_message|default:"Could not save calendar event. Please verify start and end dates." }}</p>
+</div>
+
+<!-- 10. Calendar Conflicting Event Card -->
+{% elif component_type == 'conflicting_event' %}
+<div class="p-4 rounded-xl border border-amber-200 dark:border-amber-900/60 bg-amber-50/50 dark:bg-amber-950/30 text-center space-y-2">
+    <span class="text-amber-600 dark:text-amber-400 font-bold text-xs block">{{ error_title|default:"Conflicting Event" }}</span>
+    <p class="text-[11px] text-slate-600 dark:text-zinc-300 max-w-xs mx-auto">{{ error_message|default:"Schedule overlaps with an existing workspace meeting or sprint milestone." }}</p>
+</div>
+{% endif %}

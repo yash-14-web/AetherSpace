@@ -1,0 +1,240 @@
+{% comment %}
+Reusable Markdown & Rich Text Editor Component
+Supports: Headings, Bold, Italic, Lists, Links, Inline Code, Code Blocks, Quotes, Tables.
+Features: Write / Preview mode, Live/Explicit Preview, Save & Cancel buttons, Sanitization, Light/Dark styling.
+Props:
+  field_name: string (e.g. 'description', 'steps_to_reproduce')
+  field_id: string (optional, defaults to field_name)
+  initial_content: string (optional)
+  label: string (optional)
+  placeholder: string (optional)
+  rows: integer (default 5)
+  required: boolean (optional)
+  show_actions: boolean (optional, displays Save & Cancel buttons)
+  save_label: string (default 'Save')
+  cancel_label: string (default 'Cancel')
+  preview_url: string (optional, default to workspace/global preview endpoint)
+{% endcomment %}
+
+<div class="space-y-1.5 w-full" x-data="{
+    mode: 'write',
+    rawContent: `{{ initial_content|default:''|escapejs }}`,
+    previewHtml: '',
+    isLoadingPreview: false,
+    previewUrl: '{{ preview_url|default:'' }}',
+
+    applyFormat(prefix, suffix, placeholder) {
+        const el = this.$refs.editorTextarea;
+        if (!el) return;
+        el.focus();
+        const start = el.selectionStart || 0;
+        const end = el.selectionEnd || 0;
+        const val = el.value || '';
+        const selected = val.substring(start, end);
+        const insertText = selected || (placeholder || '');
+        const replacement = prefix + insertText + suffix;
+        el.value = val.substring(0, start) + replacement + val.substring(end);
+        this.rawContent = el.value;
+        
+        if (!selected && placeholder) {
+            el.setSelectionRange(start + prefix.length, start + prefix.length + placeholder.length);
+        } else {
+            el.setSelectionRange(start + replacement.length, start + replacement.length);
+        }
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+    },
+
+    insertHeading(level) {
+        const prefix = '#'.repeat(level) + ' ';
+        this.applyFormat('\n' + prefix, '', 'Heading ' + level);
+    },
+
+    insertTable() {
+        const tableTemplate = '\n| Header 1 | Header 2 | Header 3 |\n| :--- | :--- | :--- |\n| Value 1 | Value 2 | Value 3 |\n| Value 4 | Value 5 | Value 6 |\n';
+        this.applyFormat(tableTemplate, '', '');
+    },
+
+    insertCodeBlock() {
+        this.applyFormat('\n```python\n', '\n```\n', '# Write code here');
+    },
+
+    async updatePreview() {
+        if (!this.rawContent || !this.rawContent.trim()) {
+            this.previewHtml = '<p class=\'text-slate-400 dark:text-zinc-500 italic text-xs\'>Nothing to preview.</p>';
+            return;
+        }
+
+        if (window.AetherMarkdown) {
+            this.isLoadingPreview = true;
+            this.previewHtml = await window.AetherMarkdown.render(this.rawContent, (html) => {
+                this.previewHtml = html;
+                this.isLoadingPreview = false;
+            });
+            this.isLoadingPreview = false;
+            return;
+        }
+
+        this.previewHtml = this.renderClientMarkdown(this.rawContent);
+    },
+
+    renderClientMarkdown(text) {
+        if (!text) return '';
+        let escaped = text
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+
+        // Headings
+        escaped = escaped.replace(/^### (.*$)/gim, '<h3 class=\'text-sm font-bold text-slate-900 dark:text-zinc-100 my-2\'>$1</h3>');
+        escaped = escaped.replace(/^## (.*$)/gim, '<h2 class=\'text-base font-bold text-slate-900 dark:text-zinc-100 my-2.5\'>$1</h2>');
+        escaped = escaped.replace(/^# (.*$)/gim, '<h1 class=\'text-lg font-black text-slate-900 dark:text-zinc-50 my-3\'>$1</h1>');
+
+        // Bold & Italic
+        escaped = escaped.replace(/\*\*(.*?)\*\*/gim, '<strong class=\'font-bold text-slate-900 dark:text-zinc-100\'>$1</strong>');
+        escaped = escaped.replace(/\*(.*?)\*/gim, '<em class=\'italic\'>$1</em>');
+
+        // Code block
+        escaped = escaped.replace(/```([a-zA-Z0-9_-]*)\n([\s\S]*?)```/gim, '<pre class=\'bg-slate-100 dark:bg-zinc-900 p-3 rounded-lg font-mono text-xs overflow-x-auto text-slate-800 dark:text-zinc-200 border border-slate-200 dark:border-zinc-800 my-2\'><code>$2</code></pre>');
+
+        // Inline code
+        escaped = escaped.replace(/`([^`]+)`/gim, '<code class=\'px-1.5 py-0.5 rounded bg-slate-100 dark:bg-zinc-800 text-aether-blue dark:text-sky-400 font-mono text-xs\'>$1</code>');
+
+        // Blockquotes
+        escaped = escaped.replace(/^\> (.*$)/gim, '<blockquote class=\'border-l-4 border-aether-blue dark:border-sky-500 pl-3 my-2 text-slate-600 dark:text-zinc-400 italic text-xs\'>$1</blockquote>');
+
+        // Links (safe protocols)
+        escaped = escaped.replace(/\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/gim, '<a href=\'$2\' target=\'_blank\' rel=\'noopener noreferrer\' class=\'text-aether-blue hover:underline font-medium\'>$1</a>');
+
+        // Lists
+        escaped = escaped.replace(/^\s*-\s+(.*$)/gim, '<li class=\'ml-4 list-disc text-xs text-slate-700 dark:text-zinc-300\'>$1</li>');
+        escaped = escaped.replace(/^\s*(\d+)\.\s+(.*$)/gim, '<li class=\'ml-4 list-decimal text-xs text-slate-700 dark:text-zinc-300\'>$2</li>');
+
+        // Line breaks
+        escaped = escaped.replace(/\n/gim, '<br>');
+
+        return escaped;
+    },
+
+    switchToPreview() {
+        this.mode = 'preview';
+        this.updatePreview();
+    },
+
+    switchToWrite() {
+        this.mode = 'write';
+        this.$nextTick(() => {
+            if (this.$refs.editorTextarea) this.$refs.editorTextarea.focus();
+        });
+    }
+}">
+    <!-- Top Header: Label + Write / Preview Toggle + Status -->
+    <div class="flex items-center justify-between pb-1">
+        <div class="flex items-center space-x-3">
+            {% if label %}
+                <label for="{% if field_id %}{{ field_id }}{% else %}{{ field_name }}{% endif %}" class="block text-xs font-bold text-slate-700 dark:text-zinc-300">
+                    {{ label }}{% if required %}<span class="text-rose-500 ml-0.5">*</span>{% endif %}
+                </label>
+            {% endif %}
+
+            <!-- Mode Switcher Tabs -->
+            <div class="inline-flex items-center p-0.5 rounded-lg bg-slate-100 dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700/60 text-xs">
+                <button type="button" 
+                        @click="switchToWrite()" 
+                        :class="mode === 'write' ? 'bg-white dark:bg-zinc-700 text-slate-900 dark:text-zinc-100 font-bold shadow-xs' : 'text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-200'"
+                        class="px-2.5 py-1 rounded-md transition text-[11px] flex items-center space-x-1">
+                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
+                    </svg>
+                    <span>Write</span>
+                </button>
+                <button type="button" 
+                        @click="switchToPreview()" 
+                        :class="mode === 'preview' ? 'bg-white dark:bg-zinc-700 text-slate-900 dark:text-zinc-100 font-bold shadow-xs' : 'text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-200'"
+                        class="px-2.5 py-1 rounded-md transition text-[11px] flex items-center space-x-1">
+                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                    </svg>
+                    <span>Preview</span>
+                </button>
+            </div>
+        </div>
+
+        <span class="text-[10px] text-slate-400 dark:text-zinc-500 font-mono hidden sm:inline-block">Markdown supported &amp; HTML Sanitized</span>
+    </div>
+
+    <!-- Integrated Editor Box -->
+    <div class="rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] focus-within:ring-2 focus-within:ring-aether-blue dark:focus-within:ring-sky-500 focus-within:border-transparent transition overflow-hidden shadow-xs">
+        
+        <!-- Toolbar Header (Visible in Write Mode) -->
+        <div x-show="mode === 'write'" class="flex items-center flex-wrap gap-0.5 px-2 py-1.5 bg-slate-50 dark:bg-zinc-900/90 border-b border-slate-200 dark:border-zinc-800 text-slate-600 dark:text-zinc-400 select-none">
+            <!-- Headings -->
+            <button type="button" @click="insertHeading(1)" title="Heading 1 (#)" class="p-1 px-1.5 text-xs font-black rounded hover:bg-slate-200 dark:hover:bg-zinc-800 hover:text-slate-900 dark:hover:text-zinc-100 transition">H1</button>
+            <button type="button" @click="insertHeading(2)" title="Heading 2 (##)" class="p-1 px-1.5 text-xs font-bold rounded hover:bg-slate-200 dark:hover:bg-zinc-800 hover:text-slate-900 dark:hover:text-zinc-100 transition">H2</button>
+            <button type="button" @click="insertHeading(3)" title="Heading 3 (###)" class="p-1 px-1.5 text-xs font-semibold rounded hover:bg-slate-200 dark:hover:bg-zinc-800 hover:text-slate-900 dark:hover:text-zinc-100 transition">H3</button>
+            
+            <div class="h-3.5 w-[1px] bg-slate-200 dark:bg-zinc-700 mx-1"></div>
+
+            <!-- Inline Styles -->
+            <button type="button" @click="applyFormat('**', '**', 'bold text')" title="Bold (**text**)" class="p-1 px-2 text-xs font-bold rounded hover:bg-slate-200 dark:hover:bg-zinc-800 hover:text-slate-900 dark:hover:text-zinc-100 transition">B</button>
+            <button type="button" @click="applyFormat('*', '*', 'italic text')" title="Italic (*text*)" class="p-1 px-2 text-xs italic font-serif rounded hover:bg-slate-200 dark:hover:bg-zinc-800 hover:text-slate-900 dark:hover:text-zinc-100 transition">I</button>
+            <button type="button" @click="applyFormat('`', '`', 'code')" title="Inline Code (`code`)" class="p-1 px-1.5 text-xs font-mono rounded hover:bg-slate-200 dark:hover:bg-zinc-800 hover:text-slate-900 dark:hover:text-zinc-100 transition">&lt;/&gt;</button>
+            <button type="button" @click="insertCodeBlock()" title="Code Block (```)" class="p-1 px-1.5 text-xs font-mono rounded hover:bg-slate-200 dark:hover:bg-zinc-800 hover:text-slate-900 dark:hover:text-zinc-100 transition">{ }</button>
+
+            <div class="h-3.5 w-[1px] bg-slate-200 dark:bg-zinc-700 mx-1"></div>
+
+            <!-- Blocks & Lists -->
+            <button type="button" @click="applyFormat('\n- ', '', 'List item')" title="Bullet List (- item)" class="p-1 px-1.5 text-xs rounded hover:bg-slate-200 dark:hover:bg-zinc-800 hover:text-slate-900 dark:hover:text-zinc-100 transition">• List</button>
+            <button type="button" @click="applyFormat('\n1. ', '', 'Step item')" title="Numbered List (1. item)" class="p-1 px-1.5 text-xs rounded hover:bg-slate-200 dark:hover:bg-zinc-800 hover:text-slate-900 dark:hover:text-zinc-100 transition">1. List</button>
+            <button type="button" @click="applyFormat('\n> ', '', 'Quote text')" title="Blockquote (> quote)" class="p-1 px-1.5 text-xs rounded hover:bg-slate-200 dark:hover:bg-zinc-800 hover:text-slate-900 dark:hover:text-zinc-100 transition">” Quote</button>
+            <button type="button" @click="applyFormat('[', '](https://)', 'link title')" title="Link ([title](url))" class="p-1 px-1.5 text-xs rounded hover:bg-slate-200 dark:hover:bg-zinc-800 hover:text-slate-900 dark:hover:text-zinc-100 transition">🔗 Link</button>
+            <button type="button" @click="insertTable()" title="Insert Table" class="p-1 px-1.5 text-xs rounded hover:bg-slate-200 dark:hover:bg-zinc-800 hover:text-slate-900 dark:hover:text-zinc-100 transition">⊞ Table</button>
+
+            <!-- Explicit Preview Trigger -->
+            <button type="button" @click="switchToPreview()" title="Open Preview" class="ml-auto p-1 px-2 text-xs font-semibold rounded bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/60 transition flex items-center space-x-1">
+                <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                <span>Live Preview</span>
+            </button>
+        </div>
+
+        <!-- Write Area: Textarea -->
+        <div x-show="mode === 'write'">
+            <textarea x-ref="editorTextarea"
+                      x-model="rawContent"
+                      id="{% if field_id %}{{ field_id }}{% else %}{{ field_name }}{% endif %}"
+                      name="{{ field_name }}"
+                      rows="{% if rows %}{{ rows }}{% else %}5{% endif %}"
+                      placeholder="{% if placeholder %}{{ placeholder }}{% else %}Write markdown content here... (Supports headings, bold, italic, lists, links, code, quotes, tables){% endif %}"
+                      class="w-full p-3 text-xs sm:text-sm bg-transparent border-0 text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-0 resize-y leading-relaxed font-sans"
+                      {% if required %}required{% endif %}>{{ initial_content|default:'' }}</textarea>
+        </div>
+
+        <!-- Preview Area (Visible in Preview Mode) -->
+        <div x-show="mode === 'preview'" style="display: none;" class="p-4 min-h-[140px] bg-slate-50/50 dark:bg-zinc-900/40">
+            <div x-show="isLoadingPreview" class="flex items-center space-x-2 text-xs text-slate-400 dark:text-zinc-500 py-4 justify-center">
+                <svg class="animate-spin w-4 h-4 text-aether-blue" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+                <span>Rendering sanitized preview...</span>
+            </div>
+            <div x-show="!isLoadingPreview" 
+                 x-html="previewHtml" 
+                 class="prose dark:prose-invert max-w-none text-xs sm:text-sm text-slate-800 dark:text-zinc-200 leading-relaxed font-sans overflow-x-auto">
+            </div>
+        </div>
+
+        <!-- Save and Cancel Actions (when requested via show_actions) -->
+        {% if show_actions %}
+            <div class="px-3 py-2 bg-slate-50 dark:bg-zinc-900/80 border-t border-slate-200 dark:border-zinc-800 flex items-center justify-end space-x-2">
+                <button type="button" 
+                        @click="$dispatch('cancel')"
+                        class="px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 transition">
+                    {{ cancel_label|default:'Cancel' }}
+                </button>
+                <button type="button" 
+                        @click="$dispatch('save', { content: rawContent })"
+                        class="px-3.5 py-1.5 text-xs font-bold rounded-lg bg-aether-blue text-white hover:bg-blue-600 transition shadow-xs">
+                    {{ save_label|default:'Save' }}
+                </button>
+            </div>
+        {% endif %}
+    </div>
+</div>

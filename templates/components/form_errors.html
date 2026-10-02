@@ -1,0 +1,36 @@
+{% comment %}
+AetherSpace Standardized Form Errors Component
+Accessible, screen-reader-friendly alert box for non-field & field errors.
+{% endcomment %}
+{% if form.errors %}
+<div class="p-4 rounded-xl bg-red-50/90 dark:bg-red-950/40 border border-red-200 dark:border-red-900/60 text-left space-y-2 mb-4"
+     role="alert" aria-live="assertive">
+    <div class="flex items-center gap-2 text-xs font-bold text-red-800 dark:text-red-300">
+        <svg class="w-4 h-4 flex-shrink-0 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="9" stroke-width="2"/>
+            <line x1="12" y1="8" x2="12" y2="12" stroke-width="2" stroke-linecap="round"/>
+            <circle cx="12" cy="16" r="1" fill="currentColor"/>
+        </svg>
+        <span>Please correct the errors below to continue:</span>
+    </div>
+
+    {% if form.non_field_errors %}
+    <ul class="text-xs text-red-700 dark:text-red-400 list-disc list-inside space-y-1">
+        {% for error in form.non_field_errors %}
+            <li>{{ error }}</li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+
+    {% for field in form %}
+        {% if field.errors %}
+        <div class="text-xs text-red-700 dark:text-red-400">
+            <span class="font-semibold">{{ field.label }}:</span>
+            {% for error in field.errors %}
+                <span class="ml-1">{{ error }}</span>
+            {% endfor %}
+        </div>
+        {% endif %}
+    {% endfor %}
+</div>
+{% endif %}

@@ -11,9 +11,16 @@
         <!-- Left: Workspace Selector -->
         <div class="flex items-center space-x-3">
             <div class="flex items-center space-x-2 px-3 py-1.5 rounded-xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 shadow-2xs">
-                <div class="w-5 h-5 rounded-md bg-gradient-to-tr from-blue-600 to-indigo-700 text-white font-bold text-[10px] flex items-center justify-center shrink-0">
-                    {{ workspace.name|slice:":2"|upper }}
-                </div>
+                {% if workspace.logo_url %}
+                    <img src="{{ workspace.logo_url }}" alt="{{ workspace.name }}" class="w-5 h-5 rounded-md object-cover shrink-0 border border-slate-200/50 dark:border-zinc-800 shadow-xs" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                    <div style="display:none;" class="w-5 h-5 rounded-md bg-gradient-to-tr from-blue-600 to-indigo-700 text-white font-bold text-[10px] items-center justify-center shrink-0">
+                        {{ workspace.name|slice:":2"|upper }}
+                    </div>
+                {% else %}
+                    <div class="w-5 h-5 rounded-md bg-gradient-to-tr from-blue-600 to-indigo-700 text-white font-bold text-[10px] flex items-center justify-center shrink-0">
+                        {{ workspace.name|slice:":2"|upper }}
+                    </div>
+                {% endif %}
                 <span class="text-xs font-bold text-slate-900 dark:text-zinc-100">{{ workspace.name }}</span>
                 <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
@@ -42,7 +49,8 @@
                 </svg>
             </button>
 
-            <!-- + New Task Button (Primary action matching Phase 5 test expectations) -->
+            <!-- + New Task Button -->
+            {% if can_create_task %}
             <a href="{% url 'tasks:task_create' slug=workspace.slug %}" 
                class="inline-flex items-center space-x-1.5 px-4 py-2 text-xs font-bold rounded-xl bg-aether-blue text-white hover:bg-blue-700 shadow-md shadow-blue-500/20 transition shrink-0">
                 <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -50,6 +58,17 @@
                 </svg>
                 <span>New Task</span>
             </a>
+            {% else %}
+            <button type="button"
+                    @click="$dispatch('open-access-request', { action: 'task.create', workspaceSlug: '{{ workspace.slug }}', workspaceName: '{{ workspace.name }}', workspaceId: '{{ workspace.id }}' })"
+                    title="You don't currently have permission. Request temporary access."
+                    class="inline-flex items-center space-x-1.5 px-3.5 py-2 text-xs font-semibold rounded-xl bg-slate-100 dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700 text-slate-500 dark:text-zinc-400 hover:text-purple-600 dark:hover:text-purple-400 hover:border-purple-300 dark:hover:border-purple-800 transition shrink-0 cursor-pointer">
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                </svg>
+                <span>Create Task 🔒</span>
+            </button>
+            {% endif %}
         </div>
     </div>
 
@@ -64,7 +83,7 @@
             </p>
         </div>
 
-        <!-- View Switcher (List vs Board) -->
+        <!-- View Switcher (List vs Board vs Sprints) -->
         <div class="inline-flex rounded-xl bg-slate-100 dark:bg-zinc-800/80 p-1 border border-slate-200 dark:border-zinc-700/60 shrink-0">
             <a href="{% url 'tasks:task_list' slug=workspace.slug %}" 
                class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-white dark:bg-[#0c1322] text-aether-blue shadow-2xs">
@@ -79,6 +98,13 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"/>
                 </svg>
                 <span>Board</span>
+            </a>
+            <a href="{% url 'tasks:sprint_planning' slug=workspace.slug %}" 
+               class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200 transition-colors">
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                </svg>
+                <span>Sprints</span>
             </a>
         </div>
     </div>
@@ -308,21 +334,10 @@
                                     {% endif %}
                                 </td>
 
-                                <!-- Assignee Avatar with Profile Picture/Initials matching prompt -->
+                                <!-- Assignee Avatar with Hover Card -->
                                 <td class="py-3.5 px-4 whitespace-nowrap">
                                     {% if task.assignee %}
-                                        <div class="flex items-center space-x-2">
-                                            {% if task.assignee.avatar %}
-                                                <img src="{{ task.assignee.avatar }}" alt="{{ task.assignee.full_name }}" class="w-6 h-6 rounded-full object-cover ring-1 ring-slate-200 dark:ring-zinc-700 shrink-0">
-                                            {% else %}
-                                                <div class="w-6 h-6 rounded-full bg-gradient-to-tr from-amber-600 to-indigo-600 text-white font-bold text-[10px] flex items-center justify-center shrink-0 shadow-xs ring-1 ring-white/10">
-                                                    {{ task.assignee.full_name|default:task.assignee.email|slice:":1"|upper }}
-                                                </div>
-                                            {% endif %}
-                                            <span class="text-slate-800 dark:text-zinc-200 font-medium truncate max-w-[120px]">
-                                                {{ task.assignee.full_name|default:task.assignee.email }}
-                                            </span>
-                                        </div>
+                                        {% include 'components/people_hover_card.html' with target_user=task.assignee workspace_slug=workspace.slug show_name=True avatar_size='w-6 h-6' %}
                                     {% else %}
                                         <span class="text-slate-400 dark:text-zinc-500 italic">Unassigned</span>
                                     {% endif %}
@@ -408,20 +423,17 @@
             </div>
 
         {% else %}
-            <!-- Empty State -->
-            <div class="py-16 px-4 text-center max-w-md mx-auto space-y-3">
-                <div class="w-12 h-12 rounded-2xl bg-blue-500/10 text-aether-blue mx-auto flex items-center justify-center">
-                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
-                    </svg>
-                </div>
-                <h3 class="text-base font-bold text-slate-900 dark:text-zinc-100">No tasks found</h3>
-                <p class="text-xs text-slate-400">Create your first task or adjust your active filters.</p>
-                <a href="{% url 'tasks:task_create' slug=workspace.slug %}" 
-                   class="inline-flex items-center space-x-1.5 px-4 py-2 text-xs font-bold rounded-xl bg-aether-blue text-white hover:bg-blue-700 transition shadow-sm">
-                    <span>+ Create Task</span>
-                </a>
-            </div>
+            <!-- Connected Vector Empty State -->
+            {% url 'tasks:task_create' slug=workspace.slug as create_task_url %}
+            {% if current_q %}
+                {% include 'components/empty_states.html' with state_type='no_search_results' title='No Tasks Found' message='No tasks match your search query.' query=current_q secondary_url=request.path secondary_text='Clear Search' action_url=create_task_url action_text='+ Create Task' can_create=can_create_task %}
+            {% elif current_assignee == 'me' %}
+                {% include 'components/empty_states.html' with state_type='no_tasks' title='No Tasks Assigned to You' message='You currently have no tasks assigned in this workspace.' secondary_url=request.path secondary_text='View All Tasks' action_url=create_task_url action_text='+ Create Task' can_create=can_create_task %}
+            {% elif current_status or current_priority or current_assignee or current_created_by %}
+                {% include 'components/empty_states.html' with state_type='no_tasks' title='No Tasks Match Filters' message='No tasks match your active filter criteria. Try adjusting or clearing your filters.' secondary_url=request.path secondary_text='Clear All Filters' action_url=create_task_url action_text='+ Create Task' can_create=can_create_task %}
+            {% else %}
+                {% include 'components/empty_states.html' with state_type='no_tasks' title='No Tasks Yet' message='Get started by creating your team’s first task. Assign members, track workflow statuses, and monitor sprint velocity.' action_url=create_task_url action_text='+ Create Task' can_create=can_create_task %}
+            {% endif %}
         {% endif %}
     </div>
 
