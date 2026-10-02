@@ -237,6 +237,9 @@ EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
 EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'True').lower() in ('true', '1')
 DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'AetherSpace <no-reply@aetherspace.dev>')
 
+# Site URL Configuration (Used for absolute email CTA and notification links)
+SITE_URL = os.environ.get('SITE_URL', 'http://127.0.0.1:8000').rstrip('/')
+
 # Secure Error Logging Configuration
 LOGGING = {
     'version': 1,

@@ -1,0 +1,89 @@
+{% extends "admin_panel/base_admin.html" %}
+
+{% block title %}Email Design System & Previews — AetherSpace Admin{% endblock %}
+
+{% block admin_content %}
+<div class="space-y-6">
+    <!-- Header Banner -->
+    <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl p-6 shadow-sm">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+                <div class="flex items-center gap-2 mb-2">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800/60">
+                        Phase B Production System
+                    </span>
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60">
+                        100% Dual-Format (HTML + TXT)
+                    </span>
+                </div>
+                <h2 class="text-xl font-bold text-slate-900 dark:text-zinc-50 tracking-tight">
+                    Central Email Design System Catalog
+                </h2>
+                <p class="text-sm text-slate-600 dark:text-zinc-400 mt-1 max-w-3xl">
+                    All transactional, notification, and governance emails rendered using AetherSpace's modular email design system. 
+                    Inspect responsive layouts, bulletproof table structures, mobile viewport wrapping, and plain-text fallbacks.
+                </p>
+            </div>
+            <div class="flex items-center gap-2 text-xs font-mono text-slate-500 dark:text-zinc-400 bg-slate-50 dark:bg-zinc-950 px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-800">
+                <span>Viewport: 600px fluid</span>
+                <span>•</span>
+                <span>Inter / System Font</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Template Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        {% for key, item in catalog.items %}
+        <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl p-5 shadow-sm hover:border-blue-500/50 dark:hover:border-blue-500/50 transition-all flex flex-col justify-between">
+            <div>
+                <div class="flex items-center justify-between gap-2 mb-2">
+                    <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-zinc-400">
+                        {{ item.category }}
+                    </span>
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono font-medium bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300">
+                        {{ key }}
+                    </span>
+                </div>
+                <h3 class="text-base font-bold text-slate-900 dark:text-zinc-100 tracking-tight">
+                    {{ item.title }}
+                </h3>
+                <p class="text-xs text-slate-600 dark:text-zinc-400 mt-1.5 leading-relaxed">
+                    {{ item.description }}
+                </p>
+                
+                <div class="mt-4 pt-3 border-t border-slate-100 dark:border-zinc-800/80 space-y-1 text-[11px] font-mono text-slate-500 dark:text-zinc-400">
+                    <div class="flex items-center justify-between">
+                        <span>HTML:</span>
+                        <span class="truncate ml-2 text-slate-700 dark:text-zinc-300">{{ item.html_template }}</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span>Text:</span>
+                        <span class="truncate ml-2 text-slate-700 dark:text-zinc-300">{{ item.txt_template }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-5 pt-3 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between gap-2">
+                <a href="{% url 'admin_panel:email_preview_detail' key %}" 
+                   class="inline-flex items-center justify-center px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white transition-colors shadow-sm">
+                    Interactive Preview &rarr;
+                </a>
+                <div class="flex items-center space-x-1">
+                    <a href="{% url 'admin_panel:email_preview_render' key %}" target="_blank"
+                       class="px-2 py-1 rounded text-[11px] text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
+                       title="Open raw HTML in new tab">
+                        HTML
+                    </a>
+                    <a href="{% url 'admin_panel:email_preview_render' key %}?format=text" target="_blank"
+                       class="px-2 py-1 rounded text-[11px] text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
+                       title="Open raw text in new tab">
+                        TXT
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

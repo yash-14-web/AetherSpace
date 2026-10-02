@@ -1,17 +1,21 @@
-AETHERSPACE
+AETHERSPACE NOTIFICATION
 High-Performance Agile Team Platform
 ==================================================
 
-You Were Mentioned
+{{ title }}
 
 {% if user %}Hello {{ user.full_name|default:user.email }},{% else %}Hello,{% endif %}
 
-{{ actor.full_name|default:actor.email }} mentioned you in a comment on {{ context_title }}:
+{{ body }}
+{% if workspace %}
+Workspace: {{ workspace.name }}
+{% endif %}{% if reason %}
+Reason: {{ reason }}
+{% endif %}{% if action_url %}
 
-"{{ snippet }}"
-
-View Discussion in AetherSpace:
+View in AetherSpace:
 {{ site_url|default:'http://127.0.0.1:8000' }}{{ action_url }}
+{% endif %}
 
 ==================================================
 © {{ year|default:"2026" }} AetherSpace. High-Performance Agile Team Platform.

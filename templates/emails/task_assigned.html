@@ -1,28 +1,80 @@
 {% extends 'emails/base_email.html' %}
 
 {% block email_content %}
-    <span class="badge badge-blue">Sprint Task Assignment</span>
-    <h1>You have been assigned a task</h1>
-    <p>
-        Hello <strong>{{ user.full_name|default:user.email }}</strong>,
-    </p>
-    <p>
-        {% if actor %}<strong>{{ actor.full_name|default:actor.email }}</strong> has assigned you{% else %}You have been assigned{% endif %} to the task:
-    </p>
+  <span class="badge badge-blue">Sprint Task Assignment</span>
+  <h1>New Task Assigned</h1>
+  <p>{% if user %}Hello <strong>{{ user.full_name|default:user.email }}</strong>,{% else %}Hello,{% endif %}</p>
+  <p>
+    {% if actor %}
+      <strong>{{ actor.full_name|default:actor.email }}</strong> has assigned you to a task in <strong>{{ task.workspace.name }}</strong>:
+    {% else %}
+      You have been assigned to a new task in <strong>{{ task.workspace.name }}</strong>:
+    {% endif %}
+  </p>
 
-    <div style="background-color: #09090b; border: 1px solid #27272a; border-radius: 12px; padding: 16px; margin: 20px 0;">
-        <div style="font-family: monospace; font-size: 13px; font-weight: bold; color: #60a5fa; margin-bottom: 6px;">
-            #{{ task.task_code }} &bull; {{ task.get_priority_display }} Priority
-        </div>
-        <div style="font-size: 16px; font-weight: bold; color: #ffffff; margin-bottom: 8px;">
-            {{ task.title }}
-        </div>
-        {% if task.description %}
-            <p style="font-size: 13px; color: #a1a1aa; margin: 0;">{{ task.description|truncatechars:200 }}</p>
-        {% endif %}
+  <table border="0" cellpadding="0" cellspacing="0" width="100%" role="presentation" class="metadata-card" style="margin: 20px 0; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;">
+    <tr>
+      <td class="metadata-label" style="font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; padding: 10px 16px; width: 35%; border-bottom: 1px solid #e2e8f0;">
+        Task ID
+      </td>
+      <td class="metadata-value" style="font-size: 13px; font-weight: 700; font-family: monospace; color: #2563eb; padding: 10px 16px; width: 65%; border-bottom: 1px solid #e2e8f0;">
+        #{{ task.task_code }}
+      </td>
+    </tr>
+    <tr>
+      <td class="metadata-label" style="font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; padding: 10px 16px; width: 35%; border-bottom: 1px solid #e2e8f0;">
+        Title
+      </td>
+      <td class="metadata-value" style="font-size: 13px; font-weight: 600; color: #0f172a; padding: 10px 16px; width: 65%; border-bottom: 1px solid #e2e8f0;">
+        {{ task.title }}
+      </td>
+    </tr>
+    <tr>
+      <td class="metadata-label" style="font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; padding: 10px 16px; width: 35%; border-bottom: 1px solid #e2e8f0;">
+        Workspace
+      </td>
+      <td class="metadata-value" style="font-size: 13px; font-weight: 500; color: #334155; padding: 10px 16px; width: 65%; border-bottom: 1px solid #e2e8f0;">
+        {{ task.workspace.name }}
+      </td>
+    </tr>
+    <tr>
+      <td class="metadata-label" style="font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; padding: 10px 16px; width: 35%; border-bottom: {% if task.due_date or actor %}1px solid #e2e8f0{% else %}none{% endif %};">
+        Priority
+      </td>
+      <td class="metadata-value" style="font-size: 13px; font-weight: 600; color: #0f172a; padding: 10px 16px; width: 65%; border-bottom: {% if task.due_date or actor %}1px solid #e2e8f0{% else %}none{% endif %};">
+        {{ task.get_priority_display }}
+      </td>
+    </tr>
+    {% if task.due_date %}
+    <tr>
+      <td class="metadata-label" style="font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; padding: 10px 16px; width: 35%; border-bottom: {% if actor %}1px solid #e2e8f0{% else %}none{% endif %};">
+        Due Date
+      </td>
+      <td class="metadata-value" style="font-size: 13px; font-weight: 500; color: #334155; padding: 10px 16px; width: 65%; border-bottom: {% if actor %}1px solid #e2e8f0{% else %}none{% endif %};">
+        {{ task.due_date|date:"d M Y" }}
+      </td>
+    </tr>
+    {% endif %}
+    {% if actor %}
+    <tr>
+      <td class="metadata-label" style="font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; padding: 10px 16px; width: 35%; border-bottom: none;">
+        Assigned By
+      </td>
+      <td class="metadata-value" style="font-size: 13px; font-weight: 500; color: #334155; padding: 10px 16px; width: 65%; border-bottom: none;">
+        {{ actor.full_name|default:actor.email }}
+      </td>
+    </tr>
+    {% endif %}
+  </table>
+
+  {% if task.description %}
+    <div class="quote-box" style="background-color: #f8fafc; border-left: 3px solid #2563eb; border-radius: 0 8px 8px 0; padding: 14px 16px; margin: 16px 0; color: #334155; font-size: 13px;">
+      <div style="font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; margin-bottom: 4px; font-style: normal;">
+        Description Preview
+      </div>
+      {{ task.description|truncatechars:250 }}
     </div>
+  {% endif %}
 
-    <a href="{{ site_url|default:'http://127.0.0.1:8000' }}{{ action_url }}" class="btn">
-        View Task in AetherSpace &rarr;
-    </a>
+  {% include 'emails/base/button.html' with action_url=action_url cta_label="View Task" btn_color="#2563eb" %}
 {% endblock %}

@@ -1,9 +1,22 @@
-Hello {{ user.full_name|default:user.email }},
+AETHERSPACE
+High-Performance Agile Team Platform
+==================================================
 
-Thank you for registering on AetherSpace! Please verify your email address to confirm your registration:
+Verify Your Email Address
+
+{% if user %}Hello {{ user.full_name|default:user.email }},{% else %}Hello,{% endif %}
+
+Thank you for registering on AetherSpace. Please verify your email address to complete your registration and submit your account for workspace administrator approval.
+
+{% if user.contributor_id %}Contributor ID: {{ user.contributor_id }}
+{% endif %}
+
+Verify Email Address:
 {{ verify_url }}
 
-Contributor ID: {{ user.contributor_id }}
+Security Notice:
+This verification link is unique to your account and will expire in 24 hours. If you did not create an account on AetherSpace, you can safely ignore this email.
 
---
-AetherSpace Team Collaboration Platform
+==================================================
+© {{ year|default:"2026" }} AetherSpace. High-Performance Agile Team Platform.
+Notification Preferences: {{ site_url|default:'http://127.0.0.1:8000' }}/settings/notifications/

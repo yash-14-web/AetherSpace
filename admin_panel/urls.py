@@ -76,5 +76,10 @@ urlpatterns = [
 
     # Search-First People Search API
     path('api/people-search/', views.api_people_search, name='api_people_search'),
+
+    # 17. Email System Previews (Phase B Developer & Admin QA)
+    path('emails/preview/', views.email_preview_index, name='email_preview_index'),
+    path('emails/preview/<str:template_key>/', views.email_preview_detail, name='email_preview_detail'),
+    path('emails/preview/<str:template_key>/render/', views.email_preview_render, name='email_preview_render'),
 ]
 

@@ -1,16 +1,27 @@
-Hello {{ user.full_name|default:user.email }},
+AETHERSPACE
+High-Performance Agile Team Platform
+==================================================
 
-{% if actor %}{{ actor.full_name|default:actor.email }} has assigned you{% else %}You have been assigned{% endif %} to defect {{ bug.bug_code }}:
+New Bug Assigned
 
-Bug: {{ bug.title }}
-Severity: {{ bug.get_severity_display }}
-Priority: {{ bug.get_priority_display }}
+{% if user %}Hello {{ user.full_name|default:user.email }},{% else %}Hello,{% endif %}
+
+{% if actor %}{{ actor.full_name|default:actor.email }} has assigned you to a defect in {{ bug.workspace.name }}:{% else %}You have been assigned to a defect in {{ bug.workspace.name }}:{% endif %}
+
+Bug ID: {{ bug.bug_code }}
+Title: {{ bug.title }}
 Workspace: {{ bug.workspace.name }}
-{% if bug.module %}Module: {{ bug.module.name }}{% endif %}
-{% if bug.description %}Description: {{ bug.description|truncatechars:200 }}{% endif %}
+Severity / Priority: {{ bug.get_severity_display }} • {{ bug.get_priority_display }}
+{% if bug.module %}Module: {{ bug.module.name }}
+{% endif %}{% if actor %}Assigned By: {{ actor.full_name|default:actor.email }}
+{% endif %}{% if bug.description %}
+Defect Details:
+{{ bug.description|truncatechars:250 }}
+{% endif %}
 
-View Defect in AetherSpace:
+View Bug in AetherSpace:
 {{ site_url|default:'http://127.0.0.1:8000' }}{{ action_url }}
 
---
-AetherSpace Team Collaboration Platform
+==================================================
+© {{ year|default:"2026" }} AetherSpace. High-Performance Agile Team Platform.
+Notification Preferences: {{ site_url|default:'http://127.0.0.1:8000' }}/settings/notifications/

@@ -1,0 +1,10 @@
+<!-- AetherSpace Bulletproof CTA Button Component -->
+<table border="0" cellpadding="0" cellspacing="0" role="presentation" style="margin: 24px 0 16px 0;">
+  <tr>
+    <td align="center" bgcolor="{{ btn_color|default:'#2563eb' }}" style="border-radius: 8px;">
+      <a href="{% if cta_url %}{{ cta_url }}{% elif action_url and 'http' in action_url %}{{ action_url }}{% elif action_url %}{{ site_url|default:'http://127.0.0.1:8000' }}{{ action_url }}{% else %}{{ site_url|default:'http://127.0.0.1:8000' }}/{% endif %}" target="_blank" class="btn" style="font-size: 14px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-weight: 600; color: #ffffff !important; text-decoration: none; display: inline-block; padding: 12px 24px; border-radius: 8px; border: 1px solid {{ btn_color|default:'#2563eb' }}; background-color: {{ btn_color|default:'#2563eb' }}; text-align: center;">
+        {% if cta_label %}{{ cta_label }}{% elif action_label %}{{ action_label }}{% else %}View in AetherSpace{% endif %} &rarr;
+      </a>
+    </td>
+  </tr>
+</table>

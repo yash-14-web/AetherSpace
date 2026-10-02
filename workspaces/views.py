@@ -450,6 +450,7 @@ def invite_member(request, slug):
             try:
                 from notifications.email_service import send_workspace_invitation_email
                 send_workspace_invitation_email(
+                    invitation=invite,
                     recipient_email=email,
                     workspace=workspace,
                     invitation_url=invite_url,

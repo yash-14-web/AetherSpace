@@ -30,6 +30,25 @@ class NotificationType(models.TextChoices):
     GENERAL = 'GENERAL', _('General')
 
 
+class EmailEventType(models.TextChoices):
+    PASSWORD_RESET = 'PASSWORD_RESET', _('Password Reset')
+    EMAIL_VERIFICATION = 'EMAIL_VERIFICATION', _('Email Verification')
+    ACCOUNT_APPROVED = 'ACCOUNT_APPROVED', _('Account Approved')
+    ACCOUNT_STATUS = 'ACCOUNT_STATUS', _('Account Status')
+    TASK_ASSIGNED = 'TASK_ASSIGNED', _('Task Assigned')
+    TASK_STATUS_CHANGED = 'TASK_STATUS_CHANGED', _('Task Status Changed')
+    BUG_ASSIGNED = 'BUG_ASSIGNED', _('Bug Assigned')
+    BUG_STATUS_CHANGED = 'BUG_STATUS_CHANGED', _('Bug Status Changed')
+    MEETING_SCHEDULED = 'MEETING_SCHEDULED', _('Meeting Scheduled')
+    MEETING_UPDATED = 'MEETING_UPDATED', _('Meeting Updated')
+    MEETING_CANCELLED = 'MEETING_CANCELLED', _('Meeting Cancelled')
+    WORKSPACE_INVITE = 'WORKSPACE_INVITE', _('Workspace Invite')
+    ACCESS_REQUEST_APPROVED = 'ACCESS_REQUEST_APPROVED', _('Access Request Approved')
+    ACCESS_REQUEST_REJECTED = 'ACCESS_REQUEST_REJECTED', _('Access Request Rejected')
+    MENTION = 'MENTION', _('Mention')
+    GENERAL = 'GENERAL', _('General')
+
+
 class Notification(models.Model):
     """
     Workspace-scoped and user-centric notification record.

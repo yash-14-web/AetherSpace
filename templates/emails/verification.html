@@ -1,20 +1,27 @@
 {% extends 'emails/base_email.html' %}
 
 {% block email_content %}
-    <span class="badge badge-blue">Email Verification</span>
-    <h1>Verify Your Email Address</h1>
-    <p>Hello <strong>{{ user.full_name|default:user.email }}</strong>,</p>
-    <p>
-        Thank you for registering on AetherSpace! Please verify your email address to confirm your registration and proceed with administrator account approval.
-    </p>
+  <span class="badge badge-blue">Email Verification</span>
+  <h1>Verify your email address</h1>
+  <p>{% if user %}Hello <strong>{{ user.full_name|default:user.email }}</strong>,{% else %}Hello,{% endif %}</p>
+  <p>
+    Thank you for registering on AetherSpace. Please verify your email address to complete your registration and submit your account for workspace administrator approval.
+  </p>
 
-    <div style="margin: 24px 0;">
-        <a href="{{ verify_url }}" class="btn">
-            Verify Email Address &rarr;
-        </a>
-    </div>
+  <table border="0" cellpadding="0" cellspacing="0" width="100%" role="presentation" class="metadata-card" style="margin: 20px 0; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;">
+    <tr>
+      <td class="metadata-label" style="font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; padding: 12px 16px; width: 35%; border-bottom: none;">
+        Contributor ID
+      </td>
+      <td class="metadata-value" style="font-size: 13px; font-weight: 700; font-family: monospace; color: #2563eb; padding: 12px 16px; width: 65%; border-bottom: none;">
+        {% if user.contributor_id %}{{ user.contributor_id }}{% else %}&mdash;{% endif %}
+      </td>
+    </tr>
+  </table>
 
-    <p style="font-size: 12px; color: #71717a;">
-        Your Contributor ID: <strong style="font-family: monospace;">{{ user.contributor_id }}</strong>
-    </p>
+  {% include 'emails/base/button.html' with cta_url=verify_url cta_label="Verify Email Address" %}
+
+  <p style="font-size: 12px; color: #64748b; margin-top: 24px; line-height: 1.5;">
+    <strong>Security Notice:</strong> This verification link is unique to your account and will expire in 24 hours. If you did not create an account on AetherSpace, you can safely ignore this email.
+  </p>
 {% endblock %}

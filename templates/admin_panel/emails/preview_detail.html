@@ -1,0 +1,200 @@
+{% extends "admin_panel/base_admin.html" %}
+
+{% block title %}Preview: {{ item.title }} — AetherSpace Admin{% endblock %}
+
+{% block admin_content %}
+<div class="space-y-6" x-data="{ viewMode: 'desktop' }">
+    <!-- Top Bar Navigation & Controls -->
+    <div class="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl p-4 shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div class="flex items-center gap-3">
+            <a href="{% url 'admin_panel:email_preview_index' %}" 
+               class="p-2 rounded-lg text-slate-500 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-zinc-100 bg-slate-50 dark:bg-zinc-800 hover:bg-slate-100 transition-colors"
+               title="Back to Catalog">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                </svg>
+            </a>
+            <div>
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-zinc-400">
+                        {{ item.category }}
+                    </span>
+                    <span class="text-xs text-slate-300 dark:text-zinc-700">•</span>
+                    <span class="text-xs font-mono text-blue-600 dark:text-blue-400">{{ template_key }}</span>
+                </div>
+                <h2 class="text-lg font-bold text-slate-900 dark:text-zinc-50 tracking-tight">
+                    {{ item.title }}
+                </h2>
+            </div>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-3">
+            <!-- Viewport Switcher Controls -->
+            <div class="flex items-center bg-slate-100 dark:bg-zinc-800 p-1 rounded-lg border border-slate-200 dark:border-zinc-700">
+                <button type="button" 
+                        @click="viewMode = 'desktop'; $nextTick(() => resizeAllIframes());" 
+                        :class="viewMode === 'desktop' ? 'bg-white dark:bg-zinc-900 text-blue-600 dark:text-blue-400 shadow-sm font-semibold' : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900'"
+                        class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs transition-all">
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                    </svg>
+                    Desktop (640px)
+                </button>
+                <button type="button" 
+                        @click="viewMode = 'expanded'; $nextTick(() => resizeAllIframes());" 
+                        :class="viewMode === 'expanded' ? 'bg-white dark:bg-zinc-900 text-blue-600 dark:text-blue-400 shadow-sm font-semibold' : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900'"
+                        class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs transition-all">
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>
+                    </svg>
+                    Expanded (860px)
+                </button>
+                <button type="button" 
+                        @click="viewMode = 'mobile'; $nextTick(() => resizeAllIframes());" 
+                        :class="viewMode === 'mobile' ? 'bg-white dark:bg-zinc-900 text-blue-600 dark:text-blue-400 shadow-sm font-semibold' : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900'"
+                        class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs transition-all">
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                    </svg>
+                    Mobile (375px)
+                </button>
+                <button type="button" 
+                        @click="viewMode = 'text'" 
+                        :class="viewMode === 'text' ? 'bg-white dark:bg-zinc-900 text-blue-600 dark:text-blue-400 shadow-sm font-semibold' : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900'"
+                        class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs transition-all">
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"/>
+                    </svg>
+                    Plain-Text
+                </button>
+            </div>
+
+            <!-- Standalone Full HTML Tab Trigger -->
+            <a href="{% url 'admin_panel:email_preview_render' template_key %}" 
+               target="_blank"
+               class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition-colors">
+                <span>Open Full HTML</span>
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                </svg>
+            </a>
+        </div>
+    </div>
+
+    <!-- Preview Canvas Area -->
+    <div class="bg-slate-100 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 rounded-xl p-4 md:p-8 flex justify-center overflow-x-auto" style="min-height: 920px;">
+        <!-- Standard Desktop Container (640px) -->
+        <div x-show="viewMode === 'desktop'" class="w-full transition-all duration-300" style="max-width: 680px;">
+            <div class="bg-white dark:bg-zinc-900 rounded-xl shadow-lg border border-slate-200 dark:border-zinc-800 overflow-hidden">
+                <div class="px-4 py-2.5 bg-slate-50 dark:bg-zinc-800/80 border-b border-slate-200 dark:border-zinc-700 flex items-center justify-between text-xs text-slate-500 dark:text-zinc-400">
+                    <div class="flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span>
+                        <span class="font-mono font-medium">Standard Container (640px fluid)</span>
+                    </div>
+                    <a href="{% url 'admin_panel:email_preview_render' template_key %}" target="_blank" class="hover:text-blue-600 dark:hover:text-blue-400 flex items-center gap-1 font-medium transition-colors">
+                        Open HTML &nearr;
+                    </a>
+                </div>
+                <iframe id="preview-iframe-desktop"
+                        src="{% url 'admin_panel:email_preview_render' template_key %}" 
+                        style="width: 100%; min-height: 850px; height: 900px; border: 0; display: block;" 
+                        height="900"
+                        onload="autoResizeEmailPreview(this)"
+                        title="Desktop Email Preview"></iframe>
+            </div>
+        </div>
+
+        <!-- Expanded Desktop Container (860px) -->
+        <div x-show="viewMode === 'expanded'" class="w-full transition-all duration-300" style="max-width: 860px;">
+            <div class="bg-white dark:bg-zinc-900 rounded-xl shadow-lg border border-slate-200 dark:border-zinc-800 overflow-hidden">
+                <div class="px-4 py-2.5 bg-slate-50 dark:bg-zinc-800/80 border-b border-slate-200 dark:border-zinc-700 flex items-center justify-between text-xs text-slate-500 dark:text-zinc-400">
+                    <div class="flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-blue-500 inline-block"></span>
+                        <span class="font-mono font-medium">Expanded Canvas (860px fluid)</span>
+                    </div>
+                    <a href="{% url 'admin_panel:email_preview_render' template_key %}" target="_blank" class="hover:text-blue-600 dark:hover:text-blue-400 flex items-center gap-1 font-medium transition-colors">
+                        Open HTML &nearr;
+                    </a>
+                </div>
+                <iframe id="preview-iframe-expanded"
+                        src="{% url 'admin_panel:email_preview_render' template_key %}" 
+                        style="width: 100%; min-height: 850px; height: 900px; border: 0; display: block;" 
+                        height="900"
+                        onload="autoResizeEmailPreview(this)"
+                        title="Expanded Email Preview"></iframe>
+            </div>
+        </div>
+
+        <!-- Mobile Container (375px) -->
+        <div x-show="viewMode === 'mobile'" class="transition-all duration-300" style="width: 375px; max-width: 100%;">
+            <div class="bg-white dark:bg-zinc-900 rounded-2xl shadow-xl border-4 border-slate-300 dark:border-zinc-700 overflow-hidden">
+                <div class="px-3 py-1.5 bg-slate-800 text-white text-[11px] font-mono text-center flex items-center justify-between">
+                    <span>9:41</span>
+                    <span class="font-sans font-semibold">Mobile Viewport (375px)</span>
+                    <span>100%</span>
+                </div>
+                <iframe id="preview-iframe-mobile"
+                        src="{% url 'admin_panel:email_preview_render' template_key %}" 
+                        style="width: 100%; min-height: 850px; height: 900px; border: 0; display: block;" 
+                        height="900"
+                        onload="autoResizeEmailPreview(this)"
+                        title="Mobile Email Preview"></iframe>
+            </div>
+        </div>
+
+        <!-- Plain-Text Container -->
+        <div x-show="viewMode === 'text'" class="w-full transition-all duration-300" style="max-width: 680px;">
+            <div class="bg-white dark:bg-zinc-900 rounded-xl shadow-lg border border-slate-200 dark:border-zinc-800 overflow-hidden">
+                <div class="px-4 py-2.5 bg-slate-50 dark:bg-zinc-800 border-b border-slate-200 dark:border-zinc-700 flex items-center justify-between text-xs text-slate-500 dark:text-zinc-400">
+                    <span class="font-mono font-medium">Dedicated Plain-Text Rendering (.txt)</span>
+                    <a href="{% url 'admin_panel:email_preview_render' template_key %}?format=text" target="_blank" class="hover:text-blue-600 dark:hover:text-blue-400 flex items-center gap-1 font-medium transition-colors">
+                        Open Plain-Text &nearr;
+                    </a>
+                </div>
+                <div class="p-6">
+                    <pre class="font-mono text-xs text-slate-800 dark:text-zinc-200 whitespace-pre-wrap leading-relaxed bg-slate-50 dark:bg-zinc-950 p-4 rounded-lg border border-slate-200 dark:border-zinc-800 selection:bg-blue-500 selection:text-white">{{ text_content }}</pre>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function autoResizeEmailPreview(iframe) {
+    if (!iframe) return;
+    try {
+        const doc = iframe.contentDocument || (iframe.contentWindow && iframe.contentWindow.document);
+        if (doc && doc.body) {
+            const body = doc.body;
+            const html = doc.documentElement;
+            const scrollH = Math.max(
+                body.scrollHeight || 0,
+                body.offsetHeight || 0,
+                html.clientHeight || 0,
+                html.scrollHeight || 0,
+                html.offsetHeight || 0
+            );
+            if (scrollH > 150) {
+                iframe.style.height = (scrollH + 30) + 'px';
+            }
+        }
+    } catch (err) {
+        // Fallback gracefully to default height if access restricted
+    }
+}
+
+function resizeAllIframes() {
+    const iframes = document.querySelectorAll('iframe[title*="Email Preview"]');
+    iframes.forEach(function(f) {
+        autoResizeEmailPreview(f);
+    });
+}
+
+// Ensure proper height calculation after initial render & asset load
+window.addEventListener('load', function() {
+    setTimeout(resizeAllIframes, 200);
+    setTimeout(resizeAllIframes, 800);
+});
+window.addEventListener('resize', resizeAllIframes);
+</script>
+{% endblock %}

@@ -2,16 +2,7 @@ AETHERSPACE
 High-Performance Agile Team Platform
 ==================================================
 
-You Were Mentioned
-
-{% if user %}Hello {{ user.full_name|default:user.email }},{% else %}Hello,{% endif %}
-
-{{ actor.full_name|default:actor.email }} mentioned you in a comment on {{ context_title }}:
-
-"{{ snippet }}"
-
-View Discussion in AetherSpace:
-{{ site_url|default:'http://127.0.0.1:8000' }}{{ action_url }}
+{% block email_content %}{% endblock %}
 
 ==================================================
 © {{ year|default:"2026" }} AetherSpace. High-Performance Agile Team Platform.

@@ -1,19 +1,29 @@
-Hello {{ user.full_name|default:user.email }},
+AETHERSPACE
+High-Performance Agile Team Platform
+==================================================
 
-{% if status == 'REJECTED' or status == 'SUSPENDED' %}
-Your AetherSpace account (Contributor ID: {{ user.contributor_id }}) status has been updated to {{ status }}.
+{% if status == 'REJECTED' or status == 'SUSPENDED' %}Account Status Notice
+
+{% if user %}Hello {{ user.full_name|default:user.email }},{% else %}Hello,{% endif %}
+
+Your AetherSpace account {% if user.contributor_id %}(Contributor ID: {{ user.contributor_id }}) {% endif %}status has been updated to {{ status|title }}.
 {% if reason %}
-Reason: {{ reason }}
+Reason:
+{{ reason }}
 {% endif %}
-{% else %}
-Welcome to AetherSpace!
-Your AetherSpace account has been approved by a platform Administrator or Workspace Manager.
+If you believe this status was applied in error, please contact your workspace administrator.
+{% else %}Welcome to AetherSpace
 
-Your Contributor ID: {{ user.contributor_id }}
+{% if user %}Hello {{ user.full_name|default:user.email }},{% else %}Hello,{% endif %}
 
-You can now sign in using your Contributor ID (or email) and password:
+Great news! Your AetherSpace contributor account has been approved by an administrator. You can now access your assigned workspaces, projects, tasks, and team collaboration tools.
+
+{% if user.contributor_id %}Contributor ID: {{ user.contributor_id }}
+{% endif %}
+
+Sign In to AetherSpace:
 {{ site_url|default:'http://127.0.0.1:8000' }}{{ action_url }}
 {% endif %}
-
---
-AetherSpace Team
+==================================================
+© {{ year|default:"2026" }} AetherSpace. High-Performance Agile Team Platform.
+Notification Preferences: {{ site_url|default:'http://127.0.0.1:8000' }}/settings/notifications/

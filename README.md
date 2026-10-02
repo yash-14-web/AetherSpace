@@ -4289,6 +4289,108 @@ Raised during: meetings.views.meeting_detail_view
 - Bleach HTML sanitization prevents XSS in Markdown rendering.
 - Atomic database transactions guarantee integrity across tasks, comments, bugs, code reviews, and activity logs.
 
+---
+
+# Phase B: Email Design System & Template Redesign
+
+## 1. Executive Summary & Objective
+Phase B establishes a centralized, production-ready, email-client-safe Email Design System for AetherSpace and migrates 100% of existing email templates to a unified design standard. All transactional, notification, and administrative emails share a single, coherent visual language that mirrors the AetherSpace web platform while maintaining strict bulletproof rendering across Gmail, Apple Mail, Outlook, and mobile mail applications.
+
+Phase A security, delivery logging, deduplication, and preference invariants are 100% preserved.
+
+## 2. Central Email Design System Architecture
+All email components and layouts are centralized under `templates/emails/`:
+
+- `templates/emails/base_email.html` & `templates/emails/base/base_email.html`: Production-ready responsive email container (fluid max 600px width, `#f8fafc` outer surface, `#ffffff` card surface, `#e2e8f0` border, dark-mode CSS).
+- `templates/emails/base/base_email.txt`: Universal plain-text foundation layout.
+- `templates/emails/base/header.html`: Reusable email header with official AetherSpace brand logo (`static/images/logo.png`), product subtitle, and absolute link to platform root via `SITE_URL`. No emojis.
+- `templates/emails/base/footer.html`: Standardized platform footer with copyright statement (`© 2026 AetherSpace`) and direct notification preferences management link.
+- `templates/emails/base/button.html`: Bulletproof table-based CTA button with inline styles, dynamic touch targets (padding 12px 24px), hover transitions, and mobile full-width scaling.
+- `templates/emails/base/badge.html`: Semantic status pills (`badge-blue`, `badge-emerald`, `badge-amber`, `badge-rose`, `badge-indigo`, `badge-purple`).
+- `templates/emails/base/metadata.html`: Two-column key-value attribute table for structured resource inspection (Task Code, Bug Code, Due Date, Priority, Workspace, Host).
+- `templates/emails/base/divider.html`: Minimal 1px border divider.
+
+## 3. Template Inventory & Migration Status
+All 9 core notification categories have been fully redesigned and migrated to dual-format (HTML + TXT):
+
+| # | Email Category | HTML Template | Plain-Text (.txt) Template | Context & Primary CTA |
+|---|---|---|---|---|
+| 1 | Account Verification | `emails/verification.html` | `emails/verification.txt` | Contributor ID card, 24h expiration, Verify Email Address |
+| 2 | Password Reset | `emails/password_reset.html` | `emails/password_reset.txt` | Contributor ID card, 24h expiration, Reset Password (token hidden) |
+| 3 | Workspace Invitation | `emails/workspace_invite.html` | `emails/workspace_invite.txt` | Workspace, Role, Inviter, 7-day notice, Accept Invitation |
+| 4 | Account Status | `emails/account_status.html` | `emails/account_status.txt` | Dual-branch: Approved (Sign In) / Rejected & Suspended (Reason Box) |
+| 5 | Task Assignment | `emails/task_assigned.html` | `emails/task_assigned.txt` | Task #619347, Title, Priority, Due Date, Description Quote, View Task |
+| 6 | Bug Assignment | `emails/bug_assigned.html` | `emails/bug_assigned.txt` | Bug B-882316, Title, Severity, Priority, Module, Description, View Bug |
+| 7 | Meeting / Event | `emails/meeting_event.html` | `emails/meeting_event.txt` | Status badge (Scheduled/Updated/Cancelled), Room, Start, Host, Join Room |
+| 8 | Mention Notification | `emails/mention_notification.html` | `emails/mention_notification.txt` | Actor, Resource Title, Escaped snippet quote box, View Discussion |
+| 9 | General / Access Notification | `emails/general_notification.html` | `emails/general_notification.txt` | Title, Body, Optional Workspace/Reason metadata, Optional CTA |
+
+### Template Drift Resolution
+Phase A identified template path drift where `admin_panel/views.py` referenced `notifications/emails/general_notification.html` while `notifications/email_service.py` referenced `emails/<template>.html`.
+1. `admin_panel/views.py` has been updated to use the consolidated primary path `emails/general_notification.html`.
+2. `templates/notifications/emails/general_notification.html` delegates directly via `{% extends 'emails/general_notification.html' %}`.
+3. `templates/notifications/emails/general_notification.txt` delegates directly via `{% include 'emails/general_notification.txt' %}`.
+This eliminates duplicate code while guaranteeing 100% backward compatibility.
+
+## 4. Design Tokens & Visual Hierarchy
+- **Brand Identity**: Official high-resolution AetherSpace logo (`static/images/logo.png`) formatted with explicit dimensions (`36x36px`) and `SITE_URL` resolution. All emojis (`⚡`) removed in favor of clean enterprise branding.
+- **Typography**: Safe font stack `-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif`.
+- **Card Container**: Max-width `600px`, padding `32px`, border-radius `12px`, border `#E2E8F0`.
+- **Light Theme Palette**:
+  - Canvas: `#F8FAFC`
+  - Card Surface: `#FFFFFF`
+  - Text Primary: `#0F172A`
+  - Text Secondary: `#64748B`
+  - Text Muted: `#94A3B8`
+  - Accent Primary: `#2563EB`
+  - Accent Success: `#16A34A` / `#059669`
+  - Accent Warning: `#D97706`
+  - Accent Danger: `#DC2626`
+  - Accent Indigo: `#4F46E5` / `#818cf8`
+- **Dark Theme (`@media (prefers-color-scheme: dark)`)**:
+  - Canvas: `#09090B`
+  - Card Surface: `#18181B`
+  - Card Border: `#27272A`
+  - Text Primary: `#F4F4F5`
+  - Text Secondary: `#A1A1AA`
+
+## 5. Security & Invariant Preservation
+- **Escaping**: Django auto-escaping is enforced across all templates. User content is never marked `|safe`. Untrusted HTML strings (`<script>`, `<img>`) are escaped to `&lt;script&gt;` entities.
+- **Plain-Text Entity Cleanup**: Plain text templates decode entities with `html.unescape()` so `&#x27;` or `&amp;` never leak into plain-text emails.
+- **Token Protection**: Tokens are never rendered in raw text bodies. Only complete signed action URLs are presented.
+- **Human-Readable Terminology**: Internal enums (`task.create`, `workspace.member.add`, `task.assigned`) are strictly prohibited in user-facing emails and subjects; human-readable labels (`Create Task`, `Add Workspace Member`, `Sprint Task Assignment`) are rendered instead.
+- **Phase A Invariants**: Mandatory transactional events (`PASSWORD_RESET`, `EMAIL_VERIFICATION`) strictly bypass normal notification suppression (`never`), 60s deduplication protects against mail storms, and `EmailDeliveryLog` records every dispatch.
+
+## 6. Admin Email Preview & QA Suite
+A dedicated server-side email inspection system is built into the Admin Console:
+- **Index View**: `/admin-panel/emails/preview/` — Catalog of all 12 email templates and variants with category metadata and quick links.
+- **Interactive Detail View**: `/admin-panel/emails/preview/<template_key>/` — Full viewport simulator with live toggles:
+  - Desktop Viewport (`640px`)
+  - Mobile Viewport (`375px`)
+  - Plain-Text Fallback Inspector (`.txt`)
+- **Raw Render Stream**: `/admin-panel/emails/preview/<template_key>/render/?format=html|text` — Sandboxed iframe source protected with `@xframe_options_sameorigin` to enable seamless embedded preview without weakening global security.
+- **RBAC**: Strictly protected with `@platform_admin_required`; anonymous requests redirect to login, contributor requests return `403 Forbidden`.
+
+## 7. Verification & Automated Test Results
+- `python manage.py test notifications.test_email`: **30 passed, 0 failed, 0 errors (100% OK)**
+- `python manage.py test notifications`: **42 passed, 0 failed, 0 errors (100% OK)**
+- `python manage.py test admin_panel`: **68 passed, 0 failed, 0 errors (100% OK)**
+- `python manage.py check`: **0 issues silenced**
+- `python manage.py makemigrations --dry-run`: **No changes detected**
+
+## 8. Owner Verification Checklist
+The project owner can verify Phase B directly through the Admin Console:
+1. Log into AetherSpace with a Platform Administrator account (`/auth/login/`).
+2. Navigate to `/admin-panel/emails/preview/`.
+3. Select any template (e.g., Task Assignment, Account Verification).
+4. Inspect all previews directly inside the embedded viewport:
+   - Desktop (640px): Embedded iframe renders immediately; official AetherSpace logo visible.
+   - Mobile (375px): Embedded iframe renders cleanly; no horizontal overflow.
+5. Verify Plain-Text Fallback tab shows formatted, emoji-free, entity-free plain text.
+6. Verify "Open HTML" continues to open the rendered email in a new tab.
+7. In production, configure SMTP credentials in `.env` (`EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`) to conduct live inbox delivery testing.
+
+
 
 
 

@@ -1,3 +1,4 @@
+import html
 import logging
 import re
 from datetime import timedelta
@@ -7,17 +8,31 @@ from django.template.loader import render_to_string, get_template
 from django.utils.html import strip_tags
 from django.utils import timezone
 
-from .models import EmailDeliveryLog, EmailDeliveryStatus
+from .models import EmailDeliveryLog, EmailDeliveryStatus, EmailEventType
 
 logger = logging.getLogger(__name__)
+
+# Mandatory transactional events that cannot be suppressed by user preferences
+MANDATORY_TRANSACTIONAL_EVENTS = {
+    EmailEventType.PASSWORD_RESET,
+    EmailEventType.EMAIL_VERIFICATION,
+    'PASSWORD_RESET',
+    'EMAIL_VERIFICATION',
+}
 
 
 def should_send_email_to_user(user, event_type):
     """
     Inspects user preferences to determine if email notifications are permitted.
+    Mandatory transactional security/account emails (Password Reset, Email Verification)
+    bypass normal notification frequency and suppression preferences.
     """
-    if not user or not user.email:
+    if not user or not getattr(user, 'email', None):
         return False
+
+    # Mandatory transactional security/account emails must never be suppressed by preferences
+    if event_type in MANDATORY_TRANSACTIONAL_EVENTS:
+        return True
 
     profile = getattr(user, 'profile', None)
     if not profile or not profile.preferences:
@@ -87,10 +102,12 @@ def send_notification_email(recipient_user, event_type, subject, template_name, 
         )
         return False
 
-    # Build context
+    # Build context with centralized SITE_URL configuration
+    site_url = getattr(settings, 'SITE_URL', 'http://127.0.0.1:8000').rstrip('/')
     ctx = {
         'user': recipient_user,
         'app_name': 'AetherSpace',
+        'site_url': site_url,
         'year': timezone.now().year,
         **context
     }
@@ -102,11 +119,12 @@ def send_notification_email(recipient_user, event_type, subject, template_name, 
         text_template = template_name.replace('.html', '.txt')
         try:
             get_template(text_template)
-            text_content = render_to_string(text_template, ctx)
+            raw_text = render_to_string(text_template, ctx)
+            text_content = html.unescape(raw_text).strip()
         except Exception:
             clean_html = re.sub(r'<style[^>]*>[\s\S]*?</style>', '', html_content, flags=re.IGNORECASE)
             clean_html = re.sub(r'<script[^>]*>[\s\S]*?</script>', '', clean_html, flags=re.IGNORECASE)
-            text_content = strip_tags(clean_html).strip()
+            text_content = html.unescape(strip_tags(clean_html)).strip()
             text_content = re.sub(r'\n{3,}', '\n\n', text_content)
 
         from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'AetherSpace <no-reply@aetherspace.dev>')
@@ -163,10 +181,17 @@ def send_aether_email(recipient_email, subject, html_content, text_content=None,
 
     try:
         from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'AetherSpace <no-reply@aetherspace.dev>')
-        text = text_content or strip_tags(html_content)
+        if text_content:
+            text = text_content
+        else:
+            clean_html = re.sub(r'<style[^>]*>[\s\S]*?</style>', '', html_content, flags=re.IGNORECASE)
+            clean_html = re.sub(r'<script[^>]*>[\s\S]*?</script>', '', clean_html, flags=re.IGNORECASE)
+            text = html.unescape(strip_tags(clean_html)).strip()
+            text = re.sub(r'\n{3,}', '\n\n', text)
         msg = EmailMultiAlternatives(subject, text, from_email, [recipient_email])
         msg.attach_alternative(html_content, "text/html")
         msg.send(fail_silently=False)
+
 
         EmailDeliveryLog.objects.create(
             recipient_email=recipient_email,
@@ -202,7 +227,7 @@ def send_task_assigned_email(task, assignee, actor=None):
     }
     return send_notification_email(
         recipient_user=assignee,
-        event_type='TASK_ASSIGNED',
+        event_type=EmailEventType.TASK_ASSIGNED,
         subject=subject,
         template_name='emails/task_assigned.html',
         context=context
@@ -223,7 +248,7 @@ def send_meeting_scheduled_email(meeting, participant_user=None, recipient=None,
     }
     return send_notification_email(
         recipient_user=target,
-        event_type='MEETING_SCHEDULED',
+        event_type=EmailEventType.MEETING_SCHEDULED,
         subject=subject,
         template_name='emails/meeting_event.html',
         context=context
@@ -244,9 +269,10 @@ def send_meeting_status_email(meeting, participant_user=None, recipient=None, st
         'actor': actor,
         'action_url': f"/meetings/w/{meeting.workspace.slug}/",
     }
+    event_type = EmailEventType.MEETING_CANCELLED if status_str == 'Cancelled' else EmailEventType.MEETING_UPDATED
     return send_notification_email(
         recipient_user=target,
-        event_type=f'MEETING_{str(status_change).upper()}',
+        event_type=event_type,
         subject=subject,
         template_name='emails/meeting_event.html',
         context=context
@@ -263,7 +289,7 @@ def send_account_approved_email(user, approved_by=None):
     }
     return send_notification_email(
         recipient_user=user,
-        event_type='ACCOUNT_APPROVED',
+        event_type=EmailEventType.ACCOUNT_APPROVED,
         subject=subject,
         template_name='emails/account_status.html',
         context=context
@@ -294,8 +320,23 @@ def send_workspace_invitation_email(invitation=None, recipient_email=None, works
     """Notify user of a workspace invitation."""
     email = recipient_email or (invitation.email if invitation else None)
     ws = workspace or (invitation.workspace if invitation else None)
-    url = invitation_url or (f"/workspaces/join/{invitation.token}/" if invitation else "#")
-    role = role_name or (invitation.get_role_display() if invitation else "Member")
+    
+    # Normalize url: if absolute URL is passed, extract relative path so site_url applies cleanly
+    if invitation_url:
+        url = invitation_url
+        if url.startswith('http://') or url.startswith('https://'):
+            from urllib.parse import urlparse
+            parsed = urlparse(url)
+            url = parsed.path
+            if parsed.query:
+                url += f"?{parsed.query}"
+    elif invitation:
+        url = f"/workspaces/join/{invitation.token}/"
+    else:
+        url = "#"
+
+    role = role_name or (invitation.get_role_display() if invitation else "Contributor")
+    inviter = actor or (invitation.invited_by if invitation else None)
 
     if not email or not ws:
         return False
@@ -304,8 +345,15 @@ def send_workspace_invitation_email(invitation=None, recipient_email=None, works
     context = {
         'workspace': ws,
         'role_name': role,
-        'actor': actor or (invitation.invited_by if invitation else None),
+        'actor': inviter,
         'action_url': url,
+        'invitation': invitation or {
+            'workspace': ws,
+            'get_role_display': role,
+            'role': role,
+            'invited_by': inviter,
+            'email': email,
+        },
     }
     # For invitations, recipient is an email address; wrap in an object with email
     class TempRecipient:
@@ -315,7 +363,7 @@ def send_workspace_invitation_email(invitation=None, recipient_email=None, works
 
     return send_notification_email(
         recipient_user=TempRecipient(email),
-        event_type='WORKSPACE_INVITE',
+        event_type=EmailEventType.WORKSPACE_INVITE,
         subject=subject,
         template_name='emails/workspace_invite.html',
         context=context
@@ -335,7 +383,7 @@ def send_bug_assigned_email(bug, assignee, actor=None):
     }
     return send_notification_email(
         recipient_user=assignee,
-        event_type='BUG_ASSIGNED',
+        event_type=EmailEventType.BUG_ASSIGNED,
         subject=subject,
         template_name='emails/bug_assigned.html',
         context=context
@@ -354,7 +402,7 @@ def send_password_reset_email(user, reset_url):
     }
     return send_notification_email(
         recipient_user=user,
-        event_type='PASSWORD_RESET',
+        event_type=EmailEventType.PASSWORD_RESET,
         subject=subject,
         template_name='emails/password_reset.html',
         context=context
@@ -373,7 +421,7 @@ def send_email_verification_email(user, verify_url):
     }
     return send_notification_email(
         recipient_user=user,
-        event_type='EMAIL_VERIFICATION',
+        event_type=EmailEventType.EMAIL_VERIFICATION,
         subject=subject,
         template_name='emails/verification.html',
         context=context
@@ -397,7 +445,7 @@ def send_mention_email(user, actor, context_type, context_title, snippet, action
     }
     return send_notification_email(
         recipient_user=user,
-        event_type='MENTION',
+        event_type=EmailEventType.MENTION,
         subject=subject,
         template_name='emails/mention_notification.html',
         context=context

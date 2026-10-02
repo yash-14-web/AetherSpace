@@ -1,9 +1,24 @@
+AETHERSPACE
+High-Performance Agile Team Platform
+==================================================
+
+Workspace Invitation
+
 Hello,
 
-{% if invitation.invited_by %}{{ invitation.invited_by.full_name|default:invitation.invited_by.email }} has invited you{% else %}You have been invited{% endif %} to join the '{{ invitation.workspace.name }}' agile workspace on AetherSpace as a {{ invitation.get_role_display }}.
+{% if actor %}{{ actor.full_name|default:actor.email }} has invited you to collaborate in the '{% if workspace %}{{ workspace.name }}{% elif invitation.workspace %}{{ invitation.workspace.name }}{% else %}AetherSpace Workspace{% endif %}' agile workspace on AetherSpace as a {% if role_name %}{{ role_name }}{% elif invitation.get_role_display %}{{ invitation.get_role_display }}{% else %}Contributor{% endif %}.{% elif invitation.invited_by %}{{ invitation.invited_by.full_name|default:invitation.invited_by.email }} has invited you to collaborate in the '{% if workspace %}{{ workspace.name }}{% elif invitation.workspace %}{{ invitation.workspace.name }}{% else %}AetherSpace Workspace{% endif %}' agile workspace on AetherSpace as a {% if role_name %}{{ role_name }}{% elif invitation.get_role_display %}{{ invitation.get_role_display }}{% else %}Contributor{% endif %}.{% else %}You have been invited to collaborate in the '{% if workspace %}{{ workspace.name }}{% elif invitation.workspace %}{{ invitation.workspace.name }}{% else %}AetherSpace Workspace{% endif %}' agile workspace on AetherSpace as a {% if role_name %}{{ role_name }}{% elif invitation.get_role_display %}{{ invitation.get_role_display }}{% else %}Contributor{% endif %}.{% endif %}
 
+Workspace: {% if workspace %}{{ workspace.name }}{% elif invitation.workspace %}{{ invitation.workspace.name }}{% else %}AetherSpace Workspace{% endif %}
+Role: {% if role_name %}{{ role_name }}{% elif invitation.get_role_display %}{{ invitation.get_role_display }}{% else %}Contributor{% endif %}
+{% if actor %}Invited By: {{ actor.full_name|default:actor.email }}
+{% elif invitation.invited_by %}Invited By: {{ invitation.invited_by.full_name|default:invitation.invited_by.email }}
+{% endif %}
 Accept Workspace Invitation:
 {{ site_url|default:'http://127.0.0.1:8000' }}{{ action_url }}
 
---
-AetherSpace Team Collaboration Platform
+Notice:
+Workspace invitations expire after 7 days.
+
+==================================================
+© {{ year|default:"2026" }} AetherSpace. High-Performance Agile Team Platform.
+Notification Preferences: {{ site_url|default:'http://127.0.0.1:8000' }}/settings/notifications/

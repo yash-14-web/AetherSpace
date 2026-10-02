@@ -1,15 +1,1 @@
-{% extends 'emails/base_email.html' %}
-
-{% block email_content %}
-    <span class="badge badge-indigo">AetherSpace Notification</span>
-    <h1>{{ title }}</h1>
-    <p>Hello <strong>{{ user.full_name|default:user.email }}</strong>,</p>
-    <p>{{ body }}</p>
-    {% if action_url %}
-        <div style="margin-top: 24px;">
-            <a href="{{ site_url|default:'http://127.0.0.1:8000' }}{{ action_url }}" class="btn">
-                View in AetherSpace &rarr;
-            </a>
-        </div>
-    {% endif %}
-{% endblock %}
+{% extends 'emails/general_notification.html' %}

@@ -1,16 +1,24 @@
-Hello {{ user.full_name|default:user.email }},
+AETHERSPACE
+High-Performance Agile Team Platform
+==================================================
 
-{% if actor %}{{ actor.full_name|default:actor.email }} has {% if status_str == 'Cancelled' %}cancelled{% else %}scheduled{% endif %} a conference:{% else %}A video meeting has been scheduled:{% endif %}
+Meeting {{ status_str|default:"Scheduled" }}: {{ meeting.title }}
+
+{% if user %}Hello {{ user.full_name|default:user.email }},{% else %}Hello,{% endif %}
+
+{% if actor %}{{ actor.full_name|default:actor.email }} has {% if status_str == 'Cancelled' %}cancelled{% elif status_str == 'Updated' %}updated{% else %}scheduled{% endif %} a conference session:{% else %}A conference session has been {% if status_str == 'Cancelled' %}cancelled{% elif status_str == 'Updated' %}updated{% else %}scheduled{% endif %}:{% endif %}
 
 Meeting: {{ meeting.title }}
 Room Code: {{ meeting.meeting_code }}
-Workspace: {{ meeting.workspace.name }}
-{% if meeting.scheduled_start %}Scheduled for: {{ meeting.scheduled_start|date:"M d, Y H:i" }} UTC{% endif %}
-
+{% if meeting.scheduled_start %}Start Time: {{ meeting.scheduled_start|date:"M d, Y H:i" }} UTC
+{% endif %}{% if meeting.workspace %}Workspace: {{ meeting.workspace.name }}
+{% endif %}{% if actor %}Host: {{ actor.full_name|default:actor.email }}
+{% endif %}
 {% if status_str != 'Cancelled' %}
 Join Meeting Room:
 {{ site_url|default:'http://127.0.0.1:8000' }}{{ action_url }}
 {% endif %}
 
---
-AetherSpace Meet Hub
+==================================================
+© {{ year|default:"2026" }} AetherSpace. High-Performance Agile Team Platform.
+Notification Preferences: {{ site_url|default:'http://127.0.0.1:8000' }}/settings/notifications/

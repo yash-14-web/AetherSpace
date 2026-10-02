@@ -9,6 +9,7 @@ from django.utils import timezone
 from django.core.paginator import Paginator
 from django.db.models import Q, Sum, Count
 from django.views.decorators.http import require_POST
+from django.views.decorators.clickjacking import xframe_options_sameorigin
 from django.conf import settings
 
 logger = logging.getLogger(__name__)
@@ -758,29 +759,32 @@ def decide_workspace_request(request, request_id):
 
         # Notifications
         ws_name = access_request.workspace.name if access_request.workspace else "Global Platform"
-        from notifications.models import Notification, NotificationCategory, NotificationType
+        action_label = access_request.get_action_display() if hasattr(access_request, 'get_action_display') else action_name
+        from notifications.models import Notification, NotificationCategory, NotificationType, EmailEventType
         Notification.objects.create(
             recipient=access_request.user,
             actor=request.user,
             workspace=access_request.workspace,
             category=NotificationCategory.SYSTEM,
             notification_type=NotificationType.GENERAL,
-            title=f"Access Request Approved: {action_name}",
-            body=f"Your access request for '{action_name}' in {ws_name} was approved by {request.user.email}. Temporary grant active until {expires_at:%Y-%m-%d %H:%M} UTC.",
+            title=f"Access Request Approved: {action_label}",
+            body=f"Your access request for '{action_label}' in {ws_name} was approved by {request.user.email}. Temporary grant active until {expires_at:%Y-%m-%d %H:%M} UTC.",
         )
 
         try:
             from notifications.email_service import send_notification_email
             send_notification_email(
                 recipient_user=access_request.user,
-                event_type='GENERAL',
-                subject=f"Access Request Approved: {action_name}",
-                template_name='notifications/emails/general_notification.html',
+                event_type=EmailEventType.ACCESS_REQUEST_APPROVED,
+                subject=f"[AetherSpace] Access Request Approved — {action_label}",
+                template_name='emails/general_notification.html',
                 context={
                     'recipient': access_request.user,
                     'actor': request.user,
-                    'title': f"Access Request Approved: {action_name}",
-                    'body': f"Your access request for '{action_name}' in {ws_name} has been approved until {expires_at:%Y-%m-%d %H:%M} UTC.",
+                    'workspace': access_request.workspace,
+                    'title': f"Access Request Approved: {action_label}",
+                    'body': f"Your access request for '{action_label}' in {ws_name} has been approved until {expires_at:%Y-%m-%d %H:%M} UTC.",
+                    'action_url': f"/workspaces/w/{access_request.workspace.slug}/" if access_request.workspace else "/workspaces/",
                 }
             )
         except Exception:
@@ -814,29 +818,33 @@ def decide_workspace_request(request, request_id):
         )
 
         ws_name = access_request.workspace.name if access_request.workspace else "Global Platform"
-        from notifications.models import Notification, NotificationCategory, NotificationType
+        action_label = access_request.get_action_display() if hasattr(access_request, 'get_action_display') else action_name
+        from notifications.models import Notification, NotificationCategory, NotificationType, EmailEventType
         Notification.objects.create(
             recipient=access_request.user,
             actor=request.user,
             workspace=access_request.workspace,
             category=NotificationCategory.SYSTEM,
             notification_type=NotificationType.GENERAL,
-            title=f"Access Request Rejected: {action_name}",
-            body=f"Your request for '{action_name}' in {ws_name} was reviewed and rejected. Reason: {rejection_reason}",
+            title=f"Access Request Rejected: {action_label}",
+            body=f"Your request for '{action_label}' in {ws_name} was reviewed and rejected. Reason: {rejection_reason}",
         )
 
         try:
             from notifications.email_service import send_notification_email
             send_notification_email(
                 recipient_user=access_request.user,
-                event_type='GENERAL',
-                subject=f"Access Request Rejected: {action_name}",
-                template_name='notifications/emails/general_notification.html',
+                event_type=EmailEventType.ACCESS_REQUEST_REJECTED,
+                subject=f"[AetherSpace] Access Request Rejected — {action_label}",
+                template_name='emails/general_notification.html',
                 context={
                     'recipient': access_request.user,
                     'actor': request.user,
-                    'title': f"Access Request Rejected: {action_name}",
-                    'body': f"Your request for '{action_name}' in {ws_name} was rejected. Reason: {rejection_reason}",
+                    'workspace': access_request.workspace,
+                    'title': f"Access Request Rejected: {action_label}",
+                    'body': f"Your request for '{action_label}' in {ws_name} was rejected. Reason: {rejection_reason}",
+                    'reason': rejection_reason,
+                    'action_url': f"/workspaces/w/{access_request.workspace.slug}/" if access_request.workspace else "/workspaces/",
                 }
             )
         except Exception:
@@ -1566,4 +1574,57 @@ def update_module_status(request, module_key):
 
     messages.success(request, f"Module '{module.name}' status changed to '{module.get_status_display()}'.")
     return redirect('admin_panel:module_status_list')
+
+
+# -------------------------------------------------------------------------
+# 17. Email System Previews (Phase B Developer & Admin QA)
+# -------------------------------------------------------------------------
+
+@platform_admin_required
+def email_preview_index(request):
+    """Catalog index of all AetherSpace email templates for visual and QA verification."""
+    from .email_preview import get_preview_catalog
+    catalog = get_preview_catalog()
+    return render(request, 'admin_panel/emails/preview_index.html', {
+        'page_title': 'Email Design System & Previews',
+        'active_section': 'emails',
+        'catalog': catalog,
+    })
+
+
+@platform_admin_required
+def email_preview_detail(request, template_key):
+    """Interactive preview canvas with desktop, mobile, and plaintext viewer."""
+    from .email_preview import get_preview_catalog, render_preview
+    catalog = get_preview_catalog()
+    if template_key not in catalog:
+        messages.error(request, f"Email preview '{template_key}' does not exist.")
+        return redirect('admin_panel:email_preview_index')
+
+    item = catalog[template_key]
+    text_content = render_preview(template_key, as_text=True)
+
+    return render(request, 'admin_panel/emails/preview_detail.html', {
+        'page_title': f"Preview: {item['title']}",
+        'active_section': 'emails',
+        'template_key': template_key,
+        'item': item,
+        'catalog': catalog,
+        'text_content': text_content,
+    })
+
+
+@platform_admin_required
+@xframe_options_sameorigin
+def email_preview_render(request, template_key):
+    """Renders raw HTML or plain-text stream of the preview email for iframe insertion."""
+    from .email_preview import render_preview
+    as_text = request.GET.get('format') == 'text'
+    content = render_preview(template_key, as_text=as_text)
+    if content is None:
+        return HttpResponse("Email template preview not found.", status=404)
+
+    content_type = 'text/plain; charset=utf-8' if as_text else 'text/html; charset=utf-8'
+    return HttpResponse(content, content_type=content_type)
+
 

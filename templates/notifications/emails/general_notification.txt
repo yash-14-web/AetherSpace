@@ -1,0 +1,1 @@
+{% include 'emails/general_notification.txt' %}

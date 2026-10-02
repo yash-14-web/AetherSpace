@@ -1,36 +1,54 @@
 {% extends 'emails/base_email.html' %}
 
 {% block email_content %}
-    {% if status == 'REJECTED' or status == 'SUSPENDED' %}
-        <span class="badge badge-amber">Account Status Notice</span>
-        <h1>Account Status: {{ status|title }}</h1>
-        <p>Hello <strong>{{ user.full_name|default:user.email }}</strong>,</p>
-        <p>
-            Your AetherSpace account (Contributor ID: <strong style="font-family: monospace;">{{ user.contributor_id }}</strong>) status has been updated to <strong>{{ status }}</strong>.
-        </p>
-        {% if reason %}
-            <div style="background-color: #09090b; border: 1px solid #27272a; border-radius: 12px; padding: 16px; margin: 20px 0; color: #a1a1aa; font-size: 13px;">
-                <strong>Reason:</strong> {{ reason }}
-            </div>
-        {% endif %}
-    {% else %}
-        <span class="badge badge-emerald">Account Approved</span>
-        <h1>Welcome to AetherSpace!</h1>
-        <p>Hello <strong>{{ user.full_name|default:user.email }}</strong>,</p>
-        <p>
-            Great news! Your AetherSpace account has been approved by a platform Administrator or Workspace Manager.
-        </p>
-        <div style="background-color: #09090b; border: 1px solid #27272a; border-radius: 12px; padding: 16px; margin: 20px 0; text-align: center;">
-            <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: #a1a1aa; margin-bottom: 6px;">
-                Your Authoritative Contributor ID
-            </div>
-            <div style="font-family: monospace; font-size: 28px; font-weight: 900; color: #60a5fa; letter-spacing: 0.1em;">
-                {{ user.contributor_id }}
-            </div>
-        </div>
-        <p>You can now sign in using your Contributor ID (or email) and password.</p>
-        <a href="{{ site_url|default:'http://127.0.0.1:8000' }}{{ action_url }}" class="btn">
-            Sign In to AetherSpace &rarr;
-        </a>
+  {% if status == 'REJECTED' or status == 'SUSPENDED' %}
+    <span class="badge badge-rose">Account Status Notice</span>
+    <h1>Account Status: {{ status|title }}</h1>
+    <p>{% if user %}Hello <strong>{{ user.full_name|default:user.email }}</strong>,{% else %}Hello,{% endif %}</p>
+    <p>
+      Your AetherSpace account {% if user.contributor_id %}(Contributor ID: <strong style="font-family: monospace;">{{ user.contributor_id }}</strong>) {% endif %}status has been updated to <strong>{{ status|title }}</strong>.
+    </p>
+
+    {% if reason %}
+      <table border="0" cellpadding="0" cellspacing="0" width="100%" role="presentation" class="metadata-card" style="margin: 20px 0; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;">
+        <tr>
+          <td class="metadata-label" style="font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; padding: 10px 16px; width: 35%; border-bottom: none;">
+            Reason
+          </td>
+          <td class="metadata-value" style="font-size: 13px; font-weight: 500; color: #334155; padding: 10px 16px; width: 65%; border-bottom: none;">
+            {{ reason }}
+          </td>
+        </tr>
+      </table>
     {% endif %}
+
+    <p style="font-size: 13px; color: #64748b; margin-top: 24px;">
+      If you believe this status was applied in error, please contact your workspace administrator.
+    </p>
+
+  {% else %}
+    <span class="badge badge-emerald">Account Approved</span>
+    <h1>Welcome to AetherSpace</h1>
+    <p>{% if user %}Hello <strong>{{ user.full_name|default:user.email }}</strong>,{% else %}Hello,{% endif %}</p>
+    <p>
+      Great news! Your AetherSpace contributor account has been approved by an administrator. You can now access your assigned workspaces, projects, tasks, and team collaboration tools.
+    </p>
+
+    <table border="0" cellpadding="0" cellspacing="0" width="100%" role="presentation" class="metadata-card" style="margin: 20px 0; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;">
+      <tr>
+        <td class="metadata-label" style="font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; padding: 12px 16px; width: 35%; border-bottom: none;">
+          Contributor ID
+        </td>
+        <td class="metadata-value" style="font-size: 15px; font-weight: 700; font-family: monospace; color: #2563eb; padding: 12px 16px; width: 65%; border-bottom: none;">
+          {{ user.contributor_id }}
+        </td>
+      </tr>
+    </table>
+
+    <p style="font-size: 14px; color: #334155;">
+      You can sign in using your Contributor ID or your registered email address.
+    </p>
+
+    {% include 'emails/base/button.html' with action_url=action_url cta_label="Sign In to AetherSpace" btn_color="#2563eb" %}
+  {% endif %}
 {% endblock %}

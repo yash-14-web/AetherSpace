@@ -1,14 +1,26 @@
-Hello {{ user.full_name|default:user.email }},
+AETHERSPACE
+High-Performance Agile Team Platform
+==================================================
 
-{% if actor %}{{ actor.full_name|default:actor.email }} has assigned you{% else %}You have been assigned{% endif %} to task #{{ task.task_code }}:
+New Task Assigned
 
-Task: {{ task.title }}
-Priority: {{ task.get_priority_display }}
+{% if user %}Hello {{ user.full_name|default:user.email }},{% else %}Hello,{% endif %}
+
+{% if actor %}{{ actor.full_name|default:actor.email }} has assigned you to a task in {{ task.workspace.name }}:{% else %}You have been assigned to a task in {{ task.workspace.name }}:{% endif %}
+
+Task: #{{ task.task_code }} — {{ task.title }}
 Workspace: {{ task.workspace.name }}
-{% if task.description %}Description: {{ task.description|truncatechars:200 }}{% endif %}
+Priority: {{ task.get_priority_display }}
+{% if task.due_date %}Due Date: {{ task.due_date|date:"d M Y" }}
+{% endif %}{% if actor %}Assigned By: {{ actor.full_name|default:actor.email }}
+{% endif %}{% if task.description %}
+Description:
+{{ task.description|truncatechars:250 }}
+{% endif %}
 
 View Task in AetherSpace:
 {{ site_url|default:'http://127.0.0.1:8000' }}{{ action_url }}
 
---
-AetherSpace Team Collaboration Platform
+==================================================
+© {{ year|default:"2026" }} AetherSpace. High-Performance Agile Team Platform.
+Notification Preferences: {{ site_url|default:'http://127.0.0.1:8000' }}/settings/notifications/
