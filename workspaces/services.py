@@ -41,15 +41,13 @@ def process_and_save_workspace_logo(workspace, file_obj=None, logo_url=None, rem
         return True, "Workspace logo removed. Default initials emblem restored."
 
     if logo_url:
-        clean_url = logo_url.strip()
-        if clean_url and not clean_url.startswith(('http://', 'https://', '/media/')):
-            clean_url = 'https://' + clean_url
-        parsed = urlparse(clean_url)
-        if (parsed.scheme in ('http', 'https') and parsed.netloc) or clean_url.startswith('/media/'):
-            workspace.logo = clean_url
-            workspace.save(update_fields=['logo'])
-            return True, "Workspace logo URL updated successfully."
-        return False, "Please enter a valid HTTP/HTTPS image URL."
+        from core.utils import validate_image_url
+        is_valid, clean_url, err_msg = validate_image_url(logo_url)
+        if not is_valid:
+            return False, err_msg or "Please enter a valid HTTP/HTTPS image URL."
+        workspace.logo = clean_url
+        workspace.save(update_fields=['logo'])
+        return True, "Workspace logo URL updated successfully."
 
     if file_obj:
         # 1. Size constraint

@@ -242,6 +242,16 @@ def toggle_reaction(message, user, emoji):
     """
     Toggle an emoji reaction on a message. Returns (added: bool, total_count: int).
     """
+    if not emoji or not isinstance(emoji, str):
+        raise ValidationError("Emoji reaction cannot be empty.")
+
+    emoji = emoji.strip()
+    if not emoji:
+        raise ValidationError("Emoji reaction cannot be empty.")
+
+    if len(emoji) > 32:
+        raise ValidationError("Emoji reaction exceeds maximum allowed length.")
+
     if not message.workspace.has_user(user):
         raise PermissionDenied("User is not a member of this workspace.")
 

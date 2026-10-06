@@ -106,3 +106,99 @@ class MarkdownPipelineTestCase(TestCase):
         rendered_code = render_rich_text(code_source)
         self.assertIn("**kwargs", rendered_code)
         self.assertNotIn("<strong>", rendered_code)
+
+
+class Batch3ReDoSSecurityTests(TestCase):
+    """
+    Security regression tests for Batch 3: Polynomial ReDoS remediation.
+    Validates deterministic linear mention extraction, bounded rich_text mention pattern,
+    and resilience against catastrophic backtracking on adversarial input strings.
+    """
+    def test_extract_mention_cids_formats(self):
+        from core.templatetags.rich_text import extract_mention_cids
+        # Format 1: @[Display Name](CID)
+        self.assertEqual(extract_mention_cids("Hello @[Ramu M](26457C)"), {"26457C"})
+        self.assertEqual(extract_mention_cids("@[José García](26457C) please review"), {"26457C"})
+        # Format 2: @CID
+        self.assertEqual(extract_mention_cids("Hello @26457C"), {"26457C"})
+        self.assertEqual(extract_mention_cids("(@26457C)"), {"26457C"})
+        self.assertEqual(extract_mention_cids("@26457C,"), {"26457C"})
+        self.assertEqual(extract_mention_cids("@26457C."), {"26457C"})
+        self.assertEqual(extract_mention_cids("@26457C!"), {"26457C"})
+        # Multiple mentions
+        self.assertEqual(
+            extract_mention_cids("@26457C please sync with @12345C and @[Alex](99999Z)"),
+            {"26457C", "12345C", "99999Z"}
+        )
+        # Repeated mentions
+        self.assertEqual(extract_mention_cids("@26457C pinging @26457C again"), {"26457C"})
+
+    def test_extract_mention_cids_malformed_rejected(self):
+        from core.templatetags.rich_text import extract_mention_cids
+        malformed = [
+            "@[broken]",
+            "@[name]()",
+            "@[name](not-an-id)",
+            "@123",
+            "@abcdef",
+            "email@26457C",
+            "@26457Cextra",
+            "@[name\nwith\nnewline](26457C)",
+        ]
+        for m in malformed:
+            self.assertEqual(extract_mention_cids(m), set(), f"Failed to reject: {m}")
+
+    def test_rich_text_transform_mentions_formats(self):
+        # Format 1
+        rendered = render_rich_text("Hello @[Ramu M](26457C)")
+        self.assertIn("aether-mention", rendered)
+        self.assertIn("@Ramu M", rendered)
+        self.assertIn('data-user-id="26457C"', rendered)
+
+        # Format 2
+        rendered_cid = render_rich_text("Hello @26457C")
+        self.assertIn("aether-mention", rendered_cid)
+        self.assertIn("@26457C", rendered_cid)
+        self.assertIn('data-contributor-id="26457C"', rendered_cid)
+
+    def test_adversarial_redos_inputs_complete_in_bounded_linear_time(self):
+        import time
+        from core.templatetags.rich_text import extract_mention_cids
+
+        adversarial_inputs = [
+            ("repeating_brackets", "@[" * 25000),
+            ("repeating_at", "@" * 50000),
+            ("long_bracketed", "@[" + "a" * 25000 + "](26457C)"),
+            ("long_parenthesized", "@[test](" + "a" * 25000 + ")"),
+            ("many_open_parens", "(" * 50000),
+            ("many_open_brackets", "[" * 50000),
+            ("malformed_mentions", "@[broken](" * 10000),
+            ("surrounding_text", "x" * 25000 + "@" + "y" * 25000),
+        ]
+
+        for name, payload in adversarial_inputs:
+            start = time.perf_counter()
+            cids = extract_mention_cids(payload)
+            elapsed = time.perf_counter() - start
+            # Must complete well under 500ms (linear execution)
+            self.assertLess(elapsed, 0.5, f"Adversarial input {name} took too long: {elapsed:.3f}s")
+            self.assertEqual(len(cids), 0)
+
+    def test_linear_scaling_n_2n_4n_8n(self):
+        import time
+        from core.templatetags.rich_text import extract_mention_cids
+
+        # Verify linear growth (not polynomial quadratic O(N^2))
+        base_n = 5000
+        timings = []
+        for multiplier in [1, 2, 4, 8]:
+            n = base_n * multiplier
+            payload = "@[" * n
+            t0 = time.perf_counter()
+            extract_mention_cids(payload)
+            timings.append(time.perf_counter() - t0)
+
+        # In quadratic O(N^2), 8N would be 64x slower than 1N.
+        # In linear O(N), 8N is at most ~16x slower (accounting for GC / CPU frequency scaling).
+        ratio = timings[3] / max(timings[0], 0.0001)
+        self.assertLess(ratio, 25.0, f"Polynomial scaling detected! 8N/1N ratio was {ratio:.2f}x")

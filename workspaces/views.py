@@ -1,3 +1,4 @@
+import logging
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -38,6 +39,8 @@ from .forms import (
 from .services import process_and_save_workspace_logo
 from tasks.models import Task, TaskStatus, Sprint, SprintStatus
 from bugs.models import Bug
+
+logger = logging.getLogger(__name__)
 
 
 @login_required
@@ -1011,13 +1014,15 @@ def submit_access_request(request):
             elif getattr(request, 'workspace', None):
                 workspace = request.workspace
 
+        from core.utils import safe_redirect
+
         # 1. Validation: Reason is strictly required
         if not reason:
             err_msg = "A valid justification reason is required to submit an access request."
             if is_ajax:
                 return JsonResponse({'status': 'error', 'message': err_msg}, status=400)
             messages.error(request, err_msg)
-            return redirect(request.META.get('HTTP_REFERER', 'workspaces:dashboard'))
+            return safe_redirect(request, request.META.get('HTTP_REFERER'), fallback='workspaces:dashboard')
 
         # 2. Validation: Goal description required for emergency or resource action requests
         if urgency == AccessRequestUrgency.EMERGENCY or action != AccessRequestAction.WORKSPACE_ACCESS:
@@ -1026,7 +1031,7 @@ def submit_access_request(request):
                 if is_ajax:
                     return JsonResponse({'status': 'error', 'message': err_msg}, status=400)
                 messages.error(request, err_msg)
-                return redirect(request.META.get('HTTP_REFERER', 'workspaces:dashboard'))
+                return safe_redirect(request, request.META.get('HTTP_REFERER'), fallback='workspaces:dashboard')
 
         # 3. Validation: Validate choices
         if action not in AccessRequestAction.values:
@@ -1045,7 +1050,7 @@ def submit_access_request(request):
                 if is_ajax:
                     return JsonResponse({'status': 'error', 'message': err_msg}, status=400)
                 messages.error(request, err_msg)
-                return redirect(request.META.get('HTTP_REFERER', 'workspaces:dashboard'))
+                return safe_redirect(request, request.META.get('HTTP_REFERER'), fallback='workspaces:dashboard')
 
             import uuid
             ext = uploaded_file.name.split('.')[-1].lower() if '.' in uploaded_file.name else 'png'
@@ -1142,16 +1147,18 @@ def submit_access_request(request):
             })
 
         messages.success(request, success_msg)
-        return redirect(request.META.get('HTTP_REFERER', 'workspaces:dashboard'))
+        return safe_redirect(request, request.META.get('HTTP_REFERER'), fallback='workspaces:dashboard')
 
     except Exception as exc:
+        logger.exception("Unexpected error submitting access request for user %s: %s", request.user.id, exc)
+        generic_err = "Failed to submit access request due to an internal server error. Please try again later."
         if is_ajax:
             return JsonResponse({
                 'status': 'error',
-                'message': f"Failed to submit access request: {str(exc)}"
+                'message': generic_err
             }, status=500)
-        messages.error(request, f"Failed to submit access request: {str(exc)}")
-        return redirect(request.META.get('HTTP_REFERER', 'workspaces:dashboard'))
+        messages.error(request, generic_err)
+        return safe_redirect(request, request.META.get('HTTP_REFERER'), fallback='workspaces:dashboard')
 
 
 @workspace_member_required

@@ -9,7 +9,8 @@
          workspaceSlug: '{{ workspace.slug }}',
          currentUserId: '{{ user.id }}',
          currentUserName: '{{ user.full_name|default:user.email|escapejs }}',
-         currentUserInitial: '{{ user.first_name|slice:":1"|default:user.email|slice:":1"|upper|escapejs }}'
+         currentUserInitial: '{{ user.first_name|slice:":1"|default:user.email|slice:":1"|upper|escapejs }}',
+         reactionEndpoint: '{% url 'chat:api_toggle_reaction' slug=workspace.slug %}'
      })">
 
     <!-- MAIN CHAT STREAM COLUMN -->
@@ -1077,7 +1078,12 @@ function chatChannelStream(config) {
 
         formatMessageContent(content) {
             if (!content) return '';
-            let esc = String(content).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            let esc = String(content)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
             // Quotes / Replying to: lines starting with &gt;
             esc = esc.replace(/^&gt;\s*(.*?)$/gm, '<blockquote class="border-l-2 border-blue-500/60 pl-2.5 py-0.5 my-1 text-slate-500 dark:text-zinc-400 italic bg-blue-50/40 dark:bg-blue-950/30 rounded-r text-[11px]">$1</blockquote>');
             // Bold: **text**
@@ -1179,7 +1185,15 @@ function chatChannelStream(config) {
                                         btn.onclick = () => this.toggleReaction(rData.message_id, rData.emoji);
                                         container.appendChild(btn);
                                     }
-                                    btn.innerHTML = `<span>${rData.emoji}</span>${rData.total_count > 1 ? `<span class="text-[10px] font-bold ml-1">${rData.total_count}</span>` : ''}`;
+                                    const emojiSpan = document.createElement('span');
+                                    emojiSpan.textContent = rData.emoji;
+                                    btn.replaceChildren(emojiSpan);
+                                    if (rData.total_count > 1) {
+                                        const countSpan = document.createElement('span');
+                                        countSpan.className = 'text-[10px] font-bold ml-1';
+                                        countSpan.textContent = String(rData.total_count);
+                                        btn.appendChild(countSpan);
+                                    }
                                 }
                             }
                         } else if (data.type === 'chat_message') {
@@ -1292,7 +1306,9 @@ function chatChannelStream(config) {
                 newBtn.type = 'button';
                 newBtn.id = btnId;
                 newBtn.className = 'inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-xs bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 transition-transform active:scale-95';
-                newBtn.innerHTML = `<span>${emoji}</span>`;
+                const emojiSpan = document.createElement('span');
+                emojiSpan.textContent = emoji;
+                newBtn.replaceChildren(emojiSpan);
                 newBtn.onclick = () => this.toggleReaction(messageId, emoji);
                 container.appendChild(newBtn);
             }
@@ -1308,8 +1324,13 @@ function chatChannelStream(config) {
                 // 3. Background fetch fallback (NO window.location.reload!)
                 const csrfEl = document.querySelector('[name=csrfmiddlewaretoken]');
                 const csrf = csrfEl ? csrfEl.value : '';
-                const url = `/chat/w/${config.workspaceSlug}/api/react/${messageId}/`;
+                const url = config.reactionEndpoint;
+                if (!url) {
+                    console.error('Reaction endpoint is not configured.');
+                    return;
+                }
                 const formData = new FormData();
+                formData.append('message_id', String(messageId));
                 formData.append('emoji', emoji);
 
                 fetch(url, {
@@ -1326,7 +1347,9 @@ function chatChannelStream(config) {
                             newBtn.type = 'button';
                             newBtn.id = btnId;
                             newBtn.className = 'inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-xs bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 transition-transform active:scale-95';
-                            newBtn.innerHTML = `<span>${emoji}</span>`;
+                            const emojiSpan = document.createElement('span');
+                            emojiSpan.textContent = emoji;
+                            newBtn.replaceChildren(emojiSpan);
                             newBtn.onclick = () => this.toggleReaction(messageId, emoji);
                             container.appendChild(newBtn);
                         }
@@ -1356,7 +1379,9 @@ function chatChannelStream(config) {
                                 const badge = document.createElement('span');
                                 badge.id = 'pin-badge-' + messageId;
                                 badge.className = 'text-[10px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 px-1.5 py-0.2 rounded border border-amber-200 dark:border-amber-900/60 flex items-center space-x-1';
-                                badge.innerHTML = '<span>📌 Pinned</span>';
+                                const pinText = document.createElement('span');
+                                pinText.textContent = '📌 Pinned';
+                                badge.replaceChildren(pinText);
                                 header.appendChild(badge);
                             }
                         }

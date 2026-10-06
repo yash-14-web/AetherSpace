@@ -2,6 +2,8 @@ import html
 import logging
 import re
 from datetime import timedelta
+import bleach
+from bs4 import BeautifulSoup
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string, get_template
@@ -71,6 +73,45 @@ def is_duplicate_email(recipient_email, event_type, subject):
     ).exists()
 
 
+def html_to_plain_text(html_content):
+    """
+    Safely converts HTML email content to clean, human-readable plain text.
+    Uses BeautifulSoup with the html5lib WHATWG HTML5-compliant parser to parse
+    the document structure and safely decompose non-renderable script, style,
+    and metadata elements. This completely replaces vulnerable regular expression
+    tag blacklists (CWE-116 / CodeQL py/bad-tag-filter).
+    """
+    if not html_content:
+        return ""
+    try:
+        soup = BeautifulSoup(html_content, "html5lib")
+        for tag in soup(["script", "style", "head", "meta", "title", "noscript"]):
+            tag.decompose()
+        # Add newlines after block elements and replace br with newline
+        for br in soup.find_all(["br"]):
+            br.replace_with("\n")
+        for block in soup.find_all(["p", "div", "h1", "h2", "h3", "h4", "h5", "h6", "li", "tr", "blockquote"]):
+            block.append("\n")
+        text = soup.get_text()
+    except Exception:
+        cleaned = bleach.clean(html_content, tags=[], strip=True)
+        text = html.unescape(cleaned)
+
+    # Clean whitespace and collapse excessive consecutive blank lines
+    lines = [line.strip() for line in text.splitlines()]
+    cleaned_lines = []
+    prev_empty = False
+    for line in lines:
+        if not line:
+            if not prev_empty:
+                cleaned_lines.append("")
+                prev_empty = True
+        else:
+            cleaned_lines.append(line)
+            prev_empty = False
+    return "\n".join(cleaned_lines).strip()
+
+
 def send_notification_email(recipient_user, event_type, subject, template_name, context):
     """
     Primary multi-part HTML & text email delivery pipeline.
@@ -122,10 +163,7 @@ def send_notification_email(recipient_user, event_type, subject, template_name, 
             raw_text = render_to_string(text_template, ctx)
             text_content = html.unescape(raw_text).strip()
         except Exception:
-            clean_html = re.sub(r'<style[^>]*>[\s\S]*?</style>', '', html_content, flags=re.IGNORECASE)
-            clean_html = re.sub(r'<script[^>]*>[\s\S]*?</script>', '', clean_html, flags=re.IGNORECASE)
-            text_content = html.unescape(strip_tags(clean_html)).strip()
-            text_content = re.sub(r'\n{3,}', '\n\n', text_content)
+            text_content = html_to_plain_text(html_content)
 
         from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'AetherSpace <no-reply@aetherspace.dev>')
         msg = EmailMultiAlternatives(subject, text_content, from_email, [recipient_email])
@@ -184,10 +222,7 @@ def send_aether_email(recipient_email, subject, html_content, text_content=None,
         if text_content:
             text = text_content
         else:
-            clean_html = re.sub(r'<style[^>]*>[\s\S]*?</style>', '', html_content, flags=re.IGNORECASE)
-            clean_html = re.sub(r'<script[^>]*>[\s\S]*?</script>', '', clean_html, flags=re.IGNORECASE)
-            text = html.unescape(strip_tags(clean_html)).strip()
-            text = re.sub(r'\n{3,}', '\n\n', text)
+            text = html_to_plain_text(html_content)
         msg = EmailMultiAlternatives(subject, text, from_email, [recipient_email])
         msg.attach_alternative(html_content, "text/html")
         msg.send(fail_silently=False)

@@ -633,3 +633,77 @@ class BugTrackingTests(TestCase):
         self.assertContains(resp, created_bug.title)
 
 
+class BugMentionReDoSSecurityTests(TestCase):
+    """
+    Security regression tests for Batch 3 in bugs: ReDoS-hardened mention parsing in comments.
+    Verifies @[Name](CID) and @CID parsing creates notifications without polynomial backtracking.
+    """
+    def setUp(self):
+        self.client = Client()
+        self.owner = User.objects.create_user(
+            email="bug.mention.owner@aetherspace.dev",
+            password="StrongPassword123!",
+            full_name="Bug Owner",
+            contributor_id="33333A",
+            approval_status="APPROVED"
+        )
+        self.contributor = User.objects.create_user(
+            email="bug.mention.dev@aetherspace.dev",
+            password="StrongPassword123!",
+            full_name="Bug Dev Member",
+            contributor_id="44444B",
+            approval_status="APPROVED"
+        )
+        self.workspace = Workspace.objects.create(
+            name="Bug Mention Workspace",
+            slug="bug-mention-ws",
+            owner=self.owner
+        )
+        WorkspaceMembership.objects.create(
+            workspace=self.workspace,
+            user=self.owner,
+            role=WorkspaceRole.ADMIN,
+            status=MembershipStatus.ACTIVE
+        )
+        WorkspaceMembership.objects.create(
+            workspace=self.workspace,
+            user=self.contributor,
+            role=WorkspaceRole.CONTRIBUTOR,
+            status=MembershipStatus.ACTIVE
+        )
+        self.bug = create_bug(
+            workspace=self.workspace,
+            reporter=self.owner,
+            title="Defect with mention support",
+            description="Bug description",
+            priority=BugPriority.HIGH,
+            severity=BugSeverity.SEV2,
+            environment=BugEnvironment.STAGING
+        )
+        self.client.force_login(self.owner)
+        self.comment_url = reverse('bugs:bug_comment_add', kwargs={
+            'slug': self.workspace.slug,
+            'bug_code': self.bug.bug_code
+        })
+
+    def test_bug_comment_normal_and_display_mentions_create_notifications(self):
+        from notifications.models import Notification
+        # Comment with @[Bug Dev Member](44444B)
+        self.client.post(self.comment_url, {'content': 'Please review @[Bug Dev Member](44444B)'})
+        self.assertTrue(Notification.objects.filter(recipient=self.contributor).exists())
+
+        # Comment with @44444B
+        Notification.objects.all().delete()
+        self.client.post(self.comment_url, {'content': 'Hey @44444B! Can you triage this?'})
+        self.assertTrue(Notification.objects.filter(recipient=self.contributor).exists())
+
+    def test_bug_comment_adversarial_redos_payload_completes_instantly(self):
+        import time
+        from notifications.models import Notification
+        evil_comment = '@[' * 20000 + 'Normal bug comment text'
+        start = time.perf_counter()
+        resp = self.client.post(self.comment_url, {'content': evil_comment})
+        elapsed = time.perf_counter() - start
+        self.assertEqual(resp.status_code, 302)
+        # Must execute in under 500ms
+        self.assertLess(elapsed, 0.5, f"Bug comment parsing took too long: {elapsed:.3f}s")

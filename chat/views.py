@@ -1,5 +1,7 @@
 import json
+import logging
 import re
+import uuid
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -27,6 +29,7 @@ from .services import (
 )
 
 User = get_user_model()
+logger = logging.getLogger(__name__)
 
 
 def get_chat_sidebar_context(workspace, user):
@@ -170,8 +173,12 @@ def channel_view(request, slug, channel_slug):
         try:
             post_channel_message(channel, user, content=content, files=files)
             return redirect('chat:channel_view', slug=slug, channel_slug=channel_slug)
+        except (ValidationError, PermissionDenied) as e:
+            err_msg = e.messages[0] if hasattr(e, 'messages') else str(e)
+            messages.error(request, err_msg)
         except Exception as e:
-            messages.error(request, str(e))
+            logger.exception("Failed to post channel message: %s", e)
+            messages.error(request, "Failed to send message. An unexpected error occurred.")
 
     # Fetch channel messages with attachments and reactions
     messages_qs = channel.messages.filter(is_deleted=False).select_related(
@@ -250,8 +257,12 @@ def direct_message_view(request, slug, user_id):
         try:
             post_direct_message(conversation, current_user, content=content, files=files)
             return redirect('chat:direct_message', slug=slug, user_id=user_id)
+        except (ValidationError, PermissionDenied) as e:
+            err_msg = e.messages[0] if hasattr(e, 'messages') else str(e)
+            messages.error(request, err_msg)
         except Exception as e:
-            messages.error(request, str(e))
+            logger.exception("Failed to post direct message: %s", e)
+            messages.error(request, "Failed to send message. An unexpected error occurred.")
 
     messages_qs = conversation.messages.filter(is_deleted=False).select_related(
         'sender', 'sender__profile', 'recipient', 'pinned_by'
@@ -418,11 +429,14 @@ def channel_add_members_view(request, slug, channel_slug):
             except Exception:
                 pass
 
+    fallback_details_url = f"/chat/w/{slug}/c/{channel_slug}/details/"
+    from core.utils import safe_redirect
+
     if not user_ids:
         if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.content_type == 'application/json':
             return JsonResponse({'status': 'error', 'message': 'No members selected.'}, status=400)
         messages.warning(request, "No members were selected to add.")
-        return redirect(request.META.get('HTTP_REFERER') or f"/chat/w/{slug}/c/{channel_slug}/details/")
+        return safe_redirect(request, request.META.get('HTTP_REFERER'), fallback=fallback_details_url)
 
     added_count = 0
     errors = []
@@ -444,7 +458,7 @@ def channel_add_members_view(request, slug, channel_slug):
     if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.content_type == 'application/json':
         return JsonResponse({'status': 'ok', 'added': added_count, 'errors': errors})
 
-    return redirect(request.META.get('HTTP_REFERER') or f"/chat/w/{slug}/c/{channel_slug}/details/")
+    return safe_redirect(request, request.META.get('HTTP_REFERER'), fallback=fallback_details_url)
 
 
 @require_POST
@@ -469,7 +483,8 @@ def channel_remove_member_view(request, slug, channel_slug, user_id):
         if request.headers.get('x-requested-with') == 'XMLHttpRequest':
             return JsonResponse({'status': 'error', 'message': str(e)}, status=403)
 
-    return redirect(request.META.get('HTTP_REFERER') or f"/chat/w/{slug}/c/{channel_slug}/details/")
+    from core.utils import safe_redirect
+    return safe_redirect(request, request.META.get('HTTP_REFERER'), fallback=f"/chat/w/{slug}/c/{channel_slug}/details/")
 
 
 @require_POST
@@ -612,16 +627,44 @@ def api_toggle_pin(request, slug, message_id):
 
 @require_POST
 @workspace_member_required
-def api_toggle_reaction(request, slug, message_id):
+def api_toggle_reaction(request, slug, message_id=None):
     """API endpoint to toggle an emoji reaction on a message."""
-    message = get_object_or_404(Message, id=message_id, workspace=request.workspace)
-    emoji = request.POST.get('emoji', '').strip()
+    raw_message_id = message_id or request.POST.get('message_id')
+    raw_emoji = request.POST.get('emoji')
+
+    if request.content_type == 'application/json':
+        try:
+            body_data = json.loads(request.body.decode('utf-8'))
+            if not raw_message_id:
+                raw_message_id = body_data.get('message_id')
+            if raw_emoji is None:
+                raw_emoji = body_data.get('emoji')
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            pass
+
+    if not raw_message_id:
+        return JsonResponse({'status': 'error', 'message': 'Message ID is required.'}, status=400)
+
+    try:
+        val_uuid = uuid.UUID(str(raw_message_id).strip())
+    except (ValueError, TypeError, AttributeError):
+        return JsonResponse({'status': 'error', 'message': 'Invalid message ID.'}, status=400)
+
+    try:
+        message = Message.objects.get(id=val_uuid, workspace=request.workspace)
+    except Message.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'Message not found.'}, status=404)
+
+    emoji = (raw_emoji or '').strip()
     if not emoji:
         return JsonResponse({'status': 'error', 'message': 'Emoji is required.'}, status=400)
 
     try:
         added, count = toggle_reaction(message, request.user, emoji)
         return JsonResponse({'status': 'ok', 'emoji': emoji, 'added': added, 'count': count})
+    except ValidationError as e:
+        msg = e.messages[0] if hasattr(e, 'messages') else str(e)
+        return JsonResponse({'status': 'error', 'message': msg}, status=400)
     except PermissionDenied as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=403)
 

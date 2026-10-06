@@ -1,10 +1,13 @@
 import json
+import logging
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
 from channels.db import database_sync_to_async
 from django.utils import timezone
 from django.core.exceptions import PermissionDenied, ValidationError
 from .models import Channel, DirectMessageConversation, Message, MessageReaction
 from .services import post_channel_message, post_direct_message, toggle_reaction
+
+logger = logging.getLogger(__name__)
 
 
 class ChatConsumer(AsyncJsonWebsocketConsumer):
@@ -81,10 +84,17 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
                         "message": msg_data,
                     }
                 )
-            except Exception as e:
+            except (ValidationError, PermissionDenied) as e:
+                err_text = e.messages[0] if hasattr(e, 'messages') else str(e)
                 await self.send_json({
                     "type": "error",
-                    "message": str(e),
+                    "message": err_text,
+                })
+            except Exception as e:
+                logger.exception("Unexpected error in chat consumer message processing: %s", e)
+                await self.send_json({
+                    "type": "error",
+                    "message": "Unable to process message due to an unexpected error.",
                 })
 
 
@@ -169,5 +179,5 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
                 "added": added,
                 "total_count": count,
             }
-        except (Message.DoesNotExist, PermissionDenied):
+        except (Message.DoesNotExist, PermissionDenied, ValidationError):
             return None

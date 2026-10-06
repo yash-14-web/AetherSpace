@@ -1205,7 +1205,8 @@ def confirm_backup_restore(request):
     try:
         file_bytes = base64.b64decode(payload_b64)
     except Exception as e:
-        messages.error(request, f"Corrupt backup payload data: {str(e)}")
+        logger.exception("Corrupt backup payload data: %s", e)
+        messages.error(request, "Corrupt backup payload data. Unable to decode backup file.")
         return redirect('admin_panel:backup_restore')
 
     success, report = WorkspaceRestoreService.execute_transactional_restore(

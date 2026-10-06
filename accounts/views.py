@@ -53,7 +53,7 @@ def login_view(request):
     if request.user.is_authenticated:
         return redirect('workspaces:dashboard')
 
-    next_url = request.GET.get('next', '')
+    next_url = request.POST.get('next') or request.GET.get('next', '')
 
     if request.method == 'POST':
         form = LoginForm(request.POST)
@@ -83,10 +83,9 @@ def login_view(request):
                 # Session expires on browser close
                 request.session.set_expiry(0)
 
-            # Validate redirect URL security
-            if next_url and url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
-                return redirect(next_url)
-            return redirect('workspaces:dashboard')
+            # Validate redirect URL security using centralized helper
+            from core.utils import safe_redirect
+            return safe_redirect(request, next_url, fallback='workspaces:dashboard')
     else:
         form = LoginForm()
 

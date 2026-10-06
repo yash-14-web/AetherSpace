@@ -3,6 +3,7 @@ from django.test import TestCase, Client
 from django.urls import reverse
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.core.exceptions import ValidationError
 
 from workspaces.models import Workspace, WorkspaceMembership, WorkspaceRole, MembershipStatus
 from chat.models import (
@@ -574,3 +575,357 @@ class ChatModuleTests(TestCase):
         self.assertFalse(Channel.objects.filter(workspace=self.workspace, slug='temp-space').exists())
 
 
+class ChatSecurityXSSHardeningTests(TestCase):
+    """
+    Security regression tests for Batch 1: DOM XSS and Reaction Input Hardening.
+    """
+    def setUp(self):
+        self.client = Client()
+        self.user = User.objects.create_user(
+            email='security.chat@aetherspace.dev',
+            password='StrongPassword123!',
+            full_name='Security Chat User',
+            approval_status='APPROVED'
+        )
+        self.workspace = Workspace.objects.create(
+            name='Chat Security Team',
+            slug='chat-sec-team',
+            owner=self.user
+        )
+        WorkspaceMembership.objects.create(
+            workspace=self.workspace,
+            user=self.user,
+            role=WorkspaceRole.ADMIN,
+            status=MembershipStatus.ACTIVE
+        )
+        self.channel = Channel.objects.create(
+            workspace=self.workspace,
+            name='security-test',
+            slug='security-test',
+            created_by=self.user
+        )
+        ChannelMembership.objects.create(
+            channel=self.channel,
+            user=self.user,
+            role=ChannelRole.OWNER
+        )
+        self.message = post_channel_message(
+            channel=self.channel,
+            sender=self.user,
+            content="Security test message"
+        )
+        self.client.force_login(self.user)
+        self.toggle_url = reverse('chat:api_toggle_reaction', kwargs={
+            'slug': self.workspace.slug,
+            'message_id': self.message.id
+        })
+
+    def test_valid_unicode_emojis_accepted(self):
+        """Ensure standard and multi-codepoint Unicode emojis are supported."""
+        for emoji in ['👍', '❤️', '🚀', '😂', '👍🏽']:
+            added, count = toggle_reaction(self.message, self.user, emoji)
+            self.assertTrue(added)
+            self.assertEqual(count, 1)
+            # Toggle off
+            added, count = toggle_reaction(self.message, self.user, emoji)
+            self.assertFalse(added)
+            self.assertEqual(count, 0)
+
+    def test_empty_and_whitespace_emoji_rejected(self):
+        """Ensure empty strings or whitespace-only emoji reactions are rejected."""
+        with self.assertRaises(ValidationError):
+            toggle_reaction(self.message, self.user, "")
+
+        with self.assertRaises(ValidationError):
+            toggle_reaction(self.message, self.user, "   ")
+
+        with self.assertRaises(ValidationError):
+            toggle_reaction(self.message, self.user, None)
+
+        # Test API endpoint response
+        resp = self.client.post(self.toggle_url, json.dumps({'emoji': ''}), content_type='application/json')
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.json().get('status'), 'error')
+
+    def test_oversized_emoji_payload_rejected(self):
+        """Ensure oversized emoji reaction payloads are rejected."""
+        oversized = "👍" * 33
+        with self.assertRaises(ValidationError):
+            toggle_reaction(self.message, self.user, oversized)
+
+        oversized_str = "A" * 35
+        with self.assertRaises(ValidationError):
+            toggle_reaction(self.message, self.user, oversized_str)
+
+        resp = self.client.post(self.toggle_url, json.dumps({'emoji': oversized}), content_type='application/json')
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.json().get('status'), 'error')
+
+    def test_templates_do_not_contain_unsafe_emoji_innerhtml(self):
+        """Static regression test: verify chat templates do not interpolate emoji into innerHTML."""
+        import os
+        from django.conf import settings
+        template_files = [
+            os.path.join(settings.BASE_DIR, 'templates', 'chat', 'direct_message.html'),
+            os.path.join(settings.BASE_DIR, 'templates', 'chat', 'channel_view.html'),
+        ]
+        unsafe_patterns = [
+            'innerHTML = `<span>${emoji}</span>`',
+            'innerHTML = `<span>${rData.emoji}</span>',
+            'innerHTML = `<span>${rData.emoji}</span>${rData.total_count',
+            'innerHTML = `<span>${emoji}</span>${totalCount',
+        ]
+        for template_path in template_files:
+            self.assertTrue(os.path.exists(template_path), f"Template missing: {template_path}")
+            with open(template_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            for pattern in unsafe_patterns:
+                self.assertNotIn(
+                    pattern,
+                    content,
+                    f"Found unsafe innerHTML pattern '{pattern}' in {template_path}"
+                )
+
+
+class ChatSecurityRequestForgeryHardeningTests(TestCase):
+    """
+    Security regression tests for Batch 2: Client-side Request Forgery Hardening.
+    Ensures reaction endpoint is fixed/server-generated, message IDs are safely sent
+    and validated in request bodies, CSRF is strictly enforced, and cross-workspace access is prevented.
+    """
+    def setUp(self):
+        import uuid
+        self.client = Client()
+        self.user = User.objects.create_user(
+            email='rf.security@aetherspace.dev',
+            password='StrongPassword123!',
+            full_name='RF Security User',
+            approval_status='APPROVED'
+        )
+        self.workspace = Workspace.objects.create(
+            name='RF Security Workspace',
+            slug='rf-sec-ws',
+            owner=self.user
+        )
+        WorkspaceMembership.objects.create(
+            workspace=self.workspace,
+            user=self.user,
+            role=WorkspaceRole.ADMIN,
+            status=MembershipStatus.ACTIVE
+        )
+        self.channel = Channel.objects.create(
+            workspace=self.workspace,
+            name='rf-sec-channel',
+            slug='rf-sec-channel',
+            created_by=self.user
+        )
+        ChannelMembership.objects.create(
+            channel=self.channel,
+            user=self.user,
+            role=ChannelRole.OWNER
+        )
+        self.message = post_channel_message(
+            channel=self.channel,
+            sender=self.user,
+            content="Message for request forgery security tests"
+        )
+        self.client.force_login(self.user)
+        self.fixed_reaction_url = reverse('chat:api_toggle_reaction', kwargs={
+            'slug': self.workspace.slug
+        })
+
+    def test_normal_reaction_via_body_parameter(self):
+        """A legitimate authenticated workspace member can react successfully sending message_id in body."""
+        # 1. Add reaction
+        resp = self.client.post(self.fixed_reaction_url, {
+            'message_id': str(self.message.id),
+            'emoji': '🚀'
+        })
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertEqual(data.get('status'), 'ok')
+        self.assertTrue(data.get('added'))
+        self.assertEqual(data.get('count'), 1)
+        self.assertTrue(MessageReaction.objects.filter(
+            message=self.message,
+            user=self.user,
+            emoji='🚀'
+        ).exists())
+
+        # 2. Toggle off
+        resp2 = self.client.post(self.fixed_reaction_url, {
+            'message_id': str(self.message.id),
+            'emoji': '🚀'
+        })
+        self.assertEqual(resp2.status_code, 200)
+        data2 = resp2.json()
+        self.assertEqual(data2.get('status'), 'ok')
+        self.assertFalse(data2.get('added'))
+        self.assertEqual(data2.get('count'), 0)
+        self.assertFalse(MessageReaction.objects.filter(
+            message=self.message,
+            user=self.user,
+            emoji='🚀'
+        ).exists())
+
+    def test_reaction_csrf_enforcement(self):
+        """Verify POST requests without CSRF protection are rejected with 403."""
+        csrf_client = Client(enforce_csrf_checks=True)
+        csrf_client.force_login(self.user)
+        resp = csrf_client.post(self.fixed_reaction_url, {
+            'message_id': str(self.message.id),
+            'emoji': '👍'
+        })
+        self.assertEqual(resp.status_code, 403)
+
+    def test_cross_workspace_isolation(self):
+        """Ensure cross-workspace reaction attempts are strictly blocked."""
+        user2 = User.objects.create_user(
+            email='other.workspace.user@aetherspace.dev',
+            password='StrongPassword123!',
+            full_name='Other User',
+            approval_status='APPROVED'
+        )
+        workspace2 = Workspace.objects.create(
+            name='Isolated Workspace 2',
+            slug='isolated-ws-2',
+            owner=user2
+        )
+        WorkspaceMembership.objects.create(
+            workspace=workspace2,
+            user=user2,
+            role=WorkspaceRole.ADMIN,
+            status=MembershipStatus.ACTIVE
+        )
+        channel2 = Channel.objects.create(
+            workspace=workspace2,
+            name='channel2',
+            slug='channel2',
+            created_by=user2
+        )
+        ChannelMembership.objects.create(
+            channel=channel2,
+            user=user2,
+            role=ChannelRole.OWNER
+        )
+        message2 = post_channel_message(
+            channel=channel2,
+            sender=user2,
+            content="Workspace 2 isolated message"
+        )
+
+        # Attempt A: user2 tries to POST to workspace 1 endpoint -> 403 PermissionDenied
+        client2 = Client()
+        client2.force_login(user2)
+        resp_a = client2.post(self.fixed_reaction_url, {
+            'message_id': str(self.message.id),
+            'emoji': '👍'
+        })
+        self.assertEqual(resp_a.status_code, 403)
+
+        # Attempt B: self.user (Workspace 1 member) tries to react to message2 (Workspace 2) via workspace 1 endpoint -> 404 Not Found
+        resp_b = self.client.post(self.fixed_reaction_url, {
+            'message_id': str(message2.id),
+            'emoji': '👍'
+        })
+        self.assertEqual(resp_b.status_code, 404)
+        self.assertEqual(resp_b.json().get('status'), 'error')
+        self.assertFalse(MessageReaction.objects.filter(message=message2).exists())
+
+    def test_invalid_message_ids_return_safe_4xx(self):
+        """Verify malformed and nonexistent message IDs return safe 4xx responses without unhandled crashes."""
+        import uuid
+        # Malformed path traversal string
+        resp1 = self.client.post(self.fixed_reaction_url, {
+            'message_id': '../../admin/auth/user/',
+            'emoji': '👍'
+        })
+        self.assertEqual(resp1.status_code, 400)
+        self.assertEqual(resp1.json().get('message'), 'Invalid message ID.')
+
+        # Missing message_id
+        resp2 = self.client.post(self.fixed_reaction_url, {
+            'emoji': '👍'
+        })
+        self.assertEqual(resp2.status_code, 400)
+        self.assertEqual(resp2.json().get('message'), 'Message ID is required.')
+
+        # Non-existent UUID
+        random_uuid = str(uuid.uuid4())
+        resp3 = self.client.post(self.fixed_reaction_url, {
+            'message_id': random_uuid,
+            'emoji': '👍'
+        })
+        self.assertEqual(resp3.status_code, 404)
+        self.assertEqual(resp3.json().get('message'), 'Message not found.')
+
+    def test_reaction_validation_preserved_batch1(self):
+        """Verify Batch 1 emoji validations remain active on the fixed endpoint."""
+        # Empty emoji
+        resp_empty = self.client.post(self.fixed_reaction_url, {
+            'message_id': str(self.message.id),
+            'emoji': ''
+        })
+        self.assertEqual(resp_empty.status_code, 400)
+
+        # Whitespace emoji
+        resp_ws = self.client.post(self.fixed_reaction_url, {
+            'message_id': str(self.message.id),
+            'emoji': '   '
+        })
+        self.assertEqual(resp_ws.status_code, 400)
+
+        # Oversized emoji (> 32 chars)
+        resp_over = self.client.post(self.fixed_reaction_url, {
+            'message_id': str(self.message.id),
+            'emoji': '🚀' * 33
+        })
+        self.assertEqual(resp_over.status_code, 400)
+
+        # Multi-codepoint Unicode emojis supported
+        for em in ['❤️', '👍🏽', '👨‍💻']:
+            resp_em = self.client.post(self.fixed_reaction_url, {
+                'message_id': str(self.message.id),
+                'emoji': em
+            })
+            self.assertEqual(resp_em.status_code, 200)
+            self.assertEqual(resp_em.json().get('status'), 'ok')
+
+    def test_client_side_templates_use_trusted_static_endpoint(self):
+        """Verify chat templates do not construct reaction fetch URLs from dynamic messageId."""
+        import os
+        from django.conf import settings
+        template_files = [
+            os.path.join(settings.BASE_DIR, 'templates', 'chat', 'direct_message.html'),
+            os.path.join(settings.BASE_DIR, 'templates', 'chat', 'channel_view.html'),
+        ]
+        forbidden_patterns = [
+            '/api/react/${messageId}',
+            'api/react/${',
+        ]
+        for template_path in template_files:
+            self.assertTrue(os.path.exists(template_path), f"Template missing: {template_path}")
+            with open(template_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+
+            for pattern in forbidden_patterns:
+                self.assertNotIn(
+                    pattern,
+                    content,
+                    f"Template {template_path} still contains untrusted URL construction '{pattern}'"
+                )
+
+            # Ensure reactionEndpoint configuration is passed
+            self.assertIn("reactionEndpoint: '{% url 'chat:api_toggle_reaction' slug=workspace.slug %}'", content)
+            # Ensure message_id is appended to FormData
+            self.assertIn("formData.append('message_id', String(messageId));", content)
+
+    def test_legacy_url_pattern_backward_compatibility(self):
+        """Verify legacy parameterized route continues to work for existing integrations."""
+        legacy_url = reverse('chat:api_toggle_reaction', kwargs={
+            'slug': self.workspace.slug,
+            'message_id': self.message.id
+        })
+        resp = self.client.post(legacy_url, {'emoji': '🎉'})
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json().get('status'), 'ok')

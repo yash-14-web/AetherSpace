@@ -1,4 +1,6 @@
 import json
+import logging
+
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import update_session_auth_hash
@@ -26,6 +28,8 @@ from .forms import (
     NotificationPreferencesForm,
     WorkspaceSettingsForm,
 )
+
+logger = logging.getLogger(__name__)
 
 
 @login_required
@@ -185,8 +189,11 @@ def api_update_theme(request):
         profile.save(update_fields=['preferences', 'updated_at'])
 
         return JsonResponse({'status': 'ok', 'theme': mapped_theme})
-    except Exception as e:
-        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+    except json.JSONDecodeError:
+        return JsonResponse({'status': 'error', 'message': 'Invalid JSON body.'}, status=400)
+    except Exception as exc:
+        logger.exception("Unexpected error while updating theme preferences for user %s: %s", request.user.id, exc)
+        return JsonResponse({'status': 'error', 'message': 'An unexpected error occurred while updating theme settings.'}, status=500)
 
 
 @login_required

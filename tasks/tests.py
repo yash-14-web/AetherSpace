@@ -1587,5 +1587,146 @@ def authenticate():
             )
 
 
+class TaskSecurityXSSHardeningTests(TestCase):
+    """
+    Security regression tests for Batch 1: Reflected XSS remediation in tasks.
+    Ensures invalid status values are rejected with generic responses and never reflected.
+    """
+    def setUp(self):
+        self.client = Client()
+        self.user = User.objects.create_user(
+            email="security.tester@aetherspace.dev",
+            password="StrongPassword123!",
+            full_name="Security Tester"
+        )
+        self.workspace = Workspace.objects.create(
+            name="Security Workspace",
+            slug="security-workspace",
+            owner=self.user
+        )
+        WorkspaceMembership.objects.create(
+            workspace=self.workspace,
+            user=self.user,
+            role=WorkspaceRole.ADMIN,
+            status=MembershipStatus.ACTIVE
+        )
+        self.task = create_task(
+            workspace=self.workspace,
+            reporter=self.user,
+            title="XSS Security Verification Task",
+            status=TaskStatus.TODO
+        )
+        self.client.force_login(self.user)
+        self.status_url = reverse('tasks:task_status_update', kwargs={
+            'slug': self.workspace.slug,
+            'task_code': self.task.task_code
+        })
 
+    def test_reflected_xss_payload_not_reflected_standard_post(self):
+        """Verify script payload in status parameter is not reflected in standard HTTP response."""
+        payload = "<script>alert(1)</script>"
+        response = self.client.post(self.status_url, {'status': payload})
+        self.assertEqual(response.status_code, 400)
+        self.assertNotIn(payload.encode(), response.content)
+        self.assertNotIn(b"<script>", response.content)
+        self.assertEqual(response.content.decode(), "Invalid task status.")
+
+    def test_reflected_xss_payload_not_reflected_ajax_post(self):
+        """Verify script payload in status parameter is not reflected in AJAX/JSON response."""
+        payload = '"><img src=x onerror=alert(1)>'
+        response = self.client.post(
+            self.status_url,
+            {'status': payload},
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest'
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertNotIn(payload.encode(), response.content)
+        self.assertNotIn(b"<img", response.content)
+        data = response.json()
+        self.assertFalse(data.get('success'))
+        self.assertEqual(data.get('message'), "Invalid task status.")
+
+    def test_valid_task_status_update_succeeds(self):
+        """Verify legitimate task status updates continue to function correctly."""
+        response = self.client.post(
+            self.status_url,
+            {'status': TaskStatus.IN_PROGRESS},
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest'
+        )
+        self.assertEqual(response.status_code, 200)
+        self.task.refresh_from_db()
+        self.assertEqual(self.task.status, TaskStatus.IN_PROGRESS)
+
+
+class TaskMentionReDoSSecurityTests(TestCase):
+    """
+    Security regression tests for Batch 3 in tasks: ReDoS-hardened mention parsing in comments.
+    Verifies @[Name](CID) and @CID parsing creates notifications without polynomial backtracking.
+    """
+    def setUp(self):
+        self.client = Client()
+        self.owner = User.objects.create_user(
+            email="task.mention.owner@aetherspace.dev",
+            password="StrongPassword123!",
+            full_name="Task Owner",
+            contributor_id="11111A",
+            approval_status="APPROVED"
+        )
+        self.contributor = User.objects.create_user(
+            email="task.mention.dev@aetherspace.dev",
+            password="StrongPassword123!",
+            full_name="Dev Member",
+            contributor_id="22222B",
+            approval_status="APPROVED"
+        )
+        self.workspace = Workspace.objects.create(
+            name="Task Mention Workspace",
+            slug="task-mention-ws",
+            owner=self.owner
+        )
+        WorkspaceMembership.objects.create(
+            workspace=self.workspace,
+            user=self.owner,
+            role=WorkspaceRole.ADMIN,
+            status=MembershipStatus.ACTIVE
+        )
+        WorkspaceMembership.objects.create(
+            workspace=self.workspace,
+            user=self.contributor,
+            role=WorkspaceRole.CONTRIBUTOR,
+            status=MembershipStatus.ACTIVE
+        )
+        self.task = create_task(
+            workspace=self.workspace,
+            reporter=self.owner,
+            title="Task with mentions",
+            status=TaskStatus.TODO
+        )
+        self.client.force_login(self.owner)
+        self.comment_url = reverse('tasks:task_comment_add', kwargs={
+            'slug': self.workspace.slug,
+            'task_code': self.task.task_code
+        })
+
+    def test_task_comment_normal_and_display_mentions_create_notifications(self):
+        from notifications.models import Notification
+        # Comment with @[Dev Member](22222B)
+        self.client.post(self.comment_url, {'content': 'Please review @[Dev Member](22222B)'})
+        self.assertTrue(Notification.objects.filter(recipient=self.contributor).exists())
+
+        # Comment with @22222B
+        Notification.objects.all().delete()
+        self.client.post(self.comment_url, {'content': 'Hey @22222B! Can you test this?'})
+        self.assertTrue(Notification.objects.filter(recipient=self.contributor).exists())
+
+    def test_task_comment_adversarial_redos_payload_completes_instantly(self):
+        import time
+        from notifications.models import Notification
+        evil_comment = '@[' * 20000 + 'Normal comment text'
+        start = time.perf_counter()
+        resp = self.client.post(self.comment_url, {'content': evil_comment})
+        elapsed = time.perf_counter() - start
+        self.assertEqual(resp.status_code, 302)
+        # Must execute in under 500ms
+        self.assertLess(elapsed, 0.5, f"Task comment parsing took too long: {elapsed:.3f}s")
 

@@ -1,3 +1,4 @@
+import logging
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -18,6 +19,8 @@ from files.models import StoredFile
 from files.services import (
     SupabaseStorageService, compute_sha256, detect_file_category, MAX_FILE_SIZE_BYTES
 )
+
+logger = logging.getLogger(__name__)
 
 
 @login_required
@@ -458,12 +461,12 @@ def bug_comment_add_view(request, slug, bug_code):
             message=f'Added a comment: "{snippet}"'
         )
 
-        # Scan for mentions and notify
-        import re
+        # Scan for mentions and notify (ReDoS-hardened deterministic parser)
         from accounts.models import User
         from notifications.services import create_notification
         from notifications.models import NotificationCategory, NotificationType
         from notifications.email_service import send_mention_email
+        from core.templatetags.rich_text import extract_mention_cids
 
         active_members = [
             m.user for m in WorkspaceMembership.objects.filter(
@@ -472,19 +475,12 @@ def bug_comment_add_view(request, slug, bug_code):
             ).select_related('user').exclude(user=request.user)
         ]
 
+        active_members_by_cid = {u.contributor_id: u for u in active_members if u.contributor_id}
         mentioned_users = set()
 
-        for match in re.finditer(r'@\[([^\]]+)\]\((\d{5}[A-Za-z])\)', content):
-            cid = match.group(2)
-            for u in active_members:
-                if u.contributor_id == cid:
-                    mentioned_users.add(u)
-
-        for match in re.finditer(r'@(\d{5}[A-Za-z])\b', content):
-            cid = match.group(1)
-            for u in active_members:
-                if u.contributor_id == cid:
-                    mentioned_users.add(u)
+        for cid in extract_mention_cids(content):
+            if cid in active_members_by_cid:
+                mentioned_users.add(active_members_by_cid[cid])
 
         for u in active_members:
             if u.full_name and f"@{u.full_name}" in content:
@@ -723,7 +719,8 @@ def bug_attachment_upload_view(request, slug, bug_code):
 
         messages.success(request, f"File '{original_name}' uploaded successfully.")
     except Exception as e:
-        messages.error(request, f"File upload failed: {str(e)}")
+        logger.exception("File upload failed for bug %s: %s", getattr(bug, 'id', None), e)
+        messages.error(request, "File upload failed. An unexpected error occurred.")
 
     return redirect(f"{reverse('bugs:bug_detail', kwargs={'slug': slug, 'bug_code': bug.bug_code})}?tab=attachments")
 

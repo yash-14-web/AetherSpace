@@ -70,23 +70,45 @@ def detect_file_category(filename, mime_type='', is_url=False):
 
 
 def detect_external_provider(url):
-    """Identify cloud platform if the URL is an external link."""
-    domain = urlparse(url).netloc.lower()
-    if 'figma.com' in domain:
+    """
+    Identify cloud platform if the URL is an external link.
+    Uses authoritative hostname parsing and domain matching to eliminate
+    py/incomplete-url-substring-sanitization (CWE-20) vulnerabilities.
+    """
+    if not url or not isinstance(url, str):
+        return 'Web Resource'
+
+    clean_url = url.strip()
+    if '\\' in clean_url or '\r' in clean_url or '\n' in clean_url or '\0' in clean_url:
+        return 'Web Resource'
+
+    try:
+        parsed = urlparse(clean_url)
+    except Exception:
+        return 'Web Resource'
+
+    # External links must strictly use http or https scheme and have a valid hostname
+    if parsed.scheme.lower() not in ('http', 'https') or not parsed.hostname:
+        return 'Web Resource'
+
+    from core.utils import is_domain_match
+    hostname = parsed.hostname.lower()
+
+    if is_domain_match(hostname, ('figma.com',)):
         return 'Figma Design'
-    if 'drive.google.com' in domain or 'docs.google.com' in domain:
+    if is_domain_match(hostname, ('drive.google.com', 'docs.google.com')):
         return 'Google Drive'
-    if 'github.com' in domain:
+    if is_domain_match(hostname, ('github.com',)):
         return 'GitHub'
-    if 'notion.so' in domain or 'notion.site' in domain:
+    if is_domain_match(hostname, ('notion.so', 'notion.site')):
         return 'Notion'
-    if 'dropbox.com' in domain:
+    if is_domain_match(hostname, ('dropbox.com',)):
         return 'Dropbox'
-    if 'box.com' in domain:
+    if is_domain_match(hostname, ('box.com',)):
         return 'Box'
-    if 'loom.com' in domain:
+    if is_domain_match(hostname, ('loom.com',)):
         return 'Loom Video'
-    if 'youtube.com' in domain or 'youtu.be' in domain:
+    if is_domain_match(hostname, ('youtube.com', 'youtu.be')):
         return 'YouTube'
     return 'Web Resource'
 

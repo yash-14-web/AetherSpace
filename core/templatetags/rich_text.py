@@ -41,9 +41,68 @@ ALLOWED_ATTRIBUTES = {
 ALLOWED_PROTOCOLS = ['http', 'https', 'mailto']
 
 
+# Bounded, linear MENTION_PATTERN (ReDoS hardened: strict token length bounds and bounded whitespace)
 MENTION_PATTERN = re.compile(
-    r'(?<![a-zA-Z0-9_])(?:@\[([^\]]+)\]\(([a-zA-Z0-9_-]+)\)|@(\d{5}[A-Za-z])\b|@([A-Z][a-zA-Z0-9_]*(?:\s+[A-Z][a-zA-Z0-9_]*)*|[a-zA-Z0-9_.-]+)\b)'
+    r'(?<![a-zA-Z0-9_])(?:'
+    r'@\[([^\]\r\n]{1,100})\]\(([a-zA-Z0-9_-]{1,64})\)|'
+    r'@(\d{5}[A-Za-z])\b|'
+    r'@([A-Z][a-zA-Z0-9_]{0,40}(?:\s[A-Z][a-zA-Z0-9_]{0,40}){1,4}|[a-zA-Z0-9_.-]{1,40})\b'
+    r')'
 )
+
+
+def extract_mention_cids(content):
+    """
+    Deterministically extract Contributor IDs from text mentions with zero regex backtracking.
+    Recognizes:
+    - Format 1: @[Display Name](CID) e.g. @[Ramu M](26457C)
+    - Format 2: @CID e.g. @26457C
+    Where Contributor ID is 5 digits followed by 1 ASCII letter (e.g. 26457C).
+    Guarantees strict linear O(N) execution regardless of malicious repetition or malformed formatting.
+    """
+    if not content or '@' not in content:
+        return set()
+
+    cids = set()
+    n = len(content)
+    i = 0
+
+    while i < n:
+        at_pos = content.find('@', i)
+        if at_pos == -1:
+            break
+
+        # Check for Format 1: @[Display Name](CID)
+        if at_pos + 1 < n and content[at_pos + 1] == '[':
+            max_bracket = min(at_pos + 102, n)
+            bracket_end = content.find(']', at_pos + 2, max_bracket)
+            newline_pos = content.find('\n', at_pos + 2, bracket_end if bracket_end != -1 else max_bracket)
+            if newline_pos != -1:
+                bracket_end = -1
+
+            if bracket_end != -1 and bracket_end + 1 < n and content[bracket_end + 1] == '(':
+                max_paren = min(bracket_end + 18, n)
+                paren_end = content.find(')', bracket_end + 2, max_paren)
+                if paren_end != -1:
+                    candidate = content[bracket_end + 2:paren_end].strip()
+                    if len(candidate) == 6 and candidate[:5].isdigit() and candidate[5].isalpha():
+                        cids.add(candidate)
+                        i = paren_end + 1
+                        continue
+
+        # Check for Format 2: @CID (5 digits + 1 letter)
+        cid_candidate = content[at_pos + 1:at_pos + 7]
+        if len(cid_candidate) == 6 and cid_candidate[:5].isdigit() and cid_candidate[5].isalpha():
+            prev_ok = (at_pos == 0) or (not content[at_pos - 1].isalnum() and content[at_pos - 1] != '_')
+            next_ok = (at_pos + 7 >= n) or (not content[at_pos + 7].isalnum() and content[at_pos + 7] != '_')
+            if prev_ok and next_ok:
+                cids.add(cid_candidate)
+                i = at_pos + 7
+                continue
+
+        i = at_pos + 1
+
+    return cids
 
 
 def _mention_replacer(match):
@@ -146,6 +205,8 @@ def normalize_markdown_delimiters(text):
         lambda m: f"~~{m.group(1).strip()}~~" if m.group(1).strip() else m.group(0),
         protected
     )
+    # Protect complex mentions @[Name](ID) from being consumed as markdown links
+    protected = re.sub(r'@\[', r'@\\[', protected)
 
     # Restore preserved code blocks
     if code_blocks:

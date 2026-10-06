@@ -386,17 +386,15 @@ def process_and_save_avatar(user, file_obj=None, avatar_url=None, preset_color=N
         return False, "Invalid preset selection."
 
     if avatar_url:
-        clean_url = avatar_url.strip()
+        from core.utils import validate_image_url
+        is_valid, clean_url, err_msg = validate_image_url(avatar_url)
+        if not is_valid:
+            return False, err_msg or "Please enter a valid HTTP/HTTPS image URL."
         if clean_url.startswith('preset:'):
             return process_and_save_avatar(user, preset_color=clean_url[7:])
-        if clean_url and not clean_url.startswith(('http://', 'https://', '/media/')):
-            clean_url = 'https://' + clean_url
-        parsed = urlparse(clean_url)
-        if (parsed.scheme in ('http', 'https') and parsed.netloc) or clean_url.startswith('/media/'):
-            user.avatar = clean_url
-            user.save(update_fields=['avatar'])
-            return True, "External profile photo linked successfully (0 KB storage used)."
-        return False, "Please enter a valid HTTP/HTTPS image URL."
+        user.avatar = clean_url
+        user.save(update_fields=['avatar'])
+        return True, "External profile photo linked successfully (0 KB storage used)."
 
 
     if file_obj:
@@ -526,17 +524,15 @@ def process_and_save_banner(user, file_obj=None, banner_url=None, preset_gradien
         return False, "Invalid banner preset selection."
 
     if banner_url:
-        clean_url = banner_url.strip()
+        from core.utils import validate_image_url
+        is_valid, clean_url, err_msg = validate_image_url(banner_url)
+        if not is_valid:
+            return False, err_msg or "Please enter a valid HTTP/HTTPS image URL."
         if clean_url.startswith('preset:'):
             return process_and_save_banner(user, preset_gradient=clean_url[7:])
-        if clean_url and not clean_url.startswith(('http://', 'https://', '/media/')):
-            clean_url = 'https://' + clean_url
-        parsed = urlparse(clean_url)
-        if (parsed.scheme in ('http', 'https') and parsed.netloc) or clean_url.startswith('/media/'):
-            profile.banner = clean_url
-            profile.save(update_fields=['banner', 'updated_at'])
-            return True, "External banner photo linked successfully (0 KB storage used)."
-        return False, "Please enter a valid HTTP/HTTPS image URL."
+        profile.banner = clean_url
+        profile.save(update_fields=['banner', 'updated_at'])
+        return True, "External banner photo linked successfully (0 KB storage used)."
 
 
     if file_obj:

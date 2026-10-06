@@ -103,7 +103,8 @@ class AetherSpaceGlobalErrorMiddleware:
         if isinstance(exception, RateLimitExceeded):
             if self.is_ajax_or_api(request):
                 resp = JsonResponse({
-                    'error': str(exception),
+                    'error': "Too Many Requests — You've made too many requests in a short period. Please wait a moment and try again.",
+                    'message': "Too Many Requests — You've made too many requests in a short period. Please wait a moment and try again.",
                     'status_code': 429,
                     'retry_after': exception.retry_after,
                 }, status=429)
@@ -115,7 +116,8 @@ class AetherSpaceGlobalErrorMiddleware:
         if isinstance(exception, RequestTimeoutException):
             if self.is_ajax_or_api(request):
                 return JsonResponse({
-                    'error': str(exception),
+                    'error': 'Request Timed Out — The request took too long to complete. Please try again.',
+                    'message': 'Request Timed Out — The request took too long to complete. Please try again.',
                     'status_code': 408,
                 }, status=408)
             from core.views import error_408
@@ -124,7 +126,8 @@ class AetherSpaceGlobalErrorMiddleware:
         if isinstance(exception, ServiceUnavailableException):
             if self.is_ajax_or_api(request):
                 return JsonResponse({
-                    'error': str(exception),
+                    'error': 'Service Unavailable — AetherSpace is temporarily unable to process your request. We are working to restore service.',
+                    'message': 'Service Unavailable — AetherSpace is temporarily unable to process your request. We are working to restore service.',
                     'status_code': 503,
                 }, status=503)
             from core.views import error_503
@@ -132,18 +135,21 @@ class AetherSpaceGlobalErrorMiddleware:
 
         if isinstance(exception, PermissionDenied):
             ex_msg = str(exception).strip()
+            safe_msg = ex_msg if (ex_msg and "\n" not in ex_msg and not any(kw in ex_msg.lower() for kw in ("traceback", "file \"", "select ", "from "))) else 'Access Restricted — You do not have the required permissions.'
             if self.is_ajax_or_api(request):
                 return JsonResponse({
-                    'error': ex_msg or 'Access Restricted — You do not have the required permissions.',
+                    'error': safe_msg,
+                    'message': safe_msg,
                     'status_code': 403,
                 }, status=403)
             from core.views import error_403
-            return error_403(request, exception=exception, message=ex_msg if ex_msg else None)
+            return error_403(request, exception=exception, message=safe_msg)
 
         if isinstance(exception, Http404):
             if self.is_ajax_or_api(request):
                 return JsonResponse({
                     'error': 'Page Not Found — The requested resource does not exist.',
+                    'message': 'Page Not Found — The requested resource does not exist.',
                     'status_code': 404,
                 }, status=404)
             from core.views import error_404
@@ -151,15 +157,14 @@ class AetherSpaceGlobalErrorMiddleware:
 
         # Unhandled server exceptions
         logger.exception("Unhandled server exception on %s %s: %s",
-                         request.method, request.path, str(exception))
+                         request.method, request.path, exception)
 
         if self.is_ajax_or_api(request):
-            err_msg = str(exception) if settings.DEBUG else 'Internal Server Error — Something went wrong on our end.'
             error_id = secrets.token_hex(4).upper()
             return JsonResponse({
                 'status': 'error',
-                'error': err_msg,
-                'message': err_msg,
+                'error': 'Internal Server Error — Something went wrong on our end.',
+                'message': 'Internal Server Error — Something went wrong on our end.',
                 'status_code': 500,
                 'error_id': f'ERR-500-{error_id}',
             }, status=500)

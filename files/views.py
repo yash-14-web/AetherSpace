@@ -4,7 +4,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.urls import reverse
-from urllib.parse import quote
+from urllib.parse import quote, urlparse
 from django.views.decorators.clickjacking import xframe_options_sameorigin
 from django.http import (
     HttpResponse,
@@ -498,7 +498,12 @@ def file_preview(request, slug, file_id):
     stored_file = get_object_or_404(StoredFile, id=file_id, workspace=workspace)
 
     if stored_file.is_external_link:
-        return redirect(stored_file.external_url)
+        from core.utils import is_safe_external_url
+        ext_url = (stored_file.external_url or '').strip()
+        if is_safe_external_url(ext_url):
+            return redirect(ext_url)
+        messages.error(request, "Invalid or unsafe external link destination.")
+        return redirect('files:file_detail', slug=workspace.slug, file_id=stored_file.id)
 
     content, content_type = SupabaseStorageService.get_file_content(stored_file.storage_path)
     if not content:
@@ -577,8 +582,13 @@ def file_download(request, slug, file_id):
     stored_file = get_object_or_404(StoredFile, id=file_id, workspace=workspace)
 
     if stored_file.is_external_link:
-        log_file_activity(stored_file, request.user, 'DOWNLOADED', 'Navigated to external link')
-        return redirect(stored_file.external_url)
+        from core.utils import is_safe_external_url
+        ext_url = (stored_file.external_url or '').strip()
+        if is_safe_external_url(ext_url):
+            log_file_activity(stored_file, request.user, 'DOWNLOADED', 'Navigated to external link')
+            return redirect(ext_url)
+        messages.error(request, "Invalid or unsafe external link destination.")
+        return redirect('files:file_detail', slug=workspace.slug, file_id=stored_file.id)
 
     content, content_type = SupabaseStorageService.get_file_content(stored_file.storage_path)
     if not content:
@@ -614,8 +624,11 @@ def file_star_toggle(request, slug, file_id):
     if request.headers.get('x-requested-with') == 'XMLHttpRequest':
         return JsonResponse({'status': 'success', 'is_starred': stored_file.is_starred})
 
+    from core.utils import safe_redirect
+    fallback_home = reverse('files:files_home', kwargs={'slug': workspace.slug})
+
     messages.success(request, f"{'Starred' if stored_file.is_starred else 'Unstarred'} '{stored_file.name}'.")
-    return redirect(request.META.get('HTTP_REFERER') or 'files:files_home', slug=workspace.slug)
+    return safe_redirect(request, request.META.get('HTTP_REFERER'), fallback=fallback_home)
 
 
 @workspace_member_required
@@ -629,7 +642,9 @@ def folder_star_toggle(request, slug, folder_id):
     if request.headers.get('x-requested-with') == 'XMLHttpRequest':
         return JsonResponse({'status': 'success', 'is_starred': folder.is_starred})
 
-    return redirect(request.META.get('HTTP_REFERER') or 'files:files_home', slug=workspace.slug)
+    from core.utils import safe_redirect
+    fallback_home = reverse('files:files_home', kwargs={'slug': workspace.slug})
+    return safe_redirect(request, request.META.get('HTTP_REFERER'), fallback=fallback_home)
 
 
 @workspace_member_required
@@ -717,7 +732,9 @@ def file_move(request, slug, file_id):
         log_file_activity(stored_file, request.user, 'MOVED', f"Moved file to {dest_name}")
         messages.success(request, f"Moved '{stored_file.name}' to {dest_name}.")
 
-    return redirect(request.META.get('HTTP_REFERER') or 'files:files_home', slug=workspace.slug)
+    from core.utils import safe_redirect
+    fallback_home = reverse('files:files_home', kwargs={'slug': workspace.slug})
+    return safe_redirect(request, request.META.get('HTTP_REFERER'), fallback=fallback_home)
 
 
 @workspace_member_required
@@ -864,19 +881,24 @@ def file_version_upload(request, slug, file_id):
 
         if stored_file.is_external_link:
             new_url = request.POST.get('external_url', '').strip()
-            if new_url:
-                stored_file.external_url = new_url
+            from core.utils import validate_external_url
+            is_valid, cleaned_new_url, err_msg = validate_external_url(new_url)
+            if is_valid:
+                stored_file.external_url = cleaned_new_url
                 stored_file.save(update_fields=['external_url', 'updated_at'])
                 FileVersion.objects.create(
                     file=stored_file,
                     version_number=new_version_num,
-                    external_url=new_url,
+                    external_url=cleaned_new_url,
                     size_bytes=0,
                     uploaded_by=request.user,
                     note=note or f"Updated link v{new_version_num}"
                 )
                 log_file_activity(stored_file, request.user, 'VERSION_ADDED', f"Updated link to v{new_version_num}")
                 messages.success(request, f"Updated to version {new_version_num}.")
+            else:
+                messages.error(request, err_msg or "Invalid external link URL.")
+                return redirect('files:file_detail', slug=workspace.slug, file_id=stored_file.id)
         else:
             if 'file' in request.FILES:
                 file_obj = request.FILES['file']

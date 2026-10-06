@@ -169,9 +169,22 @@ class StoredFile(models.Model):
         return self.formatted_size
 
     @property
+    def safe_external_url(self):
+        """
+        Defense-in-depth: returns external_url only if it has a valid HTTP/HTTPS scheme
+        and safe hostname; otherwise returns '#' to prevent script execution in href.
+        """
+        if not self.is_external_link or not self.external_url:
+            return ''
+        from core.utils import is_safe_external_url
+        if is_safe_external_url(self.external_url):
+            return self.external_url
+        return '#'
+
+    @property
     def file_url(self):
         if self.is_external_link:
-            return self.external_url
+            return self.safe_external_url
         try:
             return reverse('files:file_download', kwargs={'slug': self.workspace.slug, 'file_id': self.id})
         except Exception:
@@ -184,7 +197,7 @@ class StoredFile(models.Model):
     @property
     def preview_url(self):
         if self.is_external_link:
-            return self.external_url
+            return self.safe_external_url
         try:
             return reverse('files:file_preview', kwargs={'slug': self.workspace.slug, 'file_id': self.id})
         except Exception:

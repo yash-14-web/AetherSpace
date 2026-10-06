@@ -103,7 +103,9 @@ def error_403(request, exception=None, message=None):
     Preserves specific permission failure reasons (e.g. workspace creation restriction).
     """
     if not message and exception:
-        message = str(exception)
+        raw_msg = str(exception).strip()
+        if raw_msg and "\n" not in raw_msg and not any(kw in raw_msg.lower() for kw in ("traceback", "file \"", "line ", "syntaxerror", "operationalerror", "select ", "from ")):
+            message = raw_msg
     if not message:
         message = "You do not have the required permissions to view this workspace or resource."
 

@@ -104,20 +104,11 @@ class ProfileDetailsForm(forms.ModelForm):
         url = self.cleaned_data.get('avatar_url', '').strip()
         if not url:
             return ''
-        if url.startswith('/media/') or url.startswith('preset:'):
-            return url
-        if not url.startswith(('http://', 'https://')):
-            url = 'https://' + url
-        from urllib.parse import urlparse
-        try:
-            parsed = urlparse(url)
-            if not (parsed.scheme in ('http', 'https') and parsed.netloc):
-                raise forms.ValidationError(_("Please enter a valid image URL (e.g. https://example.com/photo.jpg)."))
-        except forms.ValidationError:
-            raise
-        except Exception:
-            raise forms.ValidationError(_("Please enter a valid image URL."))
-        return url
+        from core.utils import validate_image_url
+        is_valid, clean_url, err_msg = validate_image_url(url)
+        if not is_valid:
+            raise forms.ValidationError(err_msg or _("Please enter a valid image URL (e.g. https://example.com/photo.jpg)."))
+        return clean_url
 
 
 

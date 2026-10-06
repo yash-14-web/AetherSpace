@@ -29,12 +29,9 @@ class CleanConsoleEmailBackend(BaseEmailBackend):
                 elif alt_mimetype == 'text/html':
                     body = alt_content
 
-        # Strip any <style>...</style> and HTML tags if present
-        clean_body = re.sub(r'<style[^>]*>[\s\S]*?</style>', '', body, flags=re.IGNORECASE)
-        clean_body = re.sub(r'<script[^>]*>[\s\S]*?</script>', '', clean_body, flags=re.IGNORECASE)
-        clean_body = strip_tags(clean_body).strip()
-        # Compress excessive blank lines
-        clean_body = re.sub(r'\n{3,}', '\n\n', clean_body)
+        # Safely convert to clean plain text without regex tag filters
+        from .email_service import html_to_plain_text
+        clean_body = html_to_plain_text(body)
 
         banner = (
             "\n"

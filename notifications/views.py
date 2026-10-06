@@ -110,10 +110,8 @@ def mark_notification_read_view(request, notification_id):
         unread_count = get_unread_count(request.user, workspace=workspace)
         return JsonResponse({'status': 'ok' if success else 'not_found', 'unread_count': unread_count})
 
-    referer = request.META.get('HTTP_REFERER')
-    if referer:
-        return redirect(referer)
-    return redirect('notifications:notifications_router')
+    from core.utils import safe_redirect
+    return safe_redirect(request, request.META.get('HTTP_REFERER'), fallback='notifications:notifications_router')
 
 
 @login_required
@@ -129,10 +127,8 @@ def mark_notification_unread_view(request, notification_id):
         unread_count = get_unread_count(request.user, workspace=workspace)
         return JsonResponse({'status': 'ok' if success else 'not_found', 'unread_count': unread_count})
 
-    referer = request.META.get('HTTP_REFERER')
-    if referer:
-        return redirect(referer)
-    return redirect('notifications:notifications_router')
+    from core.utils import safe_redirect
+    return safe_redirect(request, request.META.get('HTTP_REFERER'), fallback='notifications:notifications_router')
 
 
 @login_required
@@ -157,12 +153,9 @@ def mark_all_notifications_read_view(request):
         return JsonResponse({'status': 'ok', 'updated_count': updated_count, 'unread_count': 0})
 
     messages.success(request, f"Marked {updated_count} notification(s) as read.")
-    referer = request.META.get('HTTP_REFERER')
-    if referer:
-        return redirect(referer)
-    if workspace:
-        return redirect('notifications:workspace_notifications', slug=workspace.slug)
-    return redirect('notifications:notifications_router')
+    from core.utils import safe_redirect
+    fallback = reverse('notifications:workspace_notifications', kwargs={'slug': workspace.slug}) if workspace else 'notifications:notifications_router'
+    return safe_redirect(request, request.META.get('HTTP_REFERER'), fallback=fallback)
 
 
 @login_required
@@ -179,10 +172,8 @@ def delete_notification_view(request, notification_id):
         return JsonResponse({'status': 'ok' if success else 'not_found', 'unread_count': unread_count})
 
     messages.info(request, "Notification dismissed.")
-    referer = request.META.get('HTTP_REFERER')
-    if referer:
-        return redirect(referer)
-    return redirect('notifications:notifications_router')
+    from core.utils import safe_redirect
+    return safe_redirect(request, request.META.get('HTTP_REFERER'), fallback='notifications:notifications_router')
 
 
 @login_required

@@ -91,8 +91,13 @@ class FileUploadForm(forms.Form):
         elif upload_type == 'link':
             if not external_url:
                 self.add_error('external_url', "Please enter a valid external link / URL.")
-            elif not (external_url.startswith('http://') or external_url.startswith('https://')):
-                self.add_error('external_url', "URL must start with http:// or https://")
+            else:
+                from core.utils import validate_external_url
+                is_valid, cleaned_url, err_msg = validate_external_url(external_url)
+                if not is_valid:
+                    self.add_error('external_url', err_msg or "URL must be a valid HTTP or HTTPS destination.")
+                else:
+                    cleaned_data['external_url'] = cleaned_url
 
         return cleaned_data
 

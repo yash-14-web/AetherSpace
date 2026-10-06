@@ -1,3 +1,4 @@
+import logging
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -28,6 +29,8 @@ from files.models import StoredFile
 from files.services import (
     SupabaseStorageService, compute_sha256, detect_file_category, MAX_FILE_SIZE_BYTES
 )
+
+logger = logging.getLogger(__name__)
 
 
 @workspace_member_required
@@ -385,7 +388,8 @@ def task_edit_view(request, slug, task_code):
                 messages.success(request, f"Task #{updated_task.task_code} was successfully updated.")
                 return redirect('tasks:task_detail', slug=workspace.slug, task_code=updated_task.task_code)
             except Exception as e:
-                messages.error(request, f"Failed to update task: {str(e)}")
+                logger.exception("Failed to update task %s: %s", getattr(task, 'id', None), e)
+                messages.error(request, "Failed to update task. An unexpected error occurred.")
     else:
         form = TaskForm(instance=task, workspace=workspace)
 
@@ -439,7 +443,8 @@ def code_review_create_view(request, slug, task_code):
                 messages.success(request, f"Code Review Request {cr.review_code} was successfully created.")
                 return redirect(f"{reverse('tasks:task_detail', kwargs={'slug': workspace.slug, 'task_code': task.task_code})}?tab=comments")
             except Exception as e:
-                messages.error(request, f"Failed to create code review: {str(e)}")
+                logger.exception("Failed to create code review for task %s: %s", getattr(task, 'id', None), e)
+                messages.error(request, "Failed to create code review. An unexpected error occurred.")
         else:
             first_err = next(iter(form.errors.values()))[0] if form.errors else "Please check form fields."
             messages.error(request, f"Failed to create code review: {first_err}")
@@ -467,7 +472,8 @@ def code_review_status_update_view(request, slug, review_id):
         update_code_review_status(code_review=cr, actor=request.user, new_status=new_status)
         messages.success(request, f"Code Review {cr.review_code} status updated to {cr.get_status_display()}.")
     except Exception as e:
-        messages.error(request, f"Cannot update code review status: {str(e)}")
+        logger.exception("Cannot update code review status for %s: %s", review_id, e)
+        messages.error(request, "Cannot update code review status. An unexpected error occurred.")
 
     return redirect(f"{reverse('tasks:task_detail', kwargs={'slug': workspace.slug, 'task_code': cr.task.task_code})}?tab=code_reviews")
 
@@ -510,7 +516,9 @@ def task_status_update_view(request, slug, task_code):
 
     new_status = request.POST.get('status', '').strip()
     if new_status not in dict(TaskStatus.choices):
-        return HttpResponseBadRequest(f"Invalid status '{new_status}'")
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.content_type == 'application/json' or request.GET.get('format') == 'json':
+            return JsonResponse({'success': False, 'message': 'Invalid task status.'}, status=400)
+        return HttpResponseBadRequest("Invalid task status.")
 
     if new_status != task.status:
         change_task_status(task, request.user, new_status)
@@ -525,8 +533,9 @@ def task_status_update_view(request, slug, task_code):
             'new_status_display': task.get_status_display()
         })
 
-    redirect_to = request.POST.get('next') or reverse('tasks:task_detail', kwargs={'slug': workspace.slug, 'task_code': task.task_code})
-    return redirect(redirect_to)
+    from core.utils import safe_redirect
+    fallback_url = reverse('tasks:task_detail', kwargs={'slug': workspace.slug, 'task_code': task.task_code})
+    return safe_redirect(request, request.POST.get('next'), fallback=fallback_url)
 
 
 @workspace_member_required
@@ -703,12 +712,12 @@ def task_comment_add_view(request, slug, task_code):
             message=activity_msg
         )
 
-        # Scan for mentions and notify
-        import re
+        # Scan for mentions and notify (ReDoS-hardened deterministic parser)
         from accounts.models import User
         from notifications.services import create_notification
         from notifications.models import NotificationCategory, NotificationType
         from notifications.email_service import send_mention_email
+        from core.templatetags.rich_text import extract_mention_cids
 
         active_members = [
             m.user for m in WorkspaceMembership.objects.filter(
@@ -717,19 +726,12 @@ def task_comment_add_view(request, slug, task_code):
             ).select_related('user').exclude(user=request.user)
         ]
 
+        active_members_by_cid = {u.contributor_id: u for u in active_members if u.contributor_id}
         mentioned_users = set()
 
-        for match in re.finditer(r'@\[([^\]]+)\]\((\d{5}[A-Za-z])\)', content):
-            cid = match.group(2)
-            for u in active_members:
-                if u.contributor_id == cid:
-                    mentioned_users.add(u)
-
-        for match in re.finditer(r'@(\d{5}[A-Za-z])\b', content):
-            cid = match.group(1)
-            for u in active_members:
-                if u.contributor_id == cid:
-                    mentioned_users.add(u)
+        for cid in extract_mention_cids(content):
+            if cid in active_members_by_cid:
+                mentioned_users.add(active_members_by_cid[cid])
 
         for u in active_members:
             if u.full_name and f"@{u.full_name}" in content:
@@ -865,7 +867,8 @@ def task_bug_attach_view(request, slug, task_code):
                 attach_bug_to_task(task=task, bug=bug, actor=request.user)
                 messages.success(request, f"Bug {bug.bug_code} successfully attached to task #{task.task_code}.")
             except Exception as e:
-                messages.error(request, f"Failed to attach bug: {str(e)}")
+                logger.exception("Failed to attach bug to task %s: %s", getattr(task, 'id', None), e)
+                messages.error(request, "Failed to attach bug. An unexpected error occurred.")
 
     return redirect(f"{reverse('tasks:task_detail', kwargs={'slug': slug, 'task_code': task.task_code})}?tab=comments")
 
@@ -894,7 +897,8 @@ def task_bug_detach_view(request, slug, task_code, bug_code=None, bug_id=None):
             detach_bug_from_task(task=task, bug=bug, actor=request.user)
             messages.success(request, f"Bug {bug.bug_code} detached from task #{task.task_code}.")
         except Exception as e:
-            messages.error(request, f"Failed to detach bug: {str(e)}")
+            logger.exception("Failed to detach bug from task %s: %s", getattr(task, 'id', None), e)
+            messages.error(request, "Failed to detach bug. An unexpected error occurred.")
 
     return redirect(f"{reverse('tasks:task_detail', kwargs={'slug': slug, 'task_code': task.task_code})}?tab=comments")
 
@@ -1068,7 +1072,8 @@ def task_attachment_upload_view(request, slug, task_code):
 
         messages.success(request, f"File '{original_name}' uploaded successfully.")
     except Exception as e:
-        messages.error(request, f"File upload failed: {str(e)}")
+        logger.exception("File upload failed for task %s: %s", getattr(task, 'id', None), e)
+        messages.error(request, "File upload failed. An unexpected error occurred.")
 
     return redirect(f"{reverse('tasks:task_detail', kwargs={'slug': slug, 'task_code': task.task_code})}?tab=attachments")
 
