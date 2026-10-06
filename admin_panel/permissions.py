@@ -2,6 +2,7 @@ from functools import wraps
 from django.core.exceptions import PermissionDenied
 from django.shortcuts import redirect
 from django.urls import reverse
+from core.utils import redirect_to_login_with_next
 
 
 def get_client_ip(request):
@@ -25,8 +26,7 @@ def platform_admin_required(view_func):
     @wraps(view_func)
     def _wrapped_view(request, *args, **kwargs):
         if not request.user.is_authenticated:
-            login_url = reverse('accounts:login')
-            return redirect(f"{login_url}?next={request.path}")
+            return redirect_to_login_with_next(request)
 
         # Check platform admin authority: role == ADMIN or superuser
         is_platform_admin = (

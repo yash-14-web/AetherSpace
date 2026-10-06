@@ -448,7 +448,8 @@ def channel_add_members_view(request, slug, channel_slug):
         except User.DoesNotExist:
             continue
         except (PermissionDenied, ValidationError) as e:
-            errors.append(str(e))
+            logger.warning("Failed to add member %s to channel %s: %s", uid, channel.slug, e)
+            errors.append("Unable to add specified member to channel.")
 
     if added_count > 0:
         messages.success(request, f"Added {added_count} member(s) to #{channel.name}.")
@@ -479,9 +480,11 @@ def channel_remove_member_view(request, slug, channel_slug, user_id):
         if request.headers.get('x-requested-with') == 'XMLHttpRequest':
             return JsonResponse({'status': 'ok'})
     except (PermissionDenied, ValidationError) as e:
-        messages.error(request, str(e))
+        logger.warning("Failed to remove member %s from channel %s: %s", user_id, channel.slug, e)
+        safe_msg = "Unable to remove member from channel."
+        messages.error(request, safe_msg)
         if request.headers.get('x-requested-with') == 'XMLHttpRequest':
-            return JsonResponse({'status': 'error', 'message': str(e)}, status=403)
+            return JsonResponse({'status': 'error', 'message': safe_msg}, status=403)
 
     from core.utils import safe_redirect
     return safe_redirect(request, request.META.get('HTTP_REFERER'), fallback=f"/chat/w/{slug}/c/{channel_slug}/details/")
@@ -622,7 +625,8 @@ def api_toggle_pin(request, slug, message_id):
         is_pinned = toggle_pin_message(message, request.user)
         return JsonResponse({'status': 'ok', 'is_pinned': is_pinned})
     except PermissionDenied as e:
-        return JsonResponse({'status': 'error', 'message': str(e)}, status=403)
+        logger.warning("Permission denied toggling pin for message %s: %s", message_id, e)
+        return JsonResponse({'status': 'error', 'message': 'You do not have permission to pin messages.'}, status=403)
 
 
 @require_POST
@@ -663,10 +667,11 @@ def api_toggle_reaction(request, slug, message_id=None):
         added, count = toggle_reaction(message, request.user, emoji)
         return JsonResponse({'status': 'ok', 'emoji': emoji, 'added': added, 'count': count})
     except ValidationError as e:
-        msg = e.messages[0] if hasattr(e, 'messages') else str(e)
-        return JsonResponse({'status': 'error', 'message': msg}, status=400)
+        logger.warning("Validation error toggling reaction for message %s: %s", message.id, e)
+        return JsonResponse({'status': 'error', 'message': 'Invalid reaction emoji or request format.'}, status=400)
     except PermissionDenied as e:
-        return JsonResponse({'status': 'error', 'message': str(e)}, status=403)
+        logger.warning("Permission denied toggling reaction for message %s: %s", message.id, e)
+        return JsonResponse({'status': 'error', 'message': 'You do not have permission to react to this message.'}, status=403)
 
 
 @workspace_member_required

@@ -5,6 +5,7 @@ Provides centralized URL safety validation and open-redirect hardening.
 
 from urllib.parse import urlparse, unquote
 from django.shortcuts import redirect, resolve_url
+from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
 
 
@@ -87,9 +88,46 @@ def safe_redirect_target(request, target, fallback=None):
 def safe_redirect(request, target, fallback=None, **redirect_kwargs):
     """
     Validates target using safe_redirect_target and returns an HttpResponseRedirect.
+    Guarded directly at the redirect sink with url_has_allowed_host_and_scheme
+    for CodeQL barrier recognition (CWE-601 / py/url-redirection).
     """
+    try:
+        allowed_hosts = {request.get_host()} if request and hasattr(request, 'get_host') else None
+    except Exception:
+        allowed_hosts = None
+
     validated_url = safe_redirect_target(request, target, fallback=fallback)
-    return redirect(validated_url, **redirect_kwargs)
+    if url_has_allowed_host_and_scheme(url=validated_url, allowed_hosts=allowed_hosts):
+        return redirect(validated_url, **redirect_kwargs)
+    return redirect('/')
+
+
+def redirect_to_login_with_next(request, login_url_name: str = 'accounts:login'):
+    """
+    Safely redirects an unauthenticated user to the login page, appending ?next=<path>
+    only if the path passes strict URL validation via url_has_allowed_host_and_scheme.
+    Guarantees that untrusted path values cannot trigger open redirection (CWE-601 / py/url-redirection).
+    """
+    try:
+        login_url = reverse(login_url_name)
+    except Exception:
+        login_url = '/accounts/login/'
+
+    path = getattr(request, 'path', '') if request else ''
+    try:
+        allowed_hosts = {request.get_host()} if request and hasattr(request, 'get_host') else None
+    except Exception:
+        allowed_hosts = None
+
+    # Validate path strictly before appending to login redirect
+    if path and url_has_allowed_host_and_scheme(url=path, allowed_hosts=allowed_hosts) and not path.startswith('//'):
+        target = f"{login_url}?next={path}"
+        if url_has_allowed_host_and_scheme(url=target, allowed_hosts=allowed_hosts):
+            return redirect(target)
+
+    if url_has_allowed_host_and_scheme(url=login_url, allowed_hosts=allowed_hosts):
+        return redirect(login_url)
+    return redirect('/accounts/login/')
 
 
 def is_domain_match(hostname: str, allowed_domains: tuple[str, ...] | list[str] | set[str]) -> bool:

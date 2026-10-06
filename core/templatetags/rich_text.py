@@ -244,6 +244,29 @@ def normalize_markdown_blocks(text):
     return "\n".join(normalized_lines)
 
 
+def normalize_standalone_task_brackets(text: str) -> str:
+    """
+    Normalize standalone task brackets: [ ] Task or [x] Task -> - [ ] Task / - [x] Task.
+    Performs deterministic O(N) line-by-line scanning without regular expressions,
+    completely eliminating polynomial ReDoS vulnerabilities (py/polynomial-redos).
+    """
+    if not text or '[' not in text:
+        return text
+    lines = text.splitlines(keepends=True)
+    out = []
+    for line in lines:
+        stripped = line.lstrip(' \t')
+        if (
+            (stripped.startswith('[ ]') or stripped.startswith('[x]') or stripped.startswith('[X]'))
+            and len(stripped) > 3
+            and stripped[3] in (' ', '\t')
+        ):
+            out.append('- ' + stripped)
+        else:
+            out.append(line)
+    return ''.join(out)
+
+
 @register.filter(name='render_rich_text')
 def render_rich_text(value):
     """
@@ -260,8 +283,8 @@ def render_rich_text(value):
     # Normalize block boundaries (lists, quotes) without preceding blank lines
     normalized_value = normalize_markdown_blocks(normalized_value)
 
-    # Normalize standalone task brackets: [ ] Task or [x] Task -> - [ ] Task / - [x] Task
-    normalized_value = re.sub(r'^(?:\s*)(\[[ xX]\]\s+.*)$', r'- \1', normalized_value, flags=re.MULTILINE)
+    # Normalize standalone task brackets: [ ] Task or [x] Task -> - [ ] Task / - [x] Task (ReDoS-safe O(N) scan)
+    normalized_value = normalize_standalone_task_brackets(normalized_value)
 
     # Parse markdown into HTML
     raw_html = markdown.markdown(

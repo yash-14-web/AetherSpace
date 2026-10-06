@@ -20,6 +20,7 @@ from notifications.models import Notification, NotificationCategory, Notificatio
 from admin_panel.services import AuditLogService, SystemHealthService
 from admin_panel.permissions import get_client_ip
 from django.core.files.storage import default_storage
+from core.utils import redirect_to_login_with_next
 from .permissions import (
     workspace_member_required,
     workspace_admin_required,
@@ -757,8 +758,7 @@ def accept_invitation(request, token):
 
     if request.method == 'POST':
         if not request.user.is_authenticated:
-            login_url = reverse('accounts:login')
-            return redirect(f"{login_url}?next={request.path}")
+            return redirect_to_login_with_next(request)
 
         success, msg = invite.accept(request.user)
         if success:

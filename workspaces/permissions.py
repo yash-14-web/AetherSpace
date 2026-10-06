@@ -2,6 +2,7 @@ from functools import wraps
 from django.core.exceptions import PermissionDenied
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
+from core.utils import redirect_to_login_with_next
 from .models import Workspace, WorkspaceMembership, MembershipStatus, WorkspaceRole
 
 
@@ -46,8 +47,7 @@ def workspace_member_required(view_func):
     @wraps(view_func)
     def _wrapped_view(request, slug, *args, **kwargs):
         if not request.user.is_authenticated:
-            login_url = reverse('accounts:login')
-            return redirect(f"{login_url}?next={request.path}")
+            return redirect_to_login_with_next(request)
 
         workspace, membership = get_workspace_and_membership(request.user, slug)
 
@@ -72,8 +72,7 @@ def workspace_admin_required(view_func):
     @wraps(view_func)
     def _wrapped_view(request, slug, *args, **kwargs):
         if not request.user.is_authenticated:
-            login_url = reverse('accounts:login')
-            return redirect(f"{login_url}?next={request.path}")
+            return redirect_to_login_with_next(request)
 
         workspace, membership = get_workspace_and_membership(request.user, slug)
 
@@ -96,8 +95,7 @@ def workspace_manager_required(view_func):
     @wraps(view_func)
     def _wrapped_view(request, slug, *args, **kwargs):
         if not request.user.is_authenticated:
-            login_url = reverse('accounts:login')
-            return redirect(f"{login_url}?next={request.path}")
+            return redirect_to_login_with_next(request)
 
         workspace, membership = get_workspace_and_membership(request.user, slug)
 
