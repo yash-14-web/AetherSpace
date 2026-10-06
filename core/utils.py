@@ -74,11 +74,11 @@ def safe_redirect_target(request, target, fallback=None):
     # Determine whether HTTPS is strictly required based on the incoming request
     require_https = request.is_secure()
 
-    # Validate using Django's trusted url_has_allowed_host_and_scheme
+    # Validate using Django's trusted url_has_allowed_host_and_scheme (positional arguments)
     if url_has_allowed_host_and_scheme(
-        url=clean_target,
-        allowed_hosts=allowed_hosts,
-        require_https=require_https
+        clean_target,
+        allowed_hosts,
+        require_https
     ):
         return clean_target
 
@@ -87,47 +87,117 @@ def safe_redirect_target(request, target, fallback=None):
 
 def safe_redirect(request, target, fallback=None, **redirect_kwargs):
     """
-    Validates target using safe_redirect_target and returns an HttpResponseRedirect.
-    Guarded directly at the redirect sink with url_has_allowed_host_and_scheme
-    for CodeQL barrier recognition (CWE-601 / py/url-redirection).
+    Validates target using security normalization and Django's url_has_allowed_host_and_scheme,
+    and returns an HttpResponseRedirect.
+    Structured with:
+      A. Security normalization
+      B. CodeQL-recognized positional validation
+      C. Direct redirect sink
+    Ensures that the redirect sink is immediately and recognizably guarded by
+    url_has_allowed_host_and_scheme for CodeQL barrier recognition (CWE-601 / py/url-redirection).
     """
+    if fallback:
+        try:
+            safe_fallback = resolve_url(fallback)
+        except Exception:
+            safe_fallback = str(fallback)
+    else:
+        safe_fallback = "/"
+
     try:
-        allowed_hosts = {request.get_host()} if request and hasattr(request, 'get_host') else None
+        allowed_hosts = {request.get_host()} if request and hasattr(request, "get_host") else None
     except Exception:
         allowed_hosts = None
 
-    validated_url = safe_redirect_target(request, target, fallback=fallback)
-    if url_has_allowed_host_and_scheme(url=validated_url, allowed_hosts=allowed_hosts):
-        return redirect(validated_url, **redirect_kwargs)
-    return redirect('/')
+    require_https = request.is_secure() if request and hasattr(request, "is_secure") else False
+
+    # A. Security Normalization
+    candidate = None
+    if target and isinstance(target, str):
+        cleaned = target.strip()
+        # Reject control characters (CRLF / null bytes)
+        if cleaned and not any(c in cleaned for c in ("\r", "\n", "\0")):
+            # Reject backslash variations and protocol-relative variations
+            if not (cleaned.startswith("\\") or cleaned.startswith("/\\")):
+                unquoted = unquote(cleaned).strip()
+                double_unquoted = unquote(unquoted).strip()
+                if not any(
+                    chk.startswith("//") or chk.startswith("\\") or chk.startswith("/\\") or "\\" in chk
+                    for chk in (unquoted, double_unquoted)
+                ):
+                    lower_target = cleaned.lower()
+                    if not any(lower_target.startswith(s) for s in ("javascript:", "data:", "vbscript:", "file:")):
+                        candidate = cleaned
+
+    # B. CodeQL-recognized validation & C. Direct redirect sink
+    if candidate is not None:
+        if url_has_allowed_host_and_scheme(candidate, allowed_hosts, require_https):
+            return redirect(candidate, **redirect_kwargs)
+
+    # Validated fallback redirect
+    if safe_fallback and url_has_allowed_host_and_scheme(safe_fallback, allowed_hosts, require_https):
+        return redirect(safe_fallback, **redirect_kwargs)
+
+    return redirect("/", **redirect_kwargs)
 
 
-def redirect_to_login_with_next(request, login_url_name: str = 'accounts:login'):
+def redirect_to_login_with_next(request, login_url_name: str = "accounts:login"):
     """
     Safely redirects an unauthenticated user to the login page, appending ?next=<path>
-    only if the path passes strict URL validation via url_has_allowed_host_and_scheme.
+    only after strict normalization and positional validation via url_has_allowed_host_and_scheme.
     Guarantees that untrusted path values cannot trigger open redirection (CWE-601 / py/url-redirection).
+    Directly guards candidate redirect values at the sink.
     """
     try:
         login_url = reverse(login_url_name)
     except Exception:
-        login_url = '/accounts/login/'
+        login_url = "/accounts/login/"
 
-    path = getattr(request, 'path', '') if request else ''
     try:
-        allowed_hosts = {request.get_host()} if request and hasattr(request, 'get_host') else None
+        allowed_hosts = {request.get_host()} if request and hasattr(request, "get_host") else None
     except Exception:
         allowed_hosts = None
 
-    # Validate path strictly before appending to login redirect
-    if path and url_has_allowed_host_and_scheme(url=path, allowed_hosts=allowed_hosts) and not path.startswith('//'):
-        target = f"{login_url}?next={path}"
-        if url_has_allowed_host_and_scheme(url=target, allowed_hosts=allowed_hosts):
-            return redirect(target)
+    require_https = request.is_secure() if request and hasattr(request, "is_secure") else False
 
-    if url_has_allowed_host_and_scheme(url=login_url, allowed_hosts=allowed_hosts):
+    # A. Security Normalization of request path
+    clean_path = None
+    if request and hasattr(request, "path") and isinstance(request.path, str):
+        raw_path = request.path.strip()
+        # Must be an internal path starting with a single slash, not protocol-relative or backslash
+        if (
+            raw_path.startswith("/")
+            and not raw_path.startswith("//")
+            and not raw_path.startswith("/\\")
+            and not any(c in raw_path for c in ("\r", "\n", "\0", "\\"))
+        ):
+            unquoted = unquote(raw_path).strip()
+            double_unquoted = unquote(unquoted).strip()
+            if not any(
+                chk.startswith("//") or chk.startswith("/\\") or "\\" in chk
+                for chk in (unquoted, double_unquoted)
+            ):
+                lower_p = raw_path.lower()
+                if not any(lower_p.startswith(s) for s in ("javascript:", "data:", "vbscript:", "file:")):
+                    # Positional validation of path
+                    if url_has_allowed_host_and_scheme(raw_path, allowed_hosts, require_https):
+                        clean_path = raw_path
+
+    # B. Construct candidate login target only after path is verified safe
+    candidate_target = None
+    if clean_path is not None:
+        candidate_target = f"{login_url}?next={clean_path}"
+
+    # C. Direct CodeQL barrier guard on the exact sink value
+    if candidate_target is not None:
+        if url_has_allowed_host_and_scheme(candidate_target, allowed_hosts, require_https):
+            return redirect(candidate_target)
+
+    # Validated fallback to clean login URL
+    if url_has_allowed_host_and_scheme(login_url, allowed_hosts, require_https):
         return redirect(login_url)
-    return redirect('/accounts/login/')
+
+    return redirect("/accounts/login/")
 
 
 def is_domain_match(hostname: str, allowed_domains: tuple[str, ...] | list[str] | set[str]) -> bool:
