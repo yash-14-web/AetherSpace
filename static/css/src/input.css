@@ -86,22 +86,40 @@
     @apply w-full px-3.5 py-2.5 text-sm rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-aether-blue focus:border-aether-blue transition-all;
   }
 
-  /* Bulletproof Meet Hub theme components (Guaranteed in both Dark & Light modes) */
-  .meet-card {
+  /* Dedicated Meet Hub Theme System (Approved Mockup Aligned) */
+  .meet-hub-hero-blue {
+    background: linear-gradient(135deg, #1d68f2 0%, #1a56db 50%, #1340b0 100%);
+    border: 1px solid rgba(59, 130, 246, 0.4);
+    box-shadow: 0 10px 25px -5px rgba(29, 78, 216, 0.35);
+  }
+  .meet-hub-hero-purple {
+    background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 50%, #4c1d95 100%);
+    border: 1px solid rgba(147, 51, 234, 0.4);
+    box-shadow: 0 10px 25px -5px rgba(109, 40, 217, 0.35);
+  }
+
+  .meet-card,
+  .meet-hub-section-card {
     background-color: #ffffff;
     border: 1px solid #e2e8f0;
     color: #0f172a;
     border-radius: 1rem;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
   }
   .dark .meet-card,
   html.dark .meet-card,
-  :is(.dark *) .meet-card {
-    background-color: #18181b !important;
-    border-color: #27272a !important;
+  :is(.dark *) .meet-card,
+  .dark .meet-hub-section-card,
+  html.dark .meet-hub-section-card,
+  :is(.dark *) .meet-hub-section-card {
+    background-color: #0b132b !important;
+    border-color: #17233f !important;
     color: #f4f4f5 !important;
+    box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.5) !important;
   }
 
-  .meet-subcard {
+  .meet-subcard,
+  .meet-hub-inner-panel {
     background-color: #f8fafc;
     border: 1px solid #e2e8f0;
     color: #0f172a;
@@ -109,10 +127,89 @@
   }
   .dark .meet-subcard,
   html.dark .meet-subcard,
-  :is(.dark *) .meet-subcard {
-    background-color: #0f172a !important;
-    border-color: #27272a !important;
+  :is(.dark *) .meet-subcard,
+  .dark .meet-hub-inner-panel,
+  html.dark .meet-hub-inner-panel,
+  :is(.dark *) .meet-hub-inner-panel {
+    background-color: #070c1a !important;
+    border-color: #17233f !important;
     color: #f4f4f5 !important;
+  }
+
+  .meet-hub-pill-btn {
+    background-color: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    color: #334155;
+    border-radius: 0.75rem;
+    transition: all 0.15s ease-in-out;
+  }
+  .meet-hub-pill-btn:hover {
+    background-color: #e2e8f0;
+    border-color: #94a3b8;
+    color: #0f172a;
+  }
+  .dark .meet-hub-pill-btn,
+  html.dark .meet-hub-pill-btn,
+  :is(.dark *) .meet-hub-pill-btn {
+    background-color: #111c35 !important;
+    border-color: #1c2a4a !important;
+    color: #cbd5e1 !important;
+  }
+  .dark .meet-hub-pill-btn:hover,
+  html.dark .meet-hub-pill-btn:hover,
+  :is(.dark *) .meet-hub-pill-btn:hover {
+    background-color: #172547 !important;
+    border-color: #2b3d68 !important;
+    color: #ffffff !important;
+  }
+
+  .meet-hub-member-card {
+    background-color: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.75rem;
+    transition: all 0.15s ease-in-out;
+  }
+  .meet-hub-member-card:hover {
+    background-color: #f1f5f9;
+    border-color: #3b82f6;
+  }
+  .dark .meet-hub-member-card,
+  html.dark .meet-hub-member-card,
+  :is(.dark *) .meet-hub-member-card {
+    background-color: #070c1a !important;
+    border-color: #17233f !important;
+  }
+  .dark .meet-hub-member-card:hover,
+  html.dark .meet-hub-member-card:hover,
+  :is(.dark *) .meet-hub-member-card:hover {
+    background-color: #0c142b !important;
+    border-color: #2563eb !important;
+  }
+
+  .meet-hub-ready-pill {
+    background-color: #ecfdf5;
+    border: 1px solid #a7f3d0;
+    color: #065f46;
+  }
+  .dark .meet-hub-ready-pill,
+  html.dark .meet-hub-ready-pill,
+  :is(.dark *) .meet-hub-ready-pill {
+    background-color: #062319 !important;
+    border-color: rgba(16, 185, 129, 0.35) !important;
+    color: #34d399 !important;
+  }
+
+  .meet-hub-maint-pill {
+    background-color: #fffbeb;
+    border: 1px solid #fde68a;
+    color: #92400e;
+  }
+  .dark .meet-hub-maint-pill,
+  html.dark .meet-hub-maint-pill,
+  :is(.dark *) .meet-hub-maint-pill {
+    background-color: #271705 !important;
+    border-color: rgba(245, 158, 11, 0.35) !important;
+    color: #fbbf24 !important;
   }
 
   /* Robust Comment & Chat Formatting Toolbar (Dark Obsidian & Light Slate) */

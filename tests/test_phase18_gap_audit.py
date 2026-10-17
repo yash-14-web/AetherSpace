@@ -362,6 +362,8 @@ class Phase18GapAuditTests(TestCase):
 
     def test_direct_unauthorized_access_to_meetings_blocked(self):
         """Verify Contributor Beta cannot join or view Meeting belonging to Workspace Alpha."""
+        from core.models import ModuleStatus
+        ModuleStatus.objects.update_or_create(module_key='meetings', defaults={'status': 'AVAILABLE'})
         meeting = Meeting.objects.create(
             workspace=self.ws_a,
             title='Confidential Strategy',

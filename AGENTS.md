@@ -178,3 +178,17 @@ application.
 The final project must be a coherent, runnable AetherSpace application
 matching the supplied blueprint rather than a collection of disconnected
 demo pages.
+
+## Documentation System (`docs/`)
+
+The repository maintains an authoritative technical documentation suite under `docs/`:
+- Master Index: `docs/00_DOCUMENTATION_INDEX.md`
+- System Architecture: `docs/02_SYSTEM_ARCHITECTURE.md`
+- Database Schema: `docs/03_DATABASE_SCHEMA.md`
+- RBAC Architecture: `docs/04_AUTHENTICATION_AND_RBAC.md`
+- Module Specifications: `docs/05_MODULES/00_MODULE_INDEX.md` through `13_SETTINGS_AND_THEMES.md`
+- Architecture Decisions: `docs/decisions/ARCHITECTURE_DECISIONS.md`
+- Release & Verification Policy: `docs/decisions/RELEASE_AND_VERIFICATION_POLICY.md`
+
+Whenever implementing or modifying a module, consult the corresponding specification in `docs/05_MODULES/` and update both the module document and `README.md` upon completion.
+

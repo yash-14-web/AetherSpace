@@ -1,0 +1,51 @@
+flowchart LR
+    subgraph CoreDomain["Core & Platform Identity"]
+        accounts["accounts<br/>(User, UserProfile, ContributorID)"]
+        core["core<br/>(ModuleStatus, Shared Utils, Global Context)"]
+        admin_panel["admin_panel<br/>(AuditLog, AdminAlert, Backups)"]
+        user_settings["user_settings<br/>(Preferences, Notifications, Themes)"]
+    end
+
+    subgraph WorkspaceFoundation["Workspace Multi-Tenancy Boundary"]
+        workspaces["workspaces<br/>(Workspace, Membership, AccessRequest, Grants)"]
+    end
+
+    subgraph AgileExecution["Agile Project Modules"]
+        tasks["tasks<br/>(Task, Sprint, Subtask, CodeReviewRequest)"]
+        bugs["bugs<br/>(Bug, BugActivity, BugComment)"]
+        timetracking["timetracking<br/>(TimeEntry, Timer Session)"]
+    end
+
+    subgraph Collaboration["Real-Time Collaboration Modules"]
+        chat["chat<br/>(Channel, DirectMessage, Message, Reactions)"]
+        meetings["meetings<br/>(Meeting, MeetingParticipant, CallSession)"]
+        calendars["calendars<br/>(CalendarEvent, Attendee, Milestone)"]
+        files["files<br/>(StoredFile, Folder, FileVersion, FileShare)"]
+        notifications["notifications<br/>(Notification, EmailDeliveryLog)"]
+    end
+
+    accounts -->|Authenticates into| workspaces
+    core -->|Feature gates & context| workspaces
+    admin_panel -->|Audits & governs| workspaces
+    user_settings -->|Configures user of| accounts
+
+    workspaces -->|Scopes| tasks
+    workspaces -->|Scopes| bugs
+    workspaces -->|Scopes| timetracking
+    workspaces -->|Scopes| chat
+    workspaces -->|Scopes| meetings
+    workspaces -->|Scopes| calendars
+    workspaces -->|Scopes| files
+    workspaces -->|Scopes| notifications
+
+    tasks -.->|Links Defect to Story| bugs
+    tasks -.->|Logs Time Against| timetracking
+    tasks -.->|Attaches Asset| files
+    bugs -.->|Attaches Evidence| files
+    meetings -.->|Calls within| chat
+    calendars -.->|Links Conference| meetings
+    calendars -.->|Links Due Date| tasks
+    notifications -.->|Dispatches Alerts for| tasks
+    notifications -.->|Dispatches Alerts for| bugs
+    notifications -.->|Dispatches Alerts for| chat
+    notifications -.->|Dispatches Alerts for| meetings

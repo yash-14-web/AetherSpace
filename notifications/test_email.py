@@ -1,4 +1,5 @@
 from unittest.mock import patch
+from django.conf import settings
 from django.test import TestCase, override_settings
 from django.core import mail
 from django.urls import reverse
@@ -845,6 +846,73 @@ class EmailDesignSystemPhaseBTests(TestCase):
         # Zero emojis in header or text
         self.assertNotIn('⚡', html)
         self.assertNotIn('⚡', txt)
+
+
+class BrevoSMTPConfigurationTests(TestCase):
+    """
+    Tests for Brevo SMTP settings, safe environment variable loading,
+    and Django system checks.
+    """
+
+    def test_brevo_smtp_settings_attributes(self):
+        """Verify default Brevo SMTP configuration values in settings."""
+        self.assertEqual(settings.EMAIL_HOST, 'smtp-relay.brevo.com')
+        self.assertEqual(settings.EMAIL_PORT, 587)
+        self.assertTrue(settings.EMAIL_USE_TLS)
+        self.assertFalse(settings.EMAIL_USE_SSL)
+        self.assertEqual(settings.EMAIL_TIMEOUT, 10)
+        self.assertIn('yaswanthmunagoti@gmail.com', settings.DEFAULT_FROM_EMAIL)
+
+    def test_system_check_passes_with_complete_credentials(self):
+        """Verify system check passes without warnings when SMTP credentials are configured."""
+        from notifications.checks import check_email_configuration
+        with override_settings(
+            EMAIL_BACKEND='django.core.mail.backends.smtp.EmailBackend',
+            EMAIL_HOST='smtp-relay.brevo.com',
+            EMAIL_HOST_USER='test-brevo-user',
+            EMAIL_HOST_PASSWORD='test-brevo-password',
+        ):
+            warnings = check_email_configuration(None)
+            self.assertEqual(len(warnings), 0)
+
+    def test_system_check_warns_when_host_user_missing(self):
+        """Verify warning W002 is generated when EMAIL_HOST_USER is missing on SMTP backend."""
+        from notifications.checks import check_email_configuration
+        with override_settings(
+            EMAIL_BACKEND='django.core.mail.backends.smtp.EmailBackend',
+            EMAIL_HOST='smtp-relay.brevo.com',
+            EMAIL_HOST_USER='',
+            EMAIL_HOST_PASSWORD='test-brevo-password',
+        ):
+            warnings = check_email_configuration(None)
+            warning_ids = [w.id for w in warnings]
+            self.assertIn('aetherspace.notifications.W002', warning_ids)
+
+    def test_system_check_warns_when_password_missing(self):
+        """Verify warning W003 is generated when EMAIL_HOST_PASSWORD is missing on SMTP backend."""
+        from notifications.checks import check_email_configuration
+        with override_settings(
+            EMAIL_BACKEND='django.core.mail.backends.smtp.EmailBackend',
+            EMAIL_HOST='smtp-relay.brevo.com',
+            EMAIL_HOST_USER='test-brevo-user',
+            EMAIL_HOST_PASSWORD='',
+        ):
+            warnings = check_email_configuration(None)
+            warning_ids = [w.id for w in warnings]
+            self.assertIn('aetherspace.notifications.W003', warning_ids)
+
+    def test_system_check_clean_for_console_backend(self):
+        """Verify system check generates 0 warnings for console/locmem development backends."""
+        from notifications.checks import check_email_configuration
+        with override_settings(
+            EMAIL_BACKEND='notifications.email_backend.CleanConsoleEmailBackend',
+            EMAIL_HOST='smtp-relay.brevo.com',
+            EMAIL_HOST_USER='',
+            EMAIL_HOST_PASSWORD='',
+        ):
+            warnings = check_email_configuration(None)
+            self.assertEqual(len(warnings), 0)
+
 
 
 

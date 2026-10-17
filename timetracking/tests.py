@@ -331,6 +331,9 @@ class TimeTrackingTests(TestCase):
         """When user is Away and resumes or starts a timer, status auto-switches to Available."""
         # Set member to away
         from accounts.models import UserProfile
+        from django.core.cache import cache
+        from django.utils import timezone
+        cache.set(f'user_last_seen_{self.member_user.id}', timezone.now().timestamp(), 300)
         profile, _ = UserProfile.objects.get_or_create(user=self.member_user)
         profile.preferences = {'status': 'away'}
         profile.save()

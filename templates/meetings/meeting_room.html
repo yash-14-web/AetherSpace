@@ -4,42 +4,19 @@
 {% block title %}{{ meeting.title }} ({{ meeting_code_formatted|default:meeting.meeting_code }}) — AetherSpace Meet{% endblock %}
 
 {% block layout %}
-<style>
-@keyframes meetReactionFloat {
-    0% {
-        transform: translateY(0) scale(0.6);
-        opacity: 0;
-    }
-    15% {
-        transform: translateY(-40px) scale(1.2);
-        opacity: 1;
-    }
-    50% {
-        transform: translateY(-160px) scale(1.05) rotate(4deg);
-        opacity: 0.9;
-    }
-    80% {
-        transform: translateY(-260px) scale(0.95) rotate(-4deg);
-        opacity: 0.6;
-    }
-    100% {
-        transform: translateY(-340px) scale(0.85);
-        opacity: 0;
-    }
-}
-.floating-meet-reaction {
-    animation: meetReactionFloat 2.2s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-}
-</style>
-<div class="fixed inset-0 z-50 flex flex-col h-screen w-screen bg-[#131314] text-white overflow-hidden font-sans select-none" 
+{% if jitsi_meet_enabled %}
+<script src="{{ jaas_script_url|default:'https://meet.jit.si/external_api.js' }}" id="jitsi-external-api-script"></script>
+{% endif %}
+
+<div class="fixed inset-0 z-50 flex flex-col h-screen w-screen bg-[#09090b] text-white overflow-hidden font-sans select-none" 
      id="meeting-room-viewport"
-     x-data="googleMeetRoomState()">
+     x-data="aetherMeetRoomState()">
     
-    <!-- Top Header Bar matching Screenshot 1 -->
-    <header class="h-14 px-4 sm:px-6 flex items-center justify-between shrink-0 z-30 pointer-events-auto">
-        <!-- Top Left: Time | Meeting Code (i) -->
+    <!-- Top Header Bar (AetherSpace Shell) -->
+    <header class="h-14 px-4 sm:px-6 flex items-center justify-between shrink-0 z-30 pointer-events-auto border-b border-zinc-800/60 bg-[#131314]/90 backdrop-blur-md">
+        <!-- Top Left: Time | Meeting Code | Info Popover -->
         <div class="flex items-center space-x-3 text-sm text-zinc-300">
-            <span class="font-medium text-white tracking-wide" x-text="currentTimeStr">1:33 AM</span>
+            <span class="font-medium text-white tracking-wide" x-text="currentTimeStr">12:00 PM</span>
             <span class="text-zinc-600 font-light">|</span>
             <span class="font-medium text-zinc-200 tracking-wider lowercase select-all cursor-pointer hover:text-white transition"
                   @click="copyMeetingCode('{{ meeting_code_formatted|default:meeting.meeting_code }}')"
@@ -61,6 +38,7 @@
                 <!-- Meeting Details Popover -->
                 <div x-show="openInfo" 
                      @click.away="openInfo = false" 
+                     x-cloak
                      x-transition:enter="transition ease-out duration-150"
                      x-transition:enter-start="opacity-0 scale-95"
                      x-transition:enter-end="opacity-100 scale-100"
@@ -93,12 +71,53 @@
             </div>
         </div>
 
-        <!-- Top Right: Participant preview badge with count, effects sparkle button -->
-        <div class="flex items-center space-x-3">
+        <!-- Center Header: Companion Workspace Quick-Access (Does not isolate user from workspace) -->
+        <nav class="hidden md:flex items-center space-x-1 px-2.5 py-1 rounded-xl bg-zinc-900/90 border border-zinc-800/80 text-xs text-zinc-300" aria-label="Companion Workspace Navigation">
+            <span class="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider px-1">Workspace</span>
+            <a href="{{ workspace_nav.dashboard }}" target="_blank" rel="noopener noreferrer"
+               class="px-2 py-1 rounded-lg hover:text-white hover:bg-zinc-800 transition flex items-center space-x-1"
+               title="Open Workspace Dashboard in a new tab (meeting remains connected)">
+                <span>📊</span>
+                <span class="hidden lg:inline">Dashboard</span>
+                <span class="text-[9px] text-zinc-500">↗</span>
+            </a>
+            <a href="{{ workspace_nav.tasks }}" target="_blank" rel="noopener noreferrer"
+               class="px-2 py-1 rounded-lg hover:text-white hover:bg-zinc-800 transition flex items-center space-x-1"
+               title="Open Tasks & Kanban in a new tab">
+                <span>📋</span>
+                <span class="hidden lg:inline">Tasks</span>
+                <span class="text-[9px] text-zinc-500">↗</span>
+            </a>
+            <a href="{{ workspace_nav.calendar }}" target="_blank" rel="noopener noreferrer"
+               class="px-2 py-1 rounded-lg hover:text-white hover:bg-zinc-800 transition flex items-center space-x-1"
+               title="Open Calendar in a new tab">
+                <span>📅</span>
+                <span class="hidden lg:inline">Calendar</span>
+                <span class="text-[9px] text-zinc-500">↗</span>
+            </a>
+            <a href="{{ workspace_nav.chat }}" target="_blank" rel="noopener noreferrer"
+               class="px-2 py-1 rounded-lg hover:text-white hover:bg-zinc-800 transition flex items-center space-x-1"
+               title="Open Team Chat in a new tab">
+                <span>💬</span>
+                <span class="hidden lg:inline">Chat</span>
+                <span class="text-[9px] text-zinc-500">↗</span>
+            </a>
+        </nav>
+
+        <!-- Top Right: Pop-out Window + Active participants badge + Leave/End actions -->
+        <div class="flex items-center space-x-2 sm:space-x-3">
+            <!-- Pop-out Companion Window Button -->
+            <button type="button" @click="popOutWindow()" 
+                    class="hidden sm:flex items-center space-x-1.5 px-3 py-1.5 rounded-full bg-zinc-800/80 hover:bg-zinc-700 text-xs text-zinc-300 hover:text-white transition border border-zinc-700/60 shadow-sm"
+                    title="Pop out meeting to a companion window so you can navigate AetherSpace freely">
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                </svg>
+                <span class="hidden xl:inline">Pop-out</span>
+            </button>
+
             <!-- Active participants badge with avatar + count -->
-            <button @click="showPeopleDrawer = !showPeopleDrawer; showHostDrawer = false; showChatDrawer = false" 
-                    class="flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-[#202124] hover:bg-[#2c2f33] border border-zinc-700/60 text-xs text-zinc-200 transition"
-                    title="Show participants">
+            <div class="flex items-center space-x-1.5 px-3 py-1 rounded-full bg-[#202124] border border-zinc-700/60 text-xs text-zinc-200">
                 {% if user_avatar %}
                 <img src="{{ user_avatar }}" alt="{{ user_display_name }}" class="w-5 h-5 rounded-full object-cover">
                 {% else %}
@@ -106,810 +125,175 @@
                     {{ user_initials }}
                 </span>
                 {% endif %}
-                <span class="font-medium text-xs" x-text="totalParticipantsCount">1</span>
+                <span class="font-medium text-xs text-zinc-300" x-text="participantsCount">1</span>
+                <span class="text-[11px] text-zinc-400 hidden sm:inline">in room</span>
+            </div>
+
+            <!-- Copy Link Button -->
+            <button type="button" @click="copyShareLink()" 
+                    class="hidden sm:flex items-center space-x-1.5 px-3 py-1.5 rounded-full bg-zinc-800 hover:bg-zinc-700 text-xs text-zinc-300 hover:text-white transition">
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                </svg>
+                <span x-text="copiedShareNotice ? 'Copied!' : 'Copy link'">Copy link</span>
             </button>
+
+            <!-- Host Actions Dropdown / Leave Action -->
+            {% if is_host %}
+            <div class="relative" x-data="{ openLeaveMenu: false }">
+                <button @click="openLeaveMenu = !openLeaveMenu" 
+                        class="px-4 py-1.5 rounded-full bg-rose-600 hover:bg-rose-500 text-white text-xs font-medium flex items-center space-x-1.5 transition shadow-sm"
+                        title="Leave or End Meeting">
+                    <span>Leave</span>
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                    </svg>
+                </button>
+                <div x-show="openLeaveMenu" 
+                     @click.away="openLeaveMenu = false" 
+                     x-cloak
+                     class="absolute right-0 top-9 w-48 py-1.5 rounded-xl bg-[#202124] border border-zinc-700 shadow-2xl z-50 text-xs">
+                    <button @click="leaveMeeting('leave'); openLeaveMenu = false" 
+                            class="w-full px-3 py-2 text-left text-zinc-200 hover:bg-zinc-700 transition flex items-center space-x-2">
+                        <span>Leave meeting</span>
+                    </button>
+                    <button @click="endMeetingForAll(); openLeaveMenu = false" 
+                            class="w-full px-3 py-2 text-left text-rose-400 hover:bg-rose-950/40 hover:text-rose-300 transition flex items-center space-x-2 font-medium">
+                        <span>End meeting for all</span>
+                    </button>
+                </div>
+            </div>
+            {% else %}
+            <button @click="leaveMeeting('leave')" 
+                    class="px-4 py-1.5 rounded-full bg-rose-600 hover:bg-rose-500 text-white text-xs font-medium flex items-center space-x-1.5 transition shadow-sm"
+                    title="Leave Call">
+                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 9c-1.6 0-3.15.25-4.6.72v3.1c0 .39-.23.74-.56.9-.98.49-1.87 1.12-2.66 1.85-.18.18-.43.28-.7.28-.28 0-.53-.11-.71-.29L.29 13.08c-.18-.17-.29-.42-.29-.7 0-.28.11-.53.29-.71C3.34 8.78 7.46 7 12 7s8.66 1.78 11.71 4.67c.18.18.29.43.29.71 0 .28-.11.53-.29.71l-2.48 2.48c-.18.18-.43.29-.71.29-.27 0-.52-.11-.7-.28-.79-.74-1.69-1.36-2.67-1.85-.33-.16-.56-.5-.56-.9v-3.1C15.15 9.25 13.6 9 12 9z"/>
+                </svg>
+                <span>Leave</span>
+            </button>
+            {% endif %}
         </div>
     </header>
 
-    <!-- Main Conference Stage: Responsive Video Tile Canvas matching Screenshot 1 -->
-    <main class="relative flex-1 flex overflow-hidden p-3 sm:p-5 pb-24">
+    <!-- Multi-tab Echo & Feedback Warning Banner -->
+    <div x-show="duplicateTabWarning" x-cloak
+         class="mx-4 mt-2 p-3 bg-amber-950/90 border border-amber-600/70 rounded-2xl text-amber-200 text-xs flex items-center justify-between shadow-xl">
+        <div class="flex items-center space-x-2.5">
+            <span class="text-base">⚠️</span>
+            <span><strong>Audio Feedback Warning:</strong> This meeting room is already active in another browser tab or window. Multiple tabs accessing the same microphone and speaker cause severe acoustic echo and screeching feedback. Please close duplicate tabs.</span>
+        </div>
+        <button type="button" @click="duplicateTabWarning = false" class="text-amber-400 hover:text-amber-100 font-bold ml-3 text-sm">✕</button>
+    </div>
+
+    <!-- 8x8 JaaS Authentication / Configuration Error Banner -->
+    {% if jaas_error %}
+    <div class="mx-4 mt-2 p-3.5 bg-rose-950/95 border-2 border-rose-600/80 rounded-2xl text-rose-100 text-xs flex flex-col sm:flex-row items-center justify-between gap-3 shadow-2xl">
+        <div class="flex items-start space-x-3">
+            <span class="text-xl shrink-0 mt-0.5">⚠️</span>
+            <div>
+                <strong class="text-rose-200 font-bold text-sm">8×8 JaaS Service Configuration Error:</strong>
+                <p class="mt-0.5 text-rose-300 font-mono text-[11px] select-all">{{ jaas_error }}</p>
+                <p class="mt-1 text-zinc-300 text-[11px]">The video conference engine cannot initialize because JaaS authentication credentials failed validation. Falling back to public Jitsi is prohibited by security policy.</p>
+            </div>
+        </div>
+        <a href="{{ workspace_nav.dashboard }}" class="shrink-0 px-4 py-2 rounded-xl bg-rose-800 hover:bg-rose-700 text-white font-semibold text-xs transition border border-rose-600">
+            Return to Dashboard
+        </a>
+    </div>
+    {% endif %}
+
+    <!-- Public Jitsi Demo Mode Notice (meet.jit.si limitation, only when JaaS is not active) -->
+    {% if not is_jaas and jitsi_domain == 'meet.jit.si' %}
+    <div x-data="{ showDemoNotice: true }" x-show="showDemoNotice" x-cloak
+         class="mx-4 mt-2 p-2.5 bg-blue-950/70 border border-blue-600/40 rounded-xl text-blue-200 text-xs flex items-center justify-between">
+        <div class="flex items-center space-x-2">
+            <span class="text-sm">ℹ️</span>
+            <span><strong>Public Jitsi Demo Mode:</strong> Embedded calls on public <code class="bg-blue-900/60 px-1 py-0.5 rounded text-[11px] font-mono">meet.jit.si</code> enforce an 8x8 5-minute timeout and moderator login prompt. For unlimited calls, configure a self-hosted instance or 8x8 JaaS in settings.</span>
+        </div>
+        <button type="button" @click="showDemoNotice = false" class="text-blue-400 hover:text-blue-100 ml-3 text-sm">✕</button>
+    </div>
+    {% endif %}
+
+    <!-- Main Conference Stage -->
+    <main class="relative flex-1 flex overflow-hidden p-3 sm:p-5 pb-3">
         
-        <!-- Connection / Permission Status Banner -->
-        <div x-show="connectionStatus === 'reconnecting' || connectionStatus === 'failed' || permissionError"
-             class="absolute top-3 left-1/2 -translate-x-1/2 z-40 max-w-lg px-4 py-2 rounded-full text-xs font-medium shadow-2xl flex items-center space-x-2 transition"
-             :class="{
-                 'bg-amber-900/90 text-amber-200 border border-amber-600': connectionStatus === 'reconnecting',
-                 'bg-rose-900/90 text-rose-200 border border-rose-600': connectionStatus === 'failed',
-                 'bg-zinc-800/95 text-zinc-200 border border-zinc-700': permissionError && connectionStatus === 'connected'
-             }">
-            <span class="w-2 h-2 rounded-full animate-ping"
-                  :class="{
-                      'bg-amber-400': connectionStatus === 'reconnecting',
-                      'bg-rose-400': connectionStatus === 'failed',
-                      'bg-sky-400': permissionError && connectionStatus === 'connected'
-                  }"></span>
-            <span x-text="connectionStatus === 'reconnecting' ? 'Reconnecting to conference signaling server...' : (connectionStatus === 'failed' ? 'Signaling connection lost. Please refresh.' : permissionError)"></span>
-        </div>
-
-        <!-- Video Grid Area -->
-        <div class="flex-1 flex items-center justify-center w-full h-full">
-            
-            <!-- Tiles Container -->
-            <div :class="remoteParticipants.length === 0 ? 'w-full h-full max-w-6xl max-h-[82vh] flex items-center justify-center' : 'w-full h-full max-w-6xl max-h-[82vh] grid gap-4 ' + (remoteParticipants.length === 1 ? 'grid-cols-1 md:grid-cols-2' : (remoteParticipants.length <= 3 ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-2 lg:grid-cols-3'))">
-                
-                <!-- Tile 1: LOCAL USER (Live Camera Feed or Olive-Tinted Avatar Tile) -->
-                <div class="relative w-full h-full aspect-video rounded-3xl bg-[#282d22] border border-black/30 overflow-hidden shadow-2xl flex items-center justify-center group select-none">
-                    
-                    <!-- Live Webcam Video Element (when camera is on) -->
-                    <video id="local-video" 
-                           autoplay 
-                           playsinline 
-                           muted 
-                           x-show="isCameraOn && !screenSharing"
-                           class="w-full h-full object-cover rounded-3xl transform -scale-x-100"></video>
-
-                    <!-- Screen Share Preview -->
-                    <video id="screen-video" 
-                           autoplay 
-                           playsinline 
-                           muted
-                           x-show="screenSharing"
-                           class="w-full h-full object-contain rounded-3xl bg-black"></video>
-
-                    <!-- Center Circular Profile Avatar when Camera is OFF (Exact match for Screenshot 1) -->
-                    <div x-show="!isCameraOn && !screenSharing" class="flex flex-col items-center justify-center">
-                        {% if user_avatar %}
-                        <img src="{{ user_avatar }}" 
-                             alt="{{ user_display_name }}" 
-                             class="w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 rounded-full object-cover shadow-2xl ring-1 ring-black/20">
-                        {% else %}
-                        <div class="w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 rounded-full bg-gradient-to-tr from-emerald-600 to-teal-700 text-white font-semibold text-3xl sm:text-4xl flex items-center justify-center shadow-2xl ring-1 ring-black/20">
-                            {{ user_initials }}
-                        </div>
-                        {% endif %}
-                    </div>
-
-                    <!-- Top-Left Hand Raised Indicator (Local) -->
-                    <div class="absolute top-4 left-4 z-10" x-show="handRaised">
-                        <span class="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full bg-blue-600 text-white text-xs font-semibold shadow-lg">
-                            <span>✋</span>
-                            <span>Hand raised</span>
-                        </span>
-                    </div>
-
-                    <!-- Top-Right Mic Status Indicator inside Tile (Screenshot 1 top-right) -->
-                    <div class="absolute top-4 right-4 z-10">
-                        <div x-show="isMuted" 
-                             class="w-8 h-8 rounded-full bg-[#1b2016]/85 backdrop-blur-xs flex items-center justify-center text-[#7e8574] border border-white/5 shadow-sm"
-                             title="Microphone is off">
-                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                                <path d="M19 11h-1.7c0 .74-.16 1.43-.43 2.05l1.23 1.23c.56-.98.9-2.09.9-3.28zm-4.02.17c0-.06.02-.11.02-.17V5c0-1.66-1.34-3-3-3S9 3.34 9 5v.18l5.98 5.99zM4.27 3L3 4.27l6.01 6.01V11c0 1.66 1.33 3 2.99 3 .22 0 .44-.03.65-.08l1.66 1.66c-.71.33-1.5.52-2.31.52-2.76 0-5.3-2.1-5.3-5.1H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c.91-.13 1.77-.45 2.54-.9L19.73 21 21 19.73 4.27 3z"/>
-                            </svg>
-                        </div>
-                        <div x-show="!isMuted" 
-                             class="w-8 h-8 rounded-full bg-emerald-500/20 backdrop-blur-xs flex items-center justify-center text-emerald-400 border border-emerald-500/30"
-                             title="Microphone is active">
-                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                                <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5-3c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
-                            </svg>
-                        </div>
-                    </div>
-
-                    <!-- Bottom-Left Name Tag (Screenshot 1 bottom-left) -->
-                    <div class="absolute bottom-4 left-4 z-10 flex items-center space-x-2">
-                        <span class="text-sm font-medium text-white tracking-wide drop-shadow-md">
-                            {{ user_display_name }}
-                        </span>
-                        {% if is_host %}
-                        <span class="hidden group-hover:inline-block text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-black/40 text-zinc-300">
-                            Host
-                        </span>
-                        {% endif %}
-                    </div>
+        <!-- Call Ended Fullscreen Overlay -->
+        <div x-show="callEnded" 
+             x-cloak
+             class="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md transition">
+            <div class="max-w-md w-full mx-4 p-8 rounded-3xl bg-[#202124] border border-zinc-700/80 shadow-2xl text-center">
+                <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center">
+                    <svg class="w-8 h-8" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12 9c-1.6 0-3.15.25-4.6.72v3.1c0 .39-.23.74-.56.9-.98.49-1.87 1.12-2.66 1.85-.18.18-.43.28-.7.28-.28 0-.53-.11-.71-.29L.29 13.08c-.18-.17-.29-.42-.29-.7 0-.28.11-.53.29-.71C3.34 8.78 7.46 7 12 7s8.66 1.78 11.71 4.67c.18.18.29.43.29.71 0 .28-.11.53-.29.71l-2.48 2.48c-.18.18-.43.29-.71.29-.27 0-.52-.11-.7-.28-.79-.74-1.69-1.36-2.67-1.85-.33-.16-.56-.5-.56-.9v-3.1C15.15 9.25 13.6 9 12 9z"/>
+                    </svg>
                 </div>
-
-                <!-- Remote Connected Participants Dynamic Tiles (Full WebRTC Media Elements) -->
-                <template x-for="peer in remoteParticipants" :key="peer.id">
-                    <div class="relative w-full h-full aspect-video rounded-3xl bg-[#282d22] border border-black/30 overflow-hidden shadow-2xl flex items-center justify-center group select-none">
-                        
-                        <!-- Remote Live Camera/Screen Video Element -->
-                        <video :id="'remote-video-' + peer.id" 
-                               autoplay 
-                               playsinline 
-                               x-show="peer.is_camera_on || peer.screen_sharing"
-                               class="w-full h-full object-cover rounded-3xl"></video>
-
-                        <!-- Dedicated Remote Audio Element -->
-                        <audio :id="'remote-audio-' + peer.id" 
-                               autoplay></audio>
-
-                        <!-- Avatar Fallback when camera is OFF and not screen sharing -->
-                        <div x-show="!peer.is_camera_on && !peer.screen_sharing" class="flex flex-col items-center justify-center">
-                            <template x-if="peer.avatar">
-                                <img :src="peer.avatar" :alt="peer.name" class="w-24 h-24 sm:w-28 sm:h-28 rounded-full object-cover shadow-2xl ring-1 ring-black/20">
-                            </template>
-                            <template x-if="!peer.avatar">
-                                <div class="w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-gradient-to-tr from-sky-600 to-indigo-700 text-white font-semibold text-3xl flex items-center justify-center shadow-2xl ring-1 ring-black/20"
-                                     x-text="peer.initials"></div>
-                            </template>
-                        </div>
-
-                        <!-- Top-Left Hand Raised Indicator (Remote) -->
-                        <div class="absolute top-4 left-4 z-10" x-show="peer.is_hand_raised">
-                            <span class="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full bg-blue-600 text-white text-xs font-semibold shadow-lg">
-                                <span>✋</span>
-                                <span>Hand raised</span>
-                            </span>
-                        </div>
-
-                        <!-- Top-Right Mic Indicator -->
-                        <div class="absolute top-4 right-4 z-10">
-                            <div x-show="peer.is_muted" 
-                                 class="w-8 h-8 rounded-full bg-[#1b2016]/85 backdrop-blur-xs flex items-center justify-center text-[#7e8574] border border-white/5 shadow-sm"
-                                 title="Microphone is off">
-                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                                    <path d="M19 11h-1.7c0 .74-.16 1.43-.43 2.05l1.23 1.23c.56-.98.9-2.09.9-3.28zm-4.02.17c0-.06.02-.11.02-.17V5c0-1.66-1.34-3-3-3S9 3.34 9 5v.18l5.98 5.99zM4.27 3L3 4.27l6.01 6.01V11c0 1.66 1.33 3 2.99 3 .22 0 .44-.03.65-.08l1.66 1.66c-.71.33-1.5.52-2.31.52-2.76 0-5.3-2.1-5.3-5.1H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c.91-.13 1.77-.45 2.54-.9L19.73 21 21 19.73 4.27 3z"/>
-                                </svg>
-                            </div>
-                            <div x-show="!peer.is_muted" 
-                                 class="w-8 h-8 rounded-full bg-emerald-500/20 backdrop-blur-xs flex items-center justify-center text-emerald-400 border border-emerald-500/30"
-                                 title="Microphone is active">
-                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                                    <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5-3c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
-                                </svg>
-                            </div>
-                        </div>
-
-                        <!-- Bottom-Left Name & Screen Sharing Indicator -->
-                        <div class="absolute bottom-4 left-4 z-10 flex items-center space-x-2">
-                            <span class="text-sm font-medium text-white tracking-wide drop-shadow-md" x-text="peer.name"></span>
-                            <span class="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-black/40 text-zinc-300" x-text="peer.role === 'Meeting host' ? 'Host' : ''" x-show="peer.role === 'Meeting host'"></span>
-                            <span class="text-[10px] bg-blue-600/80 text-white font-medium px-2 py-0.5 rounded-full" x-show="peer.screen_sharing">Sharing screen</span>
-                        </div>
-                    </div>
-                </template>
-
-            </div>
-
-            <!-- Live Closed Captions Display Banner (Web Speech API) -->
-            <div x-show="captionsEnabled"
-                 x-transition:enter="transition ease-out duration-200"
-                 x-transition:enter-start="opacity-0 translate-y-4"
-                 x-transition:enter-end="opacity-100 translate-y-0"
-                 class="fixed bottom-24 left-1/2 -translate-x-1/2 z-40 max-w-2xl px-6 py-3 rounded-2xl bg-black/85 backdrop-blur-md border border-zinc-700/80 shadow-2xl text-center pointer-events-none">
-                <div class="text-[11px] uppercase tracking-wider font-semibold text-blue-400 mb-1 flex items-center justify-center space-x-1.5">
-                    <span class="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
-                    <span>Live Captions (Web Speech)</span>
+                <h3 class="text-xl font-bold text-white mb-2">Call Ended</h3>
+                <p class="text-sm text-zinc-400 mb-6" x-text="callEndedMessage || 'The conference has ended.'"></p>
+                <div class="text-xs text-zinc-500 mb-6 font-mono">
+                    Meeting duration: <span x-text="formatTimer(timerSeconds)">00:00:00</span>
                 </div>
-                <div class="text-sm font-medium text-white select-text">
-                    <template x-if="liveCaptionText">
-                        <span x-text="liveCaptionText"></span>
-                    </template>
-                    <template x-if="!liveCaptionText && speechSupported">
-                        <span class="text-zinc-400 italic">Listening... speak into your microphone</span>
-                    </template>
-                    <template x-if="!speechSupported">
-                        <span class="text-amber-400 italic">Web Speech API is not supported in this browser. Captions require Chrome/Edge.</span>
-                    </template>
-                </div>
-            </div>
-
-            <!-- Floating Emoji Reactions Canvas Animation -->
-            <div class="pointer-events-none fixed inset-0 z-40 overflow-hidden">
-                <template x-for="r in floatingReactions" :key="r.id">
-                    <div class="absolute text-4xl floating-meet-reaction pointer-events-none select-none drop-shadow-lg"
-                         :style="`bottom: 90px; left: ${r.left}%;`"
-                         x-text="r.emoji"></div>
-                </template>
+                <a href="{% url 'workspaces:workspace_dashboard' slug=workspace.slug %}"
+                   class="inline-flex items-center justify-center w-full py-3 px-6 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-medium text-sm transition shadow-lg">
+                    Return to Workspace Dashboard
+                </a>
             </div>
         </div>
 
-        <!-- Right Side Drawer 1: People Drawer (Screenshot 4) -->
-        <div x-show="showPeopleDrawer" 
-             x-transition:enter="transition ease-out duration-200"
-             x-transition:enter-start="translate-x-full"
-             x-transition:enter-end="translate-x-0"
-             x-transition:leave="transition ease-in duration-150"
-             x-transition:leave-start="translate-x-0"
-             x-transition:leave-end="translate-x-full"
-             class="w-80 sm:w-88 bg-[#1e1f20] border-l border-zinc-800 flex flex-col z-40 shrink-0 h-full rounded-l-2xl shadow-2xl">
-            
-            <!-- People Header -->
-            <div class="p-4 flex items-center justify-between">
-                <h3 class="text-base font-normal text-white">People</h3>
-                <button @click="showPeopleDrawer = false" class="text-zinc-400 hover:text-white p-1 rounded-full hover:bg-zinc-800 transition">
-                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                    </svg>
-                </button>
-            </div>
-
-            <!-- + Add People Primary Blue Button (Screenshot 4) -->
-            <div class="px-4 pb-3">
-                <button @click="copyShareLink()" 
-                        class="w-auto px-5 py-2.5 rounded-full bg-[#004a77] hover:bg-[#005a92] text-[#c2e7ff] hover:text-white text-xs sm:text-sm font-medium flex items-center space-x-2 transition shadow-sm">
-                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/>
-                    </svg>
-                    <span x-text="copiedShareNotice ? 'Link Copied to Clipboard!' : 'Add people'">Add people</span>
-                </button>
-            </div>
-
-            <!-- Search for people input with rounded outline (Screenshot 4) -->
-            <div class="px-4 pb-3">
-                <div class="relative">
-                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-zinc-400">
-                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+        <!-- Jitsi Conference Area -->
+        <div class="flex-1 flex flex-col w-full h-full relative" id="jitsi-conference-wrapper">
+            <!-- Jitsi Connection / Initialization Error State (AetherSpace UI) -->
+            <div id="jitsi-error-container" 
+                 x-show="jitsiError" 
+                 x-cloak
+                 class="absolute inset-0 z-40 flex items-center justify-center p-6 bg-[#131314]/95 backdrop-blur-md">
+                <div class="max-w-md w-full p-8 rounded-3xl bg-[#202124] border border-zinc-700/80 shadow-2xl text-center">
+                    <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center">
+                        <svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
                         </svg>
-                    </span>
-                    <input type="text" 
-                           x-model="peopleSearchQuery"
-                           placeholder="Search for people"
-                           class="w-full pl-9 pr-4 py-2 rounded-full bg-transparent border border-zinc-600 focus:border-blue-400 focus:outline-none text-xs text-white placeholder-zinc-400 transition">
-                </div>
-            </div>
-
-            <!-- Participants list content -->
-            <div class="flex-1 overflow-y-auto px-4 py-2 space-y-4">
-                
-                <!-- Section: IN THE MEETING -->
-                <div>
-                    <div class="text-[11px] font-semibold text-zinc-400 tracking-wider uppercase mb-2">IN THE MEETING</div>
-                    
-                    <!-- Collapsible: Contributors (count) -->
-                    <div class="rounded-xl bg-[#282a2d]/40 border border-zinc-800/80 overflow-hidden" x-data="{ openGroup: true }">
-                        <button @click="openGroup = !openGroup" class="w-full px-3 py-2 flex items-center justify-between text-xs font-semibold text-zinc-300 hover:bg-zinc-800/50 transition">
-                            <div class="flex items-center space-x-2">
-                                <span>Contributors</span>
-                                <span class="font-normal text-zinc-400" x-text="filteredParticipants.length">1</span>
-                            </div>
-                            <svg class="w-4 h-4 text-zinc-400 transform transition-transform" :class="openGroup ? '' : 'rotate-180'" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/>
-                            </svg>
+                    </div>
+                    <h3 class="text-xl font-bold text-white mb-2">Conference Connection Issue</h3>
+                    <p class="text-sm text-zinc-400 mb-6" x-text="jitsiErrorMessage || 'Unable to initialize the conference media engine.'"></p>
+                    <div class="flex items-center space-x-3">
+                        <button type="button" @click="location.reload()" 
+                                class="flex-1 py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-medium text-xs transition shadow-md">
+                            Retry Connection
                         </button>
-
-                        <div x-show="openGroup" class="p-2 space-y-2 border-t border-zinc-800/60">
-                            
-                            <!-- Participant Row: Current User (You) -->
-                            <div class="flex items-center justify-between p-1.5 rounded-lg hover:bg-zinc-800/40 transition">
-                                <div class="flex items-center space-x-3 min-w-0">
-                                    {% if user_avatar %}
-                                    <img src="{{ user_avatar }}" alt="{{ user_display_name }}" class="w-8 h-8 rounded-full object-cover shrink-0">
-                                    {% else %}
-                                    <div class="w-8 h-8 rounded-full bg-emerald-600 text-white text-xs font-bold flex items-center justify-center shrink-0">
-                                        {{ user_initials }}
-                                    </div>
-                                    {% endif %}
-                                    <div class="min-w-0">
-                                        <div class="text-xs font-medium text-white truncate">{{ user_display_name }} (You)</div>
-                                        <div class="text-[11px] text-zinc-400">{{ user_role_label }}</div>
-                                    </div>
-                                </div>
-                                <div class="flex items-center space-x-2 text-zinc-400">
-                                    <span x-show="handRaised" class="text-xs mr-0.5" title="Your hand is raised">✋</span>
-                                    <span :class="isMuted ? 'text-zinc-400' : 'text-emerald-400'">
-                                        <template x-if="isMuted">
-                                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                                                <path d="M19 11h-1.7c0 .74-.16 1.43-.43 2.05l1.23 1.23c.56-.98.9-2.09.9-3.28zm-4.02.17c0-.06.02-.11.02-.17V5c0-1.66-1.34-3-3-3S9 3.34 9 5v.18l5.98 5.99zM4.27 3L3 4.27l6.01 6.01V11c0 1.66 1.33 3 2.99 3 .22 0 .44-.03.65-.08l1.66 1.66c-.71.33-1.5.52-2.31.52-2.76 0-5.3-2.1-5.3-5.1H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c.91-.13 1.77-.45 2.54-.9L19.73 21 21 19.73 4.27 3z"/>
-                                            </svg>
-                                        </template>
-                                        <template x-if="!isMuted">
-                                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                                                <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5-3c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
-                                            </svg>
-                                        </template>
-                                    </span>
-                                </div>
-                            </div>
-
-                            <!-- Remote Participants List -->
-                            <template x-for="peer in filteredParticipants" :key="peer.id">
-                                <div class="flex items-center justify-between p-1.5 rounded-lg hover:bg-zinc-800/40 transition" x-show="!peer.is_self">
-                                    <div class="flex items-center space-x-3 min-w-0">
-                                        <template x-if="peer.avatar">
-                                            <img :src="peer.avatar" :alt="peer.name" class="w-8 h-8 rounded-full object-cover shrink-0">
-                                        </template>
-                                        <template x-if="!peer.avatar">
-                                            <div class="w-8 h-8 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center shrink-0" x-text="peer.initials"></div>
-                                        </template>
-                                        <div class="min-w-0">
-                                            <div class="text-xs font-medium text-white truncate" x-text="peer.name"></div>
-                                            <div class="text-[11px] text-zinc-400" x-text="peer.role"></div>
-                                        </div>
-                                    </div>
-                                    <div class="flex items-center space-x-2 text-zinc-400">
-                                        <span x-show="peer.is_hand_raised" class="text-xs mr-0.5" title="Hand raised">✋</span>
-                                        <svg class="w-4 h-4 text-emerald-400" fill="currentColor" viewBox="0 0 24 24">
-                                            <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5-3c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
-                                        </svg>
-                                        {% if is_host %}
-                                        <button @click="removeParticipant(peer.id, peer.name)" class="p-1 rounded hover:bg-rose-900/50 text-zinc-400 hover:text-rose-400 transition ml-1" title="Remove participant from call">
-                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7a4 4 0 11-8 0 4 4 0 018 0zM9 14a6 6 0 00-6 6v1h12v-1a6 6 0 00-6-6zM21 12h-6"/>
-                                            </svg>
-                                        </button>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                            </template>
-
-                        </div>
+                        <a href="{% url 'workspaces:workspace_dashboard' slug=workspace.slug %}" 
+                           class="flex-1 py-3 px-4 rounded-xl bg-zinc-700 hover:bg-zinc-600 text-zinc-200 font-medium text-xs transition text-center">
+                            Return to Workspace
+                        </a>
                     </div>
                 </div>
-
-                <!-- Section: Workspace Teammates Quick Invite -->
-                {% if workspace_members %}
-                <div class="pt-2 border-t border-zinc-800">
-                    <div class="text-[11px] font-semibold text-zinc-400 tracking-wider uppercase mb-2">WORKSPACE TEAM</div>
-                    <div class="space-y-1.5">
-                        {% for m in workspace_members %}
-                        {% if m.user != request.user %}
-                        <div class="flex items-center justify-between p-1.5 rounded-lg hover:bg-zinc-800/40 text-xs">
-                            <div class="flex items-center space-x-2 min-w-0">
-                                <div class="w-6 h-6 rounded-full bg-zinc-700 text-zinc-200 text-[10px] font-bold flex items-center justify-center shrink-0">
-                                    {{ m.user.username|slice:":1"|upper }}
-                                </div>
-                                <span class="text-zinc-300 truncate">{{ m.user.get_full_name|default:m.user.username }}</span>
-                            </div>
-                            <button type="button" @click="copyShareLink()" class="text-[11px] text-blue-400 hover:text-blue-300 font-medium shrink-0">
-                                Share link
-                            </button>
-                        </div>
-                        {% endif %}
-                        {% endfor %}
-                    </div>
-                </div>
-                {% endif %}
-
-            </div>
-        </div>
-
-        <!-- Right Side Drawer 2: Host Controls Drawer (Screenshot 3) -->
-        <div x-show="showHostDrawer" 
-             x-transition:enter="transition ease-out duration-200"
-             x-transition:enter-start="translate-x-full"
-             x-transition:enter-end="translate-x-0"
-             x-transition:leave="transition ease-in duration-150"
-             x-transition:leave-start="translate-x-0"
-             x-transition:leave-end="translate-x-full"
-             class="w-80 sm:w-96 bg-[#1e1f20] border-l border-zinc-800 flex flex-col z-40 shrink-0 h-full rounded-l-2xl shadow-2xl">
-            
-            <!-- Host Controls Header (Screenshot 3) -->
-            <div class="p-4 flex items-center justify-between">
-                <h3 class="text-base font-normal text-white">Host controls</h3>
-                <button @click="showHostDrawer = false" class="text-zinc-400 hover:text-white p-1 rounded-full hover:bg-zinc-800 transition">
-                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                    </svg>
-                </button>
             </div>
 
-            <!-- Description (Screenshot 3) -->
-            <div class="px-4 pb-3 text-xs text-zinc-400 leading-relaxed">
-                Use these host settings to keep control of your meeting. Only hosts have access to these controls.
-            </div>
-
-            <div class="border-t border-zinc-800 flex-1 overflow-y-auto px-4 py-4 space-y-6">
-                
-                <!-- Section 1: MEETING MODERATION -->
-                <div class="space-y-3">
-                    <div class="text-[11px] font-semibold text-zinc-400 tracking-wider uppercase">MEETING MODERATION</div>
-                    
-                    <!-- Host Management Toggle -->
-                    <div class="flex items-start justify-between space-x-3">
-                        <div class="space-y-1">
-                            <div class="text-sm font-medium text-white">Host management</div>
-                            <div class="text-xs text-zinc-400 leading-normal">
-                                Lets you restrict what contributors can enable - like Gemini Notes and Recordings if available. 
-                                <a href="#" class="text-blue-400 hover:underline">Learn more</a>
-                            </div>
-                        </div>
-                        <label class="relative inline-flex items-center cursor-pointer shrink-0 mt-1">
-                            <input type="checkbox" x-model="hostManagementEnabled" class="sr-only peer">
-                            <div class="w-10 h-6 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                        </label>
-                    </div>
-                </div>
-
-                <!-- Section 2: LET CONTRIBUTORS -->
-                <div class="space-y-4 pt-2 border-t border-zinc-800">
-                    <div class="text-[11px] font-semibold text-zinc-400 tracking-wider uppercase">LET CONTRIBUTORS</div>
-
-                    <!-- 1. Share their screen -->
-                    <div class="flex items-center justify-between">
-                        <span class="text-sm font-medium text-white">Share their screen</span>
-                        <label class="relative inline-flex items-center cursor-pointer shrink-0">
-                            <input type="checkbox" x-model="allowScreenShare" class="sr-only peer">
-                            <div class="w-10 h-6 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                        </label>
-                    </div>
-
-                    <!-- 2. Send reactions -->
-                    <div class="flex items-center justify-between">
-                        <span class="text-sm font-medium text-white">Send reactions</span>
-                        <label class="relative inline-flex items-center cursor-pointer shrink-0">
-                            <input type="checkbox" x-model="allowReactions" class="sr-only peer">
-                            <div class="w-10 h-6 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                        </label>
-                    </div>
-
-                    <!-- 3. Turn on their microphone -->
-                    <div class="flex items-start justify-between space-x-3">
-                        <div class="space-y-1">
-                            <span class="text-sm font-medium text-white">Turn on their microphone</span>
-                            <div class="text-[11px] text-zinc-400 leading-normal">
-                                Turning this off might remove people using an outdated Meet app or non-Google meeting hardware. They can rejoin when it's turned on again.
-                            </div>
-                        </div>
-                        <label class="relative inline-flex items-center cursor-pointer shrink-0 mt-1">
-                            <input type="checkbox" x-model="allowMicrophone" class="sr-only peer">
-                            <div class="w-10 h-6 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                        </label>
-                    </div>
-
-                    <!-- 4. Turn on their video -->
-                    <div class="flex items-center justify-between">
-                        <span class="text-sm font-medium text-white">Turn on their video</span>
-                        <label class="relative inline-flex items-center cursor-pointer shrink-0">
-                            <input type="checkbox" x-model="allowVideo" class="sr-only peer">
-                            <div class="w-10 h-6 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                        </label>
-                    </div>
-
-                </div>
-
-            </div>
-        </div>
-
-        <!-- Right Side Drawer 3: In-Call Chat Drawer -->
-        <div x-show="showChatDrawer" 
-             x-transition:enter="transition ease-out duration-200"
-             x-transition:enter-start="translate-x-full"
-             x-transition:enter-end="translate-x-0"
-             x-transition:leave="transition ease-in duration-150"
-             x-transition:leave-start="translate-x-0"
-             x-transition:leave-end="translate-x-full"
-             class="w-80 sm:w-88 bg-[#1e1f20] border-l border-zinc-800 flex flex-col z-40 shrink-0 h-full rounded-l-2xl shadow-2xl">
-            
-            <div class="p-4 flex items-center justify-between border-b border-zinc-800">
-                <h3 class="text-base font-normal text-white">In-call messages</h3>
-                <button @click="showChatDrawer = false" class="text-zinc-400 hover:text-white p-1 rounded-full hover:bg-zinc-800 transition">
-                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                    </svg>
-                </button>
-            </div>
-
-            <div class="flex-1 overflow-y-auto p-4 space-y-3" id="chat-messages-container">
-                <div class="p-3 rounded-xl bg-zinc-800/40 text-[11px] text-zinc-400 text-center leading-relaxed">
-                    Messages can be seen only by people in the call and are deleted when the call ends.
-                </div>
-                
-                <template x-if="chatMessages.length === 0">
-                    <div class="text-center text-xs text-zinc-500 py-10">
-                        No messages yet. Say hello to everyone!
-                    </div>
-                </template>
-
-                <template x-for="msg in chatMessages" :key="msg.id">
-                    <div class="flex flex-col space-y-1" :class="(String(msg.sender_id) === String(selfId) || msg.is_self) ? 'items-end' : 'items-start'">
-                        <div class="flex items-center space-x-1.5 px-1">
-                            <span x-show="!(String(msg.sender_id) === String(selfId) || msg.is_self)" class="text-[11px] font-semibold text-blue-400" x-text="msg.sender"></span>
-                            <span class="text-[10px] text-zinc-500" x-text="msg.time"></span>
-                        </div>
-                        <div class="max-w-[85%] px-3.5 py-2 text-xs leading-relaxed shadow-sm break-words"
-                             :class="(String(msg.sender_id) === String(selfId) || msg.is_self) 
-                                ? 'bg-blue-600 text-white rounded-2xl rounded-tr-xs font-normal' 
-                                : 'bg-[#282a2d] text-zinc-100 rounded-2xl rounded-tl-xs border border-zinc-700/50'"
-                             x-text="msg.text"></div>
-                    </div>
-                </template>
-            </div>
-
-            <div class="p-3 border-t border-zinc-800 flex items-center space-x-2">
-                <input type="text" 
-                       x-model="newChatMessage" 
-                       @keyup.enter="sendChatMessage()"
-                       placeholder="Send a message"
-                       class="flex-1 px-4 py-2 text-xs rounded-full bg-[#282a2d] border border-zinc-700 text-white placeholder-zinc-400 focus:outline-none focus:border-blue-400">
-                <button @click="sendChatMessage()" class="p-2 rounded-full bg-blue-600 hover:bg-blue-500 text-white transition">
-                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
-                    </svg>
-                </button>
-            </div>
+            <!-- Jitsi Meet Dedicated Responsive Canvas Container -->
+            <div id="jitsi-meet-container" class="w-full h-full flex-1 rounded-2xl overflow-hidden bg-[#131314] border border-zinc-800/80 shadow-2xl"></div>
         </div>
 
     </main>
-
-    <!-- Bottom Floating Control Dock matching Screenshot 1 & Screenshot 2 -->
-    <footer class="h-20 flex items-center justify-between px-4 sm:px-6 fixed bottom-0 left-0 right-0 z-30 pointer-events-none">
-        
-        <!-- Left Section: Time & Info (on wide screens) -->
-        <div class="hidden md:flex items-center space-x-3 text-xs text-zinc-400 pointer-events-auto">
-            <span class="font-mono bg-[#1e1f20] px-2.5 py-1 rounded-lg border border-zinc-800/80" x-text="formatTimer(timerSeconds)">00:00:00</span>
-        </div>
-
-        <!-- Center Section: Main Floating Google Meet Dock (Screenshot 1 & Screenshot 2) -->
-        <div class="pointer-events-auto mx-auto flex items-center space-x-2 sm:space-x-3 bg-[#1e1f20]/95 backdrop-blur-md px-3 py-2 rounded-full border border-zinc-800/70 shadow-2xl relative">
-            
-            <!-- 1. Split Microphone Button (Screenshot 1 & 2) -->
-            <div class="flex items-center rounded-full overflow-hidden transition-all shadow-sm"
-                 :class="isMuted ? 'bg-[#5c130d] border border-rose-900/40' : 'bg-[#3c4043] border border-zinc-700/60'">
-                <!-- Dropdown chevron part -->
-                <button @click="toggleAudioSettings()" 
-                        class="px-2.5 py-2.5 transition flex items-center justify-center"
-                        :class="isMuted ? 'text-[#f9dedc] hover:bg-[#7a1910]' : 'text-zinc-200 hover:bg-[#4a4e52]'"
-                        title="Microphone settings">
-                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 15l7-7 7 7"/>
-                    </svg>
-                </button>
-                <!-- Main toggle part -->
-                <button @click="toggleMute()" 
-                        class="p-2.5 rounded-full transition flex items-center justify-center"
-                        :class="isMuted ? 'bg-[#f9dedc] text-[#601410] hover:bg-[#f2b8b5]' : 'bg-[#3c4043] text-white hover:bg-[#4a4e52]'"
-                        :title="isMuted ? 'Turn on microphone (m)' : 'Turn off microphone (m)'">
-                    <template x-if="isMuted">
-                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M19 11h-1.7c0 .74-.16 1.43-.43 2.05l1.23 1.23c.56-.98.9-2.09.9-3.28zm-4.02.17c0-.06.02-.11.02-.17V5c0-1.66-1.34-3-3-3S9 3.34 9 5v.18l5.98 5.99zM4.27 3L3 4.27l6.01 6.01V11c0 1.66 1.33 3 2.99 3 .22 0 .44-.03.65-.08l1.66 1.66c-.71.33-1.5.52-2.31.52-2.76 0-5.3-2.1-5.3-5.1H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c.91-.13 1.77-.45 2.54-.9L19.73 21 21 19.73 4.27 3z"/>
-                        </svg>
-                    </template>
-                    <template x-if="!isMuted">
-                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5-3c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
-                        </svg>
-                    </template>
-                </button>
-            </div>
-
-            <!-- 2. Split Camera Button (Screenshot 1 & 2) -->
-            <div class="flex items-center rounded-full overflow-hidden transition-all shadow-sm"
-                 :class="!isCameraOn ? 'bg-[#5c130d] border border-rose-900/40' : 'bg-[#3c4043] border border-zinc-700/60'">
-                <!-- Dropdown chevron part -->
-                <button @click="toggleCameraSettings()" 
-                        class="px-2.5 py-2.5 transition flex items-center justify-center"
-                        :class="!isCameraOn ? 'text-[#f9dedc] hover:bg-[#7a1910]' : 'text-zinc-200 hover:bg-[#4a4e52]'"
-                        title="Camera settings">
-                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 15l7-7 7 7"/>
-                    </svg>
-                </button>
-                <!-- Main toggle part -->
-                <button @click="toggleCamera()" 
-                        class="p-2.5 rounded-full transition flex items-center justify-center"
-                        :class="!isCameraOn ? 'bg-[#f9dedc] text-[#601410] hover:bg-[#f2b8b5]' : 'bg-[#3c4043] text-white hover:bg-[#4a4e52]'"
-                        :title="isCameraOn ? 'Turn off camera (v)' : 'Turn on camera (v)'">
-                    <template x-if="!isCameraOn">
-                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M21 6.5l-4 4V7c0-.55-.45-1-1-1H9.82L21 17.18V6.5zM3.27 2L2 3.27 4.73 6H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.21 0 .39-.08.55-.18L19.73 21 21 19.73 3.27 2zM5 16V8h1.73l8 8H5z"/>
-                        </svg>
-                    </template>
-                    <template x-if="isCameraOn">
-                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/>
-                        </svg>
-                    </template>
-                </button>
-            </div>
-
-            <!-- 3. Screen Share Pill [↑] -->
-            <button @click="toggleScreenShare()" 
-                    :class="screenSharing ? 'bg-blue-600 text-white' : 'bg-[#3c4043] hover:bg-[#4a4e52] text-white'"
-                    class="p-3 rounded-full transition flex items-center justify-center shadow-sm"
-                    title="Present now">
-                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <rect x="2" y="3" width="20" height="14" rx="2" stroke-width="2"/>
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 12V7m0 0l-2.5 2.5M12 7l2.5 2.5M8 21h8"/>
-                </svg>
-            </button>
-
-            <!-- 4. Emoji Reactions with Popover Bar (Exact Screenshot 2) -->
-            <div class="relative">
-                <button @click="showReactionPicker = !showReactionPicker" 
-                        :class="showReactionPicker ? 'bg-[#a8c7fa] text-[#041e49]' : 'bg-[#3c4043] hover:bg-[#4a4e52] text-white'"
-                        class="p-3 rounded-full transition flex items-center justify-center shadow-sm"
-                        title="Send a reaction">
-                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <circle cx="12" cy="12" r="10" stroke-width="2"/>
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 14s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01"/>
-                    </svg>
-                </button>
-
-                <!-- Floating Reactions Popover Bar (Exact match for Screenshot 2) -->
-                <div x-show="showReactionPicker" 
-                     @click.away="showReactionPicker = false" 
-                     x-transition:enter="transition ease-out duration-150"
-                     x-transition:enter-start="opacity-0 -translate-y-2"
-                     x-transition:enter-end="opacity-100 translate-y-0"
-                     class="absolute bottom-16 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-[#202124] border border-zinc-700/80 shadow-2xl flex items-center space-x-2 z-50 whitespace-nowrap">
-                    
-                    <!-- 9 Standard Google Meet Reactions -->
-                    <button @click="triggerReaction('💖'); showReactionPicker = false" class="text-xl hover:scale-125 transition-transform p-1" title="Heart">💖</button>
-                    <button @click="triggerReaction('👍'); showReactionPicker = false" class="text-xl hover:scale-125 transition-transform p-1" title="Thumbs up">👍</button>
-                    <button @click="triggerReaction('🎉'); showReactionPicker = false" class="text-xl hover:scale-125 transition-transform p-1" title="Party popper">🎉</button>
-                    <button @click="triggerReaction('👏'); showReactionPicker = false" class="text-xl hover:scale-125 transition-transform p-1" title="Clapping">👏</button>
-                    <button @click="triggerReaction('😂'); showReactionPicker = false" class="text-xl hover:scale-125 transition-transform p-1" title="Joy">😂</button>
-                    <button @click="triggerReaction('😮'); showReactionPicker = false" class="text-xl hover:scale-125 transition-transform p-1" title="Surprise">😮</button>
-                    <button @click="triggerReaction('😢'); showReactionPicker = false" class="text-xl hover:scale-125 transition-transform p-1" title="Sad">😢</button>
-                    <button @click="triggerReaction('🤔'); showReactionPicker = false" class="text-xl hover:scale-125 transition-transform p-1" title="Thinking">🤔</button>
-                    <button @click="triggerReaction('👎'); showReactionPicker = false" class="text-xl hover:scale-125 transition-transform p-1" title="Thumbs down">👎</button>
-
-                    <!-- Skin tone selector dot (Screenshot 2 right side) -->
-                    <span class="w-5 h-5 rounded-full bg-[#d7b89c] border border-black/40 inline-block shrink-0 cursor-pointer ml-1" title="Skin tone selector"></span>
-                </div>
-            </div>
-
-            <!-- 5. Closed Captions [CC] -->
-            <button @click="toggleCaptions()" 
-                    :class="captionsEnabled ? 'bg-blue-600 text-white' : 'bg-[#3c4043] hover:bg-[#4a4e52] text-white'"
-                    class="p-3 rounded-full transition flex items-center justify-center font-bold text-xs shadow-sm"
-                    title="Turn on captions (c)">
-                <span class="font-mono text-xs tracking-tighter">CC</span>
-            </button>
-
-            <!-- 6. Raise Hand ✋ -->
-            <button @click="toggleHandRaise()" 
-                    :class="handRaised ? 'bg-[#a8c7fa] text-[#041e49]' : 'bg-[#3c4043] hover:bg-[#4a4e52] text-white'"
-                    class="p-3 rounded-full transition flex items-center justify-center shadow-sm"
-                    title="Raise hand">
-                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 11.5V14m0-2.5v-6a1.5 1.5 0 113 0m-3 6a1.5 1.5 0 00-3 0v2a7.5 7.5 0 0015 0v-5a1.5 1.5 0 00-3 0m-6-3V4a1.5 1.5 0 013 0v4m0 0V3a1.5 1.5 0 013 0v7"/>
-                </svg>
-            </button>
-
-            <!-- 7. More Options ⋮ -->
-            <div class="relative" x-data="{ openMore: false }">
-                <button @click="openMore = !openMore" 
-                        class="p-3 rounded-full bg-[#3c4043] hover:bg-[#4a4e52] text-white transition flex items-center justify-center shadow-sm"
-                        title="More options">
-                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                        <circle cx="12" cy="5" r="2"/>
-                        <circle cx="12" cy="12" r="2"/>
-                        <circle cx="12" cy="19" r="2"/>
-                    </svg>
-                </button>
-
-                <!-- More Options Popover Menu -->
-                <div x-show="openMore" 
-                     @click.away="openMore = false" 
-                     x-transition:enter="transition ease-out duration-150"
-                     x-transition:enter-start="opacity-0 scale-95"
-                     x-transition:enter-end="opacity-100 scale-100"
-                     class="absolute bottom-16 right-0 w-60 py-2 rounded-2xl bg-[#202124] border border-zinc-700/80 shadow-2xl z-50 text-xs">
-                    <button @click="toggleFullscreen(); openMore = false" class="w-full px-4 py-2.5 text-left text-zinc-200 hover:bg-zinc-700/60 flex items-center space-x-2.5 transition">
-                        <svg class="w-4 h-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>
-                        </svg>
-                        <span x-text="isFullscreen ? 'Exit full screen' : 'Full screen'">Full screen</span>
-                    </button>
-                    <button @click="copyShareLink(); openMore = false" class="w-full px-4 py-2.5 text-left text-zinc-200 hover:bg-zinc-700/60 flex items-center space-x-2.5 transition">
-                        <svg class="w-4 h-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
-                        </svg>
-                        <span>Copy meeting link</span>
-                    </button>
-                    {% if is_host %}
-                    <div class="my-1 border-t border-zinc-700/60"></div>
-                    <button @click="showHostDrawer = true; openMore = false" class="w-full px-4 py-2.5 text-left text-zinc-200 hover:bg-zinc-700/60 flex items-center space-x-2.5 transition">
-                        <svg class="w-4 h-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
-                        </svg>
-                        <span>Host controls</span>
-                    </button>
-                    {% endif %}
-                </div>
-            </div>
-
-            <!-- 8. End Call Red Pill Button (Screenshot 1 & 2) -->
-            <button @click="leaveOrEndMeeting()" 
-                    class="px-6 py-2.5 rounded-full bg-[#ea4335] hover:bg-[#d93025] text-white flex items-center justify-center shadow-lg transition"
-                    title="Leave call">
-                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M12 9c-1.6 0-3.15.25-4.6.72v3.1c0 .39-.23.74-.56.9-.98.49-1.87 1.12-2.66 1.85-.18.18-.43.28-.7.28-.28 0-.53-.11-.71-.29L.29 13.08c-.18-.17-.29-.42-.29-.7 0-.28.11-.53.29-.71C3.34 8.78 7.46 7 12 7s8.66 1.78 11.71 4.67c.18.18.29.43.29.71 0 .28-.11.53-.29.71l-2.48 2.48c-.18.18-.43.29-.71.29-.27 0-.52-.11-.7-.28-.79-.74-1.69-1.36-2.67-1.85-.33-.16-.56-.5-.56-.9v-3.1C15.15 9.25 13.6 9 12 9z"/>
-                </svg>
-            </button>
-
-        </div>
-
-        <!-- Right Auxiliary Buttons Cluster (Screenshot 1 bottom-right) -->
-        <div class="pointer-events-auto flex items-center space-x-2 text-zinc-300">
-            <!-- 1. In-call Chat Button 💬 -->
-            <button @click="showChatDrawer = !showChatDrawer; showPeopleDrawer = false; showHostDrawer = false" 
-                    :class="showChatDrawer ? 'bg-[#a8c7fa] text-[#041e49]' : 'text-zinc-300 hover:text-white hover:bg-zinc-800'"
-                    class="p-2.5 rounded-full transition flex items-center justify-center relative"
-                    title="Chat with everyone">
-                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
-                </svg>
-            </button>
-
-            <!-- 2. Host Controls Lock Button 🔒 (Screenshot 1 bottom-right) -->
-            <button @click="showHostDrawer = !showHostDrawer; showPeopleDrawer = false; showChatDrawer = false" 
-                    :class="showHostDrawer ? 'bg-[#a8c7fa] text-[#041e49]' : 'text-zinc-300 hover:text-white hover:bg-zinc-800'"
-                    class="p-2.5 rounded-full transition flex items-center justify-center"
-                    title="Host controls">
-                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
-                </svg>
-            </button>
-        </div>
-
-    </footer>
-
-    <!-- Hidden Jitsi container element to maintain backward compatibility and test assertions -->
-    <div id="jitsi-meet-container" class="hidden"></div>
 </div>
 
 <script>
-function googleMeetRoomState() {
+function aetherMeetRoomState() {
     return {
-        // Timers and UI State
         timerSeconds: 0,
         timerInterval: null,
         currentTimeStr: '',
-        isFullscreen: false,
-        isMuted: true,
-        isCameraOn: false,
-        screenSharing: false,
-        showPeopleDrawer: false,
-        showHostDrawer: false,
-        showChatDrawer: false,
-        showReactionPicker: false,
-        captionsEnabled: false,
-        handRaised: false,
-        speechSupported: ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window),
-        liveCaptionText: '',
-        captionClearTimer: null,
-        speechRecognition: null,
-        copiedShareNotice: false,
-        peopleSearchQuery: '',
-        permissionError: '',
-        connectionStatus: 'connecting', // 'connecting' | 'connected' | 'reconnecting' | 'failed'
-
-        // Host settings (Screenshot 3)
-        hostManagementEnabled: true,
-        allowScreenShare: true,
-        allowReactions: true,
-        allowMicrophone: true,
-        allowVideo: true,
         isHost: {{ is_host|yesno:"true,false" }},
+        jitsiApi: null,
+        jitsiError: false,
+        jitsiErrorMessage: '',
+        participantsCount: 1,
+        duplicateTabWarning: false,
+        meetingChannel: null,
+        copiedShareNotice: false,
+        isLeaving: false,
+        callEnded: false,
+        callEndedMessage: '',
 
-        // Participant Identifiers & Roster
-        selfId: "{{ user_id_str }}",
-        participants: {{ participants_json|safe|default:'[]' }},
-        get remoteParticipants() {
-            return this.participants.filter(p => !p.is_self && String(p.id) !== String(this.selfId));
-        },
-        get filteredParticipants() {
-            if (!this.peopleSearchQuery.trim()) {
-                return this.participants;
-            }
-            const q = this.peopleSearchQuery.toLowerCase();
-            return this.participants.filter(p => p.name.toLowerCase().includes(q) || (p.role && p.role.toLowerCase().includes(q)));
-        },
-        get totalParticipantsCount() {
-            return this.participants.length || 1;
-        },
-
-        // WebRTC & Media Engine
-        localStream: null,
-        screenStream: null,
-        ws: null,
-        wsConnected: false,
-        rtcConfig: { iceServers: {{ ice_servers_json|safe|default:'[]' }} },
-        peerConnections: {},    // peerId -> RTCPeerConnection
-        iceCandidatesQueue: {}, // peerId -> Array of RTCIceCandidate
-        remoteStreams: {},      // peerId -> MediaStream
-
-        // Chat & Floating Reactions
-        floatingReactions: [],
-        reactionCounter: 0,
-        newChatMessage: '',
-        chatMessages: [],
-
-        async init() {
+        init() {
             // Live clock time
             this.updateClock();
             setInterval(() => this.updateClock(), 1000);
@@ -922,20 +306,50 @@ function googleMeetRoomState() {
                 this.timerSeconds++;
             }, 1000);
 
-            document.addEventListener('fullscreenchange', () => {
-                this.isFullscreen = !!document.fullscreenElement;
+            // Multi-tab session check to prevent acoustic echo / feedback
+            if ('BroadcastChannel' in window) {
+                try {
+                    this.meetingChannel = new BroadcastChannel('aether_meet_{{ meeting.meeting_code }}');
+                    this.meetingChannel.postMessage({ type: 'tab_ping' });
+                    this.meetingChannel.onmessage = (event) => {
+                        if (event.data && event.data.type === 'tab_ping') {
+                            this.duplicateTabWarning = true;
+                            this.meetingChannel.postMessage({ type: 'tab_pong' });
+                        } else if (event.data && event.data.type === 'tab_pong') {
+                            this.duplicateTabWarning = true;
+                        }
+                    };
+                } catch (e) {}
+            }
+
+            // Initialize Jitsi Meet media engine
+            this.initJitsi();
+
+            // Accidental closure, back navigation, or refresh warning
+            window.addEventListener('beforeunload', (e) => {
+                if (!this.isLeaving && !this.callEnded) {
+                    e.preventDefault();
+                    e.returnValue = 'You are currently in an active meeting. Are you sure you want to leave?';
+                    return e.returnValue;
+                }
             });
 
-            // 1. Connect immediately to Django Channels signaling WebSocket (<50ms presence)
-            this.initWebSocket();
-
-            // 2. Concurrently acquire local microphone and webcam
-            this.initLocalMedia();
-
-            // 3. Cleanup on tab close / reload
-            window.addEventListener('beforeunload', () => {
-                this.cleanupMediaAndPeers();
+            // Cleanly record attendance departure when page is unloaded
+            window.addEventListener('pagehide', () => {
+                this.leaveMeeting('leave', true);
             });
+        },
+
+        popOutWindow() {
+            const width = 1280;
+            const height = 750;
+            const left = Math.max(0, (window.screen.width - width) / 2);
+            const top = Math.max(0, (window.screen.height - height) / 2);
+            window.open(
+                window.location.href,
+                'aether_meet_companion_{{ meeting.meeting_code }}',
+                `width=${width},height=${height},left=${left},top=${top},menubar=no,toolbar=no,location=no,status=no,resizable=yes`
+            );
         },
 
         updateClock() {
@@ -943,8 +357,7 @@ function googleMeetRoomState() {
             let hours = d.getHours();
             const minutes = String(d.getMinutes()).padStart(2, '0');
             const ampm = hours >= 12 ? 'PM' : 'AM';
-            hours = hours % 12;
-            hours = hours ? hours : 12;
+            hours = hours % 12 || 12;
             this.currentTimeStr = `${hours}:${minutes} ${ampm}`;
         },
 
@@ -955,810 +368,205 @@ function googleMeetRoomState() {
             return `${h}:${m}:${s}`;
         },
 
-        // ------------------------------------------------------------------
-        // Media Stream Initialization
-        // ------------------------------------------------------------------
-
-        async initLocalMedia() {
-            try {
-                this.localStream = await navigator.mediaDevices.getUserMedia({
-                    audio: true,
-                    video: { width: { ideal: 1280 }, height: { ideal: 720 } }
-                });
-                this.isMuted = false;
-                this.isCameraOn = true;
-                const localVideo = document.getElementById('local-video');
-                if (localVideo) {
-                    localVideo.srcObject = this.localStream;
-                }
-            } catch (err) {
-                console.warn("Could not acquire default video/audio stream:", err);
-                try {
-                    // Fallback to audio only if webcam is unavailable
-                    this.localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                    this.isMuted = false;
-                    this.isCameraOn = false;
-                } catch (aErr) {
-                    console.warn("Microphone also denied:", aErr);
-                    this.isMuted = true;
-                    this.isCameraOn = false;
-                    this.permissionError = "Microphone and camera permissions were denied. You are in listening mode.";
-                }
-            }
-
-            // If any RTCPeerConnections were created during parallel join, attach local tracks
-            if (this.localStream) {
-                this.localStream.getTracks().forEach(track => {
-                    Object.values(this.peerConnections).forEach(pc => {
-                        const vt = pc.getTransceivers().find(t => t.receiver && t.receiver.track && t.receiver.track.kind === track.kind);
-                        if (vt && vt.sender) {
-                            vt.sender.replaceTrack(track);
-                        } else {
-                            try { pc.addTrack(track, this.localStream); } catch(e){}
-                        }
-                    });
-                });
-            }
-
-            // Sync media state to all peers
-            this.sendWs({
-                type: 'media_state',
-                is_muted: this.isMuted,
-                is_camera_on: this.isCameraOn,
-                screen_sharing: this.screenSharing,
-                is_hand_raised: this.handRaised
-            });
-        },
-
-        // ------------------------------------------------------------------
-        // WebSocket Signaling
-        // ------------------------------------------------------------------
-
-        initWebSocket() {
-            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const wsUrl = `${protocol}//${window.location.host}/ws/meetings/{{ workspace.slug }}/{{ meeting.meeting_code }}/`;
-
-            try {
-                this.ws = new WebSocket(wsUrl);
-
-                this.ws.onopen = () => {
-                    this.wsConnected = true;
-                    this.connectionStatus = 'connected';
-                    // Broadcast initial local media status
-                    this.sendWs({
-                        type: 'media_state',
-                        is_muted: this.isMuted,
-                        is_camera_on: this.isCameraOn,
-                        screen_sharing: this.screenSharing,
-                        is_hand_raised: this.handRaised
-                    });
-                };
-
-                this.ws.onmessage = async (event) => {
-                    try {
-                        const data = JSON.parse(event.data);
-                        await this.handleWsMessage(data);
-                    } catch (e) {
-                        console.error("Error processing signaling message:", e);
-                    }
-                };
-
-                this.ws.onerror = (err) => {
-                    console.warn("Meeting signaling WebSocket error:", err);
-                };
-
-                this.ws.onclose = (event) => {
-                    this.wsConnected = false;
-                    if (event.code === 4001 || event.code === 4003) {
-                        this.connectionStatus = 'failed';
-                    } else if (event.code !== 1000) {
-                        this.connectionStatus = 'reconnecting';
-                        setTimeout(() => {
-                            this.initWebSocket();
-                        }, 3000);
-                    }
-                };
-            } catch (err) {
-                console.error("Could not construct WebSocket:", err);
-                this.connectionStatus = 'failed';
-            }
-        },
-
-        sendWs(payload) {
-            if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-                this.ws.send(JSON.stringify(payload));
-            }
-        },
-
-        async handleWsMessage(data) {
-            switch (data.type) {
-                case 'room_state':
-                    if (Array.isArray(data.peers)) {
-                        data.peers.forEach(peer => {
-                            this.upsertPeer(peer);
-                        });
-                    }
-                    break;
-
-                case 'peer_joined':
-                    const newPeer = data.peer;
-                    if (String(newPeer.id) !== String(this.selfId)) {
-                        this.upsertPeer(newPeer);
-                        // Active participant initiates SDP offer to newly arrived peer
-                        await this.callPeer(newPeer.id);
-                    }
-                    break;
-
-                case 'peer_left':
-                    this.removePeer(data.peer_id);
-                    break;
-
-                case 'signal_offer':
-                    await this.handleOffer(data.sender_id, data.sdp);
-                    break;
-
-                case 'signal_answer':
-                    await this.handleAnswer(data.sender_id, data.sdp);
-                    break;
-
-                case 'signal_ice':
-                    await this.handleIceCandidate(data.sender_id, data.candidate);
-                    break;
-
-                case 'media_state':
-                    this.updatePeerMediaState(data.sender_id, data.media_state);
-                    break;
-
-                case 'meeting_chat':
-                    // Avoid duplicating message if user already rendered optimistic push
-                    if (String(data.message.sender_id) === String(this.selfId)) {
-                        const existing = this.chatMessages.find(m => m.text === data.message.text && (m.is_self || String(m.sender_id) === String(this.selfId)));
-                        if (existing) break;
-                    }
-                    this.chatMessages.push(data.message);
-                    this.$nextTick(() => {
-                        const c = document.getElementById('chat-messages-container');
-                        if (c) c.scrollTop = c.scrollHeight;
-                    });
-                    break;
-
-                case 'meeting_reaction':
-                    this.renderFloatingReaction(data.emoji);
-                    break;
-
-                case 'caption_broadcast':
-                    this.liveCaptionText = `${data.sender_name}: ${data.text}`;
-                    if (this.captionClearTimer) clearTimeout(this.captionClearTimer);
-                    this.captionClearTimer = setTimeout(() => {
-                        this.liveCaptionText = '';
-                    }, 4000);
-                    break;
-
-                case 'kicked':
-                    alert(data.message || "You have been removed from this meeting by the host.");
-                    window.location.href = "{% url 'meetings:meet_hub' slug=workspace.slug %}";
-                    break;
-
-                case 'meeting_ended':
-                    alert(data.message || "The meeting has been ended by the host.");
-                    window.location.href = "{% url 'meetings:meet_hub' slug=workspace.slug %}";
-                    break;
-            }
-        },
-
-        upsertPeer(peer) {
-            if (String(peer.id) === String(this.selfId)) return;
-            const existing = this.participants.find(p => String(p.id) === String(peer.id));
-            if (existing) {
-                Object.assign(existing, peer);
-            } else {
-                this.participants.push({
-                    id: String(peer.id),
-                    name: peer.name,
-                    initials: peer.initials,
-                    email: peer.email || '',
-                    avatar: peer.avatar || '',
-                    role: peer.role || 'Contributor',
-                    is_self: false,
-                    is_muted: peer.is_muted !== undefined ? peer.is_muted : false,
-                    is_camera_on: peer.is_camera_on !== undefined ? peer.is_camera_on : true,
-                    screen_sharing: peer.screen_sharing || false,
-                    is_hand_raised: peer.is_hand_raised || false,
-                });
-            }
-        },
-
-        removePeer(peerId) {
-            const pid = String(peerId);
-            if (this.peerConnections[pid]) {
-                try {
-                    this.peerConnections[pid].close();
-                } catch(e){}
-                delete this.peerConnections[pid];
-            }
-            delete this.iceCandidatesQueue[pid];
-            delete this.remoteStreams[pid];
-
-            this.participants = this.participants.filter(p => String(p.id) !== pid);
-        },
-
-        updatePeerMediaState(peerId, state) {
-            const peer = this.participants.find(p => String(p.id) === String(peerId));
-            if (peer && state) {
-                if (state.is_muted !== undefined) peer.is_muted = state.is_muted;
-                if (state.is_camera_on !== undefined) peer.is_camera_on = state.is_camera_on;
-                if (state.screen_sharing !== undefined) peer.screen_sharing = state.screen_sharing;
-                if (state.is_hand_raised !== undefined) peer.is_hand_raised = state.is_hand_raised;
-            }
-        },
-
-        // ------------------------------------------------------------------
-        // Full-Mesh WebRTC RTCPeerConnection Lifecycle
-        // ------------------------------------------------------------------
-
-        createPeerConnection(peerId) {
-            const pid = String(peerId);
-            if (this.peerConnections[pid]) {
-                return this.peerConnections[pid];
-            }
-
-            const pc = new RTCPeerConnection(this.rtcConfig);
-            this.peerConnections[pid] = pc;
-            this.iceCandidatesQueue[pid] = [];
-
-            // Add dedicated transceivers for audio and video
-            // This guarantees SDP offer/answer negotiate both m-lines immediately
-            try {
-                pc.addTransceiver('audio', { direction: 'sendrecv' });
-                pc.addTransceiver('video', { direction: 'sendrecv' });
-            } catch(e) {
-                console.warn("Transceiver initialization notice:", e);
-            }
-
-            // If local tracks are already active, attach them to transceivers
-            if (this.screenSharing && this.screenStream) {
-                const screenTrack = this.screenStream.getVideoTracks()[0];
-                if (screenTrack) {
-                    const vt = pc.getTransceivers().find(t => t.receiver && t.receiver.track && t.receiver.track.kind === 'video');
-                    if (vt && vt.sender) {
-                        vt.sender.replaceTrack(screenTrack);
-                    } else {
-                        pc.addTrack(screenTrack, this.screenStream);
-                    }
-                }
-            } else if (this.localStream) {
-                this.localStream.getTracks().forEach(track => {
-                    const transceiver = pc.getTransceivers().find(t => t.receiver && t.receiver.track && t.receiver.track.kind === track.kind);
-                    if (transceiver && transceiver.sender) {
-                        transceiver.sender.replaceTrack(track);
-                    } else {
-                        pc.addTrack(track, this.localStream);
-                    }
-                });
-            }
-
-            // ICE candidate exchange
-            pc.onicecandidate = (event) => {
-                if (event.candidate) {
-                    this.sendWs({
-                        type: 'signal_ice',
-                        target_id: pid,
-                        candidate: event.candidate
-                    });
-                }
-            };
-
-            // Remote Track Arrival
-            pc.ontrack = (event) => {
-                if (!this.remoteStreams[pid]) {
-                    this.remoteStreams[pid] = new MediaStream();
-                }
-                this.remoteStreams[pid].addTrack(event.track);
-
-                this.$nextTick(() => {
-                    const videoEl = document.getElementById('remote-video-' + pid);
-                    const audioEl = document.getElementById('remote-audio-' + pid);
-                    if (videoEl && event.track.kind === 'video') {
-                        videoEl.srcObject = this.remoteStreams[pid];
-                        videoEl.play().catch(e => console.warn("Video autoplay note:", e));
-                    }
-                    if (audioEl && event.track.kind === 'audio') {
-                        audioEl.srcObject = this.remoteStreams[pid];
-                        audioEl.play().catch(e => console.warn("Audio autoplay note:", e));
-                    }
-                });
-
-                event.track.onmute = () => {
-                    const peer = this.participants.find(p => String(p.id) === pid);
-                    if (peer && event.track.kind === 'video') {
-                        peer.is_camera_on = false;
-                    }
-                };
-                event.track.onunmute = () => {
-                    const peer = this.participants.find(p => String(p.id) === pid);
-                    if (peer && event.track.kind === 'video') {
-                        peer.is_camera_on = true;
-                    }
-                };
-            };
-
-            pc.onconnectionstatechange = () => {
-                if (pc.connectionState === 'failed') {
-                    console.warn(`ICE connection failed with peer ${pid}, attempting restart...`);
-                    if (pc.restartIce) {
-                        pc.restartIce();
-                    }
-                }
-            };
-
-            return pc;
-        },
-
-        async callPeer(peerId) {
-            const pid = String(peerId);
-            try {
-                const pc = this.createPeerConnection(pid);
-                const offer = await pc.createOffer({
-                    offerToReceiveAudio: true,
-                    offerToReceiveVideo: true
-                });
-                await pc.setLocalDescription(offer);
-                this.sendWs({
-                    type: 'signal_offer',
-                    target_id: pid,
-                    sdp: offer
-                });
-            } catch (err) {
-                console.error("Error creating WebRTC offer:", err);
-            }
-        },
-
-        async handleOffer(senderId, sdp) {
-            const pid = String(senderId);
-            try {
-                const pc = this.createPeerConnection(pid);
-                await pc.setRemoteDescription(new RTCSessionDescription(sdp));
-
-                // Process queued ICE candidates
-                if (this.iceCandidatesQueue[pid]) {
-                    while (this.iceCandidatesQueue[pid].length > 0) {
-                        const cand = this.iceCandidatesQueue[pid].shift();
-                        try {
-                            await pc.addIceCandidate(new RTCIceCandidate(cand));
-                        } catch(e){}
-                    }
-                }
-
-                const answer = await pc.createAnswer();
-                await pc.setLocalDescription(answer);
-                this.sendWs({
-                    type: 'signal_answer',
-                    target_id: pid,
-                    sdp: answer
-                });
-            } catch (err) {
-                console.error("Error handling WebRTC offer:", err);
-            }
-        },
-
-        async handleAnswer(senderId, sdp) {
-            const pid = String(senderId);
-            try {
-                const pc = this.peerConnections[pid];
-                if (pc) {
-                    await pc.setRemoteDescription(new RTCSessionDescription(sdp));
-                    if (this.iceCandidatesQueue[pid]) {
-                        while (this.iceCandidatesQueue[pid].length > 0) {
-                            const cand = this.iceCandidatesQueue[pid].shift();
-                            try {
-                                await pc.addIceCandidate(new RTCIceCandidate(cand));
-                            } catch(e){}
-                        }
-                    }
-                }
-            } catch (err) {
-                console.error("Error handling WebRTC answer:", err);
-            }
-        },
-
-        async handleIceCandidate(senderId, candidate) {
-            const pid = String(senderId);
-            try {
-                const pc = this.peerConnections[pid];
-                if (pc && pc.remoteDescription && pc.remoteDescription.type) {
-                    await pc.addIceCandidate(new RTCIceCandidate(candidate));
-                } else {
-                    if (!this.iceCandidatesQueue[pid]) {
-                        this.iceCandidatesQueue[pid] = [];
-                    }
-                    this.iceCandidatesQueue[pid].push(candidate);
-                }
-            } catch (err) {
-                console.error("Error handling ICE candidate:", err);
-            }
-        },
-
-        // ------------------------------------------------------------------
-        // Media Controls: Microphone, Camera, Screen Share
-        // ------------------------------------------------------------------
-
-        async toggleMute() {
-            if (this.isMuted) {
-                // Unmuting
-                if (!this.localStream || !this.localStream.getAudioTracks().length) {
-                    try {
-                        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                        const track = stream.getAudioTracks()[0];
-                        if (this.localStream) {
-                            this.localStream.addTrack(track);
-                        } else {
-                            this.localStream = stream;
-                        }
-                        // Add track to all active peer connections
-                        Object.values(this.peerConnections).forEach(pc => {
-                            pc.addTrack(track, this.localStream);
-                        });
-                        this.isMuted = false;
-                    } catch (err) {
-                        alert("Could not access microphone: " + err.message);
-                        this.isMuted = true;
-                        return;
-                    }
-                } else {
-                    this.localStream.getAudioTracks().forEach(t => t.enabled = true);
-                    this.isMuted = false;
-                }
-            } else {
-                // Muting
-                if (this.localStream) {
-                    this.localStream.getAudioTracks().forEach(t => t.enabled = false);
-                }
-                this.isMuted = true;
-            }
-
-            this.sendWs({
-                type: 'media_state',
-                is_muted: this.isMuted,
-                is_camera_on: this.isCameraOn,
-                screen_sharing: this.screenSharing,
-                is_hand_raised: this.handRaised
-            });
-        },
-
-        async toggleCamera() {
-            if (this.isCameraOn) {
-                // Turning Camera OFF
-                if (this.localStream) {
-                    this.localStream.getVideoTracks().forEach(track => {
-                        track.stop();
-                        this.localStream.removeTrack(track);
-                    });
-                }
-                // Replace video track with null on all peer connections
-                Object.values(this.peerConnections).forEach(pc => {
-                    const vt = pc.getTransceivers().find(t => t.receiver && t.receiver.track && t.receiver.track.kind === 'video');
-                    if (vt && vt.sender) {
-                        vt.sender.replaceTrack(null);
-                    }
-                });
-                const videoEl = document.getElementById('local-video');
-                if (videoEl) videoEl.srcObject = null;
-                this.isCameraOn = false;
-            } else {
-                // Turning Camera ON
-                try {
-                    const stream = await navigator.mediaDevices.getUserMedia({
-                        video: { width: { ideal: 1280 }, height: { ideal: 720 } }
-                    });
-                    const newVideoTrack = stream.getVideoTracks()[0];
-                    if (this.localStream) {
-                        this.localStream.addTrack(newVideoTrack);
-                    } else {
-                        this.localStream = stream;
-                    }
-                    const videoEl = document.getElementById('local-video');
-                    if (videoEl) videoEl.srcObject = this.localStream;
-
-                    // If not currently screen sharing, broadcast new camera track to all peers
-                    if (!this.screenSharing) {
-                        Object.values(this.peerConnections).forEach(pc => {
-                            const vt = pc.getTransceivers().find(t => t.receiver && t.receiver.track && t.receiver.track.kind === 'video');
-                            if (vt && vt.sender) {
-                                vt.sender.replaceTrack(newVideoTrack);
-                            } else {
-                                try { pc.addTrack(newVideoTrack, this.localStream); } catch(e){}
-                            }
-                        });
-                    }
-                    this.isCameraOn = true;
-                } catch (err) {
-                    alert("Could not access camera device: " + err.message);
-                    this.isCameraOn = false;
-                    return;
-                }
-            }
-
-            this.sendWs({
-                type: 'media_state',
-                is_muted: this.isMuted,
-                is_camera_on: this.isCameraOn,
-                screen_sharing: this.screenSharing,
-                is_hand_raised: this.handRaised
-            });
-        },
-
-        async toggleScreenShare() {
-            if (!this.screenSharing) {
-                try {
-                    this.screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
-                    const screenTrack = this.screenStream.getVideoTracks()[0];
-                    const screenVideo = document.getElementById('screen-video');
-                    if (screenVideo) {
-                        screenVideo.srcObject = this.screenStream;
-                    }
-                    this.screenSharing = true;
-
-                    // Replace video transceiver sender track on all RTCPeerConnections
-                    Object.values(this.peerConnections).forEach(pc => {
-                        const vt = pc.getTransceivers().find(t => t.receiver && t.receiver.track && t.receiver.track.kind === 'video');
-                        if (vt && vt.sender) {
-                            vt.sender.replaceTrack(screenTrack);
-                        } else {
-                            try { pc.addTrack(screenTrack, this.screenStream); } catch(e){}
-                        }
-                    });
-
-                    // Browser native "Stop Sharing" floating toolbar event
-                    screenTrack.onended = () => {
-                        this.stopScreenShare();
-                    };
-
-                    this.sendWs({
-                        type: 'media_state',
-                        is_muted: this.isMuted,
-                        is_camera_on: this.isCameraOn,
-                        screen_sharing: true,
-                        is_hand_raised: this.handRaised
-                    });
-                } catch (err) {
-                    console.warn("Screen share cancelled or rejected:", err);
-                    this.screenSharing = false;
-                }
-            } else {
-                this.stopScreenShare();
-            }
-        },
-
-        stopScreenShare() {
-            if (this.screenStream) {
-                this.screenStream.getTracks().forEach(t => t.stop());
-                this.screenStream = null;
-            }
-            this.screenSharing = false;
-
-            // Restore camera track if camera was ON, or null if camera was OFF
-            const cameraTrack = (this.isCameraOn && this.localStream) ? this.localStream.getVideoTracks()[0] : null;
-            Object.values(this.peerConnections).forEach(pc => {
-                const vt = pc.getTransceivers().find(t => t.receiver && t.receiver.track && t.receiver.track.kind === 'video');
-                if (vt && vt.sender) {
-                    vt.sender.replaceTrack(cameraTrack);
-                }
-            });
-
-            this.sendWs({
-                type: 'media_state',
-                is_muted: this.isMuted,
-                is_camera_on: this.isCameraOn,
-                screen_sharing: false,
-                is_hand_raised: this.handRaised
-            });
-        },
-
-        toggleHandRaise() {
-            this.handRaised = !this.handRaised;
-            this.sendWs({
-                type: 'media_state',
-                is_muted: this.isMuted,
-                is_camera_on: this.isCameraOn,
-                screen_sharing: this.screenSharing,
-                is_hand_raised: this.handRaised
-            });
-        },
-
-        // ------------------------------------------------------------------
-        // In-Call Chat & Floating Reactions
-        // ------------------------------------------------------------------
-
-        sendChatMessage() {
-            const text = this.newChatMessage.trim();
-            if (!text) return;
-            const now = new Date();
-            let hours = now.getHours();
-            const minutes = String(now.getMinutes()).padStart(2, '0');
-            const ampm = hours >= 12 ? 'PM' : 'AM';
-            hours = hours % 12 || 12;
-            const timeStr = `${hours}:${minutes} ${ampm}`;
-            const tempId = 'msg-' + Date.now();
-
-            // Optimistic 0ms UI push for instant feel
-            this.chatMessages.push({
-                id: tempId,
-                sender_id: String(this.selfId),
-                sender: "{{ user_display_name }}",
-                avatar: "{{ user_avatar }}",
-                text: text,
-                time: timeStr,
-                is_self: true
-            });
-
-            this.sendWs({
-                type: 'meeting_chat',
-                text: text,
-                client_temp_id: tempId
-            });
-
-            this.newChatMessage = '';
-            this.$nextTick(() => {
-                const c = document.getElementById('chat-messages-container');
-                if (c) c.scrollTop = c.scrollHeight;
-            });
-        },
-
-        triggerReaction(emoji) {
-            this.renderFloatingReaction(emoji);
-            this.sendWs({
-                type: 'meeting_reaction',
-                emoji: emoji
-            });
-        },
-
-        renderFloatingReaction(emoji) {
-            const id = ++this.reactionCounter;
-            const left = 20 + Math.random() * 60;
-            const reaction = { id, emoji, left };
-            this.floatingReactions.push(reaction);
-
-            setTimeout(() => {
-                this.floatingReactions = this.floatingReactions.filter(r => r.id !== id);
-            }, 2300);
-        },
-
-        // ------------------------------------------------------------------
-        // Closed Captions (Web Speech API)
-        // ------------------------------------------------------------------
-
-        toggleCaptions() {
-            this.captionsEnabled = !this.captionsEnabled;
-            if (this.captionsEnabled) {
-                this.startSpeechRecognition();
-            } else {
-                this.stopSpeechRecognition();
-            }
-        },
-
-        startSpeechRecognition() {
-            if (!this.speechSupported) return;
-            try {
-                const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
-                this.speechRecognition = new SpeechRec();
-                this.speechRecognition.continuous = true;
-                this.speechRecognition.interimResults = true;
-                this.speechRecognition.lang = 'en-US';
-                this.speechRecognition.onresult = (event) => {
-                    let interim = '';
-                    for (let i = event.resultIndex; i < event.results.length; ++i) {
-                        interim += event.results[i][0].transcript;
-                    }
-                    if (interim.trim()) {
-                        this.liveCaptionText = `You: ${interim}`;
-                        if (this.captionClearTimer) clearTimeout(this.captionClearTimer);
-                        this.captionClearTimer = setTimeout(() => {
-                            this.liveCaptionText = '';
-                        }, 4000);
-                        this.sendWs({
-                            type: 'caption_broadcast',
-                            text: interim
-                        });
-                    }
-                };
-                this.speechRecognition.onerror = (event) => {
-                    console.warn('Speech recognition notice:', event.error);
-                };
-                this.speechRecognition.onend = () => {
-                    if (this.captionsEnabled && this.speechRecognition) {
-                        try { this.speechRecognition.start(); } catch(e){}
-                    }
-                };
-                this.speechRecognition.start();
-            } catch(e) {
-                console.warn('Could not start speech recognition:', e);
-            }
-        },
-
-        stopSpeechRecognition() {
-            if (this.speechRecognition) {
-                try { this.speechRecognition.stop(); } catch(e){}
-                this.speechRecognition = null;
-            }
-            this.liveCaptionText = '';
-        },
-
-        // ------------------------------------------------------------------
-        // Host Management & Utility Actions
-        // ------------------------------------------------------------------
-
-        removeParticipant(userId, userName) {
-            if (!confirm(`Are you sure you want to remove ${userName || 'this participant'} from the meeting?`)) {
+        initJitsi() {
+            if (this.jitsiApi) return;
+
+            {% if jaas_error %}
+            this.jitsiError = true;
+            this.jitsiErrorMessage = "8x8 JaaS Configuration Error: {{ jaas_error|escapejs }}";
+            return;
+            {% endif %}
+
+            if (!{{ jitsi_meet_enabled|yesno:"true,false" }}) {
+                this.jitsiError = true;
+                this.jitsiErrorMessage = "The conference media engine is currently disabled in workspace settings.";
                 return;
             }
-            this.sendWs({
-                type: 'kick_participant',
-                target_id: userId
-            });
-        },
 
-        toggleFullscreen() {
-            const el = document.documentElement;
-            if (!document.fullscreenElement) {
-                if (el.requestFullscreen) el.requestFullscreen();
-            } else {
-                if (document.exitFullscreen) document.exitFullscreen();
+            const container = document.getElementById('jitsi-meet-container');
+            if (!container) {
+                this.jitsiError = true;
+                this.jitsiErrorMessage = "Meeting room container could not be found.";
+                return;
+            }
+
+            if (typeof JitsiMeetExternalAPI === 'undefined') {
+                this.jitsiError = true;
+                this.jitsiErrorMessage = "The conference media engine (Jitsi API) could not be loaded. Please check your network connection or try refreshing.";
+                return;
+            }
+
+            try {
+                const domain = "{{ jitsi_domain }}";
+                const toolbarButtons = [
+                    'microphone',
+                    'camera',
+                    'closedcaptions',
+                    'desktop',
+                    'fullscreen',
+                    'fodeviceselection',
+                    'hangup',
+                    'chat',
+                    'raisehand',
+                    'videoquality',
+                    'filmstrip',
+                    'tileview',
+                    'settings',
+                    'select-background',
+                    'participants-pane'
+                ];
+
+                const options = {
+                    roomName: "{{ jitsi_room_name }}",
+                    {% if jaas_jwt %}
+                    jwt: "{{ jaas_jwt|escapejs }}",
+                    {% endif %}
+                    width: '100%',
+                    height: '100%',
+                    parentNode: container,
+                    userInfo: {{ jitsi_user_info_json|safe|default:'{}' }},
+                    configOverwrite: {
+                        startWithAudioMuted: false,
+                        startWithVideoMuted: false,
+                        prejoinPageEnabled: false,
+                        disableDeepLinking: true,
+                        enableWelcomePage: false,
+                        enableClosePage: false,
+                        disableInviteFunctions: true,
+                        hideConferenceSubject: true,
+                        defaultRemoteDisplayName: "Team Member",
+                        disableEchoCancellation: false,
+                        enableEchoCancellation: true,
+                        disableNoiseSuppression: false,
+                        enableNoiseSuppression: true,
+                        toolbarButtons: toolbarButtons
+                    },
+                    interfaceConfigOverwrite: {
+                        TOOLBAR_BUTTONS: toolbarButtons,
+                        SHOW_JITSI_WATERMARK: false,
+                        SHOW_WATERMARK_FOR_GUESTS: false,
+                        SHOW_POWERED_BY: false,
+                        DEFAULT_BACKGROUND: '#131314',
+                    }
+                };
+
+                this.jitsiApi = new JitsiMeetExternalAPI(domain, options);
+
+                // Set explicit permissions on the iframe
+                const iframe = this.jitsiApi.getIFrame();
+                if (iframe) {
+                    iframe.setAttribute('allow', 'camera; microphone; display-capture; autoplay; clipboard-write');
+                    iframe.style.borderRadius = '1rem';
+                }
+
+                // Participant count synchronization helper
+                const syncCount = () => {
+                    try {
+                        const count = this.jitsiApi && typeof this.jitsiApi.getNumberOfParticipants === 'function' ? this.jitsiApi.getNumberOfParticipants() : null;
+                        if (count && count > 0) {
+                            this.participantsCount = count;
+                        }
+                    } catch (e) {}
+                };
+
+                // Jitsi Participant Lifecycle Listeners
+                this.jitsiApi.addEventListener('videoConferenceJoined', (event) => {
+                    console.info("Connected to Jitsi conference:", event);
+                    syncCount();
+                });
+
+                this.jitsiApi.addEventListener('participantJoined', (event) => {
+                    syncCount();
+                    if (!this.jitsiApi || typeof this.jitsiApi.getNumberOfParticipants !== 'function') {
+                        this.participantsCount++;
+                    }
+                });
+
+                this.jitsiApi.addEventListener('participantLeft', (event) => {
+                    syncCount();
+                    if (!this.jitsiApi || typeof this.jitsiApi.getNumberOfParticipants !== 'function') {
+                        this.participantsCount = Math.max(1, this.participantsCount - 1);
+                    }
+                });
+
+                this.jitsiApi.addEventListener('videoConferenceLeft', () => {
+                    this.leaveMeeting('leave');
+                });
+
+                this.jitsiApi.addEventListener('readyToClose', () => {
+                    this.leaveMeeting('leave');
+                });
+
+            } catch (err) {
+                console.error("Failed to initialize Jitsi conference:", err);
+                this.jitsiError = true;
+                this.jitsiErrorMessage = "An unexpected error occurred while launching the conference engine.";
             }
         },
 
-        copyMeetingCode(code) {
-            navigator.clipboard.writeText(code);
-            alert("Meeting code copied: " + code);
-        },
+        leaveMeeting(action = 'leave', isUnload = false) {
+            if (this.isLeaving) return;
+            this.isLeaving = true;
 
-        copyShareLink() {
-            navigator.clipboard.writeText(window.location.href);
-            this.copiedShareNotice = true;
-            setTimeout(() => this.copiedShareNotice = false, 3000);
-        },
-
-        toggleAudioSettings() {
-            alert("Microphone Settings:\nDefault system input device is currently active.");
-        },
-
-        toggleCameraSettings() {
-            alert("Camera Settings:\nDefault system video device is currently active.");
-        },
-
-        cleanupMediaAndPeers() {
-            if (this.localStream) {
-                this.localStream.getTracks().forEach(t => t.stop());
+            if (this.meetingChannel) {
+                try {
+                    this.meetingChannel.close();
+                } catch (e) {}
+                this.meetingChannel = null;
             }
-            if (this.screenStream) {
-                this.screenStream.getTracks().forEach(t => t.stop());
-            }
-            Object.values(this.peerConnections).forEach(pc => {
-                try { pc.close(); } catch(e){}
-            });
-            if (this.ws) {
-                try { this.ws.close(); } catch(e){}
-            }
-        },
 
-        leaveOrEndMeeting() {
-            this.cleanupMediaAndPeers();
-
-            if (this.isHost) {
-                this.sendWs({ type: 'end_meeting' });
+            if (this.jitsiApi) {
+                try {
+                    this.jitsiApi.dispose();
+                } catch (e) {
+                    console.warn("Jitsi dispose notice:", e);
+                }
+                this.jitsiApi = null;
             }
 
             const endUrl = "{% url 'meetings:meeting_end_api' slug=workspace.slug meeting_code=meeting.meeting_code %}";
-            fetch(endUrl, {
-                method: "POST",
-                headers: {
-                    "X-CSRFToken": "{{ csrf_token }}",
-                    "X-Requested-With": "XMLHttpRequest",
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({ action: this.isHost ? 'end' : 'leave' })
-            }).finally(() => {
-                window.location.href = "{% url 'meetings:meet_hub' slug=workspace.slug %}";
-            });
+            const payload = JSON.stringify({ action: action });
+
+            if (isUnload && navigator.sendBeacon) {
+                const blob = new Blob([payload], { type: 'application/json' });
+                navigator.sendBeacon(endUrl, blob);
+            } else {
+                fetch(endUrl, {
+                    method: "POST",
+                    headers: {
+                        "X-CSRFToken": "{{ csrf_token }}",
+                        "X-Requested-With": "XMLHttpRequest",
+                        "Content-Type": "application/json"
+                    },
+                    body: payload
+                }).finally(() => {
+                    window.location.href = "{% url 'workspaces:workspace_dashboard' slug=workspace.slug %}";
+                });
+            }
+        },
+
+        endMeetingForAll() {
+            if (!confirm("Are you sure you want to end this meeting for all participants?")) {
+                return;
+            }
+            if (this.jitsiApi) {
+                try { this.jitsiApi.executeCommand('hangup'); } catch(e){}
+            }
+            this.leaveMeeting('end');
+        },
+
+        copyMeetingCode(code) {
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(code);
+            }
+        },
+
+        copyShareLink() {
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(window.location.href);
+                this.copiedShareNotice = true;
+                setTimeout(() => this.copiedShareNotice = false, 3000);
+            }
         }
     };
 }

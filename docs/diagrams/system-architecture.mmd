@@ -1,0 +1,72 @@
+flowchart TB
+    subgraph ClientLayer["Client Layer (Browser)"]
+        BrowserUI["Tailwind CSS + Alpine.js UI Shell"]
+        GlobalModal["Global Call Modal / Ringtone (Alpine.js)"]
+        JitsiIframe["Jitsi Meet External API IFrame"]
+        WebSocketClient["WebSocket Client (reconnecting)"]
+    end
+
+    subgraph EdgeAndHosting["Edge & Hosting (Render)"]
+        ReverseProxy["Render Load Balancer / SSL Termination (HTTPS / WSS)"]
+        StaticAssets["WhiteNoise Static File Server"]
+    end
+
+    subgraph ApplicationServer["ASGI / Django Application Server"]
+        DaphneServer["Daphne ASGI Server (Port $PORT)"]
+        
+        subgraph DjangoHTTP["HTTP Request Pipeline"]
+            MiddlewareStack["Security, Session, Auth, WorkspaceMiddleware"]
+            ViewsRouting["URL Routing & Class/Function Views"]
+            AuthRBAC["RBAC & Object-Level Permission Guards"]
+            TemplatesEngine["Django Template Engine (SSR)"]
+        end
+
+        subgraph ChannelsWebSockets["Django Channels 4 Pipeline"]
+            AuthStackWS["AuthMiddlewareStack"]
+            ChatWS["ChatConsumer (/ws/chat/c/, /ws/chat/dm/)"]
+            GlobalCallWS["GlobalCallConsumer (/ws/calls/global/)"]
+            MeetingSignalingWS["MeetingSignalingConsumer (/ws/meetings/)"]
+        end
+
+        subgraph BusinessServices["Business Services & Data Layer"]
+            WorkspaceService["Workspace & Membership Services"]
+            CallServices["CallSession & Meeting Lifecycle Services"]
+            StorageService["Supabase Storage REST Client"]
+            AuditService["AuditLog & Admin Alerts Service"]
+        end
+    end
+
+    subgraph DataAndPersistence["Persistence Layer (Supabase Cloud)"]
+        PostgresDB[("Supabase PostgreSQL (Database URL)")]
+        SupabaseStorage[("Supabase Cloud Object Storage (Buckets)")]
+    end
+
+    subgraph ExternalConferencing["External Conferencing Infrastructure"]
+        JitsiEngine["Jitsi Meet Media SFU (meet.jit.si / 8x8.vc JaaS)"]
+    end
+
+    BrowserUI -->|HTTPS Requests| ReverseProxy
+    WebSocketClient -->|WSS Protocols| ReverseProxy
+    GlobalModal -.->|DOM Events / WS| WebSocketClient
+    JitsiIframe <-->|WebRTC Media & Data| JitsiEngine
+
+    ReverseProxy -->|Static Requests| StaticAssets
+    ReverseProxy -->|Dynamic Traffic| DaphneServer
+
+    DaphneServer -->|HTTP| MiddlewareStack
+    MiddlewareStack --> ViewsRouting
+    ViewsRouting --> AuthRBAC
+    AuthRBAC --> BusinessServices
+    BusinessServices --> TemplatesEngine
+    TemplatesEngine --> BrowserUI
+
+    DaphneServer -->|WebSockets| AuthStackWS
+    AuthStackWS --> ChatWS
+    AuthStackWS --> GlobalCallWS
+    AuthStackWS --> MeetingSignalingWS
+    GlobalCallWS <--> CallServices
+
+    BusinessServices <-->|psycopg2-binary / ORM| PostgresDB
+    ChatWS <-->|database_sync_to_async| PostgresDB
+    GlobalCallWS <-->|database_sync_to_async| PostgresDB
+    StorageService <-->|REST API (HTTPS)| SupabaseStorage

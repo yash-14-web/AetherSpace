@@ -1,0 +1,15 @@
+stateDiagram-v2
+    [*] --> TODO: Created (6-digit numeric ID assigned, e.g. 619347)
+    
+    TODO --> IN_PROGRESS: Contributor starts work / Timer initiated
+    IN_PROGRESS --> TODO: Paused / Blocked
+    
+    IN_PROGRESS --> CODE_REVIEW: Developer submits PR / requests review
+    CODE_REVIEW --> IN_PROGRESS: Changes Requested by Reviewer
+    
+    CODE_REVIEW --> TESTING: Review Approved & Merged / Ready for QA
+    TESTING --> IN_PROGRESS: Defect Found / Linked Bug (B-######) Raised
+    
+    TESTING --> DONE: QA Verified / Acceptance Criteria Passed
+    DONE --> IN_PROGRESS: Reopened / Regression Reported
+    DONE --> [*]: Sprint Iteration Closed

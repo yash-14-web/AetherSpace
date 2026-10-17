@@ -190,12 +190,14 @@ def get_unified_schedule_items(workspace, start_date, end_date, categories=None,
     return items
 
 
-def build_month_calendar_matrix(workspace, year, month, categories=None, member_id=None):
+def build_month_calendar_matrix(workspace, year, month, target_date=None, categories=None, member_id=None):
     """
     Builds a 7-column grid matrix for Sunday to Saturday with all padding days
     and attached schedule items.
     """
     today = timezone.localdate()
+    if target_date is None:
+        target_date = today
 
     # Determine first day and number of days in the month
     # py_calendar.monthrange returns (weekday_of_first_day, number_of_days)
@@ -238,7 +240,9 @@ def build_month_calendar_matrix(workspace, year, month, categories=None, member_
             'day_number': curr_date.day,
             'is_current_month': (curr_date.month == month),
             'is_today': (curr_date == today),
+            'is_selected': (curr_date == target_date),
             'is_past': (curr_date < today),
+            'has_items': bool(items_by_date.get(curr_date)),
             'items': items_by_date.get(curr_date, [])
         })
         curr_date += timedelta(days=1)
@@ -246,12 +250,13 @@ def build_month_calendar_matrix(workspace, year, month, categories=None, member_
     # Chunk into rows of 7 days
     weeks = [matrix[i:i + 7] for i in range(0, len(matrix), 7)]
 
-    # Mini calendar for left sidebar (current month view)
+    # Mini calendar for right sidebar (current month view)
     mini_calendar = {
         'year': year,
         'month': month,
         'month_name': py_calendar.month_name[month],
         'weeks': weeks,
+        'target_date': target_date,
     }
 
     return {
@@ -338,6 +343,7 @@ def build_day_calendar_matrix(workspace, target_date, categories=None, member_id
         hourly_slots.append({
             'hour': h,
             'label': slot_label,
+            'time_label': slot_label,
             'items': slot_items
         })
 
@@ -346,14 +352,221 @@ def build_day_calendar_matrix(workspace, target_date, categories=None, member_id
 
     return {
         'target_date': target_date,
+        'date': target_date,
+        'day_name': target_date.strftime('%A'),
+        'day_short_name': target_date.strftime('%a'),
         'prev_day': prev_day,
         'next_day': next_day,
         'is_today': (target_date == today),
+        'all_items': items,
         'all_day_items': all_day_items,
         'timed_items': timed_items,
         'hourly_slots': hourly_slots,
         'total_items_count': len(items),
     }
+
+
+def get_upcoming_schedule_items(workspace, limit=6, categories=None, member_id=None):
+    """
+    Returns only future or currently ongoing schedule items (CalendarEvents, Meetings, Tasks, Bugs)
+    strictly ordered by start/sort datetime ASC.
+    CRITICAL INVARIANTS:
+    - Never include meetings that have ended (status == ENDED, or actual_end < now, or scheduled_end < now if not live).
+    - Never include cancelled events or completed tasks/closed bugs.
+    - Ongoing live events are included only while now <= scheduled_end (or within grace period).
+    """
+    now = timezone.now()
+    today = timezone.localdate()
+    current_tz = timezone.get_current_timezone()
+
+    active_cats = categories if categories is not None else ['events', 'tasks', 'bugs', 'meetings', 'milestones']
+    items = []
+
+    # 1. Calendar Events (General / Milestone)
+    if 'events' in active_cats or 'milestones' in active_cats:
+        events_qs = CalendarEvent.objects.filter(
+            workspace=workspace,
+            end_at__gte=now,
+        ).exclude(
+            status__in=[EventStatus.CANCELLED, EventStatus.COMPLETED]
+        ).select_related('created_by')
+
+        if member_id:
+            events_qs = events_qs.filter(Q(created_by_id=member_id) | Q(attendees__user_id=member_id)).distinct()
+
+        for ev in events_qs:
+            is_milestone = (ev.event_type == CalendarEventType.MILESTONE)
+            if is_milestone and 'milestones' not in active_cats:
+                continue
+            if not is_milestone and 'events' not in active_cats:
+                continue
+
+            local_start = ev.start_at.astimezone(current_tz)
+            local_end = ev.end_at.astimezone(current_tz)
+            time_str = "All day" if ev.is_all_day else f"{local_start.strftime('%I:%M %p')} - {local_end.strftime('%I:%M %p')}"
+            short_time = "All day" if ev.is_all_day else local_start.strftime('%I:%M %p')
+
+            if local_start.date() == today:
+                date_label = "Today"
+            elif local_start.date() == today + timedelta(days=1):
+                date_label = "Tomorrow"
+            else:
+                date_label = local_start.strftime("%b %d")
+
+            items.append({
+                'id': f"event-{ev.id}",
+                'raw_id': str(ev.id),
+                'title': ev.title,
+                'date': local_start.date(),
+                'date_label': date_label,
+                'start_time': short_time,
+                'time_display': time_str,
+                'is_all_day': ev.is_all_day,
+                'category': 'milestone' if is_milestone else 'event',
+                'category_label': 'Milestone' if is_milestone else 'Event',
+                'color': 'amber' if is_milestone else 'blue',
+                'detail_url': reverse('calendars:event_detail', kwargs={'slug': workspace.slug, 'event_id': ev.id}),
+                'dt_sort': ev.start_at,
+                'is_live': (ev.start_at <= now <= ev.end_at),
+            })
+
+    # 2. Meetings: strictly future or live ongoing (excluding ended, cancelled, or passed)
+    if 'meetings' in active_cats:
+        meets_qs = Meeting.objects.filter(
+            workspace=workspace
+        ).exclude(
+            status__in=[MeetingStatus.ENDED, MeetingStatus.CANCELLED]
+        ).filter(
+            # Live meeting that has not recorded an actual_end
+            Q(status=MeetingStatus.LIVE, actual_end__isnull=True) |
+            # Scheduled meeting in the future
+            Q(status=MeetingStatus.SCHEDULED, scheduled_start__gte=now) |
+            # Scheduled meeting currently within its scheduled window
+            Q(status=MeetingStatus.SCHEDULED, scheduled_start__lt=now, scheduled_end__gte=now)
+        ).select_related('host')
+
+        if member_id:
+            meets_qs = meets_qs.filter(Q(host_id=member_id) | Q(participants__user_id=member_id)).distinct()
+
+        for m in meets_qs:
+            if m.actual_end and m.actual_end < now:
+                continue
+            if m.status != MeetingStatus.LIVE and m.scheduled_end and m.scheduled_end < now:
+                continue
+
+            local_start = m.scheduled_start.astimezone(current_tz)
+            local_end = m.scheduled_end.astimezone(current_tz) if m.scheduled_end else local_start + timedelta(minutes=30)
+            time_str = f"{local_start.strftime('%I:%M %p')} - {local_end.strftime('%I:%M %p')}"
+            short_time = local_start.strftime('%I:%M %p')
+
+            if local_start.date() == today:
+                date_label = "Today"
+            elif local_start.date() == today + timedelta(days=1):
+                date_label = "Tomorrow"
+            else:
+                date_label = local_start.strftime("%b %d")
+
+            items.append({
+                'id': f"meeting-{m.id}",
+                'raw_id': str(m.id),
+                'title': m.title,
+                'date': local_start.date(),
+                'date_label': date_label,
+                'start_time': short_time,
+                'time_display': time_str,
+                'is_all_day': False,
+                'category': 'meeting',
+                'category_label': 'Meeting',
+                'color': 'purple',
+                'code': m.meeting_code,
+                'detail_url': reverse('meetings:meeting_detail', kwargs={'slug': workspace.slug, 'meeting_code': m.meeting_code}),
+                'dt_sort': m.scheduled_start,
+                'is_live': (m.status == MeetingStatus.LIVE),
+            })
+
+    # 3. Tasks due in future or today (excluding completed)
+    if 'tasks' in active_cats:
+        tasks_qs = Task.objects.filter(
+            workspace=workspace,
+            due_date__gte=today,
+        ).exclude(
+            status=TaskStatus.DONE
+        ).select_related('assignee')
+
+        if member_id:
+            tasks_qs = tasks_qs.filter(assignee_id=member_id)
+
+        for t in tasks_qs:
+            if t.due_date == today:
+                date_label = "Today"
+            elif t.due_date == today + timedelta(days=1):
+                date_label = "Tomorrow"
+            else:
+                date_label = t.due_date.strftime("%b %d")
+
+            sort_dt = timezone.make_aware(datetime.combine(t.due_date, time(17, 0, 0)), current_tz)
+            items.append({
+                'id': f"task-{t.id}",
+                'raw_id': str(t.id),
+                'title': t.title,
+                'date': t.due_date,
+                'date_label': date_label,
+                'start_time': 'Due 5 PM',
+                'time_display': 'Due by End of Day',
+                'is_all_day': True,
+                'category': 'task',
+                'category_label': 'Task',
+                'color': 'emerald',
+                'code': t.task_code,
+                'detail_url': reverse('tasks:task_detail', kwargs={'slug': workspace.slug, 'task_code': t.task_code}),
+                'dt_sort': sort_dt,
+                'is_live': False,
+            })
+
+    # 4. Bugs due in future or today (excluding closed / resolved)
+    if 'bugs' in active_cats:
+        bugs_qs = Bug.objects.filter(
+            workspace=workspace,
+            due_date__gte=today,
+        ).exclude(
+            status__in=[BugStatus.CLOSED, BugStatus.RESOLVED]
+        ).select_related('assignee')
+
+        if member_id:
+            bugs_qs = bugs_qs.filter(assignee_id=member_id)
+
+        for b in bugs_qs:
+            if b.due_date == today:
+                date_label = "Today"
+            elif b.due_date == today + timedelta(days=1):
+                date_label = "Tomorrow"
+            else:
+                date_label = b.due_date.strftime("%b %d")
+
+            sort_dt = timezone.make_aware(datetime.combine(b.due_date, time(17, 0, 0)), current_tz)
+            items.append({
+                'id': f"bug-{b.id}",
+                'raw_id': str(b.id),
+                'title': b.title,
+                'date': b.due_date,
+                'date_label': date_label,
+                'start_time': 'Due 5 PM',
+                'time_display': 'Due by End of Day',
+                'is_all_day': True,
+                'category': 'bug',
+                'category_label': 'Bug',
+                'color': 'rose',
+                'code': b.bug_code,
+                'detail_url': reverse('bugs:bug_detail', kwargs={'slug': workspace.slug, 'bug_code': b.bug_code}),
+                'dt_sort': sort_dt,
+                'is_live': False,
+            })
+
+    # Sort chronological by start time ASC
+    items.sort(key=lambda x: x['dt_sort'])
+    if limit:
+        return items[:limit]
+    return items
 
 
 def build_agenda_stream(workspace, target_date, categories=None, member_id=None, days_ahead=14):
@@ -403,7 +616,13 @@ def build_agenda_stream(workspace, target_date, categories=None, member_id=None,
         'events': sum(1 for it in today_items if it['category'] == 'event'),
     }
 
-    upcoming_items = [it for it in items if it['date'] >= today][:6]
+    # Strictly future and ongoing schedule items (excluding past ended events)
+    upcoming_items = get_upcoming_schedule_items(
+        workspace=workspace,
+        limit=6,
+        categories=categories,
+        member_id=member_id
+    )
 
     return {
         'date_groups': date_groups,

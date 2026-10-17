@@ -6,6 +6,8 @@
 *.pem
 *.key
 *.cert
+*.pk
+*Confidential*
 
 # Python & Django
 __pycache__/

@@ -1,6 +1,6 @@
 # AetherSpace — Project Development README & Agent Control Document
 
-> **Purpose:** This is the single living README for the AetherSpace project.
+ **Purpose:** This is the single living README for the AetherSpace project.
 >
 > It is written for both:
 > 1. the **Antigravity coding agent**, which must follow these rules exactly, and
@@ -4389,6 +4389,218 @@ The project owner can verify Phase B directly through the Admin Console:
 5. Verify Plain-Text Fallback tab shows formatted, emoji-free, entity-free plain text.
 6. Verify "Open HTML" continues to open the rendered email in a new tab.
 7. In production, configure SMTP credentials in `.env` (`EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`) to conduct live inbox delivery testing.
+
+
+---
+
+# MEET HUB — PHASE 3: JITSI HARDENING & PRODUCTION READINESS AUDIT
+
+## 1. Executive Summary & Architecture
+Following the Phase 2 legacy WebRTC media pruning, Phase 3 performed a comprehensive engineering hardening and security audit for the Jitsi Meet integration in AetherSpace Meet Hub.
+
+The platform architecture strictly separates responsibilities:
+- **AetherSpace Application Layer**: Authentication, Workspace Membership RBAC, `Meeting` records, `MeetingParticipant` attendance tracking, `CallSession` 1-on-1 global calling state machine, incoming-call ringtone modals, notifications, meeting logs, and the dark Obsidian `#09090b` UI shell.
+- **Jitsi Meet Media Engine**: Audio, video, screen sharing, multi-party SFU routing, bandwidth adaptation, device enumeration, and in-frame media controls via Jitsi IFrame API (`meet.jit.si` / `external_api.js`).
+
+## 2. Hardening Measures Implemented
+1. **Idempotent Jitsi Lifecycle Initialization**: Prevented duplicate iframe creation via instance guards (`if (this.jitsiApi) return;`).
+2. **Centralized Toolbar Configuration**: Consolidated Google Meet / Microsoft Teams style controls across both `configOverwrite.toolbarButtons` and `interfaceConfigOverwrite.TOOLBAR_BUTTONS`.
+3. **Enterprise UI Cleanliness**: Disabled Jitsi deep-linking popups, generic welcome/close splash pages, and hidden internal room hash from subject banners.
+4. **Server-Side Host RBAC Enforcement**: `meeting_end_api` now strictly returns `403 Forbidden` if a non-host participant attempts `action='end'`, preventing unauthorized meeting terminations.
+5. **Cross-Workspace Isolation**: Room URLs enforce workspace-scoped lookup; attempting to alter slugs or inject foreign meeting codes safely redirects or returns 404/403.
+6. **Feature Flag & Maintenance Protection**: Gated under `JITSI_MEET_ENABLED` and `ModuleStatus` (`STATUS_MAINTENANCE` / `STATUS_COMING_SOON`), preventing normal user access while under active development.
+7. **Attendance Integrity**: Guaranteed non-negative duration calculations in `MeetingParticipant.duration_seconds` and automated cleanup on browser unload via `navigator.sendBeacon`.
+
+## 3. Automated Backend Verification
+- `python manage.py check`: **0 issues (0 silenced)**
+- `python manage.py test meetings`: **50 passed, 0 failed, 0 errors (100% OK)**
+- `python manage.py test tests.test_meeting_webrtc_signaling`: **7 passed, 0 failed, 0 errors (100% OK)**
+- Total Verified Tests: **57 / 57 passing**
+- Database Migrations Created: **0 (Zero schema changes)**
+
+## 4. Owner Manual Verification Pending
+The following real-time, browser-level interactions require manual validation by the project owner across two distinct physical devices or browser sessions:
+
+- Two-user interactive audio transmission (microphone capture & speaker output).
+- Two-user interactive video transmission (camera stream & tile rendering).
+- Participant-to-participant screen sharing with display-capture permissions.
+- Universal incoming-call modal and ringtone between two real concurrent users across different pages.
+- Accept / Decline actions between two real concurrent users.
+- 30-second missed-call timeout between two real concurrent users.
+- Real-time participant roster count synchronization upon remote tab close.
+
+> [!NOTE]
+> Meet Hub remains gated under `Coming Soon` (`ModuleStatus`) and is **NOT** marked production-ready for general end users until owner manual validation is completed.
+
+---
+
+# MEET HUB — PHASE 3.1: MANUAL VERIFICATION FAILURE REMEDIATION & JITSI INFRASTRUCTURE AUDIT
+
+## 1. Executive Summary & Forensic Audit
+Following the initial two-user manual verification conducted by the project owner, five critical issues were discovered:
+1. **Chat-Initiated Call Disappearance**: Audio call from Chat vanished after ~1s, and recipient received nothing.
+2. **Unexpected Jitsi Participants**: Phantom participant labelled `AetherSpace Contributor` appeared, inflating participant counts to 3 or 4.
+3. **Severe Audio Echo**: Participants experienced sudden acoustic feedback during testing.
+4. **Five-Minute Disconnection Warning**: Embedded Jitsi meeting notified users that the call would terminate in 5 minutes.
+5. **Moderator Login Prompt**: Entering the room prompted the first user to log in as moderator.
+
+Phase 3.1 completed root-cause remediation for all application-side issues, hardened multi-tab session behavior, and documented external infrastructure constraints with actionable free-tier deployment paths.
+
+---
+
+## 2. Forensic Analysis & Root-Cause Diagnoses
+
+### Issue 1: Chat-Initiated Call Disappearance (~1s) & Recipient Not Receiving
+* **Root Cause 1 (DOM Form Submission vs Event Race)**: In `templates/chat/direct_message.html`, the audio call button was declared as `<button type="submit">` nested inside `<form method="post" action="{% url 'meetings:meeting_chat_call_routed' ... %}">`. Under click event propagation, standard DOM form submission initiated an HTTP POST redirecting directly to `meeting_room` without triggering signaling to the callee.
+* **Root Cause 2 (Stale Active Call Collision)**: In `meetings/services.py` (`initiate_call_session`), strict collision validation checked `CallSession.objects.filter(status__in=[RINGING, ACCEPTED, CONNECTED])`. If either participant had a previous test call that concluded without an explicit `end_meeting` call (e.g. closing browser tab or refreshing), `ValidationError("You already have an active call in progress.")` was thrown on the server.
+* **Root Cause 3 (Premature Outgoing Modal Dismissal)**: In `incoming_call_modal.html`, the `call_error` WebSocket response arrived ~500ms–1000ms after optimistic modal launch, immediately executing `showOutgoingModal = false` and halting ringback, producing the observed ~1s "call disappearance".
+* **Remediation**:
+  - Replaced `<form>` submission wrappers in `direct_message.html` with explicit `<button type="button">` and direct `aetherspace:initiate_call` CustomEvent dispatch.
+  - Implemented `reconcile_and_prune_stale_calls(user)` in `meetings/services.py` to auto-prune orphaned or abandoned sessions (>45s ringing, ended meetings, or zero active participants).
+  - Added retry supersede logic: if caller retries a call to the same recipient, previous uncompleted ringing calls are superseded (`CallStatus.CANCELLED`) rather than blocking initiation.
+  - Updated `incoming_call_modal.html` to retain error status in the modal for 3.0s with clear messaging before dismissal.
+
+### Issue 2: Unexpected Jitsi Participants (`AetherSpace Contributor`)
+* **Root Cause 1 (Hardcoded Default Remote Display Name)**: In `templates/meetings/meeting_room.html`, `configOverwrite.defaultRemoteDisplayName` was set to `"AetherSpace Contributor"`. When remote peers joined or before their metadata synchronized, Jitsi rendered this generic placeholder as a distinct user tile.
+* **Root Cause 2 (Historical DB Roster vs Active Peer Count Mismatch)**: The header badge initialized with `participantsCount: {{ participants.count|default:1 }}`, which counted all historical `MeetingParticipant` rows (including participants who left). When Jitsi fired `participantJoined`, it incremented an already inflated baseline.
+* **Remediation**:
+  - Updated `configOverwrite.defaultRemoteDisplayName` to `"Team Member"`.
+  - Initialized `participantsCount` to `1` (the local participant).
+  - Bound Jitsi participant count tracking to `jitsiApi.getNumberOfParticipants()`, synchronizing accurately with real-time media peers.
+
+### Issue 3: Audio Echo & Acoustic Feedback
+* **Root Cause 1 (Multi-Tab Concurrency on Same Audio Interface)**: Opening the meeting room in two tabs or windows on the same machine created two simultaneous Jitsi instances capturing the same microphone and playing through the same speaker, causing immediate acoustic feedback loops.
+* **Root Cause 2 (Physical Acoustic Proximity)**: Two devices in the same physical room without headphones picking up each other's speakers.
+* **Remediation**:
+  - Implemented cross-tab session detection in `templates/meetings/meeting_room.html` using the browser `BroadcastChannel` API (`aether_meet_<meeting_code>`), warning users immediately if multiple tabs are active.
+  - Enforced `enableEchoCancellation: true` and `enableNoiseSuppression: true` in Jitsi `configOverwrite`.
+  - Added an in-app notice reminding testers to use headphones when testing in close physical proximity.
+
+### Issues 4 & 5: Five-Minute Disconnection Warning & Moderator Login Prompt
+* **External Root Cause (8x8 Public Jitsi Policy Changes)**:
+  - In late 2023 / 2024, 8x8 (operators of `meet.jit.si`) restricted anonymous third-party iframe embedding via `external_api.js` to curb platform abuse.
+  - **5-Minute Timeout**: All unauthenticated iframe embeds pointing to `meet.jit.si` operate in a restricted "Demo Mode" that forcibly disconnects after 5 minutes.
+  - **Moderator Login Prompt**: Anonymous room creation requires authentication via 8x8 / social login to claim moderator rights and prevent room hijacking.
+  - **Architectural Reality**: This cannot be bypassed by Django template code or client-side JavaScript when using the public `meet.jit.si` domain.
+* **Remediation**:
+  - Displayed an in-room informational banner explaining the public demo mode constraint when `jitsi_domain == 'meet.jit.si'`.
+  - Configured `JITSI_DOMAIN`, `JITSI_MEET_ENABLED`, and `JITSI_APP_ID` in `aetherspace/settings.py` for seamless migration to free-tier production options.
+
+---
+
+## 3. Jitsi Infrastructure: Production & Free-Tier Setup Paths
+
+To eliminate the 5-minute timeout and moderator login prompts, AetherSpace supports two production-ready, free-tier deployment options:
+
+### Option A: Self-Hosted Docker Jitsi Meet (100% Free Forever)
+Deploy a private Jitsi Meet instance on a free cloud VPS (e.g., Oracle Cloud Free Tier — 4 OCPU, 24 GB RAM Ampere instance):
+1. **Clone Docker Jitsi Meet**:
+   ```bash
+   git clone https://github.com/jitsi/docker-jitsi-meet && cd docker-jitsi-meet
+   cp env.example .env
+   ./gen-passwords.sh
+   ```
+2. **Configure `.env`**:
+   ```ini
+   HTTP_PORT=80
+   HTTPS_PORT=443
+   PUBLIC_URL=https://meet.yourdomain.com
+   ENABLE_AUTH=0
+   ENABLE_GUESTS=1
+   ```
+3. **Launch Containers**:
+   ```bash
+   docker compose up -d
+   ```
+4. **Set AetherSpace Environment Variable**:
+   ```ini
+   JITSI_DOMAIN=meet.yourdomain.com
+   ```
+*Result*: Unlimited duration calls, no moderator prompts, zero external branding, 100% free.
+
+### Option B: 8x8 JaaS (Jitsi as a Service) Free Tier (Up to 25 MAU Free)
+1. Sign up at [jaas.8x8.vc](https://jaas.8x8.vc/) (Free Developer Tier: 25 monthly active users free).
+2. Obtain your `App ID` (e.g. `vpaas-magic-cookie-xxxx`).
+3. Set environment variables in AetherSpace:
+   ```ini
+   JITSI_DOMAIN=8x8.vc
+   JITSI_APP_ID=vpaas-magic-cookie-xxxx
+   ```
+4. Rooms will route under `8x8.vc/<JITSI_APP_ID>/<room_name>` with verified host status and no 5-minute limit.
+
+---
+
+## 4. Verification Summary
+- **Django Check**: `python manage.py check` — **0 issues (0 silenced)**
+- **Meeting App Unit Tests**: `python manage.py test meetings` — **50 passed (100% OK)**
+- **WebRTC Signaling Tests**: `python manage.py test tests.test_meeting_webrtc_signaling` — **7 passed (100% OK)**
+- **Total Passing Automated Tests**: **57 / 57 passing**
+- **Database Migrations Created**: **0 (Zero schema changes, fully backward compatible)**
+- **Feature Gate**: Meet Hub remains protected under `Coming Soon` (`ModuleStatus`).
+
+---
+
+## 5. Owner Manual Verification Checklist (Phase 3.1)
+The owner should perform the following checks across two different browser sessions/devices:
+1. **Chat 1-on-1 Audio Call**:
+   - In Direct Message, click Voice Call button.
+   - Verify caller modal displays "Calling..." and plays ringback tone without disappearing after 1s.
+   - Verify callee modal displays "Incoming audio call from [Caller Name]" and plays ringtone.
+   - Verify clicking "Accept & Join" navigates both users into the meeting room.
+2. **Participant Roster Count**:
+   - In meeting room, verify participant count badge displays `2` when 2 users are present.
+   - Verify remote tile displays the user's name (or "Team Member"), not "AetherSpace Contributor".
+3. **Audio & Echo Check**:
+   - Verify audio transmission between both devices (use headphones if testing in the same room).
+   - If testing on one device, verify opening a second tab triggers the Audio Feedback Warning banner.
+4. **Jitsi 5-Minute Warning & Moderator Prompt**:
+   - Note that public `meet.jit.si` displays the demo mode notice. Verify that the in-app notice explains this behavior.
+
+---
+
+# PHASE 4: COMPREHENSIVE SYSTEM DOCUMENTATION & OPERATIONAL KNOWLEDGE BASE
+
+## 1. Documentation Milestone Summary
+Phase 4 produced an exhaustive, deeply technical documentation suite directly within the repository under `docs/`, replacing outdated fragmented notes with authoritative, code-verified technical specifications.
+
+### Inventory of Deliverables:
+- **Core Knowledge Base (`docs/`)**:
+  - `docs/00_DOCUMENTATION_INDEX.md`: Master index, taxonomy, navigation map.
+  - `docs/01_PRODUCT_OVERVIEW.md`: Mission, user personas, capabilities, and tech stack.
+  - `docs/02_SYSTEM_ARCHITECTURE.md`: Monolith SSR + Channels ASGI request flow and cloud tiers.
+  - `docs/03_DATABASE_SCHEMA.md`: Complete relational schema, fields, indexes, constraints, ER diagram.
+  - `docs/04_AUTHENTICATION_AND_RBAC.md`: Contributor ID (`#####C`), approval workflow, workspace RBAC matrix.
+  - `docs/06_API_AND_WEBSOCKETS.md`: HTTP endpoints, JSON payloads, Channels consumers (`GlobalCallConsumer`).
+  - `docs/07_SECURITY_AND_PRIVACY.md`: Isolation, CSRF/XSS, SQLi defenses, secret handling, CodeQL compliance.
+  - `docs/08_LOCAL_DEVELOPMENT_SETUP.md`: Beginner-friendly Windows/cross-platform setup guide.
+  - `docs/09_DEPLOYMENT_RENDER_AND_SUPABASE.md`: Production Render Web Service & Supabase PostgreSQL configuration.
+  - `docs/10_TESTING_AND_QA.md`: Unit, security, and Playwright E2E test inventory with manual QA checklists.
+  - `docs/11_TROUBLESHOOTING.md`: Step-by-step diagnostic runbook for database, websockets, and conferencing.
+  - `docs/12_RELEASE_HISTORY_AND_PHASES.md`: Chronological log of Phases 1, 2, 3, 3.1, and 4.
+  - `docs/13_ENVIRONMENT_VARIABLES.md`: Authoritative configuration inventory and safe `.env.example`.
+  - `docs/14_GLOSSARY.md`: Domain glossary defining all terms and human-facing ID formats.
+  - `docs/15_DOCUMENTATION_AUDIT.md`: Forensic audit report and future engineering checklists.
+- **Modular Technical Specifications (`docs/05_MODULES/`)**:
+  - 14 deep-dive documents (`00_MODULE_INDEX.md` through `13_SETTINGS_AND_THEMES.md`) following the strict 14-point template.
+- **Mermaid Architecture & Sequence Diagrams (`docs/diagrams/`)**:
+  - 9 diagram source files covering system architecture, ER models, RBAC, call sequences, and storage perimeters.
+- **Architecture Decisions & Governance (`docs/decisions/`)**:
+  - `docs/decisions/ARCHITECTURE_DECISIONS.md`: ADRs 01 through 08.
+  - `docs/decisions/RELEASE_AND_VERIFICATION_POLICY.md`: Strict feature status definitions and gating rules.
+
+## 2. Automated Test & System Verification
+- `python manage.py check`: **0 issues (0 silenced)**
+- `python manage.py test meetings tests.test_meeting_webrtc_signaling`: **57 passed, 0 failed (100% OK in 61.3s)**
+- Database Migrations Created: **0 (Zero schema changes)**
+- Database Integrity: PostgreSQL on Supabase Cloud verified.
+
+## 3. Operational Safeguards Maintained
+- **Meet Hub Release Gate**: Guarded under `Coming Soon` (`ModuleStatus.STATUS_COMING_SOON`).
+- **Owner Manual Verification**: Two-device interactive audio/video testing remains pending owner verification.
+- **Zero Secrets**: All credentials and API keys remain safely isolated in environment variables.
+
+
+
 
 
 

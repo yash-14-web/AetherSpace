@@ -25,4 +25,11 @@ urlpatterns = [
     path('w/<slug:slug>/<str:meeting_code>/api/end/', views.meeting_end_api, name='meeting_end_api'),
     path('w/<slug:slug>/<str:meeting_code>/api/remove-participant/', views.meeting_remove_participant_api, name='meeting_remove_participant_api'),
     path('w/<slug:slug>/<str:meeting_code>/api/remove-participant/<uuid:user_id>/', views.meeting_remove_participant_api, name='meeting_remove_participant_api_param'),
+
+    # Meet Hub M1 — Global Call Session APIs
+    path('w/<slug:slug>/api/calls/initiate/', views.call_initiate_api, name='call_initiate_api'),
+    path('w/<slug:slug>/api/calls/<uuid:call_id>/accept/', views.call_accept_api, name='call_accept_api'),
+    path('w/<slug:slug>/api/calls/<uuid:call_id>/decline/', views.call_decline_api, name='call_decline_api'),
+    path('w/<slug:slug>/api/calls/<uuid:call_id>/cancel/', views.call_cancel_api, name='call_cancel_api'),
+    path('w/<slug:slug>/api/calls/<uuid:call_id>/status/', views.call_status_api, name='call_status_api'),
 ]

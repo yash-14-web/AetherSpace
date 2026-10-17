@@ -165,7 +165,7 @@ def send_notification_email(recipient_user, event_type, subject, template_name, 
         except Exception:
             text_content = html_to_plain_text(html_content)
 
-        from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'AetherSpace <no-reply@aetherspace.dev>')
+        from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'AetherSpace <yaswanthmunagoti@gmail.com>')
         msg = EmailMultiAlternatives(subject, text_content, from_email, [recipient_email])
         msg.attach_alternative(html_content, "text/html")
         msg.send(fail_silently=False)
@@ -218,7 +218,7 @@ def send_aether_email(recipient_email, subject, html_content, text_content=None,
         return False
 
     try:
-        from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'AetherSpace <no-reply@aetherspace.dev>')
+        from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'AetherSpace <yaswanthmunagoti@gmail.com>')
         if text_content:
             text = text_content
         else:

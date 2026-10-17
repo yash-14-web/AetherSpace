@@ -1,497 +1,322 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block title %}Meet Hub • {{ workspace.name }} — AetherSpace{% endblock %}
 
 {% block content %}
-<div class="space-y-6 max-w-7xl mx-auto" x-data="{
-    copiedLink: false,
-    copyPersonalLink(link) {
-        navigator.clipboard.writeText(link);
-        this.copiedLink = true;
-        setTimeout(() => this.copiedLink = false, 2500);
-    }
-}">
+<div class="space-y-6 max-w-7xl mx-auto py-2 sm:py-4 px-2 sm:px-4">
 
-    <!-- Global Module Maintenance Banner -->
+    <!-- Global Module Maintenance Banner (Conditional) -->
     {% if is_maintenance %}
         {% include 'components/module_maintenance_banner.html' with module_status=meetings_status %}
     {% endif %}
 
-    <!-- Page Header (Screen 1 style) -->
-    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-3 border-b border-slate-200 dark:border-zinc-800">
+    <!-- A. Page Header (Mockup matched) -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-1">
         <div>
-            <div class="flex items-center space-x-2.5">
-                <h1 class="text-2xl sm:text-3xl font-black meet-title tracking-tight">Meet Hub</h1>
-                {% if is_maintenance %}
-                <span class="inline-flex items-center space-x-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 border border-amber-300 dark:border-amber-700/60">
-                    <span class="w-2 h-2 rounded-full bg-amber-500"></span>
-                    <span>Under Maintenance</span>
-                </span>
-                {% elif live_meetings %}
-                <span class="inline-flex items-center space-x-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800">
-                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                    <span>{{ live_meetings|length }} Live</span>
-                </span>
-                {% endif %}
-            </div>
-            <p class="text-xs sm:text-sm meet-sub mt-1">
-                {% if is_maintenance %}
-                Real-time meetings are temporarily locked while WebRTC services undergo scheduled maintenance.
-                {% else %}
-                Connect, collaborate, and meet with your team seamlessly.
-                {% endif %}
+            <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">Meet Hub</h1>
+            <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
+                Connect, collaborate, and meet with your workspace.
             </p>
         </div>
 
-        <!-- Header Action Buttons -->
-        <div class="flex items-center flex-wrap gap-2.5">
+        <!-- Meeting Readiness Indicator Badge -->
+        <div class="flex items-center space-x-3 shrink-0">
             {% if is_maintenance %}
-            <button type="button" disabled
-                    class="inline-flex items-center space-x-2 px-4 py-2.5 text-xs font-bold rounded-xl bg-slate-300 dark:bg-zinc-800 text-slate-500 dark:text-zinc-500 cursor-not-allowed shadow-none border border-slate-200 dark:border-zinc-700"
-                    title="Start Meeting is disabled during maintenance">
-                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                </svg>
-                <span>Start Meeting</span>
-            </button>
-
-            <button type="button" disabled
-                    class="inline-flex items-center space-x-2 px-3.5 py-2.5 text-xs font-bold rounded-xl bg-slate-200/60 dark:bg-zinc-800/60 text-slate-400 dark:text-zinc-500 cursor-not-allowed border border-slate-200 dark:border-zinc-700"
-                    title="Join Meeting is disabled during maintenance">
-                <svg class="w-4 h-4 text-slate-400 dark:text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/>
-                </svg>
-                <span>Join Meeting</span>
-            </button>
-
-            <button type="button" disabled
-                    class="inline-flex items-center space-x-2 px-3.5 py-2.5 text-xs font-bold rounded-xl bg-slate-200/60 dark:bg-zinc-800/60 text-slate-400 dark:text-zinc-500 cursor-not-allowed border border-slate-200 dark:border-zinc-700"
-                    title="Schedule Meeting is disabled during maintenance">
-                <svg class="w-4 h-4 text-slate-400 dark:text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                </svg>
-                <span>Schedule Meeting</span>
-            </button>
+            <span class="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-full text-xs font-semibold meet-hub-maint-pill shadow-xs">
+                <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+                <span>Under Maintenance</span>
+            </span>
+            {% elif live_meetings %}
+            <span class="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-full text-xs font-semibold meet-hub-ready-pill shadow-xs">
+                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span>{{ live_meetings|length }} Live Now</span>
+            </span>
             {% else %}
-            <a href="{% url 'meetings:meeting_start' slug=workspace.slug %}"
-               class="inline-flex items-center space-x-2 px-4 py-2.5 text-xs font-bold rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-sm shadow-blue-500/20 transition">
-                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                </svg>
-                <span>Start Meeting</span>
-            </a>
-
-            <a href="{% url 'meetings:meeting_join' slug=workspace.slug %}"
-               class="meet-btn-secondary space-x-2 px-3.5 py-2.5">
-                <svg class="w-4 h-4 text-slate-400 dark:text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/>
-                </svg>
-                <span>Join Meeting</span>
-            </a>
-
-            <a href="{% url 'meetings:meeting_schedule' slug=workspace.slug %}"
-               class="meet-btn-secondary space-x-2 px-3.5 py-2.5">
-                <svg class="w-4 h-4 text-slate-400 dark:text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                </svg>
-                <span>Schedule Meeting</span>
-            </a>
+            <span class="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-full text-xs font-semibold meet-hub-ready-pill shadow-xs">
+                <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                <span>Meeting ready</span>
+            </span>
             {% endif %}
         </div>
     </div>
 
-    <!-- Main 2-Column Grid (Screen 1 Blueprint) -->
-    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-
-        <!-- LEFT COLUMN: Upcoming Meetings & Recent Meetings (8 Cols) -->
-        <div class="lg:col-span-8 space-y-6">
-
-            <!-- Active Live Meetings Banner (if any) -->
-            {% if live_meetings %}
-            <div class="space-y-3">
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center space-x-2">
-                        <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping"></span>
-                        <h2 class="text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">Live Calls in Workspace</h2>
-                    </div>
-                    <span class="text-xs font-medium meet-sub">{{ live_meetings|length }} active now</span>
-                </div>
-
-                <div class="grid grid-cols-1 gap-3">
-                    {% for m in live_meetings %}
-                    <div class="p-4 rounded-2xl border border-emerald-300 dark:border-emerald-800 bg-emerald-50/70 dark:bg-emerald-950/30 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                        <div>
-                            <div class="flex items-center space-x-2 mb-1.5">
-                                <span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-600 text-white animate-pulse">LIVE NOW</span>
-                                <span class="text-xs font-mono font-bold text-slate-700 dark:text-zinc-300 px-1.5 py-0.5 rounded bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700">{{ m.meeting_code }}</span>
-                                {% if m.project %}
-                                <span class="text-[11px] font-medium meet-sub">Project: {{ m.project.name }}</span>
-                                {% endif %}
-                            </div>
-                            <h3 class="text-base font-bold meet-title">{{ m.title }}</h3>
-                            <div class="flex items-center space-x-3 text-xs meet-sub mt-1">
-                                <span>Host: <strong class="meet-title">{{ m.host.get_full_name|default:m.host.username }}</strong></span>
-                                <span>•</span>
-                                <span>Started {{ m.actual_start|timesince }} ago</span>
-                            </div>
-                        </div>
-
-                        <div class="flex items-center space-x-2 shrink-0">
-                            {% if m.host == request.user or membership.can_manage_content %}
-                            <form method="post" action="{% url 'meetings:meeting_end_api' slug=workspace.slug meeting_code=m.meeting_code %}" class="inline">
-                                {% csrf_token %}
-                                <button type="submit" 
-                                        onclick="return confirm('End this live meeting for all participants?');"
-                                        class="px-3 py-2 text-xs font-bold rounded-xl bg-rose-600 hover:bg-rose-700 text-white shadow-sm transition">
-                                    End Call
-                                </button>
-                            </form>
-                            {% endif %}
-                            <a href="{% url 'meetings:meeting_room' slug=workspace.slug meeting_code=m.meeting_code %}"
-                               class="inline-flex items-center space-x-1.5 px-4 py-2 text-xs font-bold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition">
-                                <span>Join Call</span>
-                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
-                                </svg>
-                            </a>
-                        </div>
-                    </div>
+    <!-- Active Live Meetings Strip (Only shown when live calls are ongoing) -->
+    {% if live_meetings %}
+    <div class="p-4 rounded-2xl border border-emerald-300 dark:border-emerald-700/60 bg-emerald-50/80 dark:bg-emerald-950/40 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div class="flex items-center space-x-3">
+            <span class="w-3 h-3 rounded-full bg-emerald-500 animate-ping shrink-0"></span>
+            <div>
+                <div class="flex items-center space-x-2">
+                    <span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-600 text-white uppercase tracking-wider">Live Conference</span>
+                    {% for m in live_meetings|slice:":1" %}
+                    <span class="text-xs font-bold text-slate-800 dark:text-white">{{ m.title }}</span>
+                    <span class="text-xs font-mono text-emerald-700 dark:text-emerald-400">({{ m.meeting_code }})</span>
                     {% endfor %}
                 </div>
-            </div>
-            {% endif %}
-
-            <!-- Section: Upcoming Meetings -->
-            <div class="space-y-3">
-                <div class="flex items-center justify-between">
-                    <h2 class="text-base font-bold meet-title">Upcoming Meetings</h2>
-                    <a href="{% url 'meetings:meeting_schedule' slug=workspace.slug %}" class="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline">
-                        View Calendar
-                    </a>
-                </div>
-
-                {% if upcoming_cards %}
-                <div class="space-y-3">
-                    {% for m in upcoming_cards %}
-                    <div class="p-4 sm:p-5 meet-card meet-card-hover flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                        <div class="space-y-2">
-                            <div class="flex items-center space-x-2">
-                                <span class="px-2 py-0.5 text-[10px] font-bold rounded-md bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-400 border border-blue-200 dark:border-blue-900">
-                                    Project: {{ m.project.name|default:workspace.name }}
-                                </span>
-                                <span class="text-xs font-mono meet-sub">{{ m.meeting_code }}</span>
-                            </div>
-
-                            <h3 class="text-base font-bold meet-title">{{ m.title }}</h3>
-
-                            <div class="flex items-center space-x-3 text-xs meet-sub">
-                                <span class="inline-flex items-center space-x-1 font-medium">
-                                    <svg class="w-3.5 h-3.5 text-slate-400 dark:text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                                    </svg>
-                                    <span>{{ m.scheduled_start|date:"l, g:i A" }} ({{ m.duration_minutes }}m)</span>
-                                </span>
-                                <span>•</span>
-                                <span>Host: {{ m.host.get_full_name|default:m.host.username }}</span>
-                            </div>
-
-                            <!-- Dynamic Avatar Stack -->
-                            <div class="flex items-center space-x-2 pt-1">
-                                <div class="flex -space-x-2 overflow-hidden">
-                                    <!-- Host Avatar -->
-                                    <div class="inline-block h-6 w-6 rounded-full ring-2 ring-white dark:ring-zinc-900 bg-blue-600 text-white text-[10px] font-bold flex items-center justify-center"
-                                         title="Host: {{ m.host.get_full_name|default:m.host.username }}">
-                                        {{ m.host.username|slice:":1"|upper }}
-                                    </div>
-                                    <!-- Dynamic Invitee Avatars -->
-                                    {% for inv in m.invites.all|slice:":3" %}
-                                        {% if inv.user != m.host %}
-                                        <div class="inline-block h-6 w-6 rounded-full ring-2 ring-white dark:ring-zinc-900 bg-indigo-600 text-white text-[10px] font-bold flex items-center justify-center"
-                                             title="{{ inv.user.get_full_name|default:inv.user.username }}">
-                                            {{ inv.user.username|slice:":1"|upper }}
-                                        </div>
-                                        {% endif %}
-                                    {% endfor %}
-                                </div>
-                                {% with guest_count=m.invites.count %}
-                                    {% if guest_count > 0 %}
-                                    <span class="text-[11px] font-medium meet-sub">
-                                        {{ guest_count|add:1 }} attendee{{ guest_count|add:1|pluralize }}
-                                    </span>
-                                    {% else %}
-                                    <span class="text-[11px] font-medium meet-sub">
-                                        1 attendee (Host)
-                                    </span>
-                                    {% endif %}
-                                {% endwith %}
-                            </div>
-                        </div>
-
-                        <!-- Card Action -->
-                        <div class="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-2 shrink-0">
-                            <a href="{% url 'meetings:meeting_room' slug=workspace.slug meeting_code=m.meeting_code %}"
-                               class="inline-flex items-center justify-center px-5 py-2 text-xs font-bold rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition w-full sm:w-auto">
-                                Join
-                            </a>
-                            <a href="{% url 'meetings:meeting_detail' slug=workspace.slug meeting_code=m.meeting_code %}"
-                               class="text-[11px] font-semibold meet-sub hover:text-blue-600 dark:hover:text-blue-400">
-                                View Details
-                            </a>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-                {% else %}
-                <div class="p-8 meet-card border-dashed text-center">
-                    <svg class="w-9 h-9 text-slate-400 dark:text-zinc-500 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                    </svg>
-                    <p class="text-xs font-bold meet-title">No upcoming meetings scheduled</p>
-                    <p class="text-xs meet-sub mt-0.5">Plan your next team standup or start an instant meeting right now.</p>
-                    <div class="mt-4 flex items-center justify-center space-x-3">
-                        {% if is_maintenance %}
-                            <button type="button" disabled 
-                                    class="px-3.5 py-1.5 text-xs font-bold rounded-xl bg-slate-200 dark:bg-zinc-800 text-slate-400 dark:text-zinc-500 cursor-not-allowed border border-slate-300 dark:border-zinc-700"
-                                    title="Start Instant Call is disabled during maintenance">
-                                Start Instant Call (Maintenance)
-                            </button>
-                            <button type="button" disabled 
-                                    class="px-3.5 py-1.5 text-xs font-bold rounded-xl bg-slate-200/60 dark:bg-zinc-800/60 text-slate-400 dark:text-zinc-500 cursor-not-allowed border border-slate-300 dark:border-zinc-700"
-                                    title="Schedule Meeting is disabled during maintenance">
-                                Schedule Meeting (Maintenance)
-                            </button>
-                        {% else %}
-                            <a href="{% url 'meetings:meeting_start' slug=workspace.slug %}" class="px-3.5 py-1.5 text-xs font-bold rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition">
-                                Start Instant Call
-                            </a>
-                            <a href="{% url 'meetings:meeting_schedule' slug=workspace.slug %}" class="meet-btn-secondary px-3.5 py-1.5 text-xs">
-                                Schedule Meeting
-                            </a>
-                        {% endif %}
-                    </div>
-                </div>
-                {% endif %}
-            </div>
-
-            <!-- Section: Recent Meetings (Screen 1 style) -->
-            <div class="space-y-3 pt-2">
-                <div class="flex items-center justify-between">
-                    <h2 class="text-base font-bold meet-title">Recent Meetings</h2>
-                    <a href="{% url 'meetings:meeting_history' slug=workspace.slug %}" class="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline">
-                        View All
-                    </a>
-                </div>
-
-                {% if recent_meetings_list %}
-                <div class="meet-card divide-y divide-slate-100 dark:divide-zinc-800 overflow-hidden">
-                    {% for m in recent_meetings_list %}
-                    <div class="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50/60 dark:hover:bg-zinc-800/30 transition">
-                        <div class="space-y-1">
-                            <div class="flex items-center space-x-2">
-                                <h3 class="text-xs sm:text-sm font-bold meet-title">{{ m.title }}</h3>
-                                {% if m.project %}
-                                <span class="px-1.5 py-0.5 text-[9px] font-bold rounded bg-slate-100 text-slate-600 dark:bg-zinc-800 dark:text-zinc-400">
-                                    {{ m.project.name }}
-                                </span>
-                                {% endif %}
-                            </div>
-                            <div class="flex items-center space-x-3 text-[11px] meet-sub">
-                                <span>{{ m.actual_start|default:m.created_at|date:"M d, g:i A" }}</span>
-                                <span>•</span>
-                                <span>Duration: {{ m.duration_display }}</span>
-                                <span>•</span>
-                                <span>Host: {{ m.host.username }}</span>
-                            </div>
-                        </div>
-
-                        <div class="flex items-center space-x-3 shrink-0">
-                            {% if m.status == 'COMPLETED' or m.status == 'ENDED' %}
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
-                                Completed
-                            </span>
-                            {% elif m.status == 'CANCELLED' %}
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-400 border border-rose-200 dark:border-rose-900">
-                                Cancelled
-                            </span>
-                            {% else %}
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-400 border border-blue-200 dark:border-blue-900">
-                                {{ m.get_status_display }}
-                            </span>
-                            {% endif %}
-
-                            <a href="{% url 'meetings:meeting_detail' slug=workspace.slug meeting_code=m.meeting_code %}"
-                               class="meet-btn-secondary px-3 py-1.5 text-xs">
-                                View Recap
-                            </a>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-                {% else %}
-                <div class="meet-card p-6 text-center text-xs meet-sub">
-                    No recent meeting sessions completed in this workspace.
-                </div>
-                {% endif %}
-            </div>
-
-        </div>
-
-        <!-- RIGHT COLUMN: Quick Actions, Personal Meeting Link, Integrations (4 Cols) -->
-        <div class="lg:col-span-4 space-y-6">
-
-            <!-- Quick Actions Card Grid (Screen 1 style) -->
-            <div class="p-5 meet-card space-y-4">
-                <h3 class="text-sm font-bold meet-title">Quick Actions</h3>
-
-                <div class="grid grid-cols-2 gap-3">
-                    <!-- Action 1: Start Meeting -->
-                    {% if is_maintenance %}
-                    <div class="p-3.5 meet-subcard opacity-60 cursor-not-allowed flex flex-col justify-between"
-                         title="Start Meeting is disabled during maintenance">
-                        <div class="w-8 h-8 rounded-lg bg-slate-400 dark:bg-zinc-700 text-white flex items-center justify-center mb-2 shadow-xs">
-                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
-                            </svg>
-                        </div>
-                        <div>
-                            <span class="text-xs font-bold text-slate-500 dark:text-zinc-400 block">Start Meeting</span>
-                            <span class="text-[10px] text-amber-600 dark:text-amber-400 font-semibold">Under Maintenance</span>
-                        </div>
-                    </div>
-                    {% else %}
-                    <a href="{% url 'meetings:meeting_start' slug=workspace.slug %}"
-                       class="p-3.5 meet-subcard meet-card-hover group flex flex-col justify-between">
-                        <div class="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center mb-2 shadow-sm shadow-blue-500/20">
-                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
-                            </svg>
-                        </div>
-                        <div>
-                            <span class="text-xs font-bold meet-title group-hover:text-blue-600 dark:group-hover:text-blue-400 transition block">Start Meeting</span>
-                            <span class="text-[10px] meet-sub">Host instant call</span>
-                        </div>
-                    </a>
-                    {% endif %}
-
-                    <!-- Action 2: Join Meeting -->
-                    {% if is_maintenance %}
-                    <div class="p-3.5 meet-subcard opacity-60 cursor-not-allowed flex flex-col justify-between"
-                         title="Join Meeting is disabled during maintenance">
-                        <div class="w-8 h-8 rounded-lg bg-slate-400 dark:bg-zinc-700 text-white flex items-center justify-center mb-2 shadow-xs">
-                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/>
-                            </svg>
-                        </div>
-                        <div>
-                            <span class="text-xs font-bold text-slate-500 dark:text-zinc-400 block">Join Meeting</span>
-                            <span class="text-[10px] text-amber-600 dark:text-amber-400 font-semibold">Under Maintenance</span>
-                        </div>
-                    </div>
-                    {% else %}
-                    <a href="{% url 'meetings:meeting_join' slug=workspace.slug %}"
-                       class="p-3.5 meet-subcard meet-card-hover group flex flex-col justify-between">
-                        <div class="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center mb-2 shadow-sm shadow-emerald-500/20">
-                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/>
-                            </svg>
-                        </div>
-                        <div>
-                            <span class="text-xs font-bold meet-title group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition block">Join Meeting</span>
-                            <span class="text-[10px] meet-sub">Enter code/link</span>
-                        </div>
-                    </a>
-                    {% endif %}
-
-                    <!-- Action 3: Schedule Meeting -->
-                    {% if is_maintenance %}
-                    <div class="p-3.5 meet-subcard opacity-60 cursor-not-allowed flex flex-col justify-between"
-                         title="Schedule Meeting is disabled during maintenance">
-                        <div class="w-8 h-8 rounded-lg bg-slate-400 dark:bg-zinc-700 text-white flex items-center justify-center mb-2 shadow-xs">
-                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                            </svg>
-                        </div>
-                        <div>
-                            <span class="text-xs font-bold text-slate-500 dark:text-zinc-400 block">Schedule</span>
-                            <span class="text-[10px] text-amber-600 dark:text-amber-400 font-semibold">Under Maintenance</span>
-                        </div>
-                    </div>
-                    {% else %}
-                    <a href="{% url 'meetings:meeting_schedule' slug=workspace.slug %}"
-                       class="p-3.5 meet-subcard meet-card-hover group flex flex-col justify-between">
-                        <div class="w-8 h-8 rounded-lg bg-purple-600 text-white flex items-center justify-center mb-2 shadow-sm shadow-purple-500/20">
-                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                            </svg>
-                        </div>
-                        <div>
-                            <span class="text-xs font-bold meet-title group-hover:text-purple-600 dark:group-hover:text-purple-400 transition block">Schedule</span>
-                            <span class="text-[10px] meet-sub">Plan for later</span>
-                        </div>
-                    </a>
-                    {% endif %}
-
-                    <!-- Action 4: Meeting History -->
-                    <a href="{% url 'meetings:meeting_history' slug=workspace.slug %}"
-                       class="p-3.5 meet-subcard meet-card-hover group flex flex-col justify-between">
-                        <div class="w-8 h-8 rounded-lg bg-amber-600 text-white flex items-center justify-center mb-2 shadow-sm shadow-amber-500/20">
-                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                            </svg>
-                        </div>
-                        <div>
-                            <span class="text-xs font-bold meet-title group-hover:text-amber-600 dark:group-hover:text-amber-400 transition block">History</span>
-                            <span class="text-[10px] meet-sub">Logs & recaps</span>
-                        </div>
-                    </a>
-                </div>
-            </div>
-
-            <!-- Your Personal Meeting Link Card (Screen 1 style) -->
-            <div class="p-5 meet-card space-y-3">
-                <div class="flex items-center justify-between">
-                    <h3 class="text-sm font-bold meet-title">Your Meeting Link</h3>
-                    <span class="text-[10px] font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-2 py-0.5 rounded-full border border-blue-200 dark:border-blue-900">Permanent</span>
-                </div>
-
-                <p class="text-xs meet-sub leading-relaxed">
-                    Share your personal room URL with teammates or clients for quick 1-on-1 syncs anytime.
+                <p class="text-xs text-emerald-800 dark:text-emerald-300 mt-0.5">
+                    An active conference is currently in session in this workspace.
                 </p>
+            </div>
+        </div>
+        <div class="flex items-center space-x-2 shrink-0">
+            {% for m in live_meetings|slice:":1" %}
+            <a href="{% url 'meetings:meeting_room' slug=workspace.slug meeting_code=m.meeting_code %}"
+               class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-sm transition">
+                Join Active Call →
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
 
-                <div class="p-2.5 meet-subcard flex items-center justify-between gap-2">
-                    <span class="text-xs font-mono font-semibold meet-title truncate select-all">
-                        {{ personal_link }}
-                    </span>
-                    <button type="button"
-                            @click="copyPersonalLink('{{ personal_link }}')"
-                            class="px-2.5 py-1 text-xs font-bold rounded-lg bg-blue-600 hover:bg-blue-700 text-white shrink-0 transition flex items-center space-x-1">
-                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
-                        </svg>
-                        <span x-text="copiedLink ? 'Copied!' : 'Copy'">Copy</span>
-                    </button>
+    <!-- B. Primary Meeting Actions (Mockup matched: Blue & Purple Hero Cards) -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch">
+
+        <!-- Card 1: Start an instant meeting (Blue Gradient Card) -->
+        <div class="rounded-2xl p-7 relative overflow-hidden flex flex-col justify-between meet-hub-hero-blue text-white min-h-[220px]">
+            <div>
+                <!-- Large Video Camera Icon Squircle -->
+                <div class="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-md border border-white/25 flex items-center justify-center text-white mb-5 shadow-sm">
+                    <svg class="w-7 h-7 fill-current" viewBox="0 0 24 24">
+                        <path d="M4 5a3 3 0 00-3 3v8a3 3 0 003 3h10a3 3 0 003-3V8a3 3 0 00-3-3H4zm14.5 3.3l4.2-2.8A1 1 0 0124 6.3v11.4a1 1 0 01-1.3.8l-4.2-2.8V8.3z"/>
+                    </svg>
                 </div>
+
+                <h2 class="text-xl sm:text-2xl font-bold text-white tracking-tight mb-2">Start an instant meeting</h2>
+                <p class="text-blue-100/90 text-sm leading-relaxed mb-6 max-w-sm">
+                    Launch a new meeting room and connect with your workspace members now.
+                </p>
             </div>
 
-
-            <!-- In-Chat Calling Tip Card -->
-            <div class="p-4 rounded-2xl border border-indigo-200 dark:border-indigo-900/50 bg-gradient-to-br from-indigo-50/80 to-blue-50/40 dark:from-indigo-950/40 dark:to-blue-950/30 shadow-2xs">
-                <div class="flex items-start space-x-3">
-                    <span class="text-xl">💬</span>
-                    <div>
-                        <h4 class="text-xs font-bold text-indigo-950 dark:text-indigo-200">Google Chat Style Calling</h4>
-                        <p class="text-[11px] text-indigo-900 dark:text-indigo-300 mt-0.5 leading-relaxed">
-                            Start audio and video calls directly from any chat channel or direct message thread.
-                        </p>
-                        <a href="{% url 'chat:chat_home' slug=workspace.slug %}" class="inline-flex text-[11px] font-bold text-indigo-700 dark:text-indigo-400 hover:underline mt-2">
-                            Open Chat Rooms →
-                        </a>
-                    </div>
-                </div>
+            <div class="mt-auto pt-2">
+                {% if is_maintenance %}
+                <button type="button" disabled
+                        class="inline-flex items-center space-x-2.5 px-6 py-2.5 rounded-xl bg-white/70 text-slate-400 font-bold text-sm cursor-not-allowed">
+                    <span>Start Meeting (Maintenance)</span>
+                </button>
+                {% else %}
+                <a href="{% url 'meetings:meeting_start' slug=workspace.slug %}"
+                   class="inline-flex items-center space-x-2.5 px-6 py-2.5 rounded-xl bg-white hover:bg-blue-50 text-blue-700 font-bold text-sm shadow-md hover:shadow-lg transition-all duration-150 transform hover:-translate-y-0.5 group">
+                    <svg class="w-4 h-4 fill-current text-blue-700" viewBox="0 0 24 24">
+                        <path d="M4 5a3 3 0 00-3 3v8a3 3 0 003 3h10a3 3 0 003-3V8a3 3 0 00-3-3H4zm14.5 3.3l4.2-2.8A1 1 0 0124 6.3v11.4a1 1 0 01-1.3.8l-4.2-2.8V8.3z"/>
+                    </svg>
+                    <span>Start Meeting</span>
+                    <span class="text-base font-bold ml-0.5 group-hover:translate-x-0.5 transition-transform">→</span>
+                </a>
+                {% endif %}
             </div>
-
         </div>
 
+        <!-- Card 2: Schedule a meeting (Purple Gradient Card) -->
+        <div class="rounded-2xl p-7 relative overflow-hidden flex flex-col justify-between meet-hub-hero-purple text-white min-h-[220px]">
+            <div>
+                <!-- Large Calendar Icon Squircle -->
+                <div class="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-md border border-white/25 flex items-center justify-center text-white mb-5 shadow-sm">
+                    <svg class="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                        <line x1="16" y1="2" x2="16" y2="6"/>
+                        <line x1="8" y1="2" x2="8" y2="6"/>
+                        <line x1="3" y1="10" x2="21" y2="10"/>
+                    </svg>
+                </div>
+
+                <h2 class="text-xl sm:text-2xl font-bold text-white tracking-tight mb-2">Schedule a meeting</h2>
+                <p class="text-purple-100/90 text-sm leading-relaxed mb-6 max-w-sm">
+                    Plan a meeting for later and invite workspace members.
+                </p>
+            </div>
+
+            <div class="mt-auto pt-2">
+                {% if is_maintenance %}
+                <button type="button" disabled
+                        class="inline-flex items-center space-x-2.5 px-6 py-2.5 rounded-xl bg-white/70 text-slate-400 font-bold text-sm cursor-not-allowed">
+                    <span>Schedule Meeting (Maintenance)</span>
+                </button>
+                {% else %}
+                <a href="{% url 'meetings:meeting_schedule' slug=workspace.slug %}"
+                   class="inline-flex items-center space-x-2.5 px-6 py-2.5 rounded-xl bg-white hover:bg-purple-50 text-purple-800 font-bold text-sm shadow-md hover:shadow-lg transition-all duration-150 transform hover:-translate-y-0.5 group">
+                    <svg class="w-4 h-4 text-purple-800" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                        <line x1="16" y1="2" x2="16" y2="6"/>
+                        <line x1="8" y1="2" x2="8" y2="6"/>
+                        <line x1="3" y1="10" x2="21" y2="10"/>
+                    </svg>
+                    <span>Schedule Meeting</span>
+                    <span class="text-base font-bold ml-0.5 group-hover:translate-x-0.5 transition-transform">→</span>
+                </a>
+                {% endif %}
+            </div>
+        </div>
+
+    </div>
+
+    <!-- C. Upcoming Meetings Section (Mockup matched) -->
+    <div class="rounded-2xl meet-hub-section-card p-6 sm:p-7 space-y-5">
+        <!-- Section Header -->
+        <div class="flex items-center justify-between gap-4">
+            <div class="flex items-center space-x-3">
+                <svg class="w-6 h-6 text-blue-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                    <line x1="16" y1="2" x2="16" y2="6"/>
+                    <line x1="8" y1="2" x2="8" y2="6"/>
+                    <line x1="3" y1="10" x2="21" y2="10"/>
+                </svg>
+                <div>
+                    <h2 class="text-base sm:text-lg font-bold text-slate-900 dark:text-white">Upcoming Meetings</h2>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Your scheduled meetings will appear here.</p>
+                </div>
+            </div>
+
+            <!-- View Calendar CTA -->
+            <a href="{% url 'calendars:calendar_view' slug=workspace.slug %}"
+               class="inline-flex items-center space-x-1.5 px-3.5 py-1.5 meet-hub-pill-btn text-xs font-semibold shrink-0"
+               title="View Workspace Calendar">
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                    <line x1="16" y1="2" x2="16" y2="6"/>
+                    <line x1="8" y1="2" x2="8" y2="6"/>
+                    <line x1="3" y1="10" x2="21" y2="10"/>
+                </svg>
+                <span>View Calendar</span>
+            </a>
+        </div>
+
+        <!-- Section Content: Empty State or Scheduled Meetings -->
+        {% if upcoming_cards %}
+        <div class="space-y-3">
+            {% for m in upcoming_cards %}
+            <div class="p-4 sm:p-5 meet-hub-inner-panel hover:border-blue-500/40 transition flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div class="space-y-1.5">
+                    <div class="flex items-center space-x-2">
+                        <span class="px-2 py-0.5 text-[10px] font-bold rounded-md bg-blue-50 text-blue-700 dark:bg-blue-950/70 dark:text-blue-400 border border-blue-200 dark:border-blue-900">
+                            {{ m.project.name|default:workspace.name }}
+                        </span>
+                        <span class="text-xs font-mono font-medium text-slate-500 dark:text-slate-400">{{ m.meeting_code }}</span>
+                    </div>
+
+                    <h3 class="text-base font-bold text-slate-900 dark:text-white">{{ m.title }}</h3>
+
+                    <div class="flex items-center space-x-3 text-xs text-slate-500 dark:text-slate-400">
+                        <span class="inline-flex items-center space-x-1 font-medium">
+                            <svg class="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"/>
+                                <polyline points="12 6 12 12 16 14"/>
+                            </svg>
+                            <span>{{ m.scheduled_start|date:"l, g:i A" }} ({{ m.duration_minutes }}m)</span>
+                        </span>
+                        <span>•</span>
+                        <span>Host: <strong class="text-slate-700 dark:text-slate-300 font-semibold">{{ m.host.get_full_name|default:m.host.username }}</strong></span>
+                    </div>
+                </div>
+
+                <div class="flex items-center space-x-2.5 shrink-0">
+                    <a href="{% url 'meetings:meeting_room' slug=workspace.slug meeting_code=m.meeting_code %}"
+                       class="px-4 py-2 text-xs font-bold rounded-xl bg-blue-600 hover:bg-blue-500 text-white shadow-sm transition">
+                        Join Call
+                    </a>
+                    <a href="{% url 'meetings:meeting_detail' slug=workspace.slug meeting_code=m.meeting_code %}"
+                       class="px-3 py-2 text-xs font-semibold rounded-xl border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+                        Details
+                    </a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <!-- Empty State (Exact mockup match: Compact, centered, dark theme) -->
+        <div class="rounded-xl meet-hub-inner-panel p-8 sm:p-12 flex flex-col items-center justify-center text-center">
+            <svg class="w-12 h-12 text-slate-400 dark:text-[#384968] mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                <line x1="16" y1="2" x2="16" y2="6"/>
+                <line x1="8" y1="2" x2="8" y2="6"/>
+                <line x1="3" y1="10" x2="21" y2="10"/>
+            </svg>
+            <h3 class="text-sm sm:text-base font-bold text-slate-900 dark:text-white mb-1">No upcoming meetings</h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mb-5">Your scheduled meetings will appear here.</p>
+
+            {% if is_maintenance %}
+            <button type="button" disabled
+                    class="px-5 py-2.5 rounded-xl bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 font-semibold text-xs cursor-not-allowed">
+                Schedule a Meeting (Maintenance)
+            </button>
+            {% else %}
+            <a href="{% url 'meetings:meeting_schedule' slug=workspace.slug %}"
+               class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs shadow-md transition">
+                Schedule a Meeting
+            </a>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- D. Workspace Members Section (Mockup matched) -->
+    <div class="rounded-2xl meet-hub-section-card p-6 sm:p-7 space-y-5">
+        <!-- Section Header -->
+        <div class="flex items-center justify-between gap-4">
+            <div class="flex items-center space-x-3">
+                <svg class="w-6 h-6 text-blue-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+                </svg>
+                <div>
+                    <h2 class="text-base sm:text-lg font-bold text-slate-900 dark:text-white">Workspace Members</h2>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Select or invite eligible participants to your meeting.</p>
+                </div>
+            </div>
+
+            <!-- View All Members CTA -->
+            <a href="{% url 'workspaces:team' slug=workspace.slug %}"
+               class="inline-flex items-center space-x-1.5 px-3.5 py-1.5 meet-hub-pill-btn text-xs font-semibold shrink-0"
+               title="View All Workspace Members">
+                <span>View All Members</span>
+                <span class="text-xs">→</span>
+            </a>
+        </div>
+
+        <!-- Section Content: Member Cards Grid -->
+        {% if workspace_members %}
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3.5">
+            {% for m in workspace_members %}
+                {% include 'components/workspace_member_card.html' with member=m is_selected=False %}
+            {% endfor %}
+        </div>
+        <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            window.addEventListener('aether:presence-change', function(e) {
+                const detail = e.detail;
+                if (!detail || !detail.user_id) return;
+                const cards = document.querySelectorAll(`[data-presence-user-id="${detail.user_id}"]`);
+                if (!cards.length) return;
+
+                const statusMap = {
+                    'available': { text: 'Online', dotClass: 'bg-emerald-500' },
+                    'busy': { text: 'Busy', dotClass: 'bg-rose-500' },
+                    'away': { text: 'Away', dotClass: 'bg-amber-400' },
+                    'dnd': { text: 'Do Not Disturb', dotClass: 'bg-red-600' },
+                    'ooo': { text: 'Out of Office', dotClass: 'bg-slate-400' },
+                    'offline': { text: 'Offline', dotClass: 'bg-zinc-500 dark:bg-zinc-600' }
+                };
+
+                const info = statusMap[detail.status] || statusMap['offline'];
+                cards.forEach(function(card) {
+                    const dot = card.querySelector('[data-presence-dot]');
+                    const text = card.querySelector('[data-presence-text]');
+                    if (dot) {
+                        dot.className = 'w-2 h-2 rounded-full shrink-0 ' + info.dotClass;
+                    }
+                    if (text) {
+                        text.textContent = info.text;
+                    }
+                });
+            });
+        });
+        </script>
+        {% else %}
+        <!-- Empty Members Fallback -->
+        <div class="p-6 text-center text-xs text-slate-400 dark:text-slate-500">
+            No active members found in this workspace.
+        </div>
+        {% endif %}
     </div>
 
 </div>

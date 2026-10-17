@@ -1,0 +1,57 @@
+sequenceDiagram
+    autonumber
+    actor Caller as Caller (User A)
+    participant ModalA as Outgoing Call Modal (User A)
+    participant WS_A as GlobalCallConsumer (User A)
+    participant Services as Meeting & Call Services
+    participant DB as Supabase PostgreSQL
+    participant WS_B as GlobalCallConsumer (User B)
+    participant ModalB as Incoming Call Modal (User B)
+    actor Callee as Recipient (User B)
+    participant Jitsi as Jitsi Meet Media SFU (IFrame)
+
+    Caller->>ModalA: Clicks Voice / Video Call in DM
+    ModalA->>ModalA: Optimistically opens outgoing modal & plays ringback
+    ModalA->>WS_A: WS send: {"action": "initiate", "recipient_id": "B", "call_mode": "AUDIO"}
+    
+    WS_A->>Services: initiate_call_session(workspace, caller=A, recipient=B)
+    Services->>Services: reconcile_and_prune_stale_calls(A, B)
+    Services->>DB: Create Meeting(type='CHAT_CALL') + CallSession(status=RINGING)
+    DB-->>Services: CallSession ID, Meeting Code
+    
+    Services->>WS_A: group_send("user_calls_A", "call_outgoing", ...)
+    Services->>WS_B: group_send("user_calls_B", "call_incoming", ...)
+    
+    WS_B-->>ModalB: JSON: {"type": "call_incoming", "caller": "A", "call_id": "...", ...}
+    ModalB-->>Callee: Plays synthesized web audio ringtone & shows modal on any active page
+    
+    alt Callee Accepts
+        Callee->>ModalB: Clicks "Accept & Join"
+        ModalB->>WS_B: WS send: {"action": "accept", "call_id": "..."}
+        WS_B->>Services: accept_call_session(call_id, user=B)
+        Services->>DB: CallSession.status = ACCEPTED
+        Services->>WS_A: group_send("user_calls_A", "call_accepted", room_url)
+        Services->>WS_B: group_send("user_calls_B", "call_accepted", room_url)
+        WS_A-->>ModalA: JSON: {"type": "call_accepted", "room_url": "/meetings/w/.../room/..."}
+        WS_B-->>ModalB: JSON: {"type": "call_accepted", "room_url": "/meetings/w/.../room/..."}
+        ModalA-->>Caller: Redirects browser to meeting room
+        ModalB-->>Callee: Redirects browser to meeting room
+        Caller->>Jitsi: Both connect to isolated Jitsi Meet room
+        Callee->>Jitsi: Media exchanged over WebRTC SFU
+    else Callee Declines
+        Callee->>ModalB: Clicks "Decline"
+        ModalB->>WS_B: WS send: {"action": "decline", "call_id": "..."}
+        WS_B->>Services: decline_call_session(call_id)
+        Services->>DB: CallSession.status = DECLINED
+        Services->>WS_A: group_send("user_calls_A", "call_declined")
+        WS_A-->>ModalA: JSON: {"type": "call_declined"}
+        ModalA-->>Caller: Plays busy tone & dismisses modal
+    else Ringing Times Out (30-45s)
+        ModalA->>WS_A: WS send: {"action": "timeout", "call_id": "..."}
+        WS_A->>Services: mark_call_missed(call_id)
+        Services->>DB: CallSession.status = MISSED
+        Services->>WS_A: group_send("user_calls_A", "call_missed")
+        Services->>WS_B: group_send("user_calls_B", "call_missed")
+        ModalA-->>Caller: Shows "Call Unanswered"
+        ModalB-->>Callee: Shows "Missed Call" toast
+    end

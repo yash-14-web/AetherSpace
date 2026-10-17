@@ -1,0 +1,37 @@
+flowchart TB
+    subgraph ClientBrowsers["Client Browsers (Edge / Mobile / Desktop)"]
+        UserA["User A (Desktop Chrome)"]
+        UserB["User B (Firefox / Safari)"]
+    end
+
+    subgraph RenderPlatform["Render Cloud Platform (Free Tier Web Service)"]
+        LoadBalancer["Render Edge Router & SSL Termination (HTTPS/WSS)"]
+        
+        subgraph WebServiceContainer["AetherSpace Web Service (oregon region)"]
+            WhiteNoise["WhiteNoise Middleware (Static Files Cache)"]
+            DaphneProc["Daphne Process (ASGI: HTTP & WebSockets)"]
+            DjangoEngine["Django 4.2 Application Runtime (Python 3.13)"]
+        end
+    end
+
+    subgraph SupabaseCloud["Supabase Managed Cloud Infrastructure"]
+        PostgresDB[("PostgreSQL 15+ (Transaction Pooler / Port 5432)")]
+        ObjectStorage[("Supabase Object Storage (Bucket: aetherspace-storage)")]
+    end
+
+    subgraph ExternalConferencing["External WebRTC Media Infrastructure"]
+        JitsiSFU["Jitsi Meet Media Bridge (meet.jit.si / 8x8.vc JaaS)"]
+    end
+
+    UserA -->|HTTPS / WSS| LoadBalancer
+    UserB -->|HTTPS / WSS| LoadBalancer
+    
+    LoadBalancer -->|Port 443 / $PORT| DaphneProc
+    DaphneProc --> WhiteNoise
+    DaphneProc --> DjangoEngine
+    
+    DjangoEngine -->|DATABASE_URL / SSL Required| PostgresDB
+    DjangoEngine -->|SUPABASE_URL / API Keys REST| ObjectStorage
+    
+    UserA <-->|Direct WebRTC Audio/Video/Screen| JitsiSFU
+    UserB <-->|Direct WebRTC Audio/Video/Screen| JitsiSFU

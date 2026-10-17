@@ -269,6 +269,14 @@ class MeetingRoomViewTests(TestCase):
             role=WorkspaceRole.MANAGER,
             status=MembershipStatus.ACTIVE,
         )
+        from core.models import ModuleStatus
+        ModuleStatus.objects.update_or_create(
+            module_key='meetings',
+            defaults={
+                'name': 'Meet Hub',
+                'status': ModuleStatus.STATUS_AVAILABLE,
+            }
+        )
         self.meeting = create_instant_meeting(
             workspace=self.workspace,
             host=self.host,
@@ -286,8 +294,7 @@ class MeetingRoomViewTests(TestCase):
         self.assertIn("user_id_str", response.context)
         self.assertEqual(response.context["user_id_str"], str(self.host.id))
         self.assertIn("current_user_json", response.context)
-        self.assertContains(response, 'id="local-video"')
-        self.assertContains(response, 'x-show="peer.is_camera_on || peer.screen_sharing"')
+        self.assertContains(response, 'id="jitsi-meet-container"')
 
     def test_cross_workspace_meeting_room_access_blocked(self):
         """User cannot access meeting room of a workspace they do not belong to."""

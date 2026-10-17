@@ -317,7 +317,7 @@ class Phase18CrossModuleAuditTests(TestCase):
     def test_user_hover_card_returns_real_tagging_role(self):
         """User hover card returns accurate workspace role and real Tagging Role."""
         self.client.force_login(self.manager)
-        url = reverse('accounts:api_user_hover_card', kwargs={'user_id': self.contributor_alpha.id})
+        url = reverse('accounts:api_user_hover_card', kwargs={'user_identifier': str(self.contributor_alpha.id)})
 
         resp = self.client.get(f"{url}?workspace={self.workspace_a.slug}")
         self.assertEqual(resp.status_code, 200)

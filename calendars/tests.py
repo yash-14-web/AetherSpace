@@ -24,6 +24,7 @@ from calendars.services import (
     build_upcoming_deadlines,
     create_calendar_event,
     get_unified_schedule_items,
+    get_upcoming_schedule_items,
 )
 
 User = get_user_model()
@@ -564,5 +565,348 @@ class CalendarViewsAndRBACTests(TestCase):
         self.assertEqual(isolated_resp.status_code, 200)
         isolated_data = isolated_resp.json()
         self.assertEqual(len(isolated_data['users']), 0)
+
+
+class CalendarRedesignAndSchedulingAuditTests(TestCase):
+    """
+    Test suite verifying the approved Calendar UI redesign, scheduling logic audit,
+    lifecycle status enforcement, and upcoming events filtering rules.
+    """
+    def setUp(self):
+        self.client = Client()
+        self.password = 'TestPassword123!'
+        self.user = User.objects.create_user(
+            email='auditor@aetherspace.dev',
+            password=self.password,
+            full_name='Audit Engineer'
+        )
+        self.workspace = Workspace.objects.create(
+            name='Audit Workspace',
+            slug='audit-workspace',
+            owner=self.user
+        )
+        WorkspaceMembership.objects.create(
+            workspace=self.workspace,
+            user=self.user,
+            role=WorkspaceRole.ADMIN,
+            status=MembershipStatus.ACTIVE
+        )
+        self.client.login(username='auditor@aetherspace.dev', password=self.password)
+
+    def test_upcoming_event_filtering_lifecycle(self):
+        """
+        Critical invariant: Completed/ended meetings, passed events, cancelled events,
+        completed tasks, and closed bugs must NEVER appear in Upcoming Events.
+        """
+        now = timezone.now()
+        today = timezone.localdate()
+
+        # 1. Past ended meeting (MUST BE EXCLUDED)
+        Meeting.objects.create(
+            workspace=self.workspace,
+            host=self.user,
+            title='Old Morning Standup',
+            scheduled_start=now - timedelta(hours=3),
+            scheduled_end=now - timedelta(hours=2, minutes=30),
+            actual_start=now - timedelta(hours=3),
+            actual_end=now - timedelta(hours=2, minutes=30),
+            status=MeetingStatus.ENDED,
+            meeting_code='meet-past-ended'
+        )
+
+        # 2. Past meeting still marked SCHEDULED (passed time) (MUST BE EXCLUDED)
+        Meeting.objects.create(
+            workspace=self.workspace,
+            host=self.user,
+            title='Missed Scheduled Call',
+            scheduled_start=now - timedelta(hours=2),
+            scheduled_end=now - timedelta(hours=1),
+            status=MeetingStatus.SCHEDULED,
+            meeting_code='meet-past-sched'
+        )
+
+        # 3. Cancelled meeting (MUST BE EXCLUDED)
+        Meeting.objects.create(
+            workspace=self.workspace,
+            host=self.user,
+            title='Cancelled Sync',
+            scheduled_start=now + timedelta(hours=2),
+            scheduled_end=now + timedelta(hours=3),
+            status=MeetingStatus.CANCELLED,
+            meeting_code='meet-cancelled'
+        )
+
+        # 4. Future scheduled meeting (MUST BE INCLUDED)
+        Meeting.objects.create(
+            workspace=self.workspace,
+            host=self.user,
+            title='Sprint Retrospective',
+            scheduled_start=now + timedelta(hours=4),
+            scheduled_end=now + timedelta(hours=5),
+            status=MeetingStatus.SCHEDULED,
+            meeting_code='meet-retro'
+        )
+
+        # 5. Live ongoing meeting (scheduled_end >= now) (MUST BE INCLUDED)
+        Meeting.objects.create(
+            workspace=self.workspace,
+            host=self.user,
+            title='Emergency War Room',
+            scheduled_start=now - timedelta(minutes=15),
+            scheduled_end=now + timedelta(minutes=45),
+            status=MeetingStatus.LIVE,
+            meeting_code='meet-war-room'
+        )
+
+        # 6. Completed CalendarEvent (MUST BE EXCLUDED)
+        create_calendar_event(
+            workspace=self.workspace,
+            user=self.user,
+            data={
+                'title': 'Completed Workshop',
+                'computed_start_at': now - timedelta(days=1),
+                'computed_end_at': now - timedelta(days=1) + timedelta(hours=2),
+                'event_type': CalendarEventType.GENERAL,
+                'status': EventStatus.COMPLETED
+            }
+        )
+
+        # 7. Future CalendarEvent (MUST BE INCLUDED)
+        create_calendar_event(
+            workspace=self.workspace,
+            user=self.user,
+            data={
+                'title': 'Q4 Product Roadmap',
+                'computed_start_at': now + timedelta(days=3),
+                'computed_end_at': now + timedelta(days=3, hours=2),
+                'event_type': CalendarEventType.MILESTONE,
+                'status': EventStatus.UPCOMING
+            }
+        )
+
+        # 8. Completed Task (MUST BE EXCLUDED)
+        Task.objects.create(
+            task_code='771001',
+            workspace=self.workspace,
+            title='Finished Setup Docs',
+            reporter=self.user,
+            assignee=self.user,
+            due_date=today + timedelta(days=2),
+            status=TaskStatus.DONE
+        )
+
+        # 9. Active Task due future (MUST BE INCLUDED)
+        Task.objects.create(
+            task_code='771002',
+            workspace=self.workspace,
+            title='Implement Cache Layer',
+            reporter=self.user,
+            assignee=self.user,
+            due_date=today + timedelta(days=2),
+            status=TaskStatus.IN_PROGRESS
+        )
+
+        # 10. Closed Bug (MUST BE EXCLUDED)
+        Bug.objects.create(
+            bug_code='B-991001',
+            workspace=self.workspace,
+            title='Closed CSS Glitch',
+            reporter=self.user,
+            assignee=self.user,
+            due_date=today + timedelta(days=1),
+            status=BugStatus.CLOSED
+        )
+
+        # Query upcoming items
+        upcoming = get_upcoming_schedule_items(self.workspace, limit=20)
+        titles = [item['title'] for item in upcoming]
+
+        # Invariant assertions: past/ended/cancelled/completed items MUST NOT be present
+        self.assertNotIn('Old Morning Standup', titles)
+        self.assertNotIn('Missed Scheduled Call', titles)
+        self.assertNotIn('Cancelled Sync', titles)
+        self.assertNotIn('Completed Workshop', titles)
+        self.assertNotIn('Finished Setup Docs', titles)
+        self.assertNotIn('Closed CSS Glitch', titles)
+
+        # Invariant assertions: valid future and ongoing items MUST be present
+        self.assertIn('Emergency War Room', titles)
+        self.assertIn('Sprint Retrospective', titles)
+        self.assertIn('Q4 Product Roadmap', titles)
+        self.assertIn('Implement Cache Layer', titles)
+
+    def test_upcoming_events_chronological_ordering(self):
+        """Upcoming events must be strictly ordered ascending by start datetime."""
+        now = timezone.now()
+        today = timezone.localdate()
+
+        Meeting.objects.create(
+            workspace=self.workspace,
+            host=self.user,
+            title='Meeting Later Today',
+            scheduled_start=now + timedelta(hours=2),
+            scheduled_end=now + timedelta(hours=3),
+            status=MeetingStatus.SCHEDULED,
+            meeting_code='meet-later-today'
+        )
+        Task.objects.create(
+            task_code='771003',
+            workspace=self.workspace,
+            title='Task Due Tomorrow',
+            reporter=self.user,
+            assignee=self.user,
+            due_date=today + timedelta(days=1),
+            status=TaskStatus.TODO
+        )
+        create_calendar_event(
+            workspace=self.workspace,
+            user=self.user,
+            data={
+                'title': 'Milestone Next Week',
+                'computed_start_at': now + timedelta(days=5),
+                'computed_end_at': now + timedelta(days=5, hours=1),
+                'event_type': CalendarEventType.MILESTONE,
+                'status': EventStatus.UPCOMING
+            }
+        )
+
+        upcoming = get_upcoming_schedule_items(self.workspace, limit=10)
+        for i in range(len(upcoming) - 1):
+            self.assertLessEqual(upcoming[i]['dt_sort'], upcoming[i + 1]['dt_sort'])
+
+    def test_month_navigation_and_year_transitions(self):
+        """Grid must calculate correct weeks, adjacent days, and prev/next across month/year borders."""
+        # Test December -> January boundary
+        dec_cal = build_month_calendar_matrix(self.workspace, year=2026, month=12)
+        self.assertEqual(dec_cal['year'], 2026)
+        self.assertEqual(dec_cal['month'], 12)
+        self.assertEqual(len(dec_cal['weeks']), 6)
+        # 6 weeks * 7 days = 42 cells
+        total_cells = sum(len(w) for w in dec_cal['weeks'])
+        self.assertEqual(total_cells, 42)
+
+        # Test January -> previous year boundary
+        jan_cal = build_month_calendar_matrix(self.workspace, year=2027, month=1)
+        self.assertEqual(jan_cal['year'], 2027)
+        self.assertEqual(jan_cal['month'], 1)
+        self.assertEqual(len(jan_cal['weeks']), 6)
+
+    def test_category_filters(self):
+        """Category filter pills must selectively query and render corresponding items."""
+        now = timezone.now()
+        today = timezone.localdate()
+
+        Task.objects.create(
+            task_code='771004',
+            workspace=self.workspace,
+            title='Only Task Filter Item',
+            reporter=self.user,
+            due_date=today,
+            status=TaskStatus.TODO
+        )
+        Bug.objects.create(
+            bug_code='B-771004',
+            workspace=self.workspace,
+            title='Only Bug Filter Item',
+            reporter=self.user,
+            due_date=today,
+            status=BugStatus.OPEN
+        )
+
+        # 1. Filter only tasks
+        url_tasks = reverse('calendars:calendar_view', kwargs={'slug': self.workspace.slug}) + '?cats=tasks'
+        resp_tasks = self.client.get(url_tasks)
+        self.assertEqual(resp_tasks.status_code, 200)
+        self.assertEqual(resp_tasks.context['selected_cat'], 'tasks')
+        self.assertContains(resp_tasks, 'Only Task Filter Item')
+        self.assertNotContains(resp_tasks, 'Only Bug Filter Item')
+
+        # 2. Filter only bugs
+        url_bugs = reverse('calendars:calendar_view', kwargs={'slug': self.workspace.slug}) + '?cats=bugs'
+        resp_bugs = self.client.get(url_bugs)
+        self.assertEqual(resp_bugs.status_code, 200)
+        self.assertEqual(resp_bugs.context['selected_cat'], 'bugs')
+        self.assertContains(resp_bugs, 'Only Bug Filter Item')
+        self.assertNotContains(resp_bugs, 'Only Task Filter Item')
+
+    def test_view_navigation_and_template_cards_rendered(self):
+        """Calendar renders Month, Week, Day, and Agenda views with approved cards."""
+        base_url = reverse('calendars:calendar_view', kwargs={'slug': self.workspace.slug})
+
+        # Month view
+        month_resp = self.client.get(base_url + '?view=month')
+        self.assertEqual(month_resp.status_code, 200)
+        self.assertContains(month_resp, 'Plan, schedule, and stay in sync with your workspace.')
+        self.assertContains(month_resp, 'Create Event')
+        self.assertContains(month_resp, 'Upcoming Events')
+        self.assertContains(month_resp, 'Quick Actions')
+        self.assertContains(month_resp, 'Start Meeting')
+        self.assertContains(month_resp, 'View Agenda')
+        self.assertContains(month_resp, 'View Deadlines')
+
+        # Week view
+        week_resp = self.client.get(base_url + '?view=week')
+        self.assertEqual(week_resp.status_code, 200)
+        self.assertContains(week_resp, 'Quick Actions')
+
+        # Day view
+        day_resp = self.client.get(base_url + '?view=day')
+        self.assertEqual(day_resp.status_code, 200)
+        self.assertContains(day_resp, 'Quick Actions')
+
+        # Agenda view
+        agenda_url = reverse('calendars:agenda_view', kwargs={'slug': self.workspace.slug})
+        agenda_resp = self.client.get(agenda_url)
+        self.assertEqual(agenda_resp.status_code, 200)
+
+    def test_quick_action_routes_validity(self):
+        """All 4 Quick Actions must map to valid accessible routes for workspace members."""
+        ws_slug = self.workspace.slug
+
+        # 1. Create Event
+        url_event_create = reverse('calendars:event_create', kwargs={'slug': ws_slug})
+        self.assertEqual(self.client.get(url_event_create).status_code, 200)
+
+        # 2. Start Meeting launcher
+        url_meeting_start = reverse('meetings:meeting_start', kwargs={'slug': ws_slug})
+        # Instant launcher accepts GET to render launcher, redirects, or returns 503 if maintenance
+        resp_start = self.client.get(url_meeting_start)
+        self.assertIn(resp_start.status_code, [200, 302, 503])
+
+        # 3. View Agenda
+        url_agenda = reverse('calendars:agenda_view', kwargs={'slug': ws_slug})
+        self.assertEqual(self.client.get(url_agenda).status_code, 200)
+
+        # 4. View Deadlines
+        url_deadlines = reverse('calendars:upcoming_deadlines', kwargs={'slug': ws_slug})
+        self.assertEqual(self.client.get(url_deadlines).status_code, 200)
+
+    def test_workspace_isolation_in_calendar(self):
+        """Events from another workspace must not appear in this workspace."""
+        other_user = User.objects.create_user(
+            email='other@foreign.com',
+            password=self.password,
+            full_name='Other Owner'
+        )
+        other_workspace = Workspace.objects.create(
+            name='Other Workspace',
+            slug='other-workspace',
+            owner=other_user
+        )
+        now = timezone.now()
+        create_calendar_event(
+            workspace=other_workspace,
+            user=other_user,
+            data={
+                'title': 'Foreign Confidential Meeting',
+                'computed_start_at': now + timedelta(days=1),
+                'computed_end_at': now + timedelta(days=1, hours=1),
+                'event_type': CalendarEventType.GENERAL
+            }
+        )
+
+        resp = self.client.get(reverse('calendars:calendar_view', kwargs={'slug': self.workspace.slug}))
+        self.assertNotContains(resp, 'Foreign Confidential Meeting')
+
 
 

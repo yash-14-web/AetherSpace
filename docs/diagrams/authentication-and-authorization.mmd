@@ -1,0 +1,38 @@
+sequenceDiagram
+    autonumber
+    actor User as User / Contributor
+    participant Gateway as Django Auth Middleware
+    participant AuthView as Login View (/auth/login/)
+    participant DB as Supabase PostgreSQL
+    participant WorkspaceGuard as @workspace_member_required
+    participant AppView as Workspace Resource View
+
+    User->>AuthView: POST /auth/login/ (Contributor ID / Email + Password)
+    AuthView->>DB: Query User(contributor_id or email)
+    DB-->>AuthView: User Record
+    
+    alt Invalid Credentials
+        AuthView-->>User: 400 Bad Request ("Invalid Contributor ID or Password")
+    else Account Status == PENDING
+        AuthView-->>User: Redirect /auth/pending-approval/
+    else Account Status == SUSPENDED / REJECTED
+        AuthView-->>User: 403 Forbidden / Account Status Notice
+    else Account Status == APPROVED
+        AuthView->>Gateway: Create Django Session (sessionid cookie)
+        Gateway-->>User: 302 Redirect to Master Dashboard (/workspaces/dashboard/)
+    end
+
+    Note over User, AppView: Accessing Protected Workspace Resource (/workspaces/w/<slug>/tasks/)
+    User->>WorkspaceGuard: GET /workspaces/w/<slug>/tasks/ [Cookie: sessionid]
+    WorkspaceGuard->>Gateway: Validate Session & User.is_authenticated
+    Gateway-->>WorkspaceGuard: Authenticated User
+    
+    WorkspaceGuard->>DB: Check WorkspaceMembership(workspace=slug, user=user, status=ACTIVE)
+    
+    alt Membership Active
+        DB-->>WorkspaceGuard: WorkspaceMembership (Role: ADMIN / MANAGER / CONTRIBUTOR)
+        WorkspaceGuard->>AppView: Pass request (request.workspace, request.membership)
+        AppView-->>User: 200 OK (Rendered Workspace Content)
+    else No Membership & Not Superuser
+        WorkspaceGuard-->>User: 403 Forbidden Page (Options: Request Access via WorkspaceAccessRequest)
+    end

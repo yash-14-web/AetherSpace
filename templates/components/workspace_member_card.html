@@ -1,0 +1,73 @@
+{% comment %}
+AetherSpace Standardized Workspace Member Card Component
+Props:
+  - member: WorkspaceMembership instance
+  - is_selected: boolean (defaults to false)
+  - extra_classes: additional CSS classes
+{% endcomment %}
+<div class="meet-hub-member-card relative p-3 sm:p-3.5 rounded-xl flex items-center space-x-3.5 group min-h-[64px] transition-all select-none {% if is_selected %}ring-2 ring-blue-500 border-blue-500 bg-blue-50/60 dark:bg-blue-950/40{% endif %} {{ extra_classes|default:'' }}"
+     data-user-hover
+     data-user-id="{{ member.user.id }}"
+     data-workspace-slug="{{ member.workspace.slug }}"
+     data-presence-user-id="{{ member.user.id }}"
+     title="{{ member.user.get_full_name|default:member.user.username }} ({{ member.get_role_display }})">
+
+    <!-- Avatar Circle (Consistent 40x40 with Photo or Initial Fallback) -->
+    <div class="w-10 h-10 rounded-full {% cycle 'bg-[#2563eb]' 'bg-[#0284c7]' 'bg-[#7c3aed]' 'bg-[#475569]' 'bg-[#1d4ed8]' %} text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-xs overflow-hidden relative">
+        {% if member.user.avatar and member.user.avatar|slice:":7" != "preset:" %}
+            <img src="{{ member.user.avatar }}" 
+                 alt="{{ member.user.get_full_name }}" 
+                 class="w-full h-full object-cover rounded-full"
+                 loading="lazy"
+                 onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';">
+            <div style="display:none;" class="w-full h-full rounded-full bg-gradient-to-tr from-blue-600 to-indigo-700 text-white font-bold text-xs items-center justify-center">
+                {% if member.user.first_name and member.user.last_name %}
+                    {{ member.user.first_name|slice:":1"|upper }}{{ member.user.last_name|slice:":1"|upper }}
+                {% elif member.user.full_name %}
+                    {{ member.user.full_name|slice:":2"|upper }}
+                {% else %}
+                    {{ member.user.username|slice:":2"|upper }}
+                {% endif %}
+            </div>
+        {% else %}
+            <span>
+                {% if member.user.first_name and member.user.last_name %}
+                    {{ member.user.first_name|slice:":1"|upper }}{{ member.user.last_name|slice:":1"|upper }}
+                {% elif member.user.full_name %}
+                    {{ member.user.full_name|slice:":2"|upper }}
+                {% else %}
+                    {{ member.user.username|slice:":2"|upper }}
+                {% endif %}
+            </span>
+        {% endif %}
+    </div>
+
+    <!-- Member Identity & Truthful Presence -->
+    <div class="min-w-0 flex-1">
+        <span class="text-xs sm:text-sm font-semibold text-slate-900 dark:text-white truncate block group-hover:text-blue-500 transition-colors">
+            {{ member.user.get_full_name|default:member.user.username }}
+        </span>
+
+        <div class="flex items-center space-x-1.5 text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+            {% if member.user.availability_status == 'available' %}
+                <span data-presence-dot class="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
+                <span data-presence-text class="truncate">Online</span>
+            {% elif member.user.availability_status == 'busy' %}
+                <span data-presence-dot class="w-2 h-2 rounded-full bg-rose-500 shrink-0"></span>
+                <span data-presence-text class="truncate">Busy</span>
+            {% elif member.user.availability_status == 'away' %}
+                <span data-presence-dot class="w-2 h-2 rounded-full bg-amber-400 shrink-0"></span>
+                <span data-presence-text class="truncate">Away</span>
+            {% elif member.user.availability_status == 'dnd' %}
+                <span data-presence-dot class="w-2 h-2 rounded-full bg-red-600 shrink-0"></span>
+                <span data-presence-text class="truncate">Do Not Disturb</span>
+            {% elif member.user.availability_status == 'ooo' %}
+                <span data-presence-dot class="w-2 h-2 rounded-full bg-slate-400 shrink-0"></span>
+                <span data-presence-text class="truncate">Out of Office</span>
+            {% else %}
+                <span data-presence-dot class="w-2 h-2 rounded-full bg-zinc-500 dark:bg-zinc-600 shrink-0"></span>
+                <span data-presence-text class="truncate">Offline</span>
+            {% endif %}
+        </div>
+    </div>
+</div>

@@ -14,7 +14,8 @@ from .forms import CalendarEventForm
 from .services import (
     build_month_calendar_matrix, build_week_calendar_matrix,
     build_day_calendar_matrix, build_agenda_stream,
-    build_upcoming_deadlines, create_calendar_event, attach_file_to_event
+    build_upcoming_deadlines, create_calendar_event, attach_file_to_event,
+    get_upcoming_schedule_items
 )
 from meetings.services import generate_unique_meeting_code
 
@@ -88,10 +89,33 @@ def calendar_view(request, slug):
 
     # Categories filter
     cats_param = request.GET.get('cats')
-    if cats_param is not None:
-        active_cats = [c.strip().lower() for c in cats_param.split(',') if c.strip()]
+    all_categories = ['events', 'tasks', 'bugs', 'meetings', 'milestones']
+    if cats_param is not None and cats_param.strip().lower() != 'all':
+        raw_list = [c.strip().lower() for c in cats_param.split(',') if c.strip()]
+        normalized = []
+        for c in raw_list:
+            if c in ['custom_events', 'custom', 'event']:
+                normalized.append('events')
+            elif c in ['milestone']:
+                normalized.append('milestones')
+            elif c in ['task']:
+                normalized.append('tasks')
+            elif c in ['bug']:
+                normalized.append('bugs')
+            elif c in ['meeting']:
+                normalized.append('meetings')
+            elif c in all_categories:
+                normalized.append(c)
+        active_cats = normalized if normalized else all_categories
     else:
-        active_cats = ['events', 'tasks', 'bugs', 'meetings', 'milestones']
+        active_cats = all_categories
+
+    if set(active_cats) == set(all_categories):
+        selected_cat = 'all'
+    elif len(active_cats) == 1:
+        selected_cat = active_cats[0]
+    else:
+        selected_cat = 'multiple'
 
     # Member filter
     member_id = request.GET.get('member')
@@ -102,6 +126,14 @@ def calendar_view(request, slug):
         workspace=workspace,
         year=year,
         month=month,
+        target_date=target_date,
+        categories=active_cats,
+        member_id=member_id
+    )
+
+    upcoming_events = get_upcoming_schedule_items(
+        workspace=workspace,
+        limit=5,
         categories=active_cats,
         member_id=member_id
     )
@@ -162,6 +194,8 @@ def calendar_view(request, slug):
         'total_items_count': calendar_data['total_items_count'],
         'active_view': active_view,
         'active_cats': active_cats,
+        'selected_cat': selected_cat,
+        'upcoming_events': upcoming_events,
         'selected_member': member_id,
         'workspace_members': workspace_members,
         'prev_year': prev_year,

@@ -150,8 +150,17 @@ class User(AbstractUser):
 
     @property
     def availability_status(self):
-        if hasattr(self, 'profile'):
-            return self.profile.availability_status
+        from django.core.cache import cache
+        last_seen = cache.get(f'user_last_seen_{self.id}')
+        if not last_seen:
+            return 'offline'
+
+        try:
+            profile = getattr(self, 'profile', None)
+            if profile:
+                return profile.availability_status
+        except Exception:
+            pass
         return 'available'
 
     @property
@@ -214,16 +223,13 @@ class UserProfile(models.Model):
         if pref_status == 'offline':
             return 'offline'
 
-        import sys
-        from django.conf import settings
         from django.core.cache import cache
         from django.utils import timezone
 
-        is_testing = 'test' in sys.argv or getattr(settings, 'TESTING', False)
-        if not is_testing:
-            last_seen = cache.get(f'user_last_seen_{self.user_id}')
-            if not last_seen:
-                return 'offline'
+        # Truthful presence: an active presence signal in cache is required
+        last_seen = cache.get(f'user_last_seen_{self.user_id}')
+        if not last_seen:
+            return 'offline'
 
         expires = pref.get('status_expires_at')
         if expires:

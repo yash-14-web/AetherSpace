@@ -1,0 +1,38 @@
+flowchart TB
+    subgraph BrowserBoundary["Browser / Untrusted Client Boundary"]
+        BrowserClient["Client Browser"]
+        ClientPublicConfig["Public Assets, CSRF Token, Workspace Slug"]
+    end
+
+    subgraph DjangoApplicationSecurity["Django Security & Authorization Perimeter"]
+        SSLProxyCheck["SECURE_PROXY_SSL_HEADER & Security Headers"]
+        CSRFMiddleware["CSRF Token Verification (State-Changing HTTP POST)"]
+        SessionAuth["Session & Contributor ID Authentication Guard"]
+        WorkspaceIsolation["@workspace_member_required Multi-Tenant Isolation"]
+        FileValidation["File Upload Validation (Size, Extension, MIME, Magic Bytes)"]
+        HTMLSanitizer["Bleach Markdown & HTML Input Sanitizer"]
+    end
+
+    subgraph DataStoragePerimeter["Internal Data Storage Perimeter (Isolated)"]
+        PostgresMetadata[("PostgreSQL: User Data, Relational Models & File Metadata")]
+        SupabaseStorageBucket[("Supabase Private/Public Storage Bucket (Raw Binaries)")]
+    end
+
+    subgraph SecretBoundary["Protected Environment Secrets Boundary (Never in Browser/Git)"]
+        SecretKeys["DJANGO_SECRET_KEY, DATABASE_URL, SUPABASE_SECRET_KEY"]
+    end
+
+    BrowserClient -->|HTTPS Request| SSLProxyCheck
+    SSLProxyCheck --> CSRFMiddleware
+    CSRFMiddleware --> SessionAuth
+    SessionAuth --> WorkspaceIsolation
+    WorkspaceIsolation --> HTMLSanitizer
+    WorkspaceIsolation --> FileValidation
+
+    FileValidation -->|Store Metadata Only| PostgresMetadata
+    FileValidation -->|Stream Binary via Secret Key| SupabaseStorageBucket
+    
+    SecretKeys -.->|Injected via Server Environment Variables| DjangoApplicationSecurity
+    
+    BrowserClient -.x|Blocked: Direct access without server mediation| PostgresMetadata
+    BrowserClient -.x|Blocked: No secret key in JS / No direct DB access| SecretBoundary

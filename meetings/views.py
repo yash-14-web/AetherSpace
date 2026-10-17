@@ -11,16 +11,28 @@ from django.conf import settings
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.db.models import Q
 
+from django.views.decorators.http import require_POST
+from django.core.exceptions import ValidationError
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
+
 from workspaces.permissions import workspace_member_required
 from workspaces.models import Workspace, WorkspaceMembership, MembershipStatus
 from chat.models import Channel, DirectMessageConversation
 
-from .models import Meeting, MeetingParticipant, MeetingInvite, MeetingType, MeetingStatus, ParticipantRole
+from .models import (
+    Meeting, MeetingParticipant, MeetingInvite,
+    MeetingType, MeetingStatus, ParticipantRole,
+    CallSession, CallStatus, CallEndedReason
+)
 from .forms import StartMeetingForm, ScheduleMeetingForm, JoinMeetingForm
 from .services import (
     create_instant_meeting, create_chat_call, schedule_meeting,
     start_meeting, end_meeting, cancel_meeting,
-    record_participant_join, record_participant_leave
+    record_participant_join, record_participant_leave,
+    initiate_call_session, accept_call_session, decline_call_session,
+    cancel_call_session, timeout_call_session, mark_call_connected,
+    generate_jaas_jwt, get_jaas_status
 )
 
 
@@ -113,11 +125,16 @@ def meet_hub_view(request, slug):
         status=MeetingStatus.LIVE
     ).select_related('host').prefetch_related('participants__user', 'invites__user')
 
-    # 2. Upcoming & Scheduled Meetings
+    # 2. Upcoming & Scheduled Meetings (strictly future or live ongoing, excluding ended, cancelled, or passed)
     upcoming_qs = Meeting.objects.filter(
-        workspace=workspace,
-        status__in=[MeetingStatus.SCHEDULED, MeetingStatus.LIVE]
-    ).select_related('host').prefetch_related('participants__user', 'invites__user').order_by('-status', 'scheduled_start', '-created_at')
+        workspace=workspace
+    ).exclude(
+        status__in=[MeetingStatus.ENDED, MeetingStatus.CANCELLED]
+    ).filter(
+        Q(status=MeetingStatus.LIVE, actual_end__isnull=True) |
+        Q(status=MeetingStatus.SCHEDULED, scheduled_start__gte=now) |
+        Q(status=MeetingStatus.SCHEDULED, scheduled_start__lt=now, scheduled_end__gte=now)
+    ).select_related('host').prefetch_related('participants__user', 'invites__user').order_by('scheduled_start')
     upcoming_meetings = upcoming_qs[:10]
 
     # 3. Scheduled Meetings for Today
@@ -150,6 +167,11 @@ def meet_hub_view(request, slug):
     meetings_status = ModuleStatus.get_status_obj('meetings')
     is_maintenance = bool(meetings_status and not meetings_status.is_available)
 
+    workspace_members = WorkspaceMembership.objects.filter(
+        workspace=workspace,
+        status=MembershipStatus.ACTIVE
+    ).select_related('user', 'user__profile').order_by('user__first_name', 'user__username')[:10]
+
     context = {
         'workspace': workspace,
         'membership': membership,
@@ -160,6 +182,8 @@ def meet_hub_view(request, slug):
         'recent_ended': recent_ended,
         'recent_history': recent_ended,
         'recent_meetings_list': recent_ended,
+        'workspace_members': workspace_members,
+        'members': workspace_members,
         'metrics': metrics,
         'stats': metrics,
         'start_form': start_form,
@@ -267,13 +291,28 @@ def meeting_chat_call_view(request, slug, target_type=None, target_id=None, call
                     participant2=other_user
                 )
 
-    meeting = create_chat_call(
-        workspace=workspace,
-        host=request.user,
-        channel=channel,
-        conversation=conversation,
-        is_audio_only=is_audio_only
-    )
+    try:
+        meeting = create_chat_call(
+            workspace=workspace,
+            host=request.user,
+            channel=channel,
+            conversation=conversation,
+            is_audio_only=is_audio_only
+        )
+    except ValidationError as e:
+        err_msg = e.message if hasattr(e, 'message') else str(e)
+        if request.headers.get('accept') == 'application/json' or request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return JsonResponse({'success': False, 'error': err_msg}, status=400)
+        messages.error(request, err_msg)
+        return redirect('meetings:meet_hub', slug=workspace.slug)
+
+    room_url = reverse('meetings:meeting_room', kwargs={'slug': workspace.slug, 'meeting_code': meeting.meeting_code})
+    if request.headers.get('accept') == 'application/json' or request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.POST.get('format') == 'json':
+        return JsonResponse({
+            'success': True,
+            'meeting_code': meeting.meeting_code,
+            'room_url': room_url,
+        })
 
     return redirect('meetings:meeting_room', slug=workspace.slug, meeting_code=meeting.meeting_code)
 
@@ -381,9 +420,11 @@ def meeting_room_view(request, slug, meeting_code):
 
     # Auto-record join session
     record_participant_join(meeting, request.user)
+    mark_call_connected(meeting.meeting_code, request.user)
 
     is_host = (meeting.host == request.user or membership.can_manage_content)
     jitsi_domain = getattr(settings, 'JITSI_DOMAIN', 'meet.jit.si')
+    jitsi_meet_enabled = getattr(settings, 'JITSI_MEET_ENABLED', True)
     participants = meeting.participants.select_related('user').order_by('joined_at')
     workspace_members = WorkspaceMembership.objects.filter(
         workspace=workspace,
@@ -418,6 +459,9 @@ def meeting_room_view(request, slug, meeting_code):
             'avatar': p_avatar,
             'role': p_role_label,
             'is_self': is_self,
+            'is_camera_on': True,
+            'is_muted': False,
+            'screen_sharing': False,
         })
 
     if not has_self:
@@ -429,6 +473,9 @@ def meeting_room_view(request, slug, meeting_code):
             'avatar': user_avatar_url,
             'role': user_role_label,
             'is_self': True,
+            'is_camera_on': True,
+            'is_muted': False,
+            'screen_sharing': False,
         })
 
     participants_json = json.dumps(active_participants_list)
@@ -457,14 +504,59 @@ def meeting_room_view(request, slug, meeting_code):
         'is_host': is_host,
     })
 
+    jitsi_user_info = {
+        'displayName': user_name,
+        'email': request.user.email or '',
+    }
+    if user_avatar_url:
+        jitsi_user_info['avatarUrl'] = user_avatar_url
+    jitsi_user_info_json = json.dumps(jitsi_user_info)
+
+    # JaaS (8x8) Integration & Domain/Room Configuration
+    jaas_app_id = getattr(settings, 'JAAS_APP_ID', '').strip()
+    is_jaas = bool(jaas_app_id)
+    jaas_jwt = None
+    jaas_error = None
+
+    if is_jaas:
+        configured_domain = getattr(settings, 'JITSI_DOMAIN', '')
+        jitsi_domain = configured_domain if configured_domain and configured_domain != 'meet.jit.si' else '8x8.vc'
+        jitsi_room_name = f"{jaas_app_id}/{meeting.jitsi_room_name}"
+        jaas_script_url = f"https://{jitsi_domain}/external_api.js"
+        # Generate RS256 JWT with host/manager getting moderator permissions
+        jaas_jwt, jaas_error = generate_jaas_jwt(
+            meeting=meeting,
+            user=request.user,
+            is_moderator=is_host
+        )
+    else:
+        jitsi_domain = getattr(settings, 'JITSI_DOMAIN', 'meet.jit.si')
+        jitsi_room_name = meeting.jitsi_room_name
+        jaas_script_url = f"https://{jitsi_domain}/external_api.js"
+
+    # Workspace Companion Navigation Links (allows access without terminating meeting)
+    workspace_nav = {
+        'dashboard': reverse('workspaces:workspace_dashboard', kwargs={'slug': workspace.slug}),
+        'tasks': reverse('tasks:task_list', kwargs={'slug': workspace.slug}),
+        'calendar': reverse('calendars:calendar_view', kwargs={'slug': workspace.slug}),
+        'chat': reverse('chat:chat_home', kwargs={'slug': workspace.slug}),
+        'meet_hub': reverse('meetings:meet_hub', kwargs={'slug': workspace.slug}),
+    }
+
     context = {
         'workspace': workspace,
         'membership': membership,
         'meeting': meeting,
         'is_host': is_host,
         'user_role_label': user_role_label,
+        'is_jaas': is_jaas,
+        'jaas_jwt': jaas_jwt,
+        'jaas_error': jaas_error,
+        'jaas_script_url': jaas_script_url,
         'jitsi_domain': jitsi_domain,
-        'jitsi_room_name': meeting.jitsi_room_name,
+        'jitsi_room_name': jitsi_room_name,
+        'jitsi_meet_enabled': jitsi_meet_enabled,
+        'jitsi_user_info_json': jitsi_user_info_json,
         'user_display_name': user_name,
         'user_initials': user_initials,
         'user_email': request.user.email,
@@ -476,6 +568,7 @@ def meeting_room_view(request, slug, meeting_code):
         'participants': participants,
         'participants_json': participants_json,
         'workspace_members': workspace_members,
+        'workspace_nav': workspace_nav,
         'shareable_url': request.build_absolute_uri(reverse('meetings:meeting_room', kwargs={'slug': workspace.slug, 'meeting_code': meeting.meeting_code})),
     }
     return render(request, 'meetings/meeting_room.html', context)
@@ -867,8 +960,8 @@ def meeting_remove_participant_api(request, slug, meeting_code, user_id=None):
 @workspace_member_required
 def meeting_end_api(request, slug, meeting_code):
     """
-    Host action to end meeting for all, or attendee leave action.
-    Immediately closes sessions and transitions state to ENDED.
+    Host action to end meeting for all, or participant leave action.
+    Properly finalizes attendance for the participant and closes the session.
     """
     if request.method != 'POST':
         return HttpResponseBadRequest("POST required")
@@ -876,33 +969,205 @@ def meeting_end_api(request, slug, meeting_code):
     workspace = request.workspace
     clean_code = _clean_code(meeting_code)
     meeting = Meeting.objects.filter(workspace=workspace, meeting_code__iexact=clean_code).first()
+    redirect_url = reverse('workspaces:workspace_dashboard', kwargs={'slug': workspace.slug})
     if not meeting:
-        redirect_url = reverse('meetings:meet_hub', kwargs={'slug': workspace.slug})
         if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.content_type == 'application/json':
-            return JsonResponse({'success': True, 'redirect_url': redirect_url, 'message': 'Meeting ended.'})
+            return JsonResponse({'success': True, 'redirect_url': redirect_url, 'message': 'Meeting not found or already ended.'})
         return redirect(redirect_url)
 
-    is_host_or_manager = (meeting.host == request.user or request.membership.can_manage_content)
-
-    if is_host_or_manager:
-        end_meeting(meeting, request.user)
-        messages.success(request, f"Meeting '{meeting.title}' has ended.")
+    # Determine action ('leave' vs 'end')
+    action = 'leave'
+    if request.content_type == 'application/json' or request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        try:
+            import json
+            data = json.loads(request.body.decode('utf-8')) if request.body else {}
+            action = data.get('action', 'leave')
+        except Exception:
+            action = 'leave'
     else:
+        action = request.POST.get('action', 'leave')
+
+    is_host_or_manager = (meeting.host == request.user or request.membership.can_manage_content)
+    has_call_session = CallSession.objects.filter(meeting=meeting).exists()
+
+    if action == 'end':
+        if not is_host_or_manager:
+            if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.content_type == 'application/json':
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Only the meeting host or workspace manager can end the meeting for all participants.'
+                }, status=403)
+            messages.error(request, "Only the meeting host or manager can end the meeting for all participants.")
+            return redirect(redirect_url)
+
+        end_meeting(meeting, request.user)
+        channel_layer = get_channel_layer()
+        if channel_layer:
+            async_to_sync(channel_layer.group_send)(
+                f"meeting_{meeting.id}",
+                {
+                    "type": "room_call_ended",
+                    "message": f"{request.user.full_name or request.user.email} ended the meeting.",
+                }
+            )
+        messages.success(request, f"Meeting '{meeting.title}' has ended.")
+    elif has_call_session:
+        # In a 1-on-1 direct CallSession, hanging up concludes the call
+        end_meeting(meeting, request.user)
+        messages.success(request, f"Call '{meeting.title}' has ended.")
+    else:
+        # Standard participant leave: record leave and attendance
         record_participant_leave(meeting, request.user)
-        # If no more participants remain, auto-end the meeting
+        # If no more participants remain in an instant meeting, auto-end it
         if not meeting.participants.filter(left_at__isnull=True).exists():
-            end_meeting(meeting, request.user)
+            if meeting.meeting_type in (MeetingType.INSTANT, MeetingType.CHAT_CALL):
+                end_meeting(meeting, request.user)
         messages.info(request, "You have left the meeting.")
 
-    redirect_url = reverse('meetings:meet_hub', kwargs={'slug': workspace.slug})
+    participant = meeting.participants.filter(user=request.user).order_by('-joined_at').first()
+    duration_sec = participant.duration_seconds if participant else 0
 
     if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.content_type == 'application/json':
         return JsonResponse({
             'success': True,
             'redirect_url': redirect_url,
-            'message': 'Meeting ended successfully.'
+            'action': action,
+            'duration_seconds': duration_sec,
+            'message': 'Attendance finalized.'
         })
 
     return redirect(redirect_url)
+
+
+# ==============================================================================
+# MEET HUB M1 — REAL-TIME CALL SESSION HTTP APIS
+# ==============================================================================
+
+@workspace_member_required
+@require_POST
+def call_initiate_api(request, slug):
+    """
+    HTTP API to initiate a 1-on-1 audio/video call session.
+    Returns call_id, meeting_code, and room_url.
+    """
+    workspace = request.workspace
+    try:
+        data = json.loads(request.body) if request.body else request.POST
+    except (json.JSONDecodeError, ValueError):
+        data = request.POST
+
+    recipient_id = data.get('recipient_id')
+    call_mode = (data.get('call_mode') or 'VIDEO').upper()
+    conversation_id = data.get('conversation_id')
+
+    if not recipient_id:
+        return JsonResponse({'success': False, 'error': 'recipient_id is required.'}, status=400)
+
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+    recipient = get_object_or_404(User, id=recipient_id)
+
+    conversation = None
+    if conversation_id:
+        conversation = DirectMessageConversation.objects.filter(id=conversation_id, workspace=workspace).first()
+
+    try:
+        session = initiate_call_session(
+            workspace=workspace,
+            caller=request.user,
+            recipient=recipient,
+            call_mode=call_mode,
+            conversation=conversation
+        )
+        room_url = reverse('meetings:meeting_room', kwargs={'slug': workspace.slug, 'meeting_code': session.meeting.meeting_code})
+        return JsonResponse({
+            'success': True,
+            'call_id': str(session.id),
+            'meeting_code': session.meeting.meeting_code,
+            'room_url': room_url,
+        })
+    except ValidationError as e:
+        return JsonResponse({'success': False, 'error': e.message if hasattr(e, 'message') else str(e)}, status=400)
+    except PermissionError as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=403)
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@workspace_member_required
+@require_POST
+def call_accept_api(request, slug, call_id):
+    """
+    HTTP API for recipient to accept an incoming call.
+    Transitions CallSession from RINGING to ACCEPTED.
+    """
+    try:
+        success, msg, room_url = accept_call_session(call_id, request.user)
+        if success:
+            return JsonResponse({'success': True, 'room_url': room_url})
+        return JsonResponse({'success': False, 'error': msg}, status=400)
+    except PermissionError as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=403)
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@workspace_member_required
+@require_POST
+def call_decline_api(request, slug, call_id):
+    """
+    HTTP API for recipient to decline an incoming call.
+    Transitions CallSession from RINGING to DECLINED.
+    """
+    reason = request.POST.get('reason', 'declined')
+    reason_val = CallEndedReason.BUSY if reason == 'busy' else CallEndedReason.DECLINED
+    try:
+        success, msg = decline_call_session(call_id, request.user, reason=reason_val)
+        if success:
+            return JsonResponse({'success': True, 'message': msg})
+        return JsonResponse({'success': False, 'error': msg}, status=400)
+    except PermissionError as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=403)
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@workspace_member_required
+@require_POST
+def call_cancel_api(request, slug, call_id):
+    """
+    HTTP API for caller to cancel an outgoing ringing call.
+    Transitions CallSession from RINGING to CANCELLED.
+    """
+    try:
+        success, msg = cancel_call_session(call_id, request.user)
+        if success:
+            return JsonResponse({'success': True, 'message': msg})
+        return JsonResponse({'success': False, 'error': msg}, status=400)
+    except PermissionError as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=403)
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@workspace_member_required
+def call_status_api(request, slug, call_id):
+    """
+    HTTP API to inspect current state of a CallSession.
+    """
+    workspace = request.workspace
+    session = get_object_or_404(CallSession, id=call_id, workspace=workspace)
+    if request.user.id not in (session.caller_id, session.recipient_id):
+        return HttpResponseForbidden("Not a participant in this call.")
+
+    room_url = reverse('meetings:meeting_room', kwargs={'slug': workspace.slug, 'meeting_code': session.meeting.meeting_code})
+    return JsonResponse({
+        'call_id': str(session.id),
+        'status': session.status,
+        'ended_reason': session.ended_reason,
+        'meeting_code': session.meeting.meeting_code,
+        'room_url': room_url,
+    })
+
 
 

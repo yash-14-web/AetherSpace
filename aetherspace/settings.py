@@ -131,6 +131,20 @@ if ICE_SERVERS_ENV:
 else:
     WEBRTC_ICE_SERVERS = DEFAULT_ICE_SERVERS
 
+# Jitsi Meet & 8x8 JaaS (Jitsi as a Service) Media Engine
+JAAS_APP_ID = os.environ.get('JAAS_APP_ID', os.environ.get('JITSI_APP_ID', '')).strip()
+JAAS_API_KEY_ID = os.environ.get('JAAS_API_KEY_ID', '').strip()
+JAAS_PRIVATE_KEY = os.environ.get('JAAS_PRIVATE_KEY', '').strip()
+JAAS_PRIVATE_KEY_PATH = os.environ.get('JAAS_PRIVATE_KEY_PATH', '').strip()
+JAAS_JWT_EXP_SECONDS = int(os.environ.get('JAAS_JWT_EXP_SECONDS', '7200'))
+
+# If JaaS is configured, default JITSI_DOMAIN to 8x8.vc unless explicitly overridden
+_default_jitsi_domain = '8x8.vc' if JAAS_APP_ID else 'meet.jit.si'
+_configured_jitsi_domain = os.environ.get('JITSI_DOMAIN', '').strip()
+JITSI_DOMAIN = _configured_jitsi_domain if _configured_jitsi_domain else _default_jitsi_domain
+JITSI_MEET_ENABLED = os.environ.get('JITSI_MEET_ENABLED', 'True').lower() in ('true', '1', 'yes')
+JITSI_APP_ID = JAAS_APP_ID
+
 # Authoritative User Model
 AUTH_USER_MODEL = 'accounts.User'
 
@@ -224,21 +238,28 @@ SUPABASE_SECRET_KEY = os.environ.get('SUPABASE_SECRET_KEY', '')
 SUPABASE_STORAGE_BUCKET = os.environ.get('SUPABASE_STORAGE_BUCKET', 'Aether Space 1')
 SUPABASE_STORAGE_READY = os.environ.get('SUPABASE_STORAGE_READY', 'true').lower() in ('true', '1')
 
-# Email Delivery Configuration (Environment-driven, clean console backend fallback in development)
-EMAIL_BACKEND = os.environ.get(
-    'EMAIL_BACKEND',
-    'django.core.mail.backends.smtp.EmailBackend' if os.environ.get('EMAIL_HOST')
-    else 'notifications.email_backend.CleanConsoleEmailBackend'
-)
-EMAIL_HOST = os.environ.get('EMAIL_HOST', '')
+# Email Delivery Configuration (Environment-driven Brevo SMTP with fallback to clean console in development)
+EMAIL_HOST = os.environ.get('EMAIL_HOST', 'smtp-relay.brevo.com')
 EMAIL_PORT = int(os.environ.get('EMAIL_PORT', 587))
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
-EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'True').lower() in ('true', '1')
-DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'AetherSpace <no-reply@aetherspace.dev>')
+EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'True').lower() in ('true', '1', 't')
+EMAIL_USE_SSL = os.environ.get('EMAIL_USE_SSL', 'False').lower() in ('true', '1', 't')
+EMAIL_TIMEOUT = int(os.environ.get('EMAIL_TIMEOUT', 10))
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'AetherSpace <yaswanthmunagoti@gmail.com>')
+SERVER_EMAIL = os.environ.get('SERVER_EMAIL', DEFAULT_FROM_EMAIL)
+
+# Backend selection: use SMTP when credentials are fully configured; otherwise safely fallback to CleanConsoleEmailBackend
+_has_smtp_credentials = bool(EMAIL_HOST and EMAIL_HOST_USER and EMAIL_HOST_PASSWORD)
+EMAIL_BACKEND = os.environ.get(
+    'EMAIL_BACKEND',
+    'django.core.mail.backends.smtp.EmailBackend' if _has_smtp_credentials
+    else 'notifications.email_backend.CleanConsoleEmailBackend'
+)
 
 # Site URL Configuration (Used for absolute email CTA and notification links)
 SITE_URL = os.environ.get('SITE_URL', 'http://127.0.0.1:8000').rstrip('/')
+
 
 # Secure Error Logging Configuration
 LOGGING = {

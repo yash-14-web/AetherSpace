@@ -1,0 +1,28 @@
+sequenceDiagram
+    autonumber
+    actor Alice as Sender (Alice)
+    participant ClientA as Browser A (Alpine.js Chat Component)
+    participant WS as ChatConsumer (ws/chat/c/<id>/ or /dm/<id>/)
+    participant Channels as Channel Layer Group (chat_<id>)
+    participant DB as Supabase PostgreSQL
+    participant ClientB as Browser B (Alpine.js Chat Component)
+    actor Bob as Recipient (Bob)
+
+    Alice->>ClientA: Types message & presses Enter (or clicks Send)
+    ClientA->>WS: JSON: {"type": "chat_message", "message": "Hello team!"}
+    
+    WS->>WS: Validate Authentication & Channel Access
+    WS->>DB: Save Message(sender=Alice, channel/conv, content="Hello team!")
+    DB-->>WS: Message Saved (id, created_at)
+    
+    WS->>Channels: group_send("chat_<id>", type="chat_message_broadcast", payload={...})
+    
+    par Broadcast to Sender
+        Channels-->>WS: Message Broadcast Payload
+        WS-->>ClientA: JSON: {"type": "new_message", ...}
+        ClientA-->>Alice: Appends message to stream, scrolls to bottom
+    and Broadcast to Peers
+        Channels-->>WS: Message Broadcast Payload
+        WS-->>ClientB: JSON: {"type": "new_message", ...}
+        ClientB-->>Bob: Appends message, plays incoming chime / shows unread badge
+    end
