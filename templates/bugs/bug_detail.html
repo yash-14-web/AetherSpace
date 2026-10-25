@@ -46,10 +46,28 @@
                     <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400">Low</span>
                 {% endif %}
 
-                <!-- Severity pill -->
-                <span class="px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300">
-                    {{ bug.get_severity_display }}
-                </span>
+                <!-- Severity Badge -->
+                {% if bug.severity == 'SEV1' %}
+                    <span class="px-2.5 py-0.5 rounded-lg text-xs font-mono font-bold bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/30">
+                        {{ bug.get_severity_display }}
+                    </span>
+                {% elif bug.severity == 'SEV2' %}
+                    <span class="px-2.5 py-0.5 rounded-lg text-xs font-mono font-bold bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/30">
+                        {{ bug.get_severity_display }}
+                    </span>
+                {% elif bug.severity == 'SEV3' %}
+                    <span class="px-2.5 py-0.5 rounded-lg text-xs font-mono font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30">
+                        {{ bug.get_severity_display }}
+                    </span>
+                {% elif bug.severity == 'SEV4' %}
+                    <span class="px-2.5 py-0.5 rounded-lg text-xs font-mono font-bold bg-slate-500/10 text-slate-600 dark:text-zinc-400 border border-slate-500/30">
+                        {{ bug.get_severity_display }}
+                    </span>
+                {% else %}
+                    <span class="px-2.5 py-0.5 rounded-lg text-xs font-mono font-bold bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 border border-slate-200 dark:border-zinc-700">
+                        {{ bug.get_severity_display }}
+                    </span>
+                {% endif %}
             </div>
             <h1 class="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-zinc-50 tracking-tight mt-2">
                 {{ bug.title }}
@@ -825,7 +843,15 @@
                     <!-- Severity -->
                     <div class="flex items-center justify-between">
                         <span class="text-slate-500 dark:text-zinc-400">Severity</span>
-                        <span class="font-bold text-rose-500">{{ bug.get_severity_display }}</span>
+                        {% if bug.severity == 'SEV1' %}
+                            <span class="font-bold text-red-600 dark:text-red-400">{{ bug.get_severity_display }}</span>
+                        {% elif bug.severity == 'SEV2' %}
+                            <span class="font-bold text-orange-600 dark:text-orange-400">{{ bug.get_severity_display }}</span>
+                        {% elif bug.severity == 'SEV3' %}
+                            <span class="font-bold text-amber-600 dark:text-amber-400">{{ bug.get_severity_display }}</span>
+                        {% else %}
+                            <span class="font-bold text-slate-600 dark:text-zinc-400">{{ bug.get_severity_display }}</span>
+                        {% endif %}
                     </div>
 
                     <!-- Labels -->

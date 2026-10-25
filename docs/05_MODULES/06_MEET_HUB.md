@@ -11,10 +11,10 @@ Provides standup video conferencing, audio calls, in-chat calling, and screen sh
 ---
 
 ## 2. Implementation & Verification Status
-* **Backend Architecture**: **Implemented and Tested (Verified)**: 57/57 backend unit tests passing in `meetings` & `tests.test_meeting_webrtc_signaling`. (Note: automated unit tests validate backend state machines and signaling; they do not prove physical audio/video functionality or cross-device hardware streaming).
+* **Backend Architecture**: **Implemented and Tested (Verified)**: 77/77 backend unit tests passing in `meetings` (including full JaaS RS256 JWT token generation, cryptographic validation, room routing, call sessions, and WebSocket signaling consumers).
 * **Hardware & Audio Media**: **Unverified** (Live microphone/camera streaming across two separate physical devices awaits owner verification).
 * **Release Gate**: **Gated in Code / Pending Remote DB Record Update** (`check_meetings_maintenance()` enforces gating when `ModuleStatus` is `COMING_SOON` or `MAINTENANCE`; connected remote DB currently holds `AVAILABLE`).
-* **JaaS (8x8) Integration**: **Planned / Unimplemented** (Architecture audited; server-side RS256 JWT signing, tenant prefixing, and key configurations are not implemented in active codebase).
+* **JaaS (8x8) Integration**: **Implemented and Tested (Verified)**: Server-side RS256 JWT signing, tenant App ID room prefixing (`${JAAS_APP_ID}/${room_name}`), moderator privilege claims (`context.user.moderator`), anti-fallback security isolation, placeholder key detection, and companion workspace navigation.
 
 ---
 
@@ -121,29 +121,36 @@ During actual two-user manual testing, several critical defects were identified 
 
 ---
 
-## 6. JaaS (8x8) Migration Status & Architectural Blueprint (Planned - Not Implemented)
+## 6. JaaS (8x8) Integration Architecture & Configuration
 
-The current codebase does **not** implement JaaS integration or server-side JWT signing.
+AetherSpace includes a production-grade 8x8 JaaS integration that eliminates meeting duration caps and anonymous login barriers while preserving free-tier fallback.
 
-### Currently Implemented Configuration:
-* `JITSI_DOMAIN`: Configured in `aetherspace/settings.py` (defaults to public `meet.jit.si`).
-* `JITSI_MEET_ENABLED`: Boolean toggle in `aetherspace/settings.py`.
-* `JITSI_APP_ID`: Setting present as an unused placeholder string in `settings.py`; not consumed in room prefixing or token logic.
-* Public IFrame Integration: `templates/meetings/meeting_room.html` loads script from `https://{{ jitsi_domain }}/external_api.js` without JWT authentication.
+### Configuration Settings & Environment Variables:
+* `JAAS_APP_ID`: 8x8 JaaS App ID / tenant identifier (e.g. `vpaas-magic-cookie-...`).
+* `JAAS_API_KEY_ID`: 8x8 JaaS API Key identifier (e.g. `vpaas-magic-cookie-.../key-id`).
+* `JAAS_PRIVATE_KEY` / `JAAS_PRIVATE_KEY_PATH`: RSA private key (PEM format) used for RS256 token signing. Stored strictly in `.env` / secure environment and never exposed to client-side JavaScript.
+* `JAAS_JWT_EXP_SECONDS`: JWT expiration duration (defaults to 7200 seconds / 2 hours).
+* `JITSI_DOMAIN`: Automatically resolves to `8x8.vc` when JaaS is configured, or `meet.jit.si` in open-source/free-tier mode.
 
-### Planned JaaS Settings & Requirements (Future Phase):
-1. **Dependencies**: Add `PyJWT>=2.8.0` and `cryptography>=42.0.0` to `requirements.txt` (currently not installed).
-2. **Environment Variables**:
-   - `JAAS_APP_ID`: 8x8 JaaS App ID / tenant identifier (e.g. `vpaas-magic-cookie-...`).
-   - `JAAS_API_KEY_ID`: 8x8 JaaS API Key identifier (`kid`).
-   - `JAAS_PRIVATE_KEY` / `JAAS_PRIVATE_KEY_PATH`: Secure storage for the RSA private key (PEM format). Must be stored outside Git and outside client code.
-3. **RS256 JWT Generation**: Server-side token generator function in `meetings/services.py` to sign tokens using the RSA private key and `kid` header.
-4. **Token Claims Structure**:
-   - Official 8x8 JaaS specifications require user and moderator claims inside the `context` dictionary:
-     `context.user.moderator: true|false` [Needs verification against provider documentation before implementation].
-   - Placing `moderator` as a top-level claim is unsupported by standard JaaS validators.
-5. **Tenant Room Prefixing**: Room names must be prefixed with the tenant App ID: `f"{JAAS_APP_ID}/{room_name}"`.
-6. **External API Script**: Load external API from `https://8x8.vc/external_api.js` (or tenant-specific endpoint).
+### Server-Side RS256 JWT Generation (`meetings/services.py`):
+1. **Zero External JWT Dependency**: Uses Python's standard `cryptography` primitives (`rsa`, `hashes.SHA256()`, `padding.PKCS1v15()`) to produce RFC 7519 compliant RS256 JWTs without third-party token library drift.
+2. **Standard 8x8 JaaS Claims**:
+   - `iss`: `"chat"`
+   - `aud`: `"jitsi"`
+   - `sub`: Tenant App ID (`JAAS_APP_ID`)
+   - `room`: Meeting room name (un-prefixed in payload claims)
+   - `nbf` / `exp`: Issued with 10-second clock skew tolerance and configurable expiration window.
+   - `context.user`: Includes `id`, `name`, `email`, `avatar`, and `moderator` (set to `True` for workspace host/manager, `False` for contributors).
+   - `context.features`: Enables recording, live streaming, and file uploads for moderators.
+3. **Tenant Room Prefixing**:
+   - When JaaS is active, the iframe loads room `f"{JAAS_APP_ID}/{meeting.jitsi_room_name}"` from `https://8x8.vc/external_api.js`.
+4. **Anti-Fallback Security Isolation**:
+   - If `JAAS_APP_ID` is configured but private keys are missing or invalid, the room view disables the media engine and surfaces an error banner. It **never** silently falls back to unauthenticated public Jitsi with sensitive workspace meetings.
+   - When JaaS is unconfigured (`JAAS_APP_ID=""`), the platform defaults to standard Jitsi (`meet.jit.si` or self-hosted) for free-tier sustainability.
+5. **Placeholder Detection & Diagnostics**:
+   - `validate_jaas_credentials()` and `_is_placeholder_key_id()` detect unconfigured placeholder strings (such as `your_api_key_id`), providing clear administrative diagnostics.
+6. **Workspace Companion Navigation**:
+   - Embedded navigation drawer (`workspace_nav`) allows active meeting participants to view tasks, project details, calendar, and chat without interrupting their audio/video connection.
 
 ---
 

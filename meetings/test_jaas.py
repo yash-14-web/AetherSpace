@@ -11,7 +11,7 @@ from workspaces.models import Workspace, WorkspaceMembership, WorkspaceRole, Mem
 from core.models import ModuleStatus
 from meetings.models import Meeting, MeetingStatus, ParticipantRole
 from meetings.services import (
-    generate_jaas_jwt, get_jaas_status, _b64url_encode
+    generate_jaas_jwt, get_jaas_status, validate_jaas_credentials, _b64url_encode
 )
 
 User = get_user_model()
@@ -117,6 +117,45 @@ class JaaSIntegrationAndSecurityTests(TestCase):
             token, err = generate_jaas_jwt(self.meeting, self.host_user)
             self.assertIsNone(token)
             self.assertIn("JAAS_API_KEY_ID is missing", err)
+
+    def test_jaas_placeholder_api_key_id_returns_error(self):
+        """When JAAS_API_KEY_ID has placeholder text, detect and report error."""
+        with override_settings(
+            JAAS_APP_ID='vpaas-magic-cookie-test',
+            JAAS_API_KEY_ID='vpaas-magic-cookie-test/your_api_key_id',
+            JAAS_PRIVATE_KEY=self.private_key_pem
+        ):
+            token, err = generate_jaas_jwt(self.meeting, self.host_user)
+            self.assertIsNone(token)
+            self.assertIn("placeholder value", err)
+
+    def test_validate_jaas_credentials_helper(self):
+        """Test validate_jaas_credentials utility across different configurations."""
+        # Unconfigured
+        with override_settings(JAAS_APP_ID=''):
+            is_valid, err = validate_jaas_credentials()
+            self.assertTrue(is_valid)
+            self.assertIsNone(err)
+
+        # Placeholder
+        with override_settings(
+            JAAS_APP_ID='vpaas-magic-cookie-test',
+            JAAS_API_KEY_ID='vpaas-magic-cookie-test/replace_me',
+            JAAS_PRIVATE_KEY=self.private_key_pem
+        ):
+            is_valid, err = validate_jaas_credentials()
+            self.assertFalse(is_valid)
+            self.assertIn("placeholder", err)
+
+        # Fully valid
+        with override_settings(
+            JAAS_APP_ID='vpaas-magic-cookie-test',
+            JAAS_API_KEY_ID='vpaas-magic-cookie-test/real-key-uuid',
+            JAAS_PRIVATE_KEY=self.private_key_pem
+        ):
+            is_valid, err = validate_jaas_credentials()
+            self.assertTrue(is_valid)
+            self.assertIsNone(err)
 
     def test_jaas_missing_private_key_returns_error(self):
         """When JaaS keys are absent, return explicit authentication failure."""

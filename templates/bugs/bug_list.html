@@ -254,9 +254,27 @@
                                     {% endif %}
                                 </td>
                                 <td class="py-3 px-3 whitespace-nowrap">
-                                    <span class="text-[11px] font-mono font-semibold text-slate-600 dark:text-zinc-400">
-                                        {{ bug.severity }}
-                                    </span>
+                                    {% if bug.severity == 'SEV1' %}
+                                        <span class="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-mono font-extrabold bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/30 tracking-wider">
+                                            SEV-1
+                                        </span>
+                                    {% elif bug.severity == 'SEV2' %}
+                                        <span class="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-mono font-extrabold bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/30 tracking-wider">
+                                            SEV-2
+                                        </span>
+                                    {% elif bug.severity == 'SEV3' %}
+                                        <span class="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-mono font-extrabold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 tracking-wider">
+                                            SEV-3
+                                        </span>
+                                    {% elif bug.severity == 'SEV4' %}
+                                        <span class="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-mono font-extrabold bg-slate-500/10 text-slate-600 dark:text-zinc-400 border border-slate-500/30 tracking-wider">
+                                            SEV-4
+                                        </span>
+                                    {% else %}
+                                        <span class="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-mono font-semibold bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400">
+                                            {{ bug.severity }}
+                                        </span>
+                                    {% endif %}
                                 </td>
                                 <td class="py-3 px-4 whitespace-nowrap">
                                     {% if bug.assignee %}

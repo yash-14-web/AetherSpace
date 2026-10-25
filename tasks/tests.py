@@ -3,7 +3,7 @@ from django.urls import reverse
 from django.utils import timezone
 from datetime import timedelta
 
-from accounts.models import User, UserRole
+from accounts.models import User, UserRole, ApprovalStatus
 from workspaces.models import Workspace, WorkspaceMembership, WorkspaceRole, MembershipStatus, TemporaryAccessGrant
 from .models import Task, TaskActivity, TaskStatus, TaskPriority, Sprint, SprintStatus, CodeReviewRequest, CodeReviewStatus, TaskComment
 from .services import (
@@ -319,6 +319,59 @@ class TaskManagementTests(TestCase):
         self.assertContains(response, "Alice Task")
         self.assertNotContains(response, "Bob Task")
 
+    def test_my_tasks_view_search_by_code_title_description(self):
+        """My Tasks search should filter assigned tasks by title, description, and task code."""
+        t1 = create_task(self.workspace, self.alice, "Implement OAuth Login", description="Connect Google provider", assignee=self.alice)
+        t2 = create_task(self.workspace, self.alice, "Fix Navbar Padding", description="CSS layout bug", assignee=self.alice)
+        # Another user's task with same keyword to verify isolation
+        t_bob = create_task(self.workspace, self.alice, "OAuth Token Refresh", description="Bob handling OAuth", assignee=self.bob)
+
+        self.client.login(email="alice.tasks@aetherspace.dev", password=self.password)
+        my_tasks_url = reverse('tasks:my_tasks')
+
+        # 1. Search by title
+        res_title = self.client.get(my_tasks_url, {'q': 'OAuth'})
+        self.assertEqual(res_title.status_code, 200)
+        self.assertContains(res_title, "Implement OAuth Login")
+        self.assertNotContains(res_title, "Fix Navbar Padding")
+        self.assertNotContains(res_title, "Bob handling OAuth")
+
+        # 2. Search by description
+        res_desc = self.client.get(my_tasks_url, {'q': 'layout bug'})
+        self.assertEqual(res_desc.status_code, 200)
+        self.assertContains(res_desc, "Fix Navbar Padding")
+        self.assertNotContains(res_desc, "Implement OAuth Login")
+
+        # 3. Search by task code (with and without hash)
+        res_code = self.client.get(my_tasks_url, {'q': t1.task_code})
+        self.assertEqual(res_code.status_code, 200)
+        self.assertContains(res_code, t1.title)
+        self.assertNotContains(res_code, t2.title)
+
+        res_hash_code = self.client.get(my_tasks_url, {'q': f"#{t1.task_code}"})
+        self.assertEqual(res_hash_code.status_code, 200)
+        self.assertContains(res_hash_code, t1.title)
+        self.assertNotContains(res_hash_code, t2.title)
+
+    def test_my_tasks_view_search_with_status_filter_and_empty_state(self):
+        """My Tasks search respects status filters and shows matching empty state when no results."""
+        t1 = create_task(self.workspace, self.alice, "Feature Alpha", assignee=self.alice)
+        change_task_status(t1, self.alice, TaskStatus.IN_PROGRESS)
+
+        self.client.login(email="alice.tasks@aetherspace.dev", password=self.password)
+        my_tasks_url = reverse('tasks:my_tasks')
+
+        # Matching status and search
+        res = self.client.get(my_tasks_url, {'q': 'Alpha', 'status': 'IN_PROGRESS'})
+        self.assertEqual(res.status_code, 200)
+        self.assertContains(res, "Feature Alpha")
+
+        # Mismatched status and search
+        res_mismatch = self.client.get(my_tasks_url, {'q': 'Alpha', 'status': 'DONE'})
+        self.assertEqual(res_mismatch.status_code, 200)
+        self.assertNotContains(res_mismatch, "Feature Alpha")
+        self.assertContains(res_mismatch, "No tasks found matching")
+
     def test_assignee_validation_cannot_assign_non_workspace_member(self):
         """Form validation prevents assigning a user from outside the workspace."""
         form = TaskForm(
@@ -513,6 +566,32 @@ class TaskManagementTests(TestCase):
         self.assertTrue(del_data['success'])
         self.assertEqual(del_data['total_count'], 0)
         self.assertEqual(task.subtask_count, 0)
+
+    def test_subtask_update_ajax_endpoint(self):
+        """Test AJAX updating of subtask title on the task detail page."""
+        import json
+        from .services import create_subtask
+        self.client.login(email="alice.tasks@aetherspace.dev", password=self.password)
+        task = create_task(self.workspace, self.alice, "Detail Subtasks Edit Task")
+        st = create_subtask(task, "Original title", actor=self.alice)
+
+        update_url = reverse('tasks:subtask_update', kwargs={
+            'slug': self.workspace.slug,
+            'task_code': task.task_code,
+            'subtask_id': st.id
+        })
+        resp = self.client.post(
+            update_url,
+            data=json.dumps({'title': 'Renamed subtask title'}),
+            content_type='application/json',
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest'
+        )
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertTrue(data['success'])
+        self.assertEqual(data['subtask']['title'], 'Renamed subtask title')
+        st.refresh_from_db()
+        self.assertEqual(st.title, 'Renamed subtask title')
 
 
 class SprintPlanningUnitTests(TestCase):
@@ -800,6 +879,266 @@ class SprintPlanningUnitTests(TestCase):
         self.assertEqual(resp.context['active_sprint'], self.sprint1)
         self.assertContains(resp, self.sprint1.name)
         self.assertNotContains(resp, "Sprint 4")
+
+
+class SprintTaskAlignmentPhase2Tests(TestCase):
+    """
+    Phase 2 Acceptance Tests: Sprint & Task Architecture Alignment.
+    Covers:
+      1. Sprint filtering in Task List.
+      2. Workspace isolation for sprint filtering and assignment.
+      3. Filter combination (Sprint + Status + Priority + Assignee) and pagination parameter preservation.
+      4. Task creation with Sprint sets sprint_ref and syncs sprint name.
+      5. Task editing preserves, updates, or clears Sprint assignment (to Backlog).
+      6. Backlog filtering and display for unassigned/legacy tasks.
+      7. Truthful empty states when a sprint filter has zero tasks.
+    """
+    def setUp(self):
+        self.client = Client()
+        self.password = "StrongPassword123!"
+
+        self.user = User.objects.create_user(
+            email="phase2.lead@aetherspace.dev",
+            password=self.password,
+            full_name="Phase 2 Lead"
+        )
+        self.workspace = Workspace.objects.create(
+            name="Phase 2 Workspace",
+            slug="phase2-workspace",
+            owner=self.user
+        )
+        WorkspaceMembership.objects.create(
+            workspace=self.workspace,
+            user=self.user,
+            role=WorkspaceRole.ADMIN,
+            status=MembershipStatus.ACTIVE
+        )
+
+        # Other workspace for isolation testing
+        self.other_user = User.objects.create_user(
+            email="other.phase2@aetherspace.dev",
+            password=self.password,
+            full_name="Other User"
+        )
+        self.other_workspace = Workspace.objects.create(
+            name="Other Workspace",
+            slug="other-workspace",
+            owner=self.other_user
+        )
+        WorkspaceMembership.objects.create(
+            workspace=self.other_workspace,
+            user=self.other_user,
+            role=WorkspaceRole.ADMIN,
+            status=MembershipStatus.ACTIVE
+        )
+
+        # Sprints in main workspace
+        self.sprint_alpha = Sprint.objects.create(
+            workspace=self.workspace,
+            name="Sprint Alpha",
+            status=SprintStatus.ACTIVE,
+            start_date=timezone.now().date(),
+            end_date=timezone.now().date() + timedelta(days=14)
+        )
+        self.sprint_beta = Sprint.objects.create(
+            workspace=self.workspace,
+            name="Sprint Beta",
+            status=SprintStatus.PLANNING,
+            start_date=timezone.now().date() + timedelta(days=15),
+            end_date=timezone.now().date() + timedelta(days=28)
+        )
+
+        # Sprint in other workspace
+        self.other_sprint = Sprint.objects.create(
+            workspace=self.other_workspace,
+            name="Foreign Sprint",
+            status=SprintStatus.ACTIVE
+        )
+
+        # Tasks in main workspace
+        self.task_alpha = create_task(
+            workspace=self.workspace,
+            reporter=self.user,
+            title="Alpha Task 1",
+            status=TaskStatus.TODO,
+            priority=TaskPriority.HIGH,
+            assignee=self.user,
+            sprint_ref=self.sprint_alpha
+        )
+        self.task_legacy_alpha = create_task(
+            workspace=self.workspace,
+            reporter=self.user,
+            title="Alpha Legacy Task",
+            status=TaskStatus.IN_PROGRESS,
+            priority=TaskPriority.MEDIUM,
+            sprint="Sprint Alpha",
+            sprint_ref=None
+        )
+        self.task_beta = create_task(
+            workspace=self.workspace,
+            reporter=self.user,
+            title="Beta Task 1",
+            status=TaskStatus.CODE_REVIEW,
+            priority=TaskPriority.LOW,
+            sprint_ref=self.sprint_beta
+        )
+        self.task_backlog = create_task(
+            workspace=self.workspace,
+            reporter=self.user,
+            title="Unassigned Backlog Task",
+            status=TaskStatus.TODO,
+            priority=TaskPriority.LOW,
+            sprint="Backlog",
+            sprint_ref=None
+        )
+
+        self.client.login(email="phase2.lead@aetherspace.dev", password=self.password)
+
+    def test_sprint_filter_returns_correct_tasks_and_renders_sprints(self):
+        """Selecting a Sprint filters tasks correctly and dropdown renders real workspace sprints."""
+        url = reverse('tasks:task_list', kwargs={'slug': self.workspace.slug})
+        resp = self.client.get(url, {'sprint': str(self.sprint_alpha.id)})
+        self.assertEqual(resp.status_code, 200)
+
+        # Should include sprint_alpha tasks (both direct sprint_ref and matching legacy name)
+        tasks_in_page = list(resp.context['tasks'])
+        self.assertIn(self.task_alpha, tasks_in_page)
+        self.assertIn(self.task_legacy_alpha, tasks_in_page)
+        self.assertNotIn(self.task_beta, tasks_in_page)
+        self.assertNotIn(self.task_backlog, tasks_in_page)
+
+        # Real sprints are present in dropdown, hardcoded Sprint 01/02/03 are not
+        self.assertContains(resp, "Sprint Alpha")
+        self.assertContains(resp, "Sprint Beta")
+        self.assertNotContains(resp, 'value="Sprint 01"')
+        self.assertNotContains(resp, 'value="Sprint 02"')
+        self.assertNotContains(resp, 'value="Sprint 03"')
+
+    def test_cross_workspace_sprint_isolation(self):
+        """Sprints from another workspace cannot be used to filter or assign tasks."""
+        # 1. Foreign sprint filter in list view returns empty queryset (isolated)
+        url = reverse('tasks:task_list', kwargs={'slug': self.workspace.slug})
+        resp = self.client.get(url, {'sprint': str(self.other_sprint.id)})
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(len(resp.context['tasks']), 0)
+        self.assertNotContains(resp, "Foreign Sprint")
+
+        # 2. Form validation blocks assigning foreign sprint
+        form = TaskForm(
+            data={
+                'title': 'Hacked Task',
+                'status': TaskStatus.TODO,
+                'priority': TaskPriority.MEDIUM,
+                'sprint_ref': str(self.other_sprint.id)
+            },
+            workspace=self.workspace
+        )
+        self.assertFalse(form.is_valid())
+        self.assertIn('sprint_ref', form.errors)
+
+    def test_combined_filters_and_pagination_preservation(self):
+        """Other Task List filters work alongside Sprint filter, and pagination preserves query params."""
+        url = reverse('tasks:task_list', kwargs={'slug': self.workspace.slug})
+        resp = self.client.get(url, {
+            'sprint': str(self.sprint_alpha.id),
+            'status': TaskStatus.TODO,
+            'priority': TaskPriority.HIGH,
+            'assignee': 'me'
+        })
+        self.assertEqual(resp.status_code, 200)
+        tasks_in_page = list(resp.context['tasks'])
+        self.assertIn(self.task_alpha, tasks_in_page)
+        self.assertNotIn(self.task_legacy_alpha, tasks_in_page)  # Not status TODO
+        self.assertNotIn(self.task_beta, tasks_in_page)
+
+        self.assertEqual(resp.context['current_sprint'], str(self.sprint_alpha.id))
+        self.assertEqual(resp.context['current_status'], TaskStatus.TODO)
+        self.assertEqual(resp.context['current_priority'], TaskPriority.HIGH)
+
+    def test_task_create_with_sprint_sets_sprint_ref(self):
+        """Task creation with a sprint sets sprint_ref and syncs sprint name."""
+        create_url = reverse('tasks:task_create', kwargs={'slug': self.workspace.slug})
+        resp = self.client.post(create_url, {
+            'title': 'New Feature in Beta',
+            'status': TaskStatus.TODO,
+            'priority': TaskPriority.MEDIUM,
+            'sprint_ref': str(self.sprint_beta.id)
+        })
+        self.assertEqual(resp.status_code, 302)
+
+        created = Task.objects.filter(title='New Feature in Beta').first()
+        self.assertIsNotNone(created)
+        self.assertEqual(created.sprint_ref, self.sprint_beta)
+        self.assertEqual(created.sprint, self.sprint_beta.name)
+
+    def test_task_create_without_sprint_defaults_to_backlog(self):
+        """Task creation without sprint defaults to Backlog with sprint_ref None."""
+        create_url = reverse('tasks:task_create', kwargs={'slug': self.workspace.slug})
+        resp = self.client.post(create_url, {
+            'title': 'Unassigned Future Idea',
+            'status': TaskStatus.TODO,
+            'priority': TaskPriority.LOW,
+            'sprint_ref': ''
+        })
+        self.assertEqual(resp.status_code, 302)
+
+        created = Task.objects.filter(title='Unassigned Future Idea').first()
+        self.assertIsNotNone(created)
+        self.assertIsNone(created.sprint_ref)
+        self.assertEqual(created.sprint, 'Backlog')
+
+    def test_task_edit_sprint_assignment_and_clearing(self):
+        """Task editing updates sprint_ref and clearing sets it to Backlog."""
+        edit_url = reverse('tasks:task_edit', kwargs={'slug': self.workspace.slug, 'task_code': self.task_alpha.task_code})
+
+        # 1. Move from sprint_alpha to sprint_beta
+        resp = self.client.post(edit_url, {
+            'title': self.task_alpha.title,
+            'status': self.task_alpha.status,
+            'priority': self.task_alpha.priority,
+            'sprint_ref': str(self.sprint_beta.id)
+        })
+        self.assertEqual(resp.status_code, 302)
+        self.task_alpha.refresh_from_db()
+        self.assertEqual(self.task_alpha.sprint_ref, self.sprint_beta)
+        self.assertEqual(self.task_alpha.sprint, self.sprint_beta.name)
+
+        # 2. Clear sprint to Backlog
+        resp_clear = self.client.post(edit_url, {
+            'title': self.task_alpha.title,
+            'status': self.task_alpha.status,
+            'priority': self.task_alpha.priority,
+            'sprint_ref': ''
+        })
+        self.assertEqual(resp_clear.status_code, 302)
+        self.task_alpha.refresh_from_db()
+        self.assertIsNone(self.task_alpha.sprint_ref)
+        self.assertEqual(self.task_alpha.sprint, 'Backlog')
+
+    def test_backlog_filter_behavior(self):
+        """Filtering by 'backlog' returns tasks without active sprint."""
+        url = reverse('tasks:task_list', kwargs={'slug': self.workspace.slug})
+        resp = self.client.get(url, {'sprint': 'backlog'})
+        self.assertEqual(resp.status_code, 200)
+
+        tasks_in_page = list(resp.context['tasks'])
+        self.assertIn(self.task_backlog, tasks_in_page)
+        self.assertNotIn(self.task_alpha, tasks_in_page)
+        self.assertNotIn(self.task_beta, tasks_in_page)
+
+    def test_empty_sprint_shows_filter_empty_state(self):
+        """An empty sprint filter renders the filter empty state with Clear All Filters."""
+        empty_sprint = Sprint.objects.create(
+            workspace=self.workspace,
+            name="Empty Future Sprint",
+            status=SprintStatus.PLANNING
+        )
+        url = reverse('tasks:task_list', kwargs={'slug': self.workspace.slug})
+        resp = self.client.get(url, {'sprint': str(empty_sprint.id)})
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(len(resp.context['tasks']), 0)
+        self.assertContains(resp, "No Tasks Match Filters")
+        self.assertContains(resp, "Clear All Filters")
 
 
 class TaskHubEnhancementTests(TestCase):
@@ -1729,4 +2068,771 @@ class TaskMentionReDoSSecurityTests(TestCase):
         self.assertEqual(resp.status_code, 302)
         # Must execute in under 500ms
         self.assertLess(elapsed, 0.5, f"Task comment parsing took too long: {elapsed:.3f}s")
+
+
+class KanbanDragAndDropPhase4Tests(TestCase):
+    """
+    Phase 4 Acceptance & Regression Tests: Kanban Drag-and-Drop Implementation.
+    Covers:
+      1. Template renders draggable attributes, drop target event listeners, and feedback elements.
+      2. Asynchronous AJAX status updates (X-Requested-With: XMLHttpRequest) succeed with JSON.
+      3. Rejection of invalid status with 400 JSON and status preservation.
+      4. Workspace isolation and authorization enforcement (403 for non-members).
+      5. Full traversal across all 5 Kanban stages (TODO -> IN_PROGRESS -> CODE_REVIEW -> TESTING -> DONE).
+      6. Preserving traditional card-menu form POST submissions and redirect behavior.
+      7. Activity audit logging on drag-and-drop status transitions.
+    """
+
+    def setUp(self):
+        self.client = Client()
+        self.password = "StrongPassword123!"
+
+        # Main workspace user & admin
+        self.user = User.objects.create_user(
+            email="kanban.lead@aetherspace.dev",
+            password=self.password,
+            full_name="Kanban Lead"
+        )
+        self.workspace = Workspace.objects.create(
+            name="Kanban Test Workspace",
+            slug="kanban-test-ws",
+            owner=self.user
+        )
+        WorkspaceMembership.objects.create(
+            workspace=self.workspace,
+            user=self.user,
+            role=WorkspaceRole.ADMIN,
+            status=MembershipStatus.ACTIVE
+        )
+
+        # Other workspace user for isolation testing
+        self.outsider = User.objects.create_user(
+            email="kanban.outsider@aetherspace.dev",
+            password=self.password,
+            full_name="Kanban Outsider"
+        )
+        self.other_workspace = Workspace.objects.create(
+            name="Other Isolated WS",
+            slug="other-isolated-ws",
+            owner=self.outsider
+        )
+        WorkspaceMembership.objects.create(
+            workspace=self.other_workspace,
+            user=self.outsider,
+            role=WorkspaceRole.ADMIN,
+            status=MembershipStatus.ACTIVE
+        )
+
+        # Create sample task in main workspace
+        self.task = create_task(
+            workspace=self.workspace,
+            reporter=self.user,
+            title="Drag and Drop Feature Card",
+            status=TaskStatus.TODO,
+            priority=TaskPriority.HIGH
+        )
+
+        self.client.login(email=self.user.email, password=self.password)
+
+    def test_kanban_board_template_has_drag_and_drop_capabilities(self):
+        """Kanban board renders draggable cards, column drop zones, CSRF token, and Alpine component."""
+        url = reverse('tasks:task_board', kwargs={'slug': self.workspace.slug})
+        resp = self.client.get(url)
+        self.assertEqual(resp.status_code, 200)
+        content = resp.content.decode('utf-8')
+
+        # 1. Alpine Kanban component initialized
+        self.assertIn('x-data="aetherKanban()"', content)
+        self.assertIn('id="kanban-csrf-token"', content)
+
+        # 2. Card has draggable="true", cursor cues, and drag event listeners
+        self.assertIn('draggable="true"', content)
+        self.assertIn('handleDragStart', content)
+        self.assertIn('handleDragEnd', content)
+        self.assertIn(f'data-task-code="{self.task.task_code}"', content)
+        self.assertIn('data-card-status="TODO"', content)
+        self.assertIn('cursor-grab', content)
+
+        # 3. Columns have drop zone event listeners
+        self.assertIn('handleDragOver', content)
+        self.assertIn('handleDrop', content)
+        self.assertIn('handleDragLeave', content)
+        self.assertIn('id="column-cards-TODO"', content)
+        self.assertIn('id="column-cards-IN_PROGRESS"', content)
+        self.assertIn('id="column-cards-CODE_REVIEW"', content)
+        self.assertIn('id="column-cards-TESTING"', content)
+        self.assertIn('id="column-cards-DONE"', content)
+
+        # 4. Error/Success feedback alert elements present
+        self.assertIn('x-show="errorMessage"', content)
+        self.assertIn('x-show="successMessage"', content)
+
+        # 5. Non-misleading subtitle preserved
+        self.assertIn("Track workflow stages and update task status via the card menu.", content)
+
+    def test_drag_and_drop_ajax_status_update_success(self):
+        """Asynchronous status update via drag-and-drop succeeds and logs activity."""
+        url = reverse('tasks:task_status_update', kwargs={
+            'slug': self.workspace.slug,
+            'task_code': self.task.task_code
+        })
+
+        resp = self.client.post(
+            url,
+            {'status': TaskStatus.IN_PROGRESS},
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest'
+        )
+        self.assertEqual(resp.status_code, 200)
+
+        data = resp.json()
+        self.assertTrue(data['success'])
+        self.assertEqual(data['task_code'], self.task.task_code)
+        self.assertEqual(data['new_status'], TaskStatus.IN_PROGRESS)
+        self.assertEqual(data['new_status_display'], 'In Progress')
+
+        # Database updated
+        self.task.refresh_from_db()
+        self.assertEqual(self.task.status, TaskStatus.IN_PROGRESS)
+
+        # Activity log record created
+        activity = TaskActivity.objects.filter(
+            task=self.task,
+            action=TaskActivity.Action.STATUS_CHANGED
+        ).first()
+        self.assertIsNotNone(activity)
+        self.assertEqual(activity.new_value, 'In Progress')
+        self.assertEqual(activity.actor, self.user)
+
+    def test_drag_and_drop_ajax_all_five_column_transitions(self):
+        """Card can be moved through all 5 workflow stages: TODO -> IN_PROGRESS -> CODE_REVIEW -> TESTING -> DONE."""
+        url = reverse('tasks:task_status_update', kwargs={
+            'slug': self.workspace.slug,
+            'task_code': self.task.task_code
+        })
+
+        sequence = [
+            (TaskStatus.IN_PROGRESS, 'In Progress'),
+            (TaskStatus.CODE_REVIEW, 'Code Review'),
+            (TaskStatus.TESTING, 'Testing'),
+            (TaskStatus.DONE, 'Done'),
+            (TaskStatus.TODO, 'To Do')
+        ]
+
+        for target_status, display_name in sequence:
+            resp = self.client.post(
+                url,
+                {'status': target_status},
+                HTTP_X_REQUESTED_WITH='XMLHttpRequest'
+            )
+            self.assertEqual(resp.status_code, 200)
+            data = resp.json()
+            self.assertTrue(data['success'])
+            self.assertEqual(data['new_status'], target_status)
+            self.assertEqual(data['new_status_display'], display_name)
+
+            self.task.refresh_from_db()
+            self.assertEqual(self.task.status, target_status)
+
+    def test_drag_and_drop_ajax_invalid_status_rejected(self):
+        """Submitting an invalid status via drag-and-drop returns 400 JSON and does not change status."""
+        url = reverse('tasks:task_status_update', kwargs={
+            'slug': self.workspace.slug,
+            'task_code': self.task.task_code
+        })
+
+        resp = self.client.post(
+            url,
+            {'status': 'MALICIOUS_OR_INVALID_STATUS'},
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest'
+        )
+        self.assertEqual(resp.status_code, 400)
+
+        data = resp.json()
+        self.assertFalse(data['success'])
+        self.assertIn('Invalid task status', data['message'])
+
+        # Task remains in original status
+        self.task.refresh_from_db()
+        self.assertEqual(self.task.status, TaskStatus.TODO)
+
+    def test_drag_and_drop_cross_workspace_isolation_forbidden(self):
+        """User from another workspace cannot update a task's status (403 Forbidden)."""
+        self.client.login(email=self.outsider.email, password=self.password)
+
+        url = reverse('tasks:task_status_update', kwargs={
+            'slug': self.workspace.slug,
+            'task_code': self.task.task_code
+        })
+
+        resp = self.client.post(
+            url,
+            {'status': TaskStatus.DONE},
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest'
+        )
+        self.assertEqual(resp.status_code, 403)
+
+        self.task.refresh_from_db()
+        self.assertEqual(self.task.status, TaskStatus.TODO)
+
+    def test_existing_card_menu_post_still_works_and_redirects(self):
+        """Standard form POST (used by keyboard/card menu) still succeeds and redirects."""
+        url = reverse('tasks:task_status_update', kwargs={
+            'slug': self.workspace.slug,
+            'task_code': self.task.task_code
+        })
+
+        resp = self.client.post(url, {'status': TaskStatus.DONE})
+        self.assertEqual(resp.status_code, 302)
+
+        self.task.refresh_from_db()
+        self.assertEqual(self.task.status, TaskStatus.DONE)
+
+    def test_drag_and_drop_ajax_validation_error_returns_400_clean_message(self):
+        """Expected ValidationError from change_task_status returns 400 with clean message without leaking stack traces."""
+        from unittest.mock import patch
+        url = reverse('tasks:task_status_update', kwargs={
+            'slug': self.workspace.slug,
+            'task_code': self.task.task_code
+        })
+
+        with patch('tasks.views.change_task_status', side_effect=ValidationError("Cannot move blocked task.")):
+            resp = self.client.post(
+                url,
+                {'status': TaskStatus.IN_PROGRESS},
+                HTTP_X_REQUESTED_WITH='XMLHttpRequest'
+            )
+            self.assertEqual(resp.status_code, 400)
+            data = resp.json()
+            self.assertFalse(data['success'])
+            self.assertEqual(data['message'], "Cannot move blocked task.")
+
+    def test_drag_and_drop_ajax_unexpected_server_error_returns_500_generic_message(self):
+        """Unexpected internal server error returns generic 500 JSON without leaking database details or tracebacks."""
+        from unittest.mock import patch
+        url = reverse('tasks:task_status_update', kwargs={
+            'slug': self.workspace.slug,
+            'task_code': self.task.task_code
+        })
+
+        sensitive_sql_error = "FATAL: relation 'tasks_task' does not exist; secret_db_token=xyz123"
+        with patch('tasks.views.change_task_status', side_effect=RuntimeError(sensitive_sql_error)):
+            resp = self.client.post(
+                url,
+                {'status': TaskStatus.IN_PROGRESS},
+                HTTP_X_REQUESTED_WITH='XMLHttpRequest'
+            )
+            self.assertEqual(resp.status_code, 500)
+            data = resp.json()
+            self.assertFalse(data['success'])
+            self.assertEqual(data['message'], "An unexpected error occurred while updating task status.")
+            # Verify sensitive database details and secrets are not leaked
+            self.assertNotIn("tasks_task", resp.content.decode())
+            self.assertNotIn("secret_db_token", resp.content.decode())
+            self.assertNotIn("xyz123", resp.content.decode())
+            self.assertNotIn("Traceback", resp.content.decode())
+
+    def test_standard_post_unexpected_server_error_safe_redirect(self):
+        """Standard form POST encountering unexpected server error redirects safely without leaking exception details."""
+        from unittest.mock import patch
+        url = reverse('tasks:task_status_update', kwargs={
+            'slug': self.workspace.slug,
+            'task_code': self.task.task_code
+        })
+
+        sensitive_db_error = "Internal DB connection dropped; table secret_credentials"
+        with patch('tasks.views.change_task_status', side_effect=RuntimeError(sensitive_db_error)):
+            resp = self.client.post(url, {'status': TaskStatus.DONE})
+            self.assertEqual(resp.status_code, 302)
+            self.assertIn(f"/tasks/w/{self.workspace.slug}/{self.task.task_code}/", resp.url)
+            # Verify sensitive details are not leaked in redirect URL
+            self.assertNotIn("secret_credentials", resp.url)
+            # Verify safe message added
+            messages = list(resp.wsgi_request._messages)
+            self.assertTrue(any("An unexpected error occurred while updating task status." in m.message for m in messages))
+            self.assertFalse(any("secret_credentials" in m.message for m in messages))
+
+    def test_backlog_option_rendered_in_card_menu(self):
+        """Card in a workflow stage renders Backlog option in its menu, while Backlog card does not redundantly show Backlog."""
+        sprint = Sprint.objects.create(workspace=self.workspace, name="Sprint 1", status=SprintStatus.ACTIVE)
+        todo_task = create_task(
+            workspace=self.workspace,
+            reporter=self.user,
+            title="Sprinted Task in To Do",
+            status=TaskStatus.TODO,
+            sprint="Sprint 1",
+            sprint_ref=sprint
+        )
+
+        backlog_task = create_task(
+            workspace=self.workspace,
+            reporter=self.user,
+            title="Unassigned Backlog Task",
+            status=TaskStatus.TODO,
+            sprint="Backlog",
+            sprint_ref=None
+        )
+
+        url = reverse('tasks:task_board', kwargs={'slug': self.workspace.slug})
+        resp = self.client.get(url)
+        self.assertEqual(resp.status_code, 200)
+        content = resp.content.decode('utf-8')
+
+        # The To Do card menu renders the Backlog move option
+        self.assertIn(f'action="/tasks/w/{self.workspace.slug}/{todo_task.task_code}/status/"', content)
+        self.assertIn('value="BACKLOG"', content)
+
+        # In context columns:
+        columns_dict = {col['status']: col['tasks'] for col in resp.context['columns']}
+        self.assertIn(backlog_task, columns_dict['BACKLOG'])
+        self.assertNotIn(todo_task, columns_dict['BACKLOG'])
+        self.assertIn(todo_task, columns_dict[TaskStatus.TODO])
+        self.assertNotIn(backlog_task, columns_dict[TaskStatus.TODO])
+
+    def test_moving_todo_task_to_backlog_clears_sprint_fk_and_sets_legacy_field(self):
+        """Moving a task to Backlog clears sprint_ref, sets sprint='Backlog', sets status=TODO, and creates activity log."""
+        sprint = Sprint.objects.create(workspace=self.workspace, name="Sprint Beta", status=SprintStatus.ACTIVE)
+        task = create_task(
+            workspace=self.workspace,
+            reporter=self.user,
+            title="Active Task to Backlog",
+            status=TaskStatus.IN_PROGRESS,
+            sprint="Sprint Beta",
+            sprint_ref=sprint
+        )
+
+        url = reverse('tasks:task_status_update', kwargs={
+            'slug': self.workspace.slug,
+            'task_code': task.task_code
+        })
+
+        resp = self.client.post(url, {'status': 'BACKLOG', 'next': f'/tasks/w/{self.workspace.slug}/board/'})
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(resp.url, f'/tasks/w/{self.workspace.slug}/board/')
+
+        task.refresh_from_db()
+        self.assertIsNone(task.sprint_ref)
+        self.assertEqual(task.sprint, 'Backlog')
+        self.assertEqual(task.status, TaskStatus.TODO)
+        self.assertEqual(task.sprint_display, 'Backlog')
+
+        activity = TaskActivity.objects.filter(task=task, new_value='Backlog').first()
+        self.assertIsNotNone(activity)
+        self.assertIn("Moved task to Backlog", activity.message)
+
+    def test_moving_backlog_task_to_workflow_stage_preserves_status_and_sprint(self):
+        """Moving a backlog task to a workflow stage (e.g. IN_PROGRESS) updates status without fabricating a sprint."""
+        task = create_task(
+            workspace=self.workspace,
+            reporter=self.user,
+            title="Unscheduled Feature",
+            status=TaskStatus.TODO,
+            sprint="Backlog",
+            sprint_ref=None
+        )
+
+        url = reverse('tasks:task_status_update', kwargs={
+            'slug': self.workspace.slug,
+            'task_code': task.task_code
+        })
+
+        resp = self.client.post(
+            url,
+            {'status': TaskStatus.IN_PROGRESS},
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest'
+        )
+        self.assertEqual(resp.status_code, 200)
+
+        task.refresh_from_db()
+        self.assertEqual(task.status, TaskStatus.IN_PROGRESS)
+        # Sprint remains unsprinted
+        self.assertIsNone(task.sprint_ref)
+        self.assertEqual(task.sprint, 'Backlog')
+
+    def test_moving_backlog_task_to_todo_assigns_active_sprint(self):
+        """Moving a backlog task to To Do assigns it to the workspace's active sprint."""
+        active_sprint = Sprint.objects.create(workspace=self.workspace, name="Sprint 10", status=SprintStatus.ACTIVE)
+        task = create_task(
+            workspace=self.workspace,
+            reporter=self.user,
+            title="Task Pulled from Backlog",
+            status=TaskStatus.TODO,
+            sprint="Backlog",
+            sprint_ref=None
+        )
+
+        url = reverse('tasks:task_status_update', kwargs={
+            'slug': self.workspace.slug,
+            'task_code': task.task_code
+        })
+
+        resp = self.client.post(
+            url,
+            {'status': TaskStatus.TODO},
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest'
+        )
+        self.assertEqual(resp.status_code, 200)
+
+        task.refresh_from_db()
+        self.assertEqual(task.status, TaskStatus.TODO)
+        self.assertEqual(task.sprint_ref, active_sprint)
+        self.assertEqual(task.sprint, active_sprint.name)
+        self.assertEqual(task.sprint_display, active_sprint.name)
+
+    def test_named_sprint_tasks_appear_only_in_appropriate_column_and_no_duplicates(self):
+        """Backlog and To Do partition tasks cleanly without duplication or tasks disappearing."""
+        sprint = Sprint.objects.create(workspace=self.workspace, name="Sprint 1", status=SprintStatus.ACTIVE)
+        t_backlog = create_task(self.workspace, self.user, "Backlog Item", status=TaskStatus.TODO, sprint="Backlog", sprint_ref=None)
+        t_todo = create_task(self.workspace, self.user, "Sprint Item Todo", status=TaskStatus.TODO, sprint="Sprint 1", sprint_ref=sprint)
+        t_prog = create_task(self.workspace, self.user, "In Progress Item", status=TaskStatus.IN_PROGRESS, sprint="Sprint 1", sprint_ref=sprint)
+        t_done = create_task(self.workspace, self.user, "Done Item", status=TaskStatus.DONE, sprint="Sprint 1", sprint_ref=sprint)
+
+        url = reverse('tasks:task_board', kwargs={'slug': self.workspace.slug})
+        resp = self.client.get(url)
+        self.assertEqual(resp.status_code, 200)
+
+        cols = {col['status']: col['tasks'] for col in resp.context['columns']}
+
+        # Backlog contains ONLY Backlog Item
+        self.assertIn(t_backlog, cols['BACKLOG'])
+        self.assertNotIn(t_todo, cols['BACKLOG'])
+        self.assertNotIn(t_prog, cols['BACKLOG'])
+        self.assertNotIn(t_done, cols['BACKLOG'])
+
+        # To Do contains ONLY Sprint Item Todo
+        self.assertIn(t_todo, cols[TaskStatus.TODO])
+        self.assertNotIn(t_backlog, cols[TaskStatus.TODO])
+
+        # Zero duplicates between any columns
+        all_column_tasks = [t for col in resp.context['columns'] for t in col['tasks']]
+        task_ids = [t.id for t in all_column_tasks]
+        self.assertEqual(len(task_ids), len(set(task_ids)), "A task appears in multiple columns!")
+
+
+class TaskDetailT24DataIntegrityTests(TestCase):
+    """
+    Focused regression test suite covering T2.4 R1 Owner's Manual findings:
+      1. Bug attach/detach redirects to ?tab=defects.
+      2. Attachment upload supports validated external document links (Google Docs, Figma, Notion).
+      3. Invalid external document URLs are rejected with user-friendly errors.
+      4. Task creation generates clean event comments without raw description dumps.
+      5. Task detail template renders authentic persisted data: no fake '+2' watchers,
+         no fake '+124 additions' / '-32 deletions', and authentic reporter and tag display.
+    """
+
+    def setUp(self):
+        self.client = Client()
+        self.password = "Secur3Passw0rd!"
+
+        self.user = User.objects.create_user(
+            email="t24.lead@aetherspace.dev",
+            password=self.password,
+            full_name="T24 Tech Lead"
+        )
+        self.workspace = Workspace.objects.create(
+            name="T24 Verification Workspace",
+            slug="t24-verification-ws",
+            owner=self.user
+        )
+        WorkspaceMembership.objects.create(
+            workspace=self.workspace,
+            user=self.user,
+            role=WorkspaceRole.ADMIN,
+            status=MembershipStatus.ACTIVE
+        )
+
+        self.task = create_task(
+            workspace=self.workspace,
+            reporter=self.user,
+            title="T2.4 Task Detail Integrity Task",
+            description="Detailed specifications for task detail redesign",
+            status=TaskStatus.TODO,
+            priority=TaskPriority.HIGH,
+            tags="frontend,ui,aetherspace"
+        )
+
+        self.client.login(email=self.user.email, password=self.password)
+
+    def test_bug_attach_and_detach_redirect_to_defects_tab(self):
+        """Attaching and detaching bugs redirects user directly to ?tab=defects."""
+        from bugs.models import BugSeverity, BugStatus
+        from bugs.services import create_bug
+
+        bug = create_bug(
+            workspace=self.workspace,
+            reporter=self.user,
+            title="Sample Defect to Link",
+            severity=BugSeverity.SEV2,
+            status=BugStatus.OPEN
+        )
+
+        # 1. Attach bug
+        attach_url = reverse('tasks:task_bug_attach', kwargs={
+            'slug': self.workspace.slug,
+            'task_code': self.task.task_code
+        })
+        resp = self.client.post(attach_url, {'bug_code': bug.bug_code})
+        self.assertEqual(resp.status_code, 302)
+        self.assertTrue(resp.url.endswith('?tab=defects'))
+
+        # Verify bug is linked in DB
+        bug.refresh_from_db()
+        self.assertEqual(bug.linked_task, self.task)
+
+        # 2. Detach bug
+        detach_url = reverse('tasks:task_bug_detach', kwargs={
+            'slug': self.workspace.slug,
+            'task_code': self.task.task_code,
+            'bug_code': bug.bug_code
+        })
+        resp2 = self.client.post(detach_url)
+        self.assertEqual(resp2.status_code, 302)
+        self.assertTrue(resp2.url.endswith('?tab=defects'))
+
+        # Verify bug is detached in DB
+        bug.refresh_from_db()
+        self.assertIsNone(bug.linked_task)
+
+    def test_external_document_link_attachment_creation(self):
+        """Attaching an external document link creates StoredFile with URL_LINK category and links to task."""
+        from files.models import StoredFile, FileCategory
+        from tasks.models import TaskAttachment
+
+        upload_url = reverse('tasks:task_attachment_upload', kwargs={
+            'slug': self.workspace.slug,
+            'task_code': self.task.task_code
+        })
+
+        external_doc_url = "https://docs.google.com/document/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit"
+        resp = self.client.post(upload_url, {
+            'attachment_type': 'link',
+            'external_url': external_doc_url,
+            'name': 'Sprint 4 PRD Spec'
+        })
+
+        self.assertEqual(resp.status_code, 302)
+        self.assertTrue(resp.url.endswith('?tab=attachments'))
+
+        # Verify StoredFile created
+        sf = StoredFile.objects.filter(workspace=self.workspace, external_url=external_doc_url).first()
+        self.assertIsNotNone(sf)
+        self.assertTrue(sf.is_external_link)
+        self.assertEqual(sf.category, FileCategory.URL_LINK)
+        self.assertEqual(sf.name, 'Sprint 4 PRD Spec')
+
+        # Verify TaskAttachment created
+        self.assertTrue(TaskAttachment.objects.filter(task=self.task, file=sf).exists())
+
+    def test_invalid_external_url_rejected(self):
+        """Supplying an invalid or unsafe document URL fails validation with a clear error message."""
+        from files.models import StoredFile
+
+        upload_url = reverse('tasks:task_attachment_upload', kwargs={
+            'slug': self.workspace.slug,
+            'task_code': self.task.task_code
+        })
+
+        resp = self.client.post(upload_url, {
+            'attachment_type': 'link',
+            'external_url': 'javascript:alert("XSS")',
+            'name': 'Malicious Link'
+        })
+
+        self.assertEqual(resp.status_code, 302)
+        self.assertTrue(resp.url.endswith('?tab=attachments'))
+
+        # Verify no file created
+        self.assertFalse(StoredFile.objects.filter(name='Malicious Link').exists())
+
+        # Verify error message present
+        messages = list(resp.wsgi_request._messages)
+        self.assertTrue(any("Invalid document URL" in m.message or "scheme" in m.message.lower() for m in messages))
+
+    def test_task_created_system_comment_format(self):
+        """Creating a task generates a clean system event comment without dumping raw task description."""
+        task = create_task(
+            workspace=self.workspace,
+            reporter=self.user,
+            title="Clean Event Comment Task",
+            description="# Heading\n\n- Detailed list item 1\n- Detailed list item 2\n\n```code block```",
+            status=TaskStatus.TODO
+        )
+
+        comment = task.comments.filter(comment_type=TaskComment.CommentType.SYSTEM).first()
+        self.assertIsNotNone(comment)
+        # Content should be a concise summary line, not the full markdown description
+        self.assertIn(f"Task #{task.task_code} created by", comment.content)
+        self.assertNotIn("Detailed list item 1", comment.content)
+        self.assertNotIn("```code block```", comment.content)
+
+    def test_task_detail_page_integrity_and_no_fabricated_metrics(self):
+        """Task detail page renders authentic values: no fake '+2' watcher indicators, no mock additions/deletions."""
+        url = reverse('tasks:task_detail', kwargs={
+            'slug': self.workspace.slug,
+            'task_code': self.task.task_code
+        })
+
+        resp = self.client.get(url)
+        self.assertEqual(resp.status_code, 200)
+        content = resp.content.decode('utf-8')
+
+        # 1. No fabricated watchers or +2 badge
+        self.assertNotIn('Followers (Watchers)', content)
+
+        # 2. Real reporter is rendered
+        self.assertIn('Reporter', content)
+        self.assertIn(self.user.full_name, content)
+
+        # 3. No fake code review additions/deletions pills
+        self.assertNotIn('+124 additions', content)
+        self.assertNotIn('-32 deletions', content)
+
+        # 4. Tags from task_summary are rendered
+        self.assertIn('frontend', content)
+        self.assertIn('ui', content)
+        self.assertIn('aetherspace', content)
+
+
+class TaskThreadedCommentsAndReactionsTests(TestCase):
+    """
+    Validates zero-migration threaded comments and reactions:
+    - Metadata-based parent_id storage
+    - Strict task/workspace parent validation
+    - Reaction toggles in metadata
+    - Permission enforcement
+    """
+
+    def setUp(self):
+        self.owner = User.objects.create_user(
+            email='owner@threaded.io',
+            username='threaded_owner',
+            full_name='Threaded Owner',
+            role=UserRole.ADMIN,
+            approval_status=ApprovalStatus.APPROVED
+        )
+        self.dev = User.objects.create_user(
+            email='dev@threaded.io',
+            username='threaded_dev',
+            full_name='Threaded Dev',
+            role=UserRole.CONTRIBUTOR,
+            approval_status=ApprovalStatus.APPROVED
+        )
+        self.workspace = Workspace.objects.create(
+            name='Threaded Workspace',
+            slug='threaded-workspace',
+            owner=self.owner
+        )
+        WorkspaceMembership.objects.create(
+            workspace=self.workspace,
+            user=self.owner,
+            role=WorkspaceRole.ADMIN,
+            status=MembershipStatus.ACTIVE
+        )
+        WorkspaceMembership.objects.create(
+            workspace=self.workspace,
+            user=self.dev,
+            role=WorkspaceRole.CONTRIBUTOR,
+            status=MembershipStatus.ACTIVE,
+            functional_role='Full Stack Developer'
+        )
+        self.task = create_task(
+            workspace=self.workspace,
+            reporter=self.owner,
+            assignee=self.dev,
+            title='Threaded Task Discussion'
+        )
+        self.client.force_login(self.dev)
+
+    def test_post_top_level_comment(self):
+        url = reverse('tasks:task_comment_add', kwargs={'slug': self.workspace.slug, 'task_code': self.task.task_code})
+        resp = self.client.post(url, {'content': 'Top-level feedback @threaded_owner'})
+        self.assertEqual(resp.status_code, 302)
+        
+        comment = TaskComment.objects.filter(task=self.task, author=self.dev).first()
+        self.assertIsNotNone(comment)
+        self.assertEqual(comment.content, 'Top-level feedback @threaded_owner')
+        self.assertFalse(comment.is_reply)
+        self.assertIsNone(comment.parent_id)
+
+    def test_post_threaded_reply_zero_migration(self):
+        # 1. Create parent comment
+        parent = TaskComment.objects.create(
+            task=self.task,
+            author=self.owner,
+            content='Initial architecture feedback'
+        )
+        
+        # 2. Reply to parent
+        url = reverse('tasks:task_comment_add', kwargs={'slug': self.workspace.slug, 'task_code': self.task.task_code})
+        resp = self.client.post(url, {
+            'content': 'Looks good, I will apply this.',
+            'parent_id': str(parent.id)
+        })
+        self.assertEqual(resp.status_code, 302)
+
+        reply = TaskComment.objects.filter(task=self.task, author=self.dev).first()
+        self.assertIsNotNone(reply)
+        self.assertTrue(reply.is_reply)
+        self.assertEqual(reply.parent_id, str(parent.id))
+        self.assertEqual(reply.metadata.get('parent_id'), str(parent.id))
+
+    def test_cross_task_parent_rejected(self):
+        other_task = create_task(
+            workspace=self.workspace,
+            reporter=self.owner,
+            title='Unrelated Task'
+        )
+        foreign_comment = TaskComment.objects.create(
+            task=other_task,
+            author=self.owner,
+            content='Foreign comment'
+        )
+
+        url = reverse('tasks:task_comment_add', kwargs={'slug': self.workspace.slug, 'task_code': self.task.task_code})
+        resp = self.client.post(url, {
+            'content': 'Trying to reply to foreign comment',
+            'parent_id': str(foreign_comment.id)
+        })
+        self.assertEqual(resp.status_code, 302)
+
+        comment = TaskComment.objects.filter(task=self.task, author=self.dev).first()
+        self.assertIsNotNone(comment)
+        # Foreign parent must NOT be attached
+        self.assertIsNone(comment.parent_id)
+
+    def test_comment_reaction_toggle(self):
+        comment = TaskComment.objects.create(
+            task=self.task,
+            author=self.owner,
+            content='Awesome work!'
+        )
+        react_url = reverse('tasks:task_comment_react', kwargs={
+            'slug': self.workspace.slug,
+            'task_code': self.task.task_code,
+            'comment_id': comment.id
+        })
+
+        # 1. React thumbs_up
+        resp = self.client.post(react_url, {'reaction': 'thumbs_up'}, HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertEqual(data['status'], 'success')
+        self.assertEqual(data['count'], 1)
+        self.assertTrue(data['has_reacted'])
+
+        comment.refresh_from_db()
+        self.assertEqual(comment.thumbs_up_count, 1)
+
+        # 2. Toggle off
+        resp2 = self.client.post(react_url, {'reaction': 'thumbs_up'}, HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        self.assertEqual(resp2.status_code, 200)
+        data2 = resp2.json()
+        self.assertEqual(data2['count'], 0)
+        self.assertFalse(data2['has_reacted'])
+
+        comment.refresh_from_db()
+        self.assertEqual(comment.thumbs_up_count, 0)
+
+
+
+
 

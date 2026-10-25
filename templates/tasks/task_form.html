@@ -145,7 +145,7 @@
                                    x-model="newTitle"
                                    @keydown.enter.prevent="addSubtask()"
                                    placeholder="Add a subtask (press Enter)..."
-                                   class="w-full pl-9 pr-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-aether-blue">
+                                   class="w-full pl-9 pr-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-obsidian-900 border border-slate-200 dark:border-zinc-800 text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-aether-blue">
                         </div>
                         <button type="button"
                                 @click="addSubtask()"
@@ -157,7 +157,7 @@
                     <!-- Subtasks list -->
                     <div class="space-y-2" x-show="subtasks.length > 0">
                         <template x-for="(st, index) in subtasks" :key="st.id || index">
-                            <div class="flex items-center space-x-3 p-2.5 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-[#0c1322] group hover:border-slate-300 dark:hover:border-zinc-700 transition">
+                            <div class="flex items-center space-x-3 p-2.5 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-obsidian-900/60 group hover:border-slate-300 dark:hover:border-zinc-700 transition">
                                 <input type="checkbox"
                                        x-model="st.is_completed"
                                        class="w-4 h-4 rounded text-aether-blue focus:ring-aether-blue bg-white dark:bg-zinc-900 border-slate-300 dark:border-zinc-700 cursor-pointer">
@@ -215,12 +215,12 @@
 
                     <!-- Sprint -->
                     <div class="space-y-1.5">
-                        <label for="{{ form.sprint.id_for_label }}" class="block text-xs font-bold text-slate-700 dark:text-zinc-300">
+                        <label for="{{ form.sprint_ref.id_for_label }}" class="block text-xs font-bold text-slate-700 dark:text-zinc-300">
                             Sprint Iteration
                         </label>
-                        {{ form.sprint }}
-                        {% if form.sprint.errors %}
-                            <p class="text-xs text-red-500 font-semibold">{{ form.sprint.errors.0 }}</p>
+                        {{ form.sprint_ref }}
+                        {% if form.sprint_ref.errors %}
+                            <p class="text-xs text-red-500 font-semibold">{{ form.sprint_ref.errors.0 }}</p>
                         {% endif %}
                     </div>
 

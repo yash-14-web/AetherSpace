@@ -1,0 +1,289 @@
+{% comment %}
+Reusable Identity Picker Component for Workspaces and Channels.
+Supports:
+- Option 1: Choose a built-in curated icon with instant preview
+- Option 2: Upload an image (PNG, JPG, WEBP, SVG max 2MB) with local FileReader preview
+- Option 3: Default fallback
+{% endcomment %}
+<style>
+    .identity-icon-grid {
+        display: grid !important;
+        grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+        gap: 0.5rem !important;
+    }
+    @media (min-width: 640px) {
+        .identity-icon-grid {
+            grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+        }
+    }
+    .identity-icon-btn {
+        aspect-ratio: 1 / 1 !important;
+        width: 100% !important;
+        height: 2.75rem !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        border-radius: 0.75rem !important;
+        transition: all 0.15s ease-in-out !important;
+        cursor: pointer !important;
+    }
+    @media (min-width: 640px) {
+        .identity-icon-btn {
+            height: 3rem !important;
+        }
+    }
+</style>
+
+<div class="space-y-3" x-data="{
+    tab: '{% if invalid_selected_icon %}icon{% elif entity and entity.avatar_url or entity and entity.logo_url %}upload{% elif entity and entity.icon_name %}icon{% else %}default{% endif %}',
+    selectedIcon: '{% if invalid_selected_icon %}{{ invalid_selected_icon }}{% elif entity and entity.icon_name %}{{ entity.icon_name }}{% endif %}',
+    imgPreview: '{% if entity and entity.avatar_url %}{{ entity.avatar_url }}{% elif entity and entity.logo_url %}{{ entity.logo_url }}{% endif %}',
+    removeImg: false,
+    fileSelected: false,
+    fileName: '',
+    errorMsg: '{{ error_msg|default:'' }}',
+    handleFile(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        if (file.size > 2 * 1024 * 1024) {
+            this.errorMsg = 'File size exceeds 2 MB limit.';
+            e.target.value = '';
+            return;
+        }
+        const ext = file.name.split('.').pop().toLowerCase();
+        const allowed = ['png', 'jpg', 'jpeg', 'webp', 'svg', 'gif'];
+        if (!allowed.includes(ext)) {
+            this.errorMsg = 'Unsupported file format .' + ext;
+            e.target.value = '';
+            return;
+        }
+        this.errorMsg = '';
+        this.fileName = file.name;
+        this.fileSelected = true;
+        this.removeImg = false;
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            this.imgPreview = event.target.result;
+        };
+        reader.readAsDataURL(file);
+    },
+    selectIcon(key) {
+        this.selectedIcon = key;
+        this.tab = 'icon';
+        this.removeImg = false;
+        this.imgPreview = '';
+        this.fileSelected = false;
+        this.errorMsg = '';
+        const fileInput = $refs.identityFileInput;
+        if (fileInput) fileInput.value = '';
+    },
+    resetDefault() {
+        this.tab = 'default';
+        this.selectedIcon = '';
+        this.imgPreview = '';
+        this.removeImg = true;
+        this.fileSelected = false;
+        this.fileName = '';
+        this.errorMsg = '';
+        const fileInput = $refs.identityFileInput;
+        if (fileInput) fileInput.value = '';
+    }
+}">
+    <!-- Hidden Inputs for Server-side Form Submission -->
+    <input type="hidden" name="selected_icon" :value="tab === 'icon' ? selectedIcon : ''">
+    <input type="hidden" name="remove_avatar" :value="tab === 'default' ? '1' : '0'">
+    <input type="hidden" name="remove_logo" :value="tab === 'default' ? '1' : '0'">
+
+    <div class="flex items-center justify-between">
+        <label class="block text-xs font-bold text-slate-700 dark:text-zinc-300">
+            {{ label|default:"Visual Identity & Icon" }}
+        </label>
+        <div class="flex items-center space-x-1 bg-slate-100 dark:bg-zinc-800/80 p-0.5 rounded-lg text-[11px] font-semibold">
+            <button type="button" @click="tab = 'icon'" 
+                    :class="tab === 'icon' ? 'bg-white dark:bg-[#0c1322] text-blue-600 dark:text-blue-400 shadow-xs' : 'text-slate-500 hover:text-slate-700 dark:hover:text-zinc-300'"
+                    class="px-2.5 py-1 rounded-md transition-colors">
+                Choose Icon
+            </button>
+            <button type="button" @click="tab = 'upload'" 
+                    :class="tab === 'upload' ? 'bg-white dark:bg-[#0c1322] text-blue-600 dark:text-blue-400 shadow-xs' : 'text-slate-500 hover:text-slate-700 dark:hover:text-zinc-300'"
+                    class="px-2.5 py-1 rounded-md transition-colors">
+                Upload Image
+            </button>
+            <button type="button" @click="resetDefault()" 
+                    :class="tab === 'default' ? 'bg-white dark:bg-[#0c1322] text-blue-600 dark:text-blue-400 shadow-xs' : 'text-slate-500 hover:text-slate-700 dark:hover:text-zinc-300'"
+                    class="px-2.5 py-1 rounded-md transition-colors">
+                Default
+            </button>
+        </div>
+    </div>
+
+    <!-- Live Preview Card -->
+    <div class="p-3.5 sm:p-4 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50/70 dark:bg-[#0c1322]/70 flex items-center space-x-3.5 sm:space-x-4">
+        <!-- Live Identity Emblem Preview -->
+        <div class="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl overflow-hidden shadow-sm shrink-0 border border-slate-200 dark:border-zinc-700 flex items-center justify-center relative bg-white dark:bg-zinc-900">
+            <!-- Image state -->
+            <template x-if="tab === 'upload' && imgPreview && !removeImg">
+                <img :src="imgPreview" alt="Identity Preview" class="w-full h-full object-cover">
+            </template>
+            <!-- Curated Icon states -->
+            <template x-if="tab === 'icon' && selectedIcon">
+                <div class="w-full h-full flex items-center justify-center text-white"
+                     :class="{
+                         'bg-slate-900 text-emerald-400': selectedIcon === 'terminal',
+                         'bg-gradient-to-tr from-purple-600 to-indigo-600': selectedIcon === 'rocket',
+                         'bg-gradient-to-tr from-amber-500 to-rose-500': selectedIcon === 'sparkles',
+                         'bg-gradient-to-tr from-blue-600 to-cyan-500': selectedIcon === 'megaphone',
+                         'bg-blue-500': selectedIcon === 'chat',
+                         'bg-slate-700': selectedIcon === 'briefcase',
+                         'bg-amber-500 text-amber-950': selectedIcon === 'bulb',
+                         'bg-rose-600': selectedIcon === 'bug',
+                         'bg-indigo-600': selectedIcon === 'folder',
+                         'bg-amber-500/20 text-amber-500': selectedIcon === 'lock',
+                         'bg-cyan-600': selectedIcon === 'globe',
+                         'bg-emerald-600': selectedIcon === 'shield',
+                         'bg-indigo-700': selectedIcon === 'cube',
+                         'bg-blue-600/10 text-blue-600 dark:text-blue-400': selectedIcon === 'hash'
+                     }">
+                    <span class="text-xl font-bold font-mono" x-show="selectedIcon === 'hash'">#</span>
+                    <span class="text-lg font-bold" x-show="selectedIcon === 'lock'">🔒</span>
+                    <span class="text-sm font-bold font-mono" x-show="selectedIcon === 'terminal'">&lt;/&gt;</span>
+                    <span class="text-lg font-bold" x-show="selectedIcon === 'rocket'">🚀</span>
+                    <span class="text-lg font-bold" x-show="selectedIcon === 'sparkles'">✨</span>
+                    <span class="text-lg font-bold" x-show="selectedIcon === 'megaphone'">📢</span>
+                    <span class="text-lg font-bold" x-show="selectedIcon === 'chat'">💬</span>
+                    <span class="text-lg font-bold" x-show="selectedIcon === 'briefcase'">💼</span>
+                    <span class="text-lg font-bold" x-show="selectedIcon === 'bulb'">💡</span>
+                    <span class="text-lg font-bold" x-show="selectedIcon === 'bug'">🪲</span>
+                    <span class="text-lg font-bold" x-show="selectedIcon === 'folder'">📁</span>
+                    <span class="text-lg font-bold" x-show="selectedIcon === 'globe'">🌐</span>
+                    <span class="text-lg font-bold" x-show="selectedIcon === 'shield'">🛡️</span>
+                    <span class="text-lg font-bold" x-show="selectedIcon === 'cube'">🧊</span>
+                </div>
+            </template>
+            <!-- Default Fallback state -->
+            <template x-if="tab === 'default' || (tab === 'icon' && !selectedIcon) || (tab === 'upload' && !imgPreview)">
+                <div class="w-full h-full flex items-center justify-center font-bold text-lg
+                    {% if is_channel %}bg-blue-600/10 text-blue-600 dark:text-blue-400{% else %}bg-gradient-to-tr from-blue-600 to-indigo-700 text-white{% endif %}">
+                    {% if is_channel %}#{% elif workspace %}{{ workspace.name|slice:":2"|upper }}{% elif entity %}{{ entity.name|slice:":2"|upper }}{% else %}AS{% endif %}
+                </div>
+            </template>
+        </div>
+
+        <div class="flex-1 min-w-0">
+            <div class="flex items-center space-x-2">
+                <span class="text-xs font-bold text-slate-900 dark:text-zinc-100 truncate">
+                    Preview: <span class="capitalize" x-text="tab === 'icon' ? (selectedIcon || 'None') : (tab === 'upload' ? (fileName || 'Custom Image') : 'Default Fallback')"></span>
+                </span>
+            </div>
+            <p class="text-[11px] text-slate-400 dark:text-zinc-500 mt-0.5">
+                Appears in sidebar, header navigation, and activity streams.
+            </p>
+            <div x-show="errorMsg" class="text-[11px] text-rose-500 font-semibold mt-1" x-text="errorMsg"></div>
+        </div>
+    </div>
+
+    <!-- Option 1: Curated Icon Grid -->
+    <div x-show="tab === 'icon'" class="space-y-2">
+        <p class="text-[11px] font-semibold text-slate-500 dark:text-zinc-400">Select an icon for instant visual recognition:</p>
+        <div class="identity-icon-grid grid grid-cols-4 sm:grid-cols-6 gap-2" id="identity-icon-grid-container">
+            <button type="button" @click="selectIcon('hash')" 
+                    :class="selectedIcon === 'hash' ? 'border-blue-600 bg-blue-50 dark:bg-blue-950/70 ring-2 ring-blue-500 shadow-sm' : 'border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:border-slate-300 dark:hover:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-800/60'"
+                    class="identity-icon-btn font-mono font-bold text-blue-600 dark:text-blue-400 border text-base focus:outline-none focus:ring-2 focus:ring-blue-500 select-none"
+                    aria-label="Hashtag icon"
+                    :aria-pressed="selectedIcon === 'hash' ? 'true' : 'false'"
+                    title="Hashtag (#)">#</button>
+            <button type="button" @click="selectIcon('terminal')" 
+                    :class="selectedIcon === 'terminal' ? 'border-blue-600 bg-blue-50 dark:bg-blue-950/70 ring-2 ring-blue-500 shadow-sm' : 'border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:border-slate-300 dark:hover:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-800/60'"
+                    class="identity-icon-btn font-mono font-bold text-emerald-500 border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 select-none"
+                    aria-label="Terminal Code icon"
+                    :aria-pressed="selectedIcon === 'terminal' ? 'true' : 'false'"
+                    title="Terminal / Code">&lt;/&gt;</button>
+            <button type="button" @click="selectIcon('rocket')" 
+                    :class="selectedIcon === 'rocket' ? 'border-blue-600 bg-blue-50 dark:bg-blue-950/70 ring-2 ring-blue-500 shadow-sm' : 'border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:border-slate-300 dark:hover:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-800/60'"
+                    class="identity-icon-btn border text-lg focus:outline-none focus:ring-2 focus:ring-blue-500 select-none"
+                    aria-label="Rocket Launch icon"
+                    :aria-pressed="selectedIcon === 'rocket' ? 'true' : 'false'"
+                    title="Rocket / Launch">🚀</button>
+            <button type="button" @click="selectIcon('sparkles')" 
+                    :class="selectedIcon === 'sparkles' ? 'border-blue-600 bg-blue-50 dark:bg-blue-950/70 ring-2 ring-blue-500 shadow-sm' : 'border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:border-slate-300 dark:hover:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-800/60'"
+                    class="identity-icon-btn border text-lg focus:outline-none focus:ring-2 focus:ring-blue-500 select-none"
+                    aria-label="Sparkles AI icon"
+                    :aria-pressed="selectedIcon === 'sparkles' ? 'true' : 'false'"
+                    title="Sparkles / AI">✨</button>
+            <button type="button" @click="selectIcon('megaphone')" 
+                    :class="selectedIcon === 'megaphone' ? 'border-blue-600 bg-blue-50 dark:bg-blue-950/70 ring-2 ring-blue-500 shadow-sm' : 'border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:border-slate-300 dark:hover:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-800/60'"
+                    class="identity-icon-btn border text-lg focus:outline-none focus:ring-2 focus:ring-blue-500 select-none"
+                    aria-label="Megaphone Announcements icon"
+                    :aria-pressed="selectedIcon === 'megaphone' ? 'true' : 'false'"
+                    title="Announcements">📢</button>
+            <button type="button" @click="selectIcon('chat')" 
+                    :class="selectedIcon === 'chat' ? 'border-blue-600 bg-blue-50 dark:bg-blue-950/70 ring-2 ring-blue-500 shadow-sm' : 'border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:border-slate-300 dark:hover:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-800/60'"
+                    class="identity-icon-btn border text-lg focus:outline-none focus:ring-2 focus:ring-blue-500 select-none"
+                    aria-label="Chat Discussion icon"
+                    :aria-pressed="selectedIcon === 'chat' ? 'true' : 'false'"
+                    title="Discussion">💬</button>
+            <button type="button" @click="selectIcon('briefcase')" 
+                    :class="selectedIcon === 'briefcase' ? 'border-blue-600 bg-blue-50 dark:bg-blue-950/70 ring-2 ring-blue-500 shadow-sm' : 'border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:border-slate-300 dark:hover:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-800/60'"
+                    class="identity-icon-btn border text-lg focus:outline-none focus:ring-2 focus:ring-blue-500 select-none"
+                    aria-label="Briefcase Business icon"
+                    :aria-pressed="selectedIcon === 'briefcase' ? 'true' : 'false'"
+                    title="Business">💼</button>
+            <button type="button" @click="selectIcon('bulb')" 
+                    :class="selectedIcon === 'bulb' ? 'border-blue-600 bg-blue-50 dark:bg-blue-950/70 ring-2 ring-blue-500 shadow-sm' : 'border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:border-slate-300 dark:hover:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-800/60'"
+                    class="identity-icon-btn border text-lg focus:outline-none focus:ring-2 focus:ring-blue-500 select-none"
+                    aria-label="Lightbulb Ideas icon"
+                    :aria-pressed="selectedIcon === 'bulb' ? 'true' : 'false'"
+                    title="Ideas">💡</button>
+            <button type="button" @click="selectIcon('bug')" 
+                    :class="selectedIcon === 'bug' ? 'border-blue-600 bg-blue-50 dark:bg-blue-950/70 ring-2 ring-blue-500 shadow-sm' : 'border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:border-slate-300 dark:hover:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-800/60'"
+                    class="identity-icon-btn border text-lg focus:outline-none focus:ring-2 focus:ring-blue-500 select-none"
+                    aria-label="Bug QA icon"
+                    :aria-pressed="selectedIcon === 'bug' ? 'true' : 'false'"
+                    title="Bugs / QA">🪲</button>
+            <button type="button" @click="selectIcon('folder')" 
+                    :class="selectedIcon === 'folder' ? 'border-blue-600 bg-blue-50 dark:bg-blue-950/70 ring-2 ring-blue-500 shadow-sm' : 'border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:border-slate-300 dark:hover:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-800/60'"
+                    class="identity-icon-btn border text-lg focus:outline-none focus:ring-2 focus:ring-blue-500 select-none"
+                    aria-label="Folder Resources icon"
+                    :aria-pressed="selectedIcon === 'folder' ? 'true' : 'false'"
+                    title="Resources">📁</button>
+            <button type="button" @click="selectIcon('lock')" 
+                    :class="selectedIcon === 'lock' ? 'border-blue-600 bg-blue-50 dark:bg-blue-950/70 ring-2 ring-blue-500 shadow-sm' : 'border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:border-slate-300 dark:hover:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-800/60'"
+                    class="identity-icon-btn border text-lg focus:outline-none focus:ring-2 focus:ring-blue-500 select-none"
+                    aria-label="Lock Private icon"
+                    :aria-pressed="selectedIcon === 'lock' ? 'true' : 'false'"
+                    title="Private / Lock">🔒</button>
+            <button type="button" @click="selectIcon('globe')" 
+                    :class="selectedIcon === 'globe' ? 'border-blue-600 bg-blue-50 dark:bg-blue-950/70 ring-2 ring-blue-500 shadow-sm' : 'border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:border-slate-300 dark:hover:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-800/60'"
+                    class="identity-icon-btn border text-lg focus:outline-none focus:ring-2 focus:ring-blue-500 select-none"
+                    aria-label="Globe Public icon"
+                    :aria-pressed="selectedIcon === 'globe' ? 'true' : 'false'"
+                    title="Public / Global">🌐</button>
+            <button type="button" @click="selectIcon('shield')" 
+                    :class="selectedIcon === 'shield' ? 'border-blue-600 bg-blue-50 dark:bg-blue-950/70 ring-2 ring-blue-500 shadow-sm' : 'border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:border-slate-300 dark:hover:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-800/60'"
+                    class="identity-icon-btn border text-lg focus:outline-none focus:ring-2 focus:ring-blue-500 select-none"
+                    aria-label="Shield Security icon"
+                    :aria-pressed="selectedIcon === 'shield' ? 'true' : 'false'"
+                    title="Security / Shield">🛡️</button>
+            <button type="button" @click="selectIcon('cube')" 
+                    :class="selectedIcon === 'cube' ? 'border-blue-600 bg-blue-50 dark:bg-blue-950/70 ring-2 ring-blue-500 shadow-sm' : 'border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:border-slate-300 dark:hover:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-800/60'"
+                    class="identity-icon-btn border text-lg focus:outline-none focus:ring-2 focus:ring-blue-500 select-none"
+                    aria-label="Cube Infrastructure icon"
+                    :aria-pressed="selectedIcon === 'cube' ? 'true' : 'false'"
+                    title="Infrastructure / Cube">🧊</button>
+        </div>
+    </div>
+
+    <!-- Option 2: Image File Upload -->
+    <div x-show="tab === 'upload'" class="space-y-3" style="display: none;">
+        <input type="file" 
+               id="{% if file_input_id %}{{ file_input_id }}{% elif file_input_name == 'logo_file' %}workspace-logo-file-input{% else %}{{ file_input_name|default:'avatar_file' }}{% endif %}"
+               name="{{ file_input_name|default:'avatar_file' }}" 
+               x-ref="identityFileInput"
+               @change="handleFile($event)" 
+               accept="image/png,image/jpeg,image/webp,image/svg+xml,image/gif"
+               class="block w-full text-xs text-slate-500 dark:text-zinc-400 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 dark:file:bg-blue-950/60 dark:file:text-blue-300 cursor-pointer border border-slate-200 dark:border-zinc-800 rounded-xl p-2 bg-white dark:bg-[#0c1322]">
+        <p class="text-[11px] text-slate-400 dark:text-zinc-500">
+            Recommended 256×256 square. PNG, JPG, WEBP, or clean SVG. Max 2 MB. Stored securely in Supabase Storage.
+        </p>
+    </div>
+</div>

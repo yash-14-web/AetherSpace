@@ -3,60 +3,47 @@
 {% block title %}Tasks • {{ workspace.name }} — AetherSpace{% endblock %}
 
 {% block content %}
-<div class="space-y-5 max-w-7xl mx-auto" x-data="{ moreFiltersOpen: false }">
+<div class="space-y-5 max-w-7xl mx-auto">
     
-    <!-- Top Bar: Workspace Indicator, Search & Primary Action matching Panel 1 -->
+    <!-- Top Bar: Workspace Breadcrumb, Global Search & Primary Action (Matching Mockup Box 1) -->
     <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         
-        <!-- Left: Workspace Selector -->
+        <!-- Left: Workspace Breadcrumb -->
         <div class="flex items-center space-x-3">
-            <div class="flex items-center space-x-2 px-3 py-1.5 rounded-xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 shadow-2xs">
-                {% if workspace.logo_url %}
-                    <img src="{{ workspace.logo_url }}" alt="{{ workspace.name }}" class="w-5 h-5 rounded-md object-cover shrink-0 border border-slate-200/50 dark:border-zinc-800 shadow-xs" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                    <div style="display:none;" class="w-5 h-5 rounded-md bg-gradient-to-tr from-blue-600 to-indigo-700 text-white font-bold text-[10px] items-center justify-center shrink-0">
-                        {{ workspace.name|slice:":2"|upper }}
-                    </div>
-                {% else %}
-                    <div class="w-5 h-5 rounded-md bg-gradient-to-tr from-blue-600 to-indigo-700 text-white font-bold text-[10px] flex items-center justify-center shrink-0">
-                        {{ workspace.name|slice:":2"|upper }}
-                    </div>
-                {% endif %}
+            <div class="flex items-center space-x-2.5 px-3 py-1.5 rounded-xl bg-white dark:bg-obsidian-800 border border-slate-200 dark:border-zinc-800 shadow-2xs">
+                {% include 'components/identity_badge.html' with entity=workspace size='w-5 h-5' radius='rounded-md' text_size='text-[10px]' %}
+                <span class="text-xs font-medium text-slate-500 dark:text-zinc-400">Tasks</span>
+                <span class="text-xs text-slate-400 dark:text-zinc-600">/</span>
                 <span class="text-xs font-bold text-slate-900 dark:text-zinc-100">{{ workspace.name }}</span>
-                <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                </svg>
             </div>
         </div>
 
         <!-- Right: Global Search & Create Task Button -->
         <div class="flex items-center space-x-3 w-full lg:w-auto">
-            <form method="get" class="relative flex-1 lg:w-72">
+            <form method="get" class="relative flex-1 lg:w-80">
+                {% if current_status %}<input type="hidden" name="status" value="{{ current_status }}">{% endif %}
+                {% if current_priority %}<input type="hidden" name="priority" value="{{ current_priority }}">{% endif %}
+                {% if current_assignee %}<input type="hidden" name="assignee" value="{{ current_assignee }}">{% endif %}
+                {% if current_sprint %}<input type="hidden" name="sprint" value="{{ current_sprint }}">{% endif %}
+                {% if current_created_by %}<input type="hidden" name="created_by" value="{{ current_created_by }}">{% endif %}
                 <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400 dark:text-zinc-500">
                     <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                     </svg>
                 </span>
                 <input type="text" name="q" value="{{ current_q }}" 
-                       placeholder="Search tasks..." 
-                       class="w-full pl-9 pr-4 py-2 text-xs rounded-xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 text-slate-900 dark:text-zinc-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-aether-blue transition">
+                       placeholder="Search tasks (title, description, #code...)" 
+                       class="w-full pl-9 pr-4 py-2 text-xs rounded-xl bg-white dark:bg-obsidian-900 border border-slate-200 dark:border-zinc-800 text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-aether-blue transition">
             </form>
 
-            <button type="button" @click="moreFiltersOpen = !moreFiltersOpen" 
-                    class="p-2 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] text-slate-600 dark:text-zinc-400 hover:text-aether-blue transition"
-                    title="Toggle Filter Panel">
-                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
-                </svg>
-            </button>
-
-            <!-- + New Task Button -->
+            <!-- + Create Task Button -->
             {% if can_create_task %}
             <a href="{% url 'tasks:task_create' slug=workspace.slug %}" 
-               class="inline-flex items-center space-x-1.5 px-4 py-2 text-xs font-bold rounded-xl bg-aether-blue text-white hover:bg-blue-700 shadow-md shadow-blue-500/20 transition shrink-0">
+               class="inline-flex items-center space-x-1.5 px-4 py-2 text-xs font-bold rounded-xl bg-aether-blue text-white hover:bg-blue-600 shadow-md shadow-blue-500/20 transition shrink-0">
                 <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                 </svg>
-                <span>New Task</span>
+                <span>Create Task</span>
             </a>
             {% else %}
             <button type="button"
@@ -72,35 +59,199 @@
         </div>
     </div>
 
-    <!-- Section Title & Subtitle -->
-    <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-3 border-b border-slate-200 dark:border-zinc-800 pb-3">
-        <div>
-            <h1 class="text-xl sm:text-2xl font-black text-slate-900 dark:text-zinc-50 tracking-tight">
-                Tasks
-            </h1>
-            <p class="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
-                View and manage all tasks in your workspace.
-            </p>
+    <!-- 5 Status KPI Summary Cards (Matching Mockup Box 1) -->
+    <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
+        <!-- To Do -->
+        <a href="?status=TODO{% if current_q %}&q={{ current_q }}{% endif %}{% if current_assignee %}&assignee={{ current_assignee }}{% endif %}{% if current_priority %}&priority={{ current_priority }}{% endif %}{% if current_sprint %}&sprint={{ current_sprint }}{% endif %}" 
+           class="p-3.5 rounded-2xl border transition-all duration-200 group flex items-center justify-between {% if current_status == 'TODO' %}bg-amber-500/10 border-amber-500/60 dark:bg-amber-500/15 dark:border-amber-500/70 shadow-sm ring-1 ring-amber-500/30{% else %}bg-white dark:bg-obsidian-800 border-slate-200 dark:border-zinc-800 hover:border-amber-500/40 hover:bg-amber-500/5 hover:-translate-y-0.5{% endif %}">
+            <div class="space-y-0.5">
+                <span class="text-[11px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider block">To Do</span>
+                <span class="text-2xl font-black text-amber-500 dark:text-amber-400 block leading-tight">{{ status_counts.todo }}</span>
+            </div>
+            <div class="w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-500 dark:text-amber-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+            </div>
+        </a>
+
+        <!-- In Progress -->
+        <a href="?status=IN_PROGRESS{% if current_q %}&q={{ current_q }}{% endif %}{% if current_assignee %}&assignee={{ current_assignee }}{% endif %}{% if current_priority %}&priority={{ current_priority }}{% endif %}{% if current_sprint %}&sprint={{ current_sprint }}{% endif %}" 
+           class="p-3.5 rounded-2xl border transition-all duration-200 group flex items-center justify-between {% if current_status == 'IN_PROGRESS' %}bg-blue-500/10 border-blue-500/60 dark:bg-blue-500/15 dark:border-blue-500/70 shadow-sm ring-1 ring-blue-500/30{% else %}bg-white dark:bg-obsidian-800 border-slate-200 dark:border-zinc-800 hover:border-blue-500/40 hover:bg-blue-500/5 hover:-translate-y-0.5{% endif %}">
+            <div class="space-y-0.5">
+                <span class="text-[11px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider block">In Progress</span>
+                <span class="text-2xl font-black text-blue-500 dark:text-blue-400 block leading-tight">{{ status_counts.in_progress }}</span>
+            </div>
+            <div class="w-8 h-8 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-500 dark:text-blue-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                <span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
+            </div>
+        </a>
+
+        <!-- Code Review -->
+        <a href="?status=CODE_REVIEW{% if current_q %}&q={{ current_q }}{% endif %}{% if current_assignee %}&assignee={{ current_assignee }}{% endif %}{% if current_priority %}&priority={{ current_priority }}{% endif %}{% if current_sprint %}&sprint={{ current_sprint }}{% endif %}" 
+           class="p-3.5 rounded-2xl border transition-all duration-200 group flex items-center justify-between {% if current_status == 'CODE_REVIEW' %}bg-purple-500/10 border-purple-500/60 dark:bg-purple-500/15 dark:border-purple-500/70 shadow-sm ring-1 ring-purple-500/30{% else %}bg-white dark:bg-obsidian-800 border-slate-200 dark:border-zinc-800 hover:border-purple-500/40 hover:bg-purple-500/5 hover:-translate-y-0.5{% endif %}">
+            <div class="space-y-0.5">
+                <span class="text-[11px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider block">Code Review</span>
+                <span class="text-2xl font-black text-purple-500 dark:text-purple-400 block leading-tight">{{ status_counts.code_review }}</span>
+            </div>
+            <div class="w-8 h-8 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-500 dark:text-purple-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                <span class="w-2.5 h-2.5 rounded-full bg-purple-500"></span>
+            </div>
+        </a>
+
+        <!-- Testing -->
+        <a href="?status=TESTING{% if current_q %}&q={{ current_q }}{% endif %}{% if current_assignee %}&assignee={{ current_assignee }}{% endif %}{% if current_priority %}&priority={{ current_priority }}{% endif %}{% if current_sprint %}&sprint={{ current_sprint }}{% endif %}" 
+           class="p-3.5 rounded-2xl border transition-all duration-200 group flex items-center justify-between {% if current_status == 'TESTING' %}bg-orange-500/10 border-orange-500/60 dark:bg-orange-500/15 dark:border-orange-500/70 shadow-sm ring-1 ring-orange-500/30{% else %}bg-white dark:bg-obsidian-800 border-slate-200 dark:border-zinc-800 hover:border-orange-500/40 hover:bg-orange-500/5 hover:-translate-y-0.5{% endif %}">
+            <div class="space-y-0.5">
+                <span class="text-[11px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider block">Testing</span>
+                <span class="text-2xl font-black text-orange-500 dark:text-orange-400 block leading-tight">{{ status_counts.testing }}</span>
+            </div>
+            <div class="w-8 h-8 rounded-xl bg-orange-500/10 border border-orange-500/20 text-orange-500 dark:text-orange-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                <span class="w-2.5 h-2.5 rounded-full bg-orange-500"></span>
+            </div>
+        </a>
+
+        <!-- Done -->
+        <a href="?status=DONE{% if current_q %}&q={{ current_q }}{% endif %}{% if current_assignee %}&assignee={{ current_assignee }}{% endif %}{% if current_priority %}&priority={{ current_priority }}{% endif %}{% if current_sprint %}&sprint={{ current_sprint }}{% endif %}" 
+           class="p-3.5 rounded-2xl border transition-all duration-200 group flex items-center justify-between {% if current_status == 'DONE' %}bg-emerald-500/10 border-emerald-500/60 dark:bg-emerald-500/15 dark:border-emerald-500/70 shadow-sm ring-1 ring-emerald-500/30{% else %}bg-white dark:bg-obsidian-800 border-slate-200 dark:border-zinc-800 hover:border-emerald-500/40 hover:bg-emerald-500/5 hover:-translate-y-0.5{% endif %}">
+            <div class="space-y-0.5">
+                <span class="text-[11px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider block">Done</span>
+                <span class="text-2xl font-black text-emerald-500 dark:text-emerald-400 block leading-tight">{{ status_counts.done }}</span>
+            </div>
+            <div class="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 dark:text-emerald-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+            </div>
+        </a>
+    </div>
+
+    <!-- Filters & View Switcher Bar (Matching Mockup Box 1) -->
+    <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pt-1">
+        
+        <!-- Left: Quick Scope Pills & Dropdowns -->
+        <div class="flex flex-wrap items-center gap-2.5">
+            
+            <!-- Scope Segmented Pills: All | Assigned to Me | Created by Me -->
+            <div class="h-9 inline-flex items-center rounded-xl bg-slate-100 dark:bg-obsidian-900 p-1 border border-slate-200 dark:border-zinc-800 text-xs font-semibold">
+                <a href="{% url 'tasks:task_list' slug=workspace.slug %}{% if current_q %}?q={{ current_q }}{% endif %}" 
+                   class="h-7 px-3 inline-flex items-center justify-center rounded-lg transition {% if not current_assignee and not current_created_by %}bg-aether-blue text-white font-bold shadow-2xs{% else %}text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200{% endif %}">
+                    All
+                </a>
+                <a href="{% url 'tasks:task_list' slug=workspace.slug %}?assignee=me{% if current_q %}&q={{ current_q }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}" 
+                   class="h-7 px-3 inline-flex items-center justify-center rounded-lg transition {% if current_assignee == 'me' %}bg-aether-blue text-white font-bold shadow-2xs{% else %}text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200{% endif %}">
+                    Assigned to Me
+                </a>
+                <a href="{% url 'tasks:task_list' slug=workspace.slug %}?created_by=me{% if current_q %}&q={{ current_q }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}" 
+                   class="h-7 px-3 inline-flex items-center justify-center rounded-lg transition {% if current_created_by == 'me' %}bg-aether-blue text-white font-bold shadow-2xs{% else %}text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200{% endif %}">
+                    Created by Me
+                </a>
+            </div>
+
+            <!-- Filter Controls Form -->
+            <form method="get" class="flex flex-wrap items-center gap-2 text-xs">
+                {% if current_q %}<input type="hidden" name="q" value="{{ current_q }}">{% endif %}
+                {% if current_assignee and current_assignee == 'me' %}<input type="hidden" name="assignee" value="me">{% endif %}
+                {% if current_created_by %}<input type="hidden" name="created_by" value="{{ current_created_by }}">{% endif %}
+
+                <!-- Status Filter -->
+                <div class="relative inline-flex items-center">
+                    <select name="status" onchange="this.form.submit()" 
+                            class="h-9 appearance-none pl-3 pr-7 rounded-xl bg-white dark:bg-obsidian-900 border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 font-medium focus:outline-none focus:ring-1 focus:ring-aether-blue text-xs cursor-pointer leading-none">
+                        <option value="">Status</option>
+                        <option value="TODO" {% if current_status == 'TODO' %}selected{% endif %}>To Do</option>
+                        <option value="IN_PROGRESS" {% if current_status == 'IN_PROGRESS' %}selected{% endif %}>In Progress</option>
+                        <option value="CODE_REVIEW" {% if current_status == 'CODE_REVIEW' %}selected{% endif %}>Code Review</option>
+                        <option value="TESTING" {% if current_status == 'TESTING' %}selected{% endif %}>Testing</option>
+                        <option value="DONE" {% if current_status == 'DONE' %}selected{% endif %}>Done</option>
+                    </select>
+                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2 text-slate-400">
+                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </div>
+                </div>
+
+                <!-- Priority Filter -->
+                <div class="relative inline-flex items-center">
+                    <select name="priority" onchange="this.form.submit()" 
+                            class="h-9 appearance-none pl-3 pr-7 rounded-xl bg-white dark:bg-obsidian-900 border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 font-medium focus:outline-none focus:ring-1 focus:ring-aether-blue text-xs cursor-pointer leading-none">
+                        <option value="">Priority</option>
+                        <option value="HIGH" {% if current_priority == 'HIGH' %}selected{% endif %}>High</option>
+                        <option value="MEDIUM" {% if current_priority == 'MEDIUM' %}selected{% endif %}>Medium</option>
+                        <option value="LOW" {% if current_priority == 'LOW' %}selected{% endif %}>Low</option>
+                        <option value="URGENT" {% if current_priority == 'URGENT' %}selected{% endif %}>Urgent</option>
+                    </select>
+                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2 text-slate-400">
+                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </div>
+                </div>
+
+                <!-- Assignee Filter (Only when not scoped to me) -->
+                {% if current_assignee != 'me' %}
+                <div class="relative inline-flex items-center">
+                    <select name="assignee" onchange="this.form.submit()" 
+                            class="h-9 w-32 sm:w-36 max-w-[150px] appearance-none pl-3 pr-7 rounded-xl bg-white dark:bg-obsidian-900 border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 font-medium focus:outline-none focus:ring-1 focus:ring-aether-blue text-xs cursor-pointer leading-none truncate">
+                        <option value="">Assignee</option>
+                        <option value="unassigned" {% if current_assignee == 'unassigned' %}selected{% endif %}>Unassigned</option>
+                        {% for m in active_members %}
+                            <option value="{{ m.user.id }}" {% if current_assignee == m.user.id|stringformat:"s" %}selected{% endif %}>
+                                {{ m.user.full_name|default:m.user.email }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2 text-slate-400">
+                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Sprint Filter -->
+                <div class="relative inline-flex items-center">
+                    <select name="sprint" onchange="this.form.submit()" 
+                            class="h-9 appearance-none pl-3 pr-7 rounded-xl bg-white dark:bg-obsidian-900 border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 font-medium focus:outline-none focus:ring-1 focus:ring-aether-blue text-xs cursor-pointer leading-none">
+                        <option value="">Sprint</option>
+                        <option value="backlog" {% if current_sprint == 'backlog' %}selected{% endif %}>Backlog</option>
+                        {% for s in sprints %}
+                            <option value="{{ s.id }}" {% if current_sprint == s.id|stringformat:"s" or current_sprint == s.name %}selected{% endif %}>
+                                {{ s.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2 text-slate-400">
+                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </div>
+                </div>
+
+                <!-- Clear Link -->
+                {% if current_q or current_status or current_priority or current_assignee or current_created_by or current_sprint %}
+                    <a href="{% url 'tasks:task_list' slug=workspace.slug %}" class="h-9 px-2.5 inline-flex items-center justify-center text-xs font-bold text-slate-500 hover:text-aether-blue dark:text-zinc-400 dark:hover:text-blue-400 transition">
+                        Clear
+                    </a>
+                {% endif %}
+            </form>
         </div>
 
-        <!-- View Switcher (List vs Board vs Sprints) -->
-        <div class="inline-flex rounded-xl bg-slate-100 dark:bg-zinc-800/80 p-1 border border-slate-200 dark:border-zinc-700/60 shrink-0">
+        <!-- Right: View Switcher (List vs Board vs Sprints) -->
+        <div class="h-9 inline-flex items-center rounded-xl bg-slate-100 dark:bg-obsidian-900 p-1 border border-slate-200 dark:border-zinc-800 shrink-0 self-start lg:self-auto">
             <a href="{% url 'tasks:task_list' slug=workspace.slug %}" 
-               class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-white dark:bg-[#0c1322] text-aether-blue shadow-2xs">
+               class="h-7 px-3 inline-flex items-center justify-center space-x-1.5 rounded-lg text-xs font-bold bg-white dark:bg-obsidian-800 text-aether-blue shadow-2xs">
                 <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
                 </svg>
                 <span>List</span>
             </a>
             <a href="{% url 'tasks:task_board' slug=workspace.slug %}" 
-               class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200 transition-colors">
+               class="h-7 px-3 inline-flex items-center justify-center space-x-1.5 rounded-lg text-xs font-semibold text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200 transition-colors">
                 <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"/>
                 </svg>
                 <span>Board</span>
             </a>
             <a href="{% url 'tasks:sprint_planning' slug=workspace.slug %}" 
-               class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200 transition-colors">
+               class="h-7 px-3 inline-flex items-center justify-center space-x-1.5 rounded-lg text-xs font-semibold text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200 transition-colors">
                 <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
                 </svg>
@@ -109,176 +260,31 @@
         </div>
     </div>
 
-    <!-- 5 Workflow Status Metric Chips (Phase 5 Required) -->
-    <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
-        <a href="?status=TODO" class="p-3 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] hover:border-blue-500/50 transition">
-            <div class="flex items-center justify-between">
-                <span class="text-xs font-bold text-slate-700 dark:text-zinc-300">To Do</span>
-                <span class="w-2 h-2 rounded-full bg-slate-400"></span>
-            </div>
-            <span class="text-lg font-black text-slate-900 dark:text-zinc-100 mt-1 block">{{ status_counts.todo }}</span>
-        </a>
-        <a href="?status=IN_PROGRESS" class="p-3 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] hover:border-blue-500/50 transition">
-            <div class="flex items-center justify-between">
-                <span class="text-xs font-bold text-slate-700 dark:text-zinc-300">In Progress</span>
-                <span class="w-2 h-2 rounded-full bg-blue-500"></span>
-            </div>
-            <span class="text-lg font-black text-slate-900 dark:text-zinc-100 mt-1 block">{{ status_counts.in_progress }}</span>
-        </a>
-        <a href="?status=CODE_REVIEW" class="p-3 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] hover:border-blue-500/50 transition">
-            <div class="flex items-center justify-between">
-                <span class="text-xs font-bold text-slate-700 dark:text-zinc-300">Code Review</span>
-                <span class="w-2 h-2 rounded-full bg-amber-500"></span>
-            </div>
-            <span class="text-lg font-black text-slate-900 dark:text-zinc-100 mt-1 block">{{ status_counts.code_review }}</span>
-        </a>
-        <a href="?status=TESTING" class="p-3 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] hover:border-blue-500/50 transition">
-            <div class="flex items-center justify-between">
-                <span class="text-xs font-bold text-slate-700 dark:text-zinc-300">Testing</span>
-                <span class="w-2 h-2 rounded-full bg-purple-500"></span>
-            </div>
-            <span class="text-lg font-black text-slate-900 dark:text-zinc-100 mt-1 block">{{ status_counts.testing }}</span>
-        </a>
-        <a href="?status=DONE" class="p-3 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] hover:border-blue-500/50 transition">
-            <div class="flex items-center justify-between">
-                <span class="text-xs font-bold text-slate-700 dark:text-zinc-300">Done</span>
-                <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-            </div>
-            <span class="text-lg font-black text-slate-900 dark:text-zinc-100 mt-1 block">{{ status_counts.done }}</span>
-        </a>
-    </div>
-
-    <!-- Filter Tabs matching Mockup: All Tasks | Assigned to Me | Created by Me | Completed -->
-    <div class="flex items-center space-x-6 border-b border-slate-200 dark:border-zinc-800 text-xs font-semibold overflow-x-auto pb-px">
-        <a href="{% url 'tasks:task_list' slug=workspace.slug %}" 
-           class="pb-2.5 whitespace-nowrap transition border-b-2 {% if not current_status and not current_assignee and not current_created_by %}border-aether-blue text-aether-blue font-bold{% else %}border-transparent text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-zinc-200{% endif %}">
-            All Tasks
-        </a>
-        <a href="{% url 'tasks:task_list' slug=workspace.slug %}?assignee=me" 
-           class="pb-2.5 whitespace-nowrap transition border-b-2 {% if current_assignee == 'me' and not current_status %}border-aether-blue text-aether-blue font-bold{% else %}border-transparent text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-zinc-200{% endif %}">
-            Assigned to Me
-        </a>
-        <a href="{% url 'tasks:task_list' slug=workspace.slug %}?created_by=me" 
-           class="pb-2.5 whitespace-nowrap transition border-b-2 {% if current_created_by == 'me' %}border-aether-blue text-aether-blue font-bold{% else %}border-transparent text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-zinc-200{% endif %}">
-            Created by Me
-        </a>
-        <a href="{% url 'tasks:task_list' slug=workspace.slug %}?status=DONE" 
-           class="pb-2.5 whitespace-nowrap transition border-b-2 {% if current_status == 'DONE' %}border-aether-blue text-aether-blue font-bold{% else %}border-transparent text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-zinc-200{% endif %}">
-            Completed
-        </a>
-    </div>
-
-    <!-- Filter Controls Row matching Panel 1 -->
-    <form method="get" class="flex flex-wrap items-center gap-2.5 pt-1 text-xs">
-        {% if current_q %}<input type="hidden" name="q" value="{{ current_q }}">{% endif %}
-
-        <!-- Status Filter -->
-        <div class="relative inline-block">
-            <select name="status" onchange="this.form.submit()" 
-                    class="appearance-none pl-3.5 pr-8 py-1.5 rounded-xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 font-medium focus:outline-none focus:ring-1 focus:ring-aether-blue text-xs cursor-pointer">
-                <option value="">Status</option>
-                <option value="TODO" {% if current_status == 'TODO' %}selected{% endif %}>To Do</option>
-                <option value="IN_PROGRESS" {% if current_status == 'IN_PROGRESS' %}selected{% endif %}>In Progress</option>
-                <option value="CODE_REVIEW" {% if current_status == 'CODE_REVIEW' %}selected{% endif %}>Code Review</option>
-                <option value="TESTING" {% if current_status == 'TESTING' %}selected{% endif %}>Testing</option>
-                <option value="DONE" {% if current_status == 'DONE' %}selected{% endif %}>Done</option>
-            </select>
-            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2.5 text-slate-400">
-                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                </svg>
-            </div>
-        </div>
-
-        <!-- Priority Filter with generous right padding to prevent chevron overlap -->
-        <div class="relative inline-block">
-            <select name="priority" onchange="this.form.submit()" 
-                    class="appearance-none pl-3.5 pr-8 py-1.5 rounded-xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 font-medium focus:outline-none focus:ring-1 focus:ring-aether-blue text-xs cursor-pointer">
-                <option value="">Priority</option>
-                <option value="HIGH" {% if current_priority == 'HIGH' %}selected{% endif %}>High</option>
-                <option value="MEDIUM" {% if current_priority == 'MEDIUM' %}selected{% endif %}>Medium</option>
-                <option value="LOW" {% if current_priority == 'LOW' %}selected{% endif %}>Low</option>
-                <option value="URGENT" {% if current_priority == 'URGENT' %}selected{% endif %}>Urgent</option>
-            </select>
-            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2.5 text-slate-400">
-                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                </svg>
-            </div>
-        </div>
-
-        <!-- Assignee Filter -->
-        <div class="relative inline-block">
-            <select name="assignee" onchange="this.form.submit()" 
-                    class="appearance-none pl-3.5 pr-8 py-1.5 rounded-xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 font-medium focus:outline-none focus:ring-1 focus:ring-aether-blue text-xs cursor-pointer">
-                <option value="">Assignee</option>
-                <option value="me" {% if current_assignee == 'me' %}selected{% endif %}>Assigned to Me</option>
-                <option value="unassigned" {% if current_assignee == 'unassigned' %}selected{% endif %}>Unassigned</option>
-                {% for m in active_members %}
-                    <option value="{{ m.user.id }}" {% if current_assignee == m.user.id|stringformat:"s" %}selected{% endif %}>
-                        {{ m.user.full_name|default:m.user.email }}
-                    </option>
-                {% endfor %}
-            </select>
-            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2.5 text-slate-400">
-                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                </svg>
-            </div>
-        </div>
-
-        <!-- Sprint Filter -->
-        <div class="relative inline-block">
-            <select name="sprint" onchange="this.form.submit()" 
-                    class="appearance-none pl-3.5 pr-8 py-1.5 rounded-xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 font-medium focus:outline-none focus:ring-1 focus:ring-aether-blue text-xs cursor-pointer">
-                <option value="">Sprint</option>
-                <option value="Sprint 01" {% if request.GET.sprint == 'Sprint 01' %}selected{% endif %}>Sprint 01</option>
-                <option value="Sprint 02" {% if request.GET.sprint == 'Sprint 02' %}selected{% endif %}>Sprint 02</option>
-                <option value="Sprint 03" {% if request.GET.sprint == 'Sprint 03' %}selected{% endif %}>Sprint 03</option>
-            </select>
-            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2.5 text-slate-400">
-                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                </svg>
-            </div>
-        </div>
-
-        <!-- Clear Link -->
-        {% if current_q or current_status or current_priority or current_assignee or current_created_by or request.GET.sprint %}
-            <a href="{% url 'tasks:task_list' slug=workspace.slug %}" class="text-xs font-bold text-aether-blue hover:underline ml-2">
-                Clear
-            </a>
-        {% endif %}
-    </form>
-
-    <!-- Tasks Table matching Panel 1 -->
+    <!-- Main Content Container: Desktop Table + Mobile Cards -->
     <div class="aether-card overflow-hidden border border-slate-200 dark:border-zinc-800 shadow-sm">
         {% if tasks %}
-            <div class="overflow-x-auto">
+            
+            <!-- 1. DESKTOP TABLE VIEW (Visible on >= 1024px, Matching Mockup Box 1) -->
+            <div class="hidden lg:block overflow-x-auto">
                 <table class="w-full text-left border-collapse">
                     <thead>
-                        <tr class="border-b border-slate-200 dark:border-zinc-800/80 bg-slate-50/70 dark:bg-[#090d16] text-[11px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">
-                            <th class="py-3 px-4 w-10 text-center">
-                                <input type="checkbox" class="rounded border-slate-300 dark:border-zinc-700 text-aether-blue focus:ring-aether-blue">
-                            </th>
-                            <th class="py-3 px-4 w-28">ID</th>
-                            <th class="py-3 px-4">Title</th>
+                        <tr class="border-b border-slate-200 dark:border-zinc-800/80 bg-slate-50/70 dark:bg-obsidian-950 text-[11px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">
+                            <th class="py-3 px-4 w-28">Task ID</th>
+                            <th class="py-3 px-4 min-w-[200px]">Title</th>
                             <th class="py-3 px-4 w-32">Status</th>
                             <th class="py-3 px-4 w-28">Priority</th>
-                            <th class="py-3 px-4 w-44">Assignee</th>
-                            <th class="py-3 px-4 w-32">Due Date</th>
-                            <th class="py-3 px-4 w-28">Sprint</th>
-                            <th class="py-3 px-4 text-right w-20">Actions</th>
+                            <th class="py-3 px-4 w-36">Assignee</th>
+                            <th class="py-3 px-4 w-32">Sprint</th>
+                            <th class="py-3 px-4 w-28">Due Date</th>
+                            <th class="py-3 px-4 w-28">Updated</th>
+                            <th class="py-3 px-4 text-right w-16">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100 dark:divide-zinc-800/70 text-xs">
                         {% for task in tasks %}
                             <tr class="hover:bg-slate-50/80 dark:hover:bg-zinc-800/40 transition-colors group">
-                                <td class="py-3.5 px-4 text-center">
-                                    <input type="checkbox" class="rounded border-slate-300 dark:border-zinc-700 text-aether-blue focus:ring-aether-blue">
-                                </td>
-
-                                <!-- 6-Digit ID (T-XXXXXX format matching mockup) -->
+                                
+                                <!-- ID / Code -->
                                 <td class="py-3.5 px-4 font-mono font-bold text-slate-400 dark:text-zinc-400 whitespace-nowrap">
                                     <a href="{% url 'tasks:task_detail' slug=workspace.slug task_code=task.task_code %}" class="hover:text-aether-blue transition">
                                         {{ task.display_code }}
@@ -300,11 +306,11 @@
                                         </span>
                                     {% elif task.status == 'TODO' %}
                                         <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-200 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300">
-                                            Todo
+                                            To Do
                                         </span>
                                     {% elif task.status == 'CODE_REVIEW' %}
                                         <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-purple-500/15 text-purple-400 border border-purple-500/20">
-                                            Review
+                                            Code Review
                                         </span>
                                     {% elif task.status == 'TESTING' %}
                                         <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-400 border border-amber-500/20">
@@ -317,18 +323,21 @@
                                     {% endif %}
                                 </td>
 
-                                <!-- Priority Badge matching mockup -->
+                                <!-- Priority Badge with Dot indicator -->
                                 <td class="py-3.5 px-4 whitespace-nowrap">
                                     {% if task.priority == 'HIGH' or task.priority == 'URGENT' %}
-                                        <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-amber-500/15 text-amber-500">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-500/15 text-rose-500 border border-rose-500/20">
+                                            <span class="w-1.5 h-1.5 rounded-full bg-rose-500 mr-1.5"></span>
                                             High
                                         </span>
                                     {% elif task.priority == 'MEDIUM' %}
-                                        <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-yellow-500/15 text-yellow-500">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/15 text-amber-500 border border-amber-500/20">
+                                            <span class="w-1.5 h-1.5 rounded-full bg-amber-500 mr-1.5"></span>
                                             Medium
                                         </span>
                                     {% else %}
-                                        <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-emerald-500/15 text-emerald-400">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
+                                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1.5"></span>
                                             Low
                                         </span>
                                     {% endif %}
@@ -343,6 +352,26 @@
                                     {% endif %}
                                 </td>
 
+                                <!-- Sprint -->
+                                <td class="py-3.5 px-4 whitespace-nowrap">
+                                    {% if task.sprint_ref %}
+                                        <span class="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/25">
+                                            <span class="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0"></span>
+                                            <span>{{ task.sprint_ref.name }}</span>
+                                        </span>
+                                    {% elif task.sprint and task.sprint|lower != 'backlog' %}
+                                        <span class="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/25">
+                                            <span class="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0"></span>
+                                            <span>{{ task.sprint }}</span>
+                                        </span>
+                                    {% else %}
+                                        <span class="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-slate-100 dark:bg-zinc-800/80 text-slate-600 dark:text-zinc-400 border border-slate-200 dark:border-zinc-700/60">
+                                            <span class="w-1.5 h-1.5 rounded-full bg-slate-400 dark:bg-zinc-500 shrink-0"></span>
+                                            <span>Backlog</span>
+                                        </span>
+                                    {% endif %}
+                                </td>
+
                                 <!-- Due Date -->
                                 <td class="py-3.5 px-4 whitespace-nowrap text-slate-500 dark:text-zinc-400">
                                     {% if task.due_date %}
@@ -352,12 +381,12 @@
                                     {% endif %}
                                 </td>
 
-                                <!-- Sprint -->
-                                <td class="py-3.5 px-4 whitespace-nowrap text-slate-500 dark:text-zinc-400">
-                                    {{ task.sprint|default:"Sprint 01" }}
+                                <!-- Updated Timestamp -->
+                                <td class="py-3.5 px-4 whitespace-nowrap text-slate-400 dark:text-zinc-500 text-[11px]">
+                                    {{ task.updated_at|timesince }} ago
                                 </td>
 
-                                <!-- Actions Dropdown & Delete Task for Manager and Admin Only -->
+                                <!-- Actions -->
                                 <td class="py-3.5 px-4 text-right whitespace-nowrap">
                                     <div class="flex items-center justify-end space-x-1.5">
                                         <a href="{% url 'tasks:task_detail' slug=workspace.slug task_code=task.task_code %}" 
@@ -385,41 +414,147 @@
                 </table>
             </div>
 
-            <!-- Pagination Bar matching mockup: Showing 1 to 7 of 42 tasks -->
-            <div class="px-6 py-3.5 border-t border-slate-200 dark:border-zinc-800 flex items-center justify-between text-xs text-slate-500 dark:text-zinc-400 bg-slate-50/50 dark:bg-[#090d16]">
+            <!-- 2. MOBILE CARD VIEW (Visible on < 1024px, Matching Mockup Box 2) -->
+            <div class="block lg:hidden p-4 space-y-3">
+                {% for task in tasks %}
+                    <div class="rounded-2xl border border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-obsidian-900/60 p-4 space-y-2.5 transition hover:border-slate-300 dark:hover:border-zinc-700">
+                        
+                        <!-- Top Row: Code, Due Date & Assignee Avatar -->
+                        <div class="flex items-center justify-between">
+                            <a href="{% url 'tasks:task_detail' slug=workspace.slug task_code=task.task_code %}" 
+                               class="font-mono font-bold text-xs text-aether-blue dark:text-sky-400 hover:underline">
+                                {{ task.display_code }}
+                            </a>
+                            <div class="flex items-center space-x-2">
+                                {% if task.due_date %}
+                                    <span class="text-[11px] text-slate-500 dark:text-zinc-400">
+                                        {{ task.due_date|date:"M d" }}
+                                    </span>
+                                {% endif %}
+                                {% if task.assignee %}
+                                    {% include 'components/avatar.html' with user=task.assignee size='w-6 h-6' text_size='text-[10px]' %}
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Title -->
+                        <div>
+                            <a href="{% url 'tasks:task_detail' slug=workspace.slug task_code=task.task_code %}" 
+                               class="font-bold text-sm text-slate-900 dark:text-zinc-100 hover:text-aether-blue line-clamp-2">
+                                {{ task.title }}
+                            </a>
+                        </div>
+
+                        <!-- Bottom Badges Row -->
+                        <div class="flex items-center justify-between flex-wrap gap-2 pt-1 border-t border-slate-200/60 dark:border-zinc-800/60 text-xs">
+                            <div class="flex items-center space-x-1.5 flex-wrap gap-1">
+                                <!-- Status Badge -->
+                                {% if task.status == 'IN_PROGRESS' %}
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/15 text-blue-500">
+                                        In Progress
+                                    </span>
+                                {% elif task.status == 'TODO' %}
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-200 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300">
+                                        To Do
+                                    </span>
+                                {% elif task.status == 'CODE_REVIEW' %}
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-500/15 text-purple-400">
+                                        Review
+                                    </span>
+                                {% elif task.status == 'TESTING' %}
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-400">
+                                        Testing
+                                    </span>
+                                {% elif task.status == 'DONE' %}
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-400">
+                                        Done
+                                    </span>
+                                {% endif %}
+
+                                <!-- Priority Badge -->
+                                {% if task.priority == 'HIGH' or task.priority == 'URGENT' %}
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/15 text-rose-500">
+                                        High
+                                    </span>
+                                {% elif task.priority == 'MEDIUM' %}
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/15 text-amber-500">
+                                        Medium
+                                    </span>
+                                {% else %}
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-500/15 text-emerald-400">
+                                        Low
+                                    </span>
+                                {% endif %}
+
+                                <!-- Sprint Badge -->
+                                {% if task.sprint_ref %}
+                                    <span class="inline-flex items-center space-x-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/25">
+                                        <span class="w-1 h-1 rounded-full bg-indigo-500 shrink-0"></span>
+                                        <span>{{ task.sprint_ref.name }}</span>
+                                    </span>
+                                {% elif task.sprint and task.sprint|lower != 'backlog' %}
+                                    <span class="inline-flex items-center space-x-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/25">
+                                        <span class="w-1 h-1 rounded-full bg-indigo-500 shrink-0"></span>
+                                        <span>{{ task.sprint }}</span>
+                                    </span>
+                                {% else %}
+                                    <span class="inline-flex items-center space-x-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-100 dark:bg-zinc-800/80 text-slate-600 dark:text-zinc-400 border border-slate-200 dark:border-zinc-700/60">
+                                        <span class="w-1 h-1 rounded-full bg-slate-400 dark:bg-zinc-500 shrink-0"></span>
+                                        <span>Backlog</span>
+                                    </span>
+                                {% endif %}
+                            </div>
+
+                            <span class="text-[10px] text-slate-400 dark:text-zinc-500">
+                                {{ task.updated_at|timesince }} ago
+                            </span>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+
+            <!-- Pagination Bar matching mockup: Showing 1 to 12 of 44 tasks -->
+            <div class="px-6 py-3.5 border-t border-slate-200 dark:border-zinc-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500 dark:text-zinc-400 bg-slate-50/50 dark:bg-obsidian-950">
                 <div>
                     Showing {{ tasks.start_index }} to {{ tasks.end_index }} of {{ tasks.paginator.count }} tasks
                 </div>
-                {% if tasks.has_other_pages %}
-                    <div class="flex items-center space-x-1">
-                        {% if tasks.has_previous %}
-                            <a href="?page={{ tasks.previous_page_number }}{% if current_q %}&q={{ current_q }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_priority %}&priority={{ current_priority }}{% endif %}{% if current_assignee %}&assignee={{ current_assignee }}{% endif %}" 
-                               class="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-800 transition">
-                                &lt;
-                            </a>
-                        {% endif %}
-
-                        {% for p in tasks.paginator.page_range %}
-                            {% if p == tasks.number %}
-                                <span class="px-2.5 py-1 rounded-lg bg-aether-blue text-white font-bold">
-                                    {{ p }}
-                                </span>
-                            {% elif p <= 5 %}
-                                <a href="?page={{ p }}{% if current_q %}&q={{ current_q }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_priority %}&priority={{ current_priority }}{% endif %}{% if current_assignee %}&assignee={{ current_assignee }}{% endif %}" 
+                
+                <div class="flex items-center space-x-3">
+                    {% if tasks.has_other_pages %}
+                        <div class="flex items-center space-x-1">
+                            {% if tasks.has_previous %}
+                                <a href="?page={{ tasks.previous_page_number }}{% if current_q %}&q={{ current_q }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_priority %}&priority={{ current_priority }}{% endif %}{% if current_assignee %}&assignee={{ current_assignee }}{% endif %}{% if current_sprint %}&sprint={{ current_sprint }}{% endif %}{% if current_created_by %}&created_by={{ current_created_by }}{% endif %}" 
                                    class="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-800 transition">
-                                    {{ p }}
+                                    &lt;
                                 </a>
                             {% endif %}
-                        {% endfor %}
 
-                        {% if tasks.has_next %}
-                            <a href="?page={{ tasks.next_page_number }}{% if current_q %}&q={{ current_q }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_priority %}&priority={{ current_priority }}{% endif %}{% if current_assignee %}&assignee={{ current_assignee }}{% endif %}" 
-                               class="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-800 transition">
-                                &gt;
-                            </a>
-                        {% endif %}
-                    </div>
-                {% endif %}
+                            {% for p in tasks.paginator.page_range %}
+                                {% if p == tasks.number %}
+                                    <span class="px-2.5 py-1 rounded-lg bg-aether-blue text-white font-bold">
+                                        {{ p }}
+                                    </span>
+                                {% elif p <= 5 %}
+                                    <a href="?page={{ p }}{% if current_q %}&q={{ current_q }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_priority %}&priority={{ current_priority }}{% endif %}{% if current_assignee %}&assignee={{ current_assignee }}{% endif %}{% if current_sprint %}&sprint={{ current_sprint }}{% endif %}{% if current_created_by %}&created_by={{ current_created_by }}{% endif %}" 
+                                       class="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-800 transition">
+                                        {{ p }}
+                                    </a>
+                                {% endif %}
+                            {% endfor %}
+
+                            {% if tasks.has_next %}
+                                <a href="?page={{ tasks.next_page_number }}{% if current_q %}&q={{ current_q }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_priority %}&priority={{ current_priority }}{% endif %}{% if current_assignee %}&assignee={{ current_assignee }}{% endif %}{% if current_sprint %}&sprint={{ current_sprint }}{% endif %}{% if current_created_by %}&created_by={{ current_created_by }}{% endif %}" 
+                                   class="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-800 transition">
+                                    &gt;
+                                </a>
+                            {% endif %}
+                        </div>
+                    {% endif %}
+
+                    <span class="hidden sm:inline-block px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-100 dark:bg-obsidian-900 border border-slate-200 dark:border-zinc-800 text-slate-600 dark:text-zinc-400">
+                        12 / page
+                    </span>
+                </div>
             </div>
 
         {% else %}
@@ -429,7 +564,7 @@
                 {% include 'components/empty_states.html' with state_type='no_search_results' title='No Tasks Found' message='No tasks match your search query.' query=current_q secondary_url=request.path secondary_text='Clear Search' action_url=create_task_url action_text='+ Create Task' can_create=can_create_task %}
             {% elif current_assignee == 'me' %}
                 {% include 'components/empty_states.html' with state_type='no_tasks' title='No Tasks Assigned to You' message='You currently have no tasks assigned in this workspace.' secondary_url=request.path secondary_text='View All Tasks' action_url=create_task_url action_text='+ Create Task' can_create=can_create_task %}
-            {% elif current_status or current_priority or current_assignee or current_created_by %}
+            {% elif current_status or current_priority or current_assignee or current_created_by or current_sprint %}
                 {% include 'components/empty_states.html' with state_type='no_tasks' title='No Tasks Match Filters' message='No tasks match your active filter criteria. Try adjusting or clearing your filters.' secondary_url=request.path secondary_text='Clear All Filters' action_url=create_task_url action_text='+ Create Task' can_create=can_create_task %}
             {% else %}
                 {% include 'components/empty_states.html' with state_type='no_tasks' title='No Tasks Yet' message='Get started by creating your team’s first task. Assign members, track workflow statuses, and monitor sprint velocity.' action_url=create_task_url action_text='+ Create Task' can_create=can_create_task %}

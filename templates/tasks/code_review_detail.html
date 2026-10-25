@@ -1,0 +1,691 @@
+{% extends 'base.html' %}
+{% load rich_text %}
+
+{% block title %}{{ cr.review_code }} • {{ cr.title }} — AetherSpace{% endblock %}
+
+{% block content %}
+<div class="space-y-6 max-w-7xl mx-auto">
+
+    <!-- Top Navigation / Breadcrumb -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div class="flex items-center space-x-2 text-xs font-semibold text-slate-500 dark:text-zinc-400">
+            <a href="{% url 'tasks:code_review_list' slug=workspace.slug %}"
+               class="inline-flex items-center space-x-1.5 hover:text-blue-600 dark:hover:text-blue-400 transition">
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                </svg>
+                <span>Code Reviews</span>
+            </a>
+            <span>/</span>
+            <span class="font-mono font-bold text-slate-900 dark:text-zinc-100">{{ cr.review_code }}</span>
+        </div>
+
+        <!-- Quick actions -->
+        <div class="flex items-center space-x-2.5">
+            {% if can_start_review %}
+            <form method="post" action="{% url 'tasks:code_review_start' slug=workspace.slug review_code=cr.review_code %}"
+                  x-data="{ isSubmitting: false }" @submit="isSubmitting = true">
+                {% csrf_token %}
+                <button type="submit" :disabled="isSubmitting"
+                        class="inline-flex items-center space-x-1.5 px-3.5 py-1.5 text-xs font-bold rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white shadow-xs transition focus:outline-none focus:ring-2 focus:ring-blue-500/50 cursor-pointer">
+                    <template x-if="!isSubmitting">
+                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            {% if cr.status == 'CHANGES_REQUESTED' %}
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                            {% else %}
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            {% endif %}
+                        </svg>
+                    </template>
+                    <template x-if="isSubmitting">
+                        <svg class="animate-spin w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                        </svg>
+                    </template>
+                    <span>{% if cr.status == 'CHANGES_REQUESTED' %}Resume / Re-request Review{% else %}Start Review{% endif %}</span>
+                </button>
+            </form>
+            {% endif %}
+
+            <a href="{% url 'tasks:task_detail' slug=workspace.slug task_code=cr.task.task_code %}"
+               class="inline-flex items-center space-x-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-xl border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition focus:outline-none focus:ring-2 focus:ring-blue-500/40">
+                <span>View Task</span>
+                <span class="font-mono text-blue-600 dark:text-blue-400 font-bold">#{{ cr.task.task_code }}</span>
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                </svg>
+            </a>
+        </div>
+    </div>
+
+    <!-- Review Header Card -->
+    <div class="aether-card p-6 rounded-2xl border border-slate-200/80 dark:border-zinc-800 bg-white dark:bg-[#18181b] shadow-2xs space-y-5">
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            
+            <!-- Title & Status -->
+            <div class="space-y-2">
+                <div class="flex flex-wrap items-center gap-2.5">
+                    <span class="px-2.5 py-1 rounded-lg text-xs font-mono font-bold bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800/60">
+                        {{ cr.display_code }}
+                    </span>
+
+                    <!-- Status Badge -->
+                    {% if cr.status == 'REQUESTED' %}
+                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-amber-50 dark:bg-amber-950/70 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800/60">
+                            ● Pending Review
+                        </span>
+                    {% elif cr.status == 'IN_REVIEW' %}
+                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-blue-50 dark:bg-blue-950/70 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800/60">
+                            ● In Review
+                        </span>
+                    {% elif cr.status == 'CHANGES_REQUESTED' %}
+                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-rose-50 dark:bg-rose-950/70 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-800/60">
+                            ● Changes Requested
+                        </span>
+                    {% elif cr.status == 'APPROVED' %}
+                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/60">
+                            ● Approved
+                        </span>
+                    {% elif cr.status == 'REJECTED' %}
+                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-rose-100 dark:bg-rose-950/80 text-rose-800 dark:text-rose-300 border border-rose-300 dark:border-rose-800">
+                            ● Rejected
+                        </span>
+                    {% elif cr.status == 'MERGED' %}
+                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-purple-50 dark:bg-purple-950/70 text-purple-700 dark:text-purple-400 border border-purple-200 dark:border-purple-800/60">
+                            ● Merged
+                        </span>
+                    {% else %}
+                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400">
+                            Closed
+                        </span>
+                    {% endif %}
+
+                    <!-- Priority Badge -->
+                    {% if cr.priority == 'CRITICAL' %}
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold uppercase tracking-wider bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">Critical</span>
+                    {% elif cr.priority == 'HIGH' %}
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold uppercase tracking-wider bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">High Priority</span>
+                    {% elif cr.priority == 'MEDIUM' %}
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold uppercase tracking-wider bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">Medium Priority</span>
+                    {% else %}
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold uppercase tracking-wider bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 border border-slate-200 dark:border-zinc-700">Low Priority</span>
+                    {% endif %}
+                </div>
+
+                <h1 class="text-xl sm:text-2xl font-black text-slate-900 dark:text-zinc-50 tracking-tight">
+                    {{ cr.title }}
+                </h1>
+            </div>
+
+            <!-- Optional PR External Link -->
+            {% if cr.github_pr_url %}
+            <div class="shrink-0">
+                <a href="{{ cr.github_pr_url }}" target="_blank" rel="noopener noreferrer"
+                   class="inline-flex items-center space-x-2 px-3.5 py-2 text-xs font-semibold rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800/60 hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-700 dark:text-zinc-200 transition">
+                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                        <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
+                    </svg>
+                    <span>View GitHub PR</span>
+                    <svg class="w-3 h-3 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                    </svg>
+                </a>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Meta ribbon / Attributes -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4 border-t border-slate-100 dark:border-zinc-800 text-xs">
+            
+            <!-- Linked Task -->
+            <div>
+                <span class="block text-[11px] font-semibold text-slate-400 dark:text-zinc-500 uppercase tracking-wider mb-1">Linked Task</span>
+                <a href="{% url 'tasks:task_detail' slug=workspace.slug task_code=cr.task.task_code %}"
+                   class="font-bold text-slate-800 dark:text-zinc-200 hover:text-blue-600 dark:hover:text-blue-400 line-clamp-1">
+                    #{{ cr.task.task_code }} - {{ cr.task.title }}
+                </a>
+            </div>
+
+            <!-- Due Date -->
+            <div>
+                <span class="block text-[11px] font-semibold text-slate-400 dark:text-zinc-500 uppercase tracking-wider mb-1">Due Date</span>
+                <span class="font-bold text-slate-800 dark:text-zinc-200">
+                    {% if cr.due_date %}
+                        {{ cr.due_date|date:"M d, Y" }}
+                    {% else %}
+                        <span class="text-slate-400 font-normal">No due date</span>
+                    {% endif %}
+                </span>
+            </div>
+
+            <!-- Requested By -->
+            <div>
+                <span class="block text-[11px] font-semibold text-slate-400 dark:text-zinc-500 uppercase tracking-wider mb-1">Requested By</span>
+                <div class="flex items-center space-x-2">
+                    {% include 'components/avatar.html' with user=cr.requester size='w-5 h-5' %}
+                    <span class="font-bold text-slate-800 dark:text-zinc-200 truncate">
+                        {{ cr.requester.full_name|default:cr.requester.email }}
+                    </span>
+                </div>
+            </div>
+
+            <!-- Reviewer -->
+            <div>
+                <span class="block text-[11px] font-semibold text-slate-400 dark:text-zinc-500 uppercase tracking-wider mb-1">Reviewer</span>
+                {% if cr.reviewer %}
+                <div class="flex items-center space-x-2">
+                    {% include 'components/avatar.html' with user=cr.reviewer size='w-5 h-5' %}
+                    <span class="font-bold text-slate-800 dark:text-zinc-200 truncate">
+                        {{ cr.reviewer.full_name|default:cr.reviewer.email }}
+                    </span>
+                </div>
+                {% else %}
+                <span class="text-slate-400 dark:text-zinc-500 italic">Unassigned</span>
+                {% endif %}
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Tab Navigation Ribbon -->
+    <div class="border-b border-slate-200 dark:border-zinc-800">
+        <nav class="flex space-x-6" aria-label="Tabs">
+            
+            <!-- Tab 1: Overview -->
+            <a href="?tab=overview"
+               class="py-3 px-1 border-b-2 font-bold text-xs sm:text-sm transition-colors flex items-center space-x-2 {% if active_tab == 'overview' %}border-aether-blue text-aether-blue{% else %}border-transparent text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200{% endif %}">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+                <span>Overview</span>
+            </a>
+
+            <!-- Tab 2: Comments & Decision -->
+            <a href="?tab=comments"
+               class="py-3 px-1 border-b-2 font-bold text-xs sm:text-sm transition-colors flex items-center space-x-2 {% if active_tab == 'comments' %}border-aether-blue text-aether-blue{% else %}border-transparent text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200{% endif %}">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/>
+                </svg>
+                <span>Comments & Decision</span>
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold {% if active_tab == 'comments' %}bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300{% else %}bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400{% endif %}">
+                    {{ comments_count }}
+                </span>
+            </a>
+
+            <!-- Tab 3: Activity & History -->
+            <a href="?tab=history"
+               class="py-3 px-1 border-b-2 font-bold text-xs sm:text-sm transition-colors flex items-center space-x-2 {% if active_tab == 'history' %}border-aether-blue text-aether-blue{% else %}border-transparent text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200{% endif %}">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                <span>Activity & History</span>
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold {% if active_tab == 'history' %}bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300{% else %}bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400{% endif %}">
+                    {{ history_count }}
+                </span>
+            </a>
+
+        </nav>
+    </div>
+
+    <!-- TAB 1: OVERVIEW -->
+    {% if active_tab == 'overview' %}
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- Left 2 Cols: Description & Checklist -->
+        <div class="lg:col-span-2 space-y-6">
+            
+            <!-- Description Card -->
+            <div class="aether-card p-6 rounded-2xl border border-slate-200/80 dark:border-zinc-800 bg-white dark:bg-[#18181b] shadow-2xs space-y-3">
+                <h3 class="text-sm font-bold text-slate-900 dark:text-zinc-100 flex items-center space-x-2">
+                    <svg class="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"/>
+                    </svg>
+                    <span>Description & Instructions</span>
+                </h3>
+
+                {% if cr.description %}
+                <div class="prose dark:prose-invert max-w-none text-xs sm:text-sm text-slate-700 dark:text-zinc-300">
+                    {{ cr.description|render_rich_text }}
+                </div>
+                {% else %}
+                <p class="text-xs text-slate-400 dark:text-zinc-500 italic">No description or instructions provided for this code review.</p>
+                {% endif %}
+            </div>
+
+            <!-- Review Quality Checklist -->
+            <div class="aether-card p-6 rounded-2xl border border-slate-200/80 dark:border-zinc-800 bg-white dark:bg-[#18181b] shadow-2xs space-y-4">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-sm font-bold text-slate-900 dark:text-zinc-100 flex items-center space-x-2">
+                        <svg class="w-4 h-4 text-emerald-600 dark:text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+                        </svg>
+                        <span>Review Quality Checklist</span>
+                    </h3>
+                    <span class="text-[11px] font-semibold text-slate-400 dark:text-zinc-500">Quality Gates</span>
+                </div>
+
+                <div class="space-y-2.5">
+                    {% for item in standard_checklist %}
+                    <div class="flex items-start space-x-3 p-3 rounded-xl bg-slate-50/70 dark:bg-zinc-800/40 border border-slate-100 dark:border-zinc-800/80">
+                        <div class="mt-0.5 text-blue-600 dark:text-blue-400 shrink-0">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                            </svg>
+                        </div>
+                        <span class="text-xs font-medium text-slate-700 dark:text-zinc-300">{{ item }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                {% if task_subtasks %}
+                <div class="pt-4 border-t border-slate-100 dark:border-zinc-800">
+                    <h4 class="text-xs font-bold text-slate-800 dark:text-zinc-200 mb-2.5">Linked Task Subtasks</h4>
+                    <div class="space-y-2">
+                        {% for st in task_subtasks %}
+                        <div class="flex items-center space-x-2 text-xs">
+                            {% if st.is_completed %}
+                            <svg class="w-4 h-4 text-emerald-500" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                            </svg>
+                            <span class="line-through text-slate-400 dark:text-zinc-500">{{ st.title }}</span>
+                            {% else %}
+                            <span class="w-4 h-4 rounded border border-slate-300 dark:border-zinc-600 inline-block"></span>
+                            <span class="text-slate-700 dark:text-zinc-300">{{ st.title }}</span>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+
+        </div>
+
+        <!-- Right 1 Col: Linked Task Details Card -->
+        <div class="space-y-6">
+            <div class="aether-card p-6 rounded-2xl border border-slate-200/80 dark:border-zinc-800 bg-white dark:bg-[#18181b] shadow-2xs space-y-4">
+                <h3 class="text-sm font-bold text-slate-900 dark:text-zinc-100 flex items-center space-x-2">
+                    <svg class="w-4 h-4 text-purple-600 dark:text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <span>Linked Task Details</span>
+                </h3>
+
+                <div class="p-4 rounded-xl bg-slate-50 dark:bg-zinc-800/40 border border-slate-200/60 dark:border-zinc-700/60 space-y-3">
+                    <div class="flex items-center justify-between text-xs font-mono">
+                        <span class="font-bold text-blue-600 dark:text-blue-400">#{{ cr.task.task_code }}</span>
+                        <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-200 dark:bg-zinc-700 text-slate-700 dark:text-zinc-300">
+                            {{ cr.task.get_status_display }}
+                        </span>
+                    </div>
+                    <div class="text-xs font-bold text-slate-900 dark:text-zinc-100">
+                        {{ cr.task.title }}
+                    </div>
+                    {% if cr.task.description %}
+                    <p class="text-[11px] text-slate-500 dark:text-zinc-400 line-clamp-3">
+                        {{ cr.task.description }}
+                    </p>
+                    {% endif %}
+                    <div class="pt-2 border-t border-slate-200/60 dark:border-zinc-700/60 flex items-center justify-between text-xs">
+                        <span class="text-slate-500 dark:text-zinc-400">Assignee:</span>
+                        <span class="font-bold text-slate-800 dark:text-zinc-200">
+                            {{ cr.task.assignee.full_name|default:cr.task.assignee.email|default:"Unassigned" }}
+                        </span>
+                    </div>
+                </div>
+
+                <a href="{% url 'tasks:task_detail' slug=workspace.slug task_code=cr.task.task_code %}"
+                   class="w-full flex items-center justify-center space-x-2 px-4 py-2 text-xs font-bold rounded-xl border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition">
+                    <span>Open Task Full View</span>
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+                    </svg>
+                </a>
+            </div>
+        </div>
+
+    </div>
+    {% endif %}
+
+    <!-- TAB 2: COMMENTS & DECISION -->
+    {% if active_tab == 'comments' %}
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- Left 2 Cols: Comments Discussion Stream -->
+        <div class="lg:col-span-2 space-y-6">
+            
+            <!-- Comment Composer -->
+            <div class="aether-card p-5 rounded-2xl border border-slate-200/80 dark:border-zinc-800 bg-white dark:bg-[#18181b] shadow-2xs space-y-3"
+                 x-data="{ tab: 'write', text: '', previewHtml: '', loadingPreview: false,
+                          async loadPreview() {
+                              if (!this.text.trim()) { this.previewHtml = '<p class=\'text-slate-400 italic\'>Nothing to preview</p>'; return; }
+                              this.loadingPreview = true;
+                              try {
+                                  const res = await fetch('{% url 'tasks:markdown_preview' slug=workspace.slug %}', {
+                                      method: 'POST',
+                                      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+                                      body: JSON.stringify({ content: this.text })
+                                  });
+                                  const data = await res.json();
+                                  this.previewHtml = data.html;
+                              } catch(e) {
+                                  this.previewHtml = '<p class=\'text-rose-500\'>Preview error</p>';
+                              } finally {
+                                  this.loadingPreview = false;
+                              }
+                          }
+                 }">
+                
+                <div class="flex items-center justify-between border-b border-slate-100 dark:border-zinc-800 pb-2.5">
+                    <span class="text-xs font-bold text-slate-800 dark:text-zinc-200">Add Feedback or Comment</span>
+                    <div class="flex items-center space-x-1 bg-slate-100 dark:bg-zinc-800/80 p-0.5 rounded-lg text-xs">
+                        <button type="button" @click="tab = 'write'"
+                                :class="tab === 'write' ? 'bg-white dark:bg-zinc-900 font-bold text-blue-600 dark:text-blue-400 shadow-2xs' : 'text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-200'"
+                                class="px-2.5 py-1 rounded-md transition cursor-pointer">Write</button>
+                        <button type="button" @click="tab = 'preview'; loadPreview()"
+                                :class="tab === 'preview' ? 'bg-white dark:bg-zinc-900 font-bold text-blue-600 dark:text-blue-400 shadow-2xs' : 'text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-200'"
+                                class="px-2.5 py-1 rounded-md transition cursor-pointer">Preview</button>
+                    </div>
+                </div>
+
+                <form method="post" action="{% url 'tasks:code_review_comment_add' slug=workspace.slug review_code=cr.review_code %}" 
+                      x-data="{ isSubmitting: false }" @submit="isSubmitting = true" class="space-y-3">
+                    {% csrf_token %}
+                    
+                    <div x-show="tab === 'write'">
+                        <textarea name="content" x-model="text" rows="4" required
+                                  placeholder="Leave a comment, code feedback, or suggestion on this review (Markdown supported)..."
+                                  class="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-zinc-700/80 bg-slate-50/80 dark:bg-zinc-900 text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 text-xs sm:text-sm transition"></textarea>
+                    </div>
+
+                    <div x-show="tab === 'preview'" class="min-h-[96px] p-4 rounded-xl border border-slate-200 dark:border-zinc-700/80 bg-slate-50/50 dark:bg-zinc-900/50 text-xs sm:text-sm">
+                        <div x-show="loadingPreview" class="text-slate-400 text-xs italic">Rendering preview...</div>
+                        <div x-show="!loadingPreview" class="prose dark:prose-invert max-w-none text-xs sm:text-sm" x-html="previewHtml"></div>
+                    </div>
+
+                    <div class="flex items-center justify-between pt-1">
+                        <div class="hidden sm:flex items-center space-x-2 text-[11px] text-slate-400 dark:text-zinc-500">
+                            <span>Markdown supported: <code class="px-1 py-0.5 rounded bg-slate-100 dark:bg-zinc-800 text-[10px] font-mono">**bold**</code>, <code class="px-1 py-0.5 rounded bg-slate-100 dark:bg-zinc-800 text-[10px] font-mono">`code`</code></span>
+                        </div>
+                        <button type="submit" :disabled="isSubmitting || !text.trim()"
+                                class="inline-flex items-center space-x-1.5 px-4 py-2 text-xs font-bold rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white shadow-xs transition cursor-pointer">
+                            <template x-if="!isSubmitting">
+                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+                                </svg>
+                            </template>
+                            <template x-if="isSubmitting">
+                                <svg class="animate-spin w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                                </svg>
+                            </template>
+                            <span>Post Comment</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Comments Stream -->
+            <div class="space-y-4">
+                {% if user_comments %}
+                    {% for c in user_comments %}
+                    <div class="aether-card p-5 rounded-2xl border border-slate-200/80 dark:border-zinc-800 bg-white dark:bg-[#18181b] shadow-2xs space-y-3">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-2.5">
+                                {% include 'components/avatar.html' with user=c.author size='w-7 h-7' %}
+                                <div>
+                                    <span class="text-xs font-bold text-slate-900 dark:text-zinc-100">
+                                        {{ c.author.full_name|default:c.author.email }}
+                                    </span>
+                                    <span class="text-[11px] text-slate-400 dark:text-zinc-500 ml-2">
+                                        {{ c.created_at|date:"M d, Y • h:i A" }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="prose dark:prose-invert max-w-none text-xs sm:text-sm text-slate-700 dark:text-zinc-300">
+                            {{ c.content|render_rich_text }}
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="aether-card p-10 rounded-2xl border border-slate-200/80 dark:border-zinc-800 bg-white dark:bg-[#18181b] text-center space-y-2">
+                        <p class="text-xs font-bold text-slate-700 dark:text-zinc-300">No discussion comments yet</p>
+                        <p class="text-xs text-slate-400 dark:text-zinc-500">Post the first feedback comment above to start the review conversation.</p>
+                    </div>
+                {% endif %}
+            </div>
+
+        </div>
+
+        <!-- Right 1 Col: Review Decision Panel UI (Panel 4) -->
+        <div class="space-y-6">
+            <div class="aether-card p-6 rounded-2xl border border-slate-200/80 dark:border-zinc-800 bg-white dark:bg-[#18181b] shadow-2xs space-y-5">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-sm font-bold text-slate-900 dark:text-zinc-100 flex items-center space-x-2">
+                        <svg class="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                        </svg>
+                        <span>Review Decision</span>
+                    </h3>
+                    <span class="text-[10px] font-bold px-2 py-0.5 rounded {% if cr.status == 'APPROVED' %}bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300{% elif cr.status == 'CHANGES_REQUESTED' %}bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300{% elif cr.status == 'REJECTED' %}bg-slate-100 text-slate-700 dark:bg-zinc-800 dark:text-zinc-300{% else %}bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300{% endif %}">
+                        {{ cr.get_status_display }}
+                    </span>
+                </div>
+
+                {% if can_submit_decision %}
+                <!-- Interactive Decision Form for Reviewer / Manager -->
+                <form method="post" action="{% url 'tasks:code_review_decision' slug=workspace.slug review_code=cr.review_code %}" 
+                      x-data="{ decision: 'APPROVED', decisionMessage: '', isSubmitting: false }" 
+                      @submit="isSubmitting = true"
+                      class="space-y-4">
+                    {% csrf_token %}
+                    <input type="hidden" name="decision" :value="decision">
+
+                    <p class="text-xs text-slate-500 dark:text-zinc-400">
+                        Select a decision and provide feedback for the author:
+                    </p>
+
+                    <!-- Decision Action Cards UI matching Mockup Panel 4 -->
+                    <div class="space-y-2.5">
+                        
+                        <!-- Approve -->
+                        <div @click="decision = 'APPROVED'"
+                             :class="decision === 'APPROVED' ? 'ring-2 ring-emerald-500 border-emerald-500 bg-emerald-50/70 dark:bg-emerald-950/40' : 'border-slate-200 dark:border-zinc-800 hover:border-emerald-300 dark:hover:border-emerald-700/60'"
+                             class="p-3 rounded-xl border flex items-center space-x-3 cursor-pointer transition select-none">
+                            <div class="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 shrink-0">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                </svg>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <div class="font-bold text-xs text-emerald-800 dark:text-emerald-300">Approve</div>
+                                <div class="text-[11px] text-emerald-700/80 dark:text-emerald-400/80">Code meets standards and is ready to merge.</div>
+                            </div>
+                            <div x-show="decision === 'APPROVED'" class="text-emerald-600 dark:text-emerald-400">
+                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                                </svg>
+                            </div>
+                        </div>
+
+                        <!-- Request Changes -->
+                        <div @click="decision = 'CHANGES_REQUESTED'"
+                             :class="decision === 'CHANGES_REQUESTED' ? 'ring-2 ring-rose-500 border-rose-500 bg-rose-50/70 dark:bg-rose-950/40' : 'border-slate-200 dark:border-zinc-800 hover:border-rose-300 dark:hover:border-rose-700/60'"
+                             class="p-3 rounded-xl border flex items-center space-x-3 cursor-pointer transition select-none">
+                            <div class="p-2 rounded-lg bg-rose-100 dark:bg-rose-900/60 text-rose-700 dark:text-rose-300 shrink-0">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                                </svg>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <div class="font-bold text-xs text-rose-800 dark:text-rose-300">Request Changes</div>
+                                <div class="text-[11px] text-rose-700/80 dark:text-rose-400/80">Revisions required before approval.</div>
+                            </div>
+                            <div x-show="decision === 'CHANGES_REQUESTED'" class="text-rose-600 dark:text-rose-400">
+                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                                </svg>
+                            </div>
+                        </div>
+
+                        <!-- Reject -->
+                        <div @click="decision = 'REJECTED'"
+                             :class="decision === 'REJECTED' ? 'ring-2 ring-slate-500 border-slate-500 bg-slate-100 dark:bg-zinc-800' : 'border-slate-200 dark:border-zinc-800 hover:border-slate-300 dark:hover:border-zinc-700'"
+                             class="p-3 rounded-xl border flex items-center space-x-3 cursor-pointer transition select-none">
+                            <div class="p-2 rounded-lg bg-slate-200 dark:bg-zinc-700 text-slate-700 dark:text-zinc-300 shrink-0">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                </svg>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <div class="font-bold text-xs text-slate-800 dark:text-zinc-200">Reject</div>
+                                <div class="text-[11px] text-slate-500 dark:text-zinc-400">Review dismissed or approach discarded.</div>
+                            </div>
+                            <div x-show="decision === 'REJECTED'" class="text-slate-600 dark:text-zinc-300">
+                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                                </svg>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- Required Decision Message -->
+                    <div class="space-y-1.5">
+                        <div class="flex items-center justify-between">
+                            <label class="block text-xs font-bold text-slate-700 dark:text-zinc-300">
+                                Decision Message / Rationale <span class="text-rose-500">*</span>
+                            </label>
+                            <span class="text-[11px] font-mono"
+                                  :class="decisionMessage.trim().length >= 5 ? 'text-emerald-600 dark:text-emerald-400 font-semibold' : 'text-slate-400 dark:text-zinc-500'"
+                                  x-text="decisionMessage.trim().length + '/5 min'">
+                            </span>
+                        </div>
+                        <textarea name="message" rows="3" required minlength="5" x-model="decisionMessage"
+                                  placeholder="Provide actionable rationale or next steps for this decision (min 5 characters)..."
+                                  class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-900 text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 text-xs transition"></textarea>
+                        <p x-show="decisionMessage.length > 0 && decisionMessage.trim().length < 5"
+                           class="text-[11px] text-amber-600 dark:text-amber-400 flex items-center space-x-1">
+                            <span>Please enter at least 5 characters to provide a meaningful decision rationale.</span>
+                        </p>
+                    </div>
+
+                    <!-- Submit Button -->
+                    <button type="submit"
+                            :disabled="isSubmitting || decisionMessage.trim().length < 5"
+                            :class="{
+                                'bg-emerald-600 hover:bg-emerald-700': decision === 'APPROVED',
+                                'bg-rose-600 hover:bg-rose-700': decision === 'CHANGES_REQUESTED',
+                                'bg-slate-800 hover:bg-slate-900 dark:bg-zinc-700 dark:hover:bg-zinc-600': decision === 'REJECTED'
+                            }"
+                            class="w-full inline-flex items-center justify-center space-x-1.5 px-4 py-2.5 text-xs font-bold rounded-xl text-white shadow-xs transition disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer">
+                        <template x-if="!isSubmitting">
+                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                            </svg>
+                        </template>
+                        <template x-if="isSubmitting">
+                            <svg class="animate-spin w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                            </svg>
+                        </template>
+                        <span x-text="decision === 'APPROVED' ? 'Submit Approval' : (decision === 'CHANGES_REQUESTED' ? 'Request Changes' : 'Submit Rejection')">Submit Decision</span>
+                    </button>
+                </form>
+                {% elif cr.status in 'APPROVED,REJECTED,MERGED,CLOSED' %}
+                <!-- Completed Review Banner -->
+                <div class="p-4 rounded-xl border {% if cr.status == 'APPROVED' %}border-emerald-200 dark:border-emerald-800/80 bg-emerald-50/60 dark:bg-emerald-950/30 text-emerald-900 dark:text-emerald-200{% elif cr.status == 'REJECTED' %}border-rose-200 dark:border-rose-800/80 bg-rose-50/60 dark:bg-rose-950/30 text-rose-900 dark:text-rose-200{% else %}border-purple-200 dark:border-purple-800/80 bg-purple-50/60 dark:bg-purple-950/30 text-purple-900 dark:text-purple-200{% endif %} space-y-2">
+                    <div class="flex items-center space-x-2">
+                        <svg class="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                        </svg>
+                        <span class="text-xs font-bold uppercase tracking-wide">Review Completed</span>
+                    </div>
+                    <p class="text-xs opacity-90 leading-relaxed">
+                        This code review was finalized as <strong>{{ cr.get_status_display }}</strong> on {{ cr.updated_at|date:"M d, Y • h:i A" }}.
+                    </p>
+                </div>
+                {% else %}
+                <!-- Contributor / Read-Only View Notice -->
+                <div class="p-4 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-800/40 space-y-2 text-xs">
+                    <div class="font-bold text-slate-800 dark:text-zinc-200">
+                        Assigned Reviewer
+                    </div>
+                    <p class="text-slate-500 dark:text-zinc-400">
+                        {% if cr.reviewer %}
+                            <strong>{{ cr.reviewer.full_name|default:cr.reviewer.email }}</strong> is assigned to evaluate this request. Only the assigned reviewer or a workspace Admin/Manager can record a formal decision.
+                        {% else %}
+                            No reviewer is assigned. A workspace Admin or Manager can assign a reviewer or start this review.
+                        {% endif %}
+                    </p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+
+    </div>
+    {% endif %}
+
+    <!-- TAB 3: ACTIVITY & HISTORY -->
+    {% if active_tab == 'history' %}
+    <div class="max-w-3xl space-y-4">
+        <div class="aether-card p-6 rounded-2xl border border-slate-200/80 dark:border-zinc-800 bg-white dark:bg-[#18181b] shadow-2xs space-y-6">
+            
+            <div class="flex items-center justify-between border-b border-slate-100 dark:border-zinc-800 pb-3">
+                <h3 class="text-sm font-bold text-slate-900 dark:text-zinc-100 flex items-center space-x-2">
+                    <svg class="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <span>Audit Trail & Activity Timeline</span>
+                </h3>
+                <span class="text-xs font-mono text-slate-400 dark:text-zinc-500">{{ history_count }} recorded event{{ history_count|pluralize }}</span>
+            </div>
+
+            <!-- Timeline -->
+            <div class="relative pl-6 space-y-8 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200 dark:before:bg-zinc-800">
+                {% for event in timeline_events %}
+                <div class="relative flex items-start space-x-3.5 group">
+                    
+                    <!-- Bullet node -->
+                    <span class="absolute -left-6 mt-1 w-3.5 h-3.5 rounded-full border-2 border-white dark:border-[#18181b] bg-blue-600 shadow-xs"></span>
+
+                    <!-- Content -->
+                    <div class="flex-1 space-y-1">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-2">
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold border {{ event.badge_class }}">
+                                    {{ event.title }}
+                                </span>
+                                <span class="text-xs font-bold text-slate-800 dark:text-zinc-200">
+                                    {{ event.actor.full_name|default:event.actor.email }}
+                                </span>
+                            </div>
+                            <span class="text-[11px] font-mono text-slate-400 dark:text-zinc-500">
+                                {{ event.timestamp|date:"M d, Y • h:i A" }}
+                            </span>
+                        </div>
+
+                        <p class="text-xs text-slate-600 dark:text-zinc-400 pl-0.5">
+                            {{ event.details }}
+                        </p>
+                    </div>
+
+                </div>
+                {% empty %}
+                <p class="text-xs text-slate-400 italic">No activity recorded for this review.</p>
+                {% endfor %}
+            </div>
+
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

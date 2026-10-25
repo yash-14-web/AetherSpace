@@ -126,6 +126,210 @@ class TimeEntry(models.Model):
         """Decimal hours representation (e.g. 1.75)."""
         return round(self.current_duration_seconds / 3600.0, 2)
 
+    @property
+    def category(self):
+        """Extract category from [Category] tag in description or infer from task/title/bug."""
+        if self.description:
+            import re
+            matches = re.findall(r'\[(.*?)\]', self.description)
+            for tag in matches:
+                tag_clean = tag.strip()
+                if tag_clean == 'Bug Fix' or tag_clean.startswith('Bug:'):
+                    return 'Bug fixes'
+                if tag_clean == 'Task / Development':
+                    return 'Development'
+                if tag_clean != 'Billable' and tag_clean in [
+                    'Development', 'Design', 'API integration', 'Code review', 'Bug fixes', 'Documentation', 'Meeting', 'Research', 'Other'
+                ]:
+                    return tag_clean
+        # Fallback heuristics based on task title, code, or description
+        text = f"{self.task.title if self.task else ''} {self.description or ''}".lower()
+        if 'bug' in text or 'fix' in text or (self.task and 'bug' in self.task.task_code.lower()) or 'b-' in text:
+            return 'Bug fixes'
+        if 'research' in text or 'investigat' in text or 'spike' in text or 'explor' in text:
+            return 'Research'
+        if 'design' in text or 'ui' in text or 'ux' in text or 'style' in text:
+            return 'Design'
+        if 'api' in text or 'endpoint' in text or 'backend' in text:
+            return 'API integration'
+        if 'review' in text or 'pr ' in text:
+            return 'Code review'
+        if 'doc' in text or 'spec' in text:
+            return 'Documentation'
+        if 'meet' in text or 'sync' in text or 'standup' in text:
+            return 'Meeting'
+        return 'Development'
+
+    @property
+    def clean_description(self):
+        """Returns work description without metadata tags [Category], [Billable], or [Bug: ...]."""
+        if not self.description:
+            return ''
+        import re
+        cleaned = re.sub(
+            r'\[(Billable|Development|Task / Development|Design|API integration|API Integration|Code review|Code Review|Bug fixes|Bug Fix|Documentation|Meeting|Research|Other|Bug:\s*B-\d{6})\]\s*',
+            '',
+            self.description
+        ).strip()
+        return cleaned or self.description
+
+    @property
+    def linked_bug_code(self):
+        """Extracts B-XXXXXX bug code from description if tagged."""
+        if not self.description:
+            return ''
+        import re
+        match = re.search(r'\[Bug:\s*(B-\d{6})\]', self.description)
+        return match.group(1) if match else ''
+
+    @property
+    def linked_bug(self):
+        """
+        Fetches the associated Bug defect instance if linked_bug_code is present.
+        Uses in-memory cache if populated by pre-fetch routines to avoid N+1 queries.
+        """
+        if hasattr(self, '_cached_bug'):
+            return self._cached_bug
+        code = self.linked_bug_code
+        if code:
+            from bugs.models import Bug
+            return Bug.objects.filter(workspace=self.workspace, bug_code=code).select_related('linked_task', 'assignee', 'module').first()
+        return None
+
+    @property
+    def work_item_type(self):
+        """Returns the primary work item classification: 'bug', 'task', or 'general'."""
+        if self.linked_bug_code:
+            return 'bug'
+        elif self.task_id:
+            return 'task'
+        return 'general'
+
+    @property
+    def is_billable(self):
+        """True if [Billable] tag is present in description."""
+        return '[Billable]' in (self.description or '')
+
+    @property
+    def entry_source_display(self):
+        """Returns readable entry source: Timer vs Manual vs Legacy."""
+        if self.entry_type == TimeEntryType.MANUAL:
+            return 'Manual'
+        elif self.entry_type == TimeEntryType.TIMER:
+            return 'Timer'
+        return 'Legacy'
+
+    @property
+    def project_name(self):
+        """Workspace or project name."""
+        return self.workspace.name
+
+    @property
+    def sprint_name(self):
+        """Sprint name if task is assigned to a sprint."""
+        if self.task and self.task.sprint_ref:
+            return self.task.sprint_ref.name
+        return '—'
+
+    @property
+    def category_info(self):
+        """Visual styling and icon configuration for task category."""
+        cat = self.category
+        mapping = {
+            'Bug fixes': {
+                'name': 'Bug Fix',
+                'color': 'rose',
+                'bg': 'bg-rose-500/10 text-rose-500 border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/30',
+                'badge_bg': 'bg-rose-500/20 text-rose-400',
+                'dot': 'bg-rose-500',
+                'icon': 'bug',
+                'hex': '#e11d48',
+                'timeline_color': 'bg-rose-600 border-rose-500 text-white'
+            },
+            'API integration': {
+                'name': 'API Integration',
+                'color': 'emerald',
+                'bg': 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/30',
+                'badge_bg': 'bg-emerald-500/20 text-emerald-400',
+                'dot': 'bg-emerald-500',
+                'icon': 'database',
+                'hex': '#059669',
+                'timeline_color': 'bg-emerald-600 border-emerald-500 text-white'
+            },
+            'Design': {
+                'name': 'Design',
+                'color': 'purple',
+                'bg': 'bg-purple-500/10 text-purple-400 border-purple-500/20 dark:bg-purple-500/10 dark:text-purple-400 dark:border-purple-500/30',
+                'badge_bg': 'bg-purple-500/20 text-purple-400',
+                'dot': 'bg-purple-500',
+                'icon': 'palette',
+                'hex': '#9333ea',
+                'timeline_color': 'bg-purple-600 border-purple-500 text-white'
+            },
+            'Code review': {
+                'name': 'Code Review',
+                'color': 'amber',
+                'bg': 'bg-amber-500/10 text-amber-500 border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/30',
+                'badge_bg': 'bg-amber-500/20 text-amber-400',
+                'dot': 'bg-amber-500',
+                'icon': 'code-review',
+                'hex': '#d97706',
+                'timeline_color': 'bg-amber-600 border-amber-500 text-white'
+            },
+            'Documentation': {
+                'name': 'Documentation',
+                'color': 'cyan',
+                'bg': 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20 dark:bg-cyan-500/10 dark:text-cyan-400 dark:border-cyan-500/30',
+                'badge_bg': 'bg-cyan-500/20 text-cyan-400',
+                'dot': 'bg-cyan-500',
+                'icon': 'document',
+                'hex': '#0891b2',
+                'timeline_color': 'bg-cyan-600 border-cyan-500 text-white'
+            },
+            'Meeting': {
+                'name': 'Meeting',
+                'color': 'indigo',
+                'bg': 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20 dark:bg-indigo-500/10 dark:text-indigo-400 dark:border-indigo-500/30',
+                'badge_bg': 'bg-indigo-500/20 text-indigo-400',
+                'dot': 'bg-indigo-500',
+                'icon': 'users',
+                'hex': '#4f46e5',
+                'timeline_color': 'bg-indigo-600 border-indigo-500 text-white'
+            },
+            'Research': {
+                'name': 'Research',
+                'color': 'teal',
+                'bg': 'bg-teal-500/10 text-teal-400 border-teal-500/20 dark:bg-teal-500/10 dark:text-teal-400 dark:border-teal-500/30',
+                'badge_bg': 'bg-teal-500/20 text-teal-400',
+                'dot': 'bg-teal-500',
+                'icon': 'search',
+                'hex': '#0d9488',
+                'timeline_color': 'bg-teal-600 border-teal-500 text-white'
+            },
+            'Other': {
+                'name': 'Other',
+                'color': 'slate',
+                'bg': 'bg-slate-500/10 text-slate-400 border-slate-500/20 dark:bg-slate-500/10 dark:text-slate-400 dark:border-slate-500/30',
+                'badge_bg': 'bg-slate-500/20 text-slate-400',
+                'dot': 'bg-slate-400',
+                'icon': 'tag',
+                'hex': '#64748b',
+                'timeline_color': 'bg-slate-600 border-slate-500 text-white'
+            },
+            'Development': {
+                'name': 'Task / Development',
+                'color': 'blue',
+                'bg': 'bg-blue-500/10 text-blue-400 border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/30',
+                'badge_bg': 'bg-blue-500/20 text-blue-400',
+                'dot': 'bg-blue-500',
+                'icon': 'code',
+                'hex': '#2563eb',
+                'timeline_color': 'bg-blue-600 border-blue-500 text-white'
+            },
+        }
+        return mapping.get(cat, mapping['Development'])
+
+
     def pause(self):
         """Pause running timer without finalizing. Preserves accumulated duration."""
         if self.status == TimerStatus.RUNNING or self.is_running:

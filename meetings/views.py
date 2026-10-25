@@ -32,7 +32,7 @@ from .services import (
     record_participant_join, record_participant_leave,
     initiate_call_session, accept_call_session, decline_call_session,
     cancel_call_session, timeout_call_session, mark_call_connected,
-    generate_jaas_jwt, get_jaas_status
+    generate_jaas_jwt, get_jaas_status, validate_jaas_credentials
 )
 
 
@@ -84,22 +84,58 @@ def meet_router(request):
     return redirect('workspaces:create')
 
 
+def get_meethub_meetings_queryset(workspace):
+    """
+    Returns the authoritative queryset of meetings belonging to Meet Hub:
+    exclusively instant and scheduled conferences, excluding chat-initiated calls.
+    Excludes MeetingType.CHAT_CALL, calls bound to chat channels, and 1-on-1 CallSessions.
+    """
+    return Meeting.objects.filter(
+        workspace=workspace
+    ).exclude(
+        meeting_type=MeetingType.CHAT_CALL
+    ).filter(
+        channel__isnull=True,
+        call_sessions__isnull=True
+    )
+
+
 def cleanup_stale_meetings(workspace):
     """
-    Auto-close live meetings that have no active participants and have been
-    abandoned for over 5 minutes.
+    Auto-close live meetings that have no active participants or have been abandoned.
+    - Stale participant presence: if a meeting hasn't received a heartbeat in >180s (and isn't brand new <120s),
+      all lingering participants with left_at IS NULL have left_at finalized to m.updated_at.
+    - Instant meetings and chat calls with 0 active participants are marked ENDED.
+    - Scheduled meetings with 0 active participants are marked ENDED if past scheduled_end.
+    - Abandoned meetings (>180s without heartbeat) are marked ENDED.
     """
     now = timezone.now()
     live_meetings = Meeting.objects.filter(workspace=workspace, status=MeetingStatus.LIVE)
     for m in live_meetings:
+        time_since_creation = (now - m.created_at).total_seconds()
+        time_since_update = (now - m.updated_at).total_seconds()
+
+        # If a meeting has had no heartbeats for >180s and is not brand new (>120s):
+        # any participant whose left_at is still NULL has disconnected. Finalize their left_at.
+        if time_since_creation > 120 and time_since_update > 180:
+            m.participants.filter(left_at__isnull=True).update(left_at=m.updated_at)
+
         active_participants = m.participants.filter(left_at__isnull=True).exists()
-        if not active_participants:
-            time_since_creation = (now - m.created_at).total_seconds()
-            time_since_update = (now - m.updated_at).total_seconds()
-            if time_since_creation > 300 and time_since_update > 180:
+
+        is_instant_or_chat = (
+            m.meeting_type in (MeetingType.INSTANT, MeetingType.CHAT_CALL) or
+            m.scheduled_start is None
+        )
+        is_past_scheduled_end = bool(m.scheduled_end and m.scheduled_end < now)
+        is_abandoned = (time_since_creation > 120 and time_since_update > 180)
+
+        if not active_participants or is_abandoned:
+            if is_instant_or_chat or is_past_scheduled_end or is_abandoned:
                 m.status = MeetingStatus.ENDED
                 m.actual_end = m.updated_at or now
-                m.save(update_fields=['status', 'actual_end', 'updated_at'])
+                if not m.actual_start:
+                    m.actual_start = m.created_at
+                m.save(update_fields=['status', 'actual_end', 'actual_start', 'updated_at'])
                 m.participants.filter(left_at__isnull=True).update(left_at=m.actual_end)
 
 
@@ -119,45 +155,51 @@ def meet_hub_view(request, slug):
     # Auto-close stale or abandoned live meetings
     cleanup_stale_meetings(workspace)
 
-    # 1. Live Meetings in this workspace
-    live_meetings = Meeting.objects.filter(
-        workspace=workspace,
-        status=MeetingStatus.LIVE
-    ).select_related('host').prefetch_related('participants__user', 'invites__user')
+    # Authoritative Meet Hub meetings queryset: instant & scheduled only, chat calls excluded
+    meethub_meetings = get_meethub_meetings_queryset(workspace)
 
-    # 2. Upcoming & Scheduled Meetings (strictly future or live ongoing, excluding ended, cancelled, or passed)
-    upcoming_qs = Meeting.objects.filter(
-        workspace=workspace
-    ).exclude(
-        status__in=[MeetingStatus.ENDED, MeetingStatus.CANCELLED]
+    # 1. Live Meetings in this workspace:
+    # Genuinely active Meet Hub conferences with at least one active participant online right now
+    # Meeting must have had heartbeat activity within the presence window (180s) or be freshly created (<120s)
+    heartbeat_freshness_cutoff = now - timedelta(seconds=180)
+    live_meetings = meethub_meetings.filter(
+        status=MeetingStatus.LIVE,
+        participants__left_at__isnull=True
     ).filter(
-        Q(status=MeetingStatus.LIVE, actual_end__isnull=True) |
-        Q(status=MeetingStatus.SCHEDULED, scheduled_start__gte=now) |
-        Q(status=MeetingStatus.SCHEDULED, scheduled_start__lt=now, scheduled_end__gte=now)
+        Q(updated_at__gte=heartbeat_freshness_cutoff) |
+        Q(created_at__gte=now - timedelta(seconds=120))
+    ).distinct().select_related('host').prefetch_related('participants__user', 'invites__user')
+
+    # 2. Upcoming & Scheduled Meetings:
+    # Strictly SCHEDULED future meetings (never LIVE active meetings, never ended, never instant calls)
+    upcoming_qs = meethub_meetings.filter(
+        status=MeetingStatus.SCHEDULED,
+        scheduled_start__isnull=False
+    ).filter(
+        Q(scheduled_start__gte=now) |
+        Q(scheduled_start__lt=now, scheduled_end__gte=now)
     ).select_related('host').prefetch_related('participants__user', 'invites__user').order_by('scheduled_start')
     upcoming_meetings = upcoming_qs[:10]
 
     # 3. Scheduled Meetings for Today
-    today_meetings = Meeting.objects.filter(
-        workspace=workspace,
+    today_meetings = meethub_meetings.filter(
         status=MeetingStatus.SCHEDULED,
         scheduled_start__gte=today_start,
         scheduled_start__lt=today_end
     ).select_related('host').order_by('scheduled_start')
 
     # 4. Recent Completed Meetings
-    recent_ended = Meeting.objects.filter(
-        workspace=workspace,
+    recent_ended = meethub_meetings.filter(
         status=MeetingStatus.ENDED
     ).select_related('host').order_by('-actual_end', '-created_at')[:6]
 
-    # Metrics
+    # Metrics: Strictly scoped to Meet Hub meetings (chat calls excluded)
     metrics = {
         'live_count': live_meetings.count(),
         'today_count': today_meetings.count(),
-        'upcoming_count': upcoming_qs.filter(status=MeetingStatus.SCHEDULED).count(),
-        'completed_count': Meeting.objects.filter(workspace=workspace, status=MeetingStatus.ENDED).count(),
-        'total_meetings': Meeting.objects.filter(workspace=workspace).count(),
+        'upcoming_count': upcoming_qs.count(),
+        'completed_count': meethub_meetings.filter(status=MeetingStatus.ENDED).count(),
+        'total_meetings': meethub_meetings.count(),
     }
 
     start_form = StartMeetingForm()
@@ -529,6 +571,11 @@ def meeting_room_view(request, slug, meeting_code):
             user=request.user,
             is_moderator=is_host
         )
+        # SECURITY: If JaaS is enabled but JWT generation failed, do NOT fall
+        # back to public Jitsi. Disable the media engine so the template shows
+        # the error banner and a "Return to Dashboard" link instead.
+        if jaas_error:
+            jitsi_meet_enabled = False
     else:
         jitsi_domain = getattr(settings, 'JITSI_DOMAIN', 'meet.jit.si')
         jitsi_room_name = meeting.jitsi_room_name
@@ -744,6 +791,7 @@ def meeting_cancel_view(request, slug, meeting_code):
 def meeting_history_view(request, slug):
     """
     Chronological meeting history view with search, meeting type filter, and pagination.
+    Excludes chat calls server-side.
     """
     workspace = request.workspace
     membership = request.membership
@@ -751,7 +799,8 @@ def meeting_history_view(request, slug):
     # Auto-close stale or abandoned live meetings first
     cleanup_stale_meetings(workspace)
 
-    meetings_qs = Meeting.objects.filter(workspace=workspace).select_related('host').prefetch_related('participants__user')
+    meethub_meetings = get_meethub_meetings_queryset(workspace)
+    meetings_qs = meethub_meetings.select_related('host').prefetch_related('participants__user')
 
     q = request.GET.get('q', '').strip()
     if q:
@@ -780,14 +829,14 @@ def meeting_history_view(request, slug):
         page_obj = paginator.page(1)
 
     status_counts = {
-        'all': Meeting.objects.filter(workspace=workspace).count(),
-        'live': Meeting.objects.filter(workspace=workspace, status=MeetingStatus.LIVE).count(),
-        'scheduled': Meeting.objects.filter(workspace=workspace, status=MeetingStatus.SCHEDULED).count(),
-        'completed': Meeting.objects.filter(workspace=workspace, status=MeetingStatus.ENDED).count(),
-        'cancelled': Meeting.objects.filter(workspace=workspace, status=MeetingStatus.CANCELLED).count(),
+        'all': meethub_meetings.count(),
+        'live': meethub_meetings.filter(status=MeetingStatus.LIVE).count(),
+        'scheduled': meethub_meetings.filter(status=MeetingStatus.SCHEDULED).count(),
+        'completed': meethub_meetings.filter(status=MeetingStatus.ENDED).count(),
+        'cancelled': meethub_meetings.filter(status=MeetingStatus.CANCELLED).count(),
     }
 
-    all_meetings = Meeting.objects.filter(workspace=workspace)
+    all_meetings = meethub_meetings
     total_count = all_meetings.count()
     completed_meetings = all_meetings.filter(status=MeetingStatus.ENDED)
     total_minutes = sum([m.duration_minutes or 30 for m in completed_meetings])
@@ -961,7 +1010,8 @@ def meeting_remove_participant_api(request, slug, meeting_code, user_id=None):
 def meeting_end_api(request, slug, meeting_code):
     """
     Host action to end meeting for all, or participant leave action.
-    Properly finalizes attendance for the participant and closes the session.
+    Properly finalizes attendance for the participant, cleans up presence,
+    and transitions empty instant meetings or authorized end requests to ENDED.
     """
     if request.method != 'POST':
         return HttpResponseBadRequest("POST required")
@@ -969,23 +1019,26 @@ def meeting_end_api(request, slug, meeting_code):
     workspace = request.workspace
     clean_code = _clean_code(meeting_code)
     meeting = Meeting.objects.filter(workspace=workspace, meeting_code__iexact=clean_code).first()
-    redirect_url = reverse('workspaces:workspace_dashboard', kwargs={'slug': workspace.slug})
+    redirect_url = reverse('meetings:meet_hub', kwargs={'slug': workspace.slug})
     if not meeting:
         if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.content_type == 'application/json':
             return JsonResponse({'success': True, 'redirect_url': redirect_url, 'message': 'Meeting not found or already ended.'})
         return redirect(redirect_url)
 
-    # Determine action ('leave' vs 'end')
+    # Determine action ('leave' vs 'end') and whether this is a page unload / beacon
     action = 'leave'
+    is_unload = False
     if request.content_type == 'application/json' or request.headers.get('x-requested-with') == 'XMLHttpRequest':
         try:
             import json
             data = json.loads(request.body.decode('utf-8')) if request.body else {}
             action = data.get('action', 'leave')
+            is_unload = bool(data.get('is_unload', False))
         except Exception:
             action = 'leave'
     else:
         action = request.POST.get('action', 'leave')
+        is_unload = request.POST.get('is_unload') in ('true', '1', True)
 
     is_host_or_manager = (meeting.host == request.user or request.membership.can_manage_content)
     has_call_session = CallSession.objects.filter(meeting=meeting).exists()
@@ -1006,23 +1059,85 @@ def meeting_end_api(request, slug, meeting_code):
             async_to_sync(channel_layer.group_send)(
                 f"meeting_{meeting.id}",
                 {
+                    "type": "room_meeting_ended",
+                    "message": f"{request.user.full_name or request.user.email} ended the meeting.",
+                }
+            )
+            async_to_sync(channel_layer.group_send)(
+                f"meeting_{meeting.id}",
+                {
                     "type": "room_call_ended",
                     "message": f"{request.user.full_name or request.user.email} ended the meeting.",
                 }
             )
         messages.success(request, f"Meeting '{meeting.title}' has ended.")
-    elif has_call_session:
-        # In a 1-on-1 direct CallSession, hanging up concludes the call
-        end_meeting(meeting, request.user)
-        messages.success(request, f"Call '{meeting.title}' has ended.")
     else:
-        # Standard participant leave: record leave and attendance
+        # Action is 'leave': Participant leaves conference
+        # Check multi-tab presence
+        from django.core.cache import cache
+        active_sockets = cache.get(f"meeting_{meeting.id}_user_{request.user.id}_sockets", 0)
+
+        # If user still has other active tabs or sockets in this meeting (e.g. Pop-out window),
+        # do not mark them as left or end the meeting.
+        if active_sockets > 0:
+            if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.content_type == 'application/json':
+                return JsonResponse({
+                    'success': True,
+                    'action': 'leave',
+                    'active_sockets': active_sockets,
+                    'message': 'Secondary tab closed; active meeting preserved in remaining window.',
+                    'redirect_url': redirect_url
+                })
+            return redirect(redirect_url)
+
         record_participant_leave(meeting, request.user)
-        # If no more participants remain in an instant meeting, auto-end it
-        if not meeting.participants.filter(left_at__isnull=True).exists():
-            if meeting.meeting_type in (MeetingType.INSTANT, MeetingType.CHAT_CALL):
+
+        # Notify room peers via Channels
+        channel_layer = get_channel_layer()
+        if channel_layer:
+            async_to_sync(channel_layer.group_send)(
+                f"meeting_{meeting.id}",
+                {
+                    "type": "room_peer_left",
+                    "peer_id": str(request.user.id),
+                    "peer_name": request.user.full_name or request.user.username or request.user.email,
+                }
+            )
+
+        if is_unload:
+            # For reload / refresh beacon (F5), preserve the meeting session so refreshing doesn't terminate it
+            pass
+        elif has_call_session:
+            # 1-on-1 direct call concludes when either participant leaves
+            end_meeting(meeting, request.user)
+            messages.success(request, f"Call '{meeting.title}' has ended.")
+        else:
+            # Reconcile stale participants who abandoned the meeting (>180s without heartbeat)
+            now = timezone.now()
+            time_since_creation = (now - meeting.created_at).total_seconds()
+            time_since_update = (now - meeting.updated_at).total_seconds()
+            if time_since_creation > 120 and time_since_update > 180:
+                meeting.participants.filter(left_at__isnull=True).exclude(user=request.user).update(left_at=meeting.updated_at)
+
+            # Check remaining active participants in the meeting
+            remaining_active = meeting.participants.filter(left_at__isnull=True).exclude(user=request.user)
+            is_empty = not remaining_active.exists()
+            is_instant = (
+                meeting.meeting_type in (MeetingType.INSTANT, MeetingType.CHAT_CALL) or
+                meeting.scheduled_start is None
+            )
+
+            if is_empty and is_instant:
+                # All participants have left the instant meeting -> End meeting
                 end_meeting(meeting, request.user)
-        messages.info(request, "You have left the meeting.")
+            elif is_empty and meeting.host == request.user:
+                # Host was sole participant in scheduled meeting and left
+                end_meeting(meeting, request.user)
+            elif is_empty and (meeting.scheduled_end and meeting.scheduled_end <= timezone.now()):
+                # Scheduled meeting past its end time with no participants
+                end_meeting(meeting, request.user)
+
+            messages.info(request, "You have left the meeting.")
 
     participant = meeting.participants.filter(user=request.user).order_by('-joined_at').first()
     duration_sec = participant.duration_seconds if participant else 0

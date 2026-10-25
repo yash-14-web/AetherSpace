@@ -13,7 +13,12 @@ Provides real-time team communication, public/private discussion channels, 1-on-
 3. **1-on-1 Direct Messaging (DM)**: Users message peers directly. System maintains canonical user-pair ordering in `DirectMessageConversation`.
 4. **Emoji Reactions**: Users add reactions (👍, ❤️, 🚀, 👀); reactions group reactively with total counts.
 5. **Asset Pinning & Attachments**: Important messages are pinned (`is_pinned=True`) for quick access in the channel details drawer. Files stream to Supabase Storage.
-6. **In-Chat Calling Trigger**:
+6. **Channel Visual Identity**: Space owners/admins configure custom channel identity in Channel Details:
+   - Curated built-in icons (14 options: `#`, `</>`, `🚀`, `✨`, `📢`, `💬`, `💼`, `💡`, `🪲`, `📁`, `🔒`, `🌐`, `🛡️`, `🧊`) selected via compact responsive grid (4 cols mobile, 6 cols desktop).
+   - Custom square image uploads (PNG/JPG/WEBP/SVG up to 2MB).
+   - Default initials/hash fallback with seamless one-click reset.
+   - Enforced backend allowlist validation (`ALLOWED_CHANNEL_ICONS`) and server-side RBAC.
+7. **In-Chat Calling Trigger**:
    - In Channels: Form submit posts a joinable meeting card to the stream and redirects host to room.
    - In DMs: Click Voice / Video button dispatches `aetherspace:initiate_call` CustomEvent, ringing peer globally.
 

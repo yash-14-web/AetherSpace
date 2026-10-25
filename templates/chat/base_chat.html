@@ -3,6 +3,295 @@
 
 {% block title %}{{ title|default:"Chat — AetherSpace" }}{% endblock %}
 
+{% block extra_head %}
+<style>
+.aether-chat-editor:empty:before {
+    content: attr(data-placeholder);
+    color: #94a3b8;
+    pointer-events: none;
+    display: block;
+}
+.dark .aether-chat-editor:empty:before {
+    color: #71717a;
+}
+
+/* Scoped List & Typography Styles for Aether Chat Composer & Message Stream */
+.aether-chat-editor ul,
+.aether-message-content ul {
+    list-style-type: disc !important;
+    margin-top: 0.35rem !important;
+    margin-bottom: 0.35rem !important;
+    padding-left: 1.4rem !important;
+    white-space: normal !important;
+}
+
+.aether-chat-editor ol,
+.aether-message-content ol {
+    list-style-type: decimal !important;
+    margin-top: 0.35rem !important;
+    margin-bottom: 0.35rem !important;
+    padding-left: 1.4rem !important;
+    white-space: normal !important;
+}
+
+.aether-chat-editor ul ul,
+.aether-chat-editor ol ul,
+.aether-message-content ul ul,
+.aether-message-content ol ul {
+    list-style-type: circle !important;
+    margin-top: 0.15rem !important;
+    margin-bottom: 0.15rem !important;
+    padding-left: 1.25rem !important;
+}
+
+.aether-chat-editor ol ol,
+.aether-chat-editor ul ol,
+.aether-message-content ol ol,
+.aether-message-content ul ol {
+    list-style-type: lower-alpha !important;
+    margin-top: 0.15rem !important;
+    margin-bottom: 0.15rem !important;
+    padding-left: 1.25rem !important;
+}
+
+.aether-chat-editor li,
+.aether-message-content li {
+    display: list-item !important;
+    margin-top: 0.15rem !important;
+    margin-bottom: 0.15rem !important;
+    padding-left: 0.15rem !important;
+    white-space: normal !important;
+}
+
+.aether-message-content blockquote {
+    border-left: 3px solid #3b82f6;
+    padding-left: 0.75rem;
+    margin-top: 0.35rem;
+    margin-bottom: 0.35rem;
+    font-style: italic;
+    opacity: 0.9;
+}
+
+/* Scoped Inline Code & Code Block Styles for Aether Chat */
+.aether-chat-editor code,
+.aether-message-content code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
+    font-size: 0.82em !important;
+    padding: 0.15rem 0.35rem !important;
+    border-radius: 0.375rem !important;
+    background-color: rgba(226, 232, 240, 0.75) !important;
+    color: #e11d48 !important; /* Rose-600 */
+    border: 1px solid rgba(203, 213, 225, 0.8) !important;
+    word-break: break-word !important;
+}
+
+.dark .aether-chat-editor code,
+.dark .aether-message-content code {
+    background-color: rgba(39, 39, 42, 0.75) !important;
+    color: #fb7185 !important; /* Rose-400 */
+    border: 1px solid rgba(63, 63, 70, 0.8) !important;
+}
+
+.aether-chat-editor pre,
+.aether-message-content pre {
+    background-color: #0f172a !important; /* Slate-900 */
+    color: #f8fafc !important; /* Slate-50 */
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
+    font-size: 0.8rem !important;
+    line-height: 1.5 !important;
+    padding: 0.75rem 1rem !important;
+    border-radius: 0.625rem !important;
+    border: 1px solid rgba(51, 65, 85, 0.8) !important;
+    margin: 0.5rem 0 !important;
+    white-space: pre !important;
+    overflow-x: auto !important;
+}
+
+.aether-chat-editor pre code,
+.aether-message-content pre code {
+    background-color: transparent !important;
+    color: inherit !important;
+    border: none !important;
+    padding: 0 !important;
+    font-size: inherit !important;
+    border-radius: 0 !important;
+    white-space: pre !important;
+}
+
+/* Scoped Hyperlinks for Aether Chat Composer & Message Stream */
+.aether-chat-editor a,
+.aether-message-content a {
+    color: #2563eb !important; /* Blue-600 */
+    text-decoration: underline !important;
+    text-underline-offset: 2.5px !important;
+    text-decoration-thickness: 1.5px !important;
+    font-weight: 500 !important;
+    word-break: break-all !important;
+    overflow-wrap: anywhere !important;
+    transition: color 0.15s ease, text-decoration-color 0.15s ease !important;
+    cursor: pointer !important;
+    pointer-events: auto !important;
+}
+
+.aether-chat-editor a:hover,
+.aether-message-content a:hover {
+    color: #1d4ed8 !important; /* Blue-700 */
+    text-decoration-color: #1d4ed8 !important;
+}
+
+.aether-chat-editor a:focus-visible,
+.aether-message-content a:focus-visible {
+    outline: 2px solid #2563eb !important;
+    outline-offset: 2px !important;
+    border-radius: 0.125rem !important;
+}
+
+.dark .aether-chat-editor a,
+.dark .aether-message-content a {
+    color: #38bdf8 !important; /* Sky-400 */
+    text-decoration-color: rgba(56, 189, 248, 0.7) !important;
+}
+
+.dark .aether-chat-editor a:hover,
+.dark .aether-message-content a:hover {
+    color: #7dd3fc !important; /* Sky-300 */
+    text-decoration-color: #7dd3fc !important;
+}
+
+.dark .aether-chat-editor a:focus-visible,
+.dark .aether-message-content a:focus-visible {
+    outline: 2px solid #38bdf8 !important;
+    outline-offset: 2px !important;
+}
+
+/* Scoped Emoji Picker Popover & Responsive Multi-Column Grid */
+.aether-emoji-picker {
+    width: 20.5rem !important; /* 328px */
+    max-width: calc(100vw - 2rem) !important;
+    max-height: 20rem !important;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.25), 0 8px 10px -6px rgba(0, 0, 0, 0.2) !important;
+    z-index: 50 !important;
+}
+
+.aether-emoji-picker[style*="display: none"] {
+    display: none !important;
+}
+
+.aether-emoji-header {
+    flex-shrink: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    padding-bottom: 0.5rem !important;
+    margin-bottom: 0.5rem !important;
+    border-bottom: 1px solid rgba(226, 232, 240, 0.8) !important;
+}
+
+.dark .aether-emoji-header {
+    border-bottom-color: rgba(39, 39, 42, 0.9) !important;
+}
+
+.aether-emoji-grid {
+    display: grid !important;
+    grid-template-columns: repeat(8, minmax(0, 1fr)) !important;
+    gap: 0.25rem !important;
+    max-height: 14rem !important;
+    overflow-y: auto !important;
+    padding: 0.25rem !important;
+    align-content: start !important;
+    justify-items: center !important;
+}
+
+@media (max-width: 480px) {
+    .aether-emoji-picker {
+        width: 17.5rem !important; /* 280px */
+    }
+    .aether-emoji-grid {
+        grid-template-columns: repeat(7, minmax(0, 1fr)) !important;
+    }
+}
+
+.aether-emoji-btn {
+    width: 2rem !important;
+    height: 2rem !important;
+    font-size: 1.15rem !important;
+    line-height: 1 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 0.5rem !important;
+    transition: transform 0.12s ease, background-color 0.12s ease !important;
+    cursor: pointer !important;
+    user-select: none !important;
+}
+
+.aether-emoji-btn:hover {
+    transform: scale(1.22) !important;
+    background-color: rgba(241, 245, 249, 0.9) !important;
+}
+
+.dark .aether-emoji-btn:hover {
+    background-color: rgba(39, 39, 42, 0.9) !important;
+}
+
+.aether-emoji-btn:focus-visible {
+    outline: 2px solid #3b82f6 !important;
+    outline-offset: 1px !important;
+    transform: scale(1.15) !important;
+}
+
+/* Scoped Mention Pills for Aether Chat */
+.aether-mention {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 0.125rem !important;
+    padding: 0.125rem 0.5rem !important;
+    border-radius: 9999px !important;
+    font-size: 0.75rem !important;
+    font-weight: 600 !important;
+    line-height: 1.25 !important;
+    background-color: #dbeafe !important; /* blue-100 */
+    color: #1d4ed8 !important; /* blue-700 */
+    border: 1px solid #bfdbfe !important; /* blue-200 */
+    cursor: pointer !important;
+    text-decoration: none !important;
+    white-space: nowrap !important;
+    vertical-align: baseline !important;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease !important;
+}
+
+.aether-mention:hover {
+    background-color: #bfdbfe !important; /* blue-200 */
+    border-color: #93c5fd !important; /* blue-300 */
+    color: #1e40af !important; /* blue-800 */
+}
+
+.aether-mention:focus-visible {
+    outline: 2px solid #2563eb !important;
+    outline-offset: 1px !important;
+}
+
+.dark .aether-mention {
+    background-color: rgba(30, 58, 138, 0.45) !important; /* blue-900/45 */
+    color: #93c5fd !important; /* blue-300 */
+    border: 1px solid rgba(59, 130, 246, 0.35) !important; /* blue-500/35 */
+}
+
+.dark .aether-mention:hover {
+    background-color: rgba(30, 58, 138, 0.7) !important;
+    border-color: rgba(96, 165, 250, 0.5) !important;
+    color: #dbeafe !important;
+}
+
+.dark .aether-mention:focus-visible {
+    outline: 2px solid #60a5fa !important;
+    outline-offset: 1px !important;
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="h-[calc(100vh-6.5rem)] flex -m-4 sm:-m-6 lg:-m-8 bg-slate-50 dark:bg-obsidian-950 overflow-hidden relative" 
      x-data="{ 
@@ -37,26 +326,27 @@
            }"
            class="fixed inset-y-0 left-0 z-40 lg:static w-72 bg-white dark:bg-[#0c1322] border-r border-slate-200 dark:border-zinc-800/80 flex flex-col shrink-0 transition-all duration-200 ease-in-out">
         
-        <!-- Sidebar Header -->
-        <div class="h-14 px-4 border-b border-slate-200 dark:border-zinc-800/80 flex items-center justify-between">
-            <a href="{% url 'chat:chat_home' slug=workspace.slug %}" class="flex items-center space-x-2 text-slate-900 dark:text-zinc-100 font-bold text-sm hover:text-aether-blue transition-colors">
-                <div class="w-7 h-7 rounded-lg bg-blue-600/10 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-xs">
-                    #
-                </div>
-                <span class="truncate">{{ workspace.name }} Chat</span>
+        <!-- Sidebar Header with Workspace Identity & Settings -->
+        <div class="h-14 px-3.5 border-b border-slate-200 dark:border-zinc-800/80 flex items-center justify-between">
+            <a href="{% url 'chat:chat_home' slug=workspace.slug %}" class="flex items-center space-x-2.5 text-slate-900 dark:text-zinc-100 font-bold text-sm hover:text-blue-600 dark:hover:text-blue-400 transition-colors truncate">
+                {% include 'components/identity_badge.html' with entity=workspace size='w-8 h-8' radius='rounded-xl' text_size='text-xs' %}
+                <span class="truncate">{{ workspace.name }}</span>
             </a>
-            <div class="flex items-center space-x-1">
-                <a href="{% url 'chat:channel_create' slug=workspace.slug %}" 
-                   class="p-1.5 rounded-lg text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
-                   title="Create Channel">
+            <div class="flex items-center space-x-1 shrink-0">
+                {% if membership.is_admin or membership.is_manager %}
+                <a href="{% url 'workspaces:settings' slug=workspace.slug %}" 
+                   class="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
+                   title="Workspace Settings & Identity">
                     <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                     </svg>
                 </a>
+                {% endif %}
                 <button type="button" 
                         @click="toggleChatNav()" 
                         class="hidden lg:flex p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors" 
-                        title="Collapse channels sidebar to maximize screen space">
+                        title="Collapse channels sidebar">
                     <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
                     </svg>
@@ -68,24 +358,24 @@
         <div class="flex-1 overflow-y-auto p-3 space-y-5">
 
             <!-- Primary Nav Links -->
-            <div class="space-y-0.5">
+            <div class="space-y-1">
                 <a href="{% url 'chat:chat_home' slug=workspace.slug %}" 
-                   class="flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold {% if request.resolver_match.url_name == 'chat_home' %}bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-900/60{% else %}text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800/60{% endif %} transition-colors">
-                    <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                   class="flex items-center space-x-2.5 px-3 py-2 rounded-xl text-xs font-bold {% if request.resolver_match.url_name == 'chat_home' %}bg-blue-600 text-white shadow-xs{% else %}text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800/60{% endif %} transition-colors">
+                    <svg class="w-4 h-4 {% if request.resolver_match.url_name == 'chat_home' %}text-white{% else %}text-slate-400 dark:text-zinc-500{% endif %}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
                     </svg>
                     <span>Chat Home</span>
                 </a>
                 <a href="{% url 'chat:pinned_assets' slug=workspace.slug %}" 
-                   class="flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold {% if request.resolver_match.url_name == 'pinned_assets' %}bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-900/60{% else %}text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800/60{% endif %} transition-colors">
-                    <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                   class="flex items-center space-x-2.5 px-3 py-2 rounded-xl text-xs font-bold {% if request.resolver_match.url_name == 'pinned_assets' %}bg-blue-600 text-white shadow-xs{% else %}text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800/60{% endif %} transition-colors">
+                    <svg class="w-4 h-4 {% if request.resolver_match.url_name == 'pinned_assets' %}text-white{% else %}text-slate-400 dark:text-zinc-500{% endif %}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/>
                     </svg>
                     <span>Pinned Assets</span>
                 </a>
                 <a href="{% url 'chat:shared_files' slug=workspace.slug %}" 
-                   class="flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold {% if request.resolver_match.url_name == 'shared_files' %}bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-900/60{% else %}text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800/60{% endif %} transition-colors">
-                    <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                   class="flex items-center space-x-2.5 px-3 py-2 rounded-xl text-xs font-bold {% if request.resolver_match.url_name == 'shared_files' %}bg-blue-600 text-white shadow-xs{% else %}text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800/60{% endif %} transition-colors">
+                    <svg class="w-4 h-4 {% if request.resolver_match.url_name == 'shared_files' %}text-white{% else %}text-slate-400 dark:text-zinc-500{% endif %}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
                     </svg>
                     <span>Shared Files</span>
@@ -96,29 +386,23 @@
             <div>
                 <div class="flex items-center justify-between px-2.5 mb-1.5">
                     <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500">Channels</span>
+                    {% if membership.is_admin or membership.is_manager or not workspace.is_strict_channel_creation %}
                     <a href="{% url 'chat:channel_create' slug=workspace.slug %}" 
                        class="text-[11px] font-semibold text-blue-600 dark:text-blue-400 hover:underline flex items-center space-x-0.5">
                         <span>+ Add</span>
                     </a>
+                    {% endif %}
                 </div>
                 <div class="space-y-0.5">
                     {% for ch in channels %}
                         <a href="{% url 'chat:channel_view' slug=workspace.slug channel_slug=ch.slug %}" 
-                           class="flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-semibold {% if channel and channel.slug == ch.slug %}bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-900/60{% else %}text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800/60{% endif %} transition-colors group">
+                           class="flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs font-semibold {% if channel and channel.slug == ch.slug %}bg-blue-600 text-white shadow-xs{% else %}text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800/60{% endif %} transition-colors group">
                             <div class="flex items-center space-x-2 truncate">
-                                <span class="text-slate-400 dark:text-zinc-500 group-hover:text-blue-500">
-                                    {% if ch.is_private %}
-                                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
-                                        </svg>
-                                    {% else %}
-                                        #
-                                    {% endif %}
-                                </span>
+                                {% include 'components/identity_badge.html' with entity=ch size='w-4 h-4' radius='rounded' text_size='text-[10px]' is_channel=True %}
                                 <span class="truncate">{{ ch.name }}</span>
                             </div>
                             {% if ch.unread_count %}
-                                <span class="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-blue-600 text-white">
+                                <span class="px-1.5 py-0.5 rounded-full text-[10px] font-bold {% if channel and channel.slug == ch.slug %}bg-white text-blue-600{% else %}bg-blue-600 text-white{% endif %}">
                                     {{ ch.unread_count }}
                                 </span>
                             {% endif %}
@@ -142,10 +426,10 @@
                 <div class="space-y-0.5">
                     {% for dm_item in formatted_dms %}
                         <a href="{% url 'chat:direct_message' slug=workspace.slug user_id=dm_item.other_user.id %}" 
-                           class="flex items-center space-x-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold {% if other_user and other_user.id == dm_item.other_user.id %}bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-900/60{% else %}text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800/60{% endif %} transition-colors">
+                           class="flex items-center space-x-2.5 px-2.5 py-2 rounded-xl text-xs font-semibold {% if other_user and other_user.id == dm_item.other_user.id %}bg-blue-600 text-white shadow-xs{% else %}text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800/60{% endif %} transition-colors">
                             <div class="relative shrink-0">
-                                {% include 'components/avatar.html' with user=dm_item.other_user size='w-7 h-7' text_size='text-[9px]' %}
-                                <span class="absolute bottom-0 right-0 w-2 h-2 rounded-full ring-2 ring-white dark:ring-obsidian-950
+                                {% include 'components/avatar.html' with user=dm_item.other_user size='w-8 h-8' text_size='text-[10px]' %}
+                                <span class="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full ring-2 {% if other_user and other_user.id == dm_item.other_user.id %}ring-blue-600{% else %}ring-white dark:ring-[#0c1322]{% endif %}
                                     {% if dm_item.other_user.availability_status == 'available' %}bg-emerald-500
                                     {% elif dm_item.other_user.availability_status == 'busy' %}bg-rose-500
                                     {% elif dm_item.other_user.availability_status == 'dnd' %}bg-red-600
@@ -155,11 +439,18 @@
                                     {% else %}bg-zinc-500{% endif %}"
                                     title="{{ dm_item.other_user.availability_status|default:'offline'|capfirst }}"></span>
                             </div>
-                            <div class="flex-1 min-w-0 truncate">
-                                <span class="block truncate">{{ dm_item.other_user.full_name|default:dm_item.other_user.email }}</span>
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center justify-between">
+                                    <span class="block truncate font-bold">{{ dm_item.other_user.full_name|default:dm_item.other_user.email }}</span>
+                                    {% if dm_item.last_message %}
+                                        <span class="text-[10px] {% if other_user and other_user.id == dm_item.other_user.id %}text-blue-100{% else %}text-slate-400 dark:text-zinc-500{% endif %} shrink-0 font-normal">
+                                            {{ dm_item.last_message.created_at|date:"g:i A" }}
+                                        </span>
+                                    {% endif %}
+                                </div>
                                 {% if dm_item.last_message %}
-                                    <span class="block text-[10px] text-slate-400 dark:text-zinc-500 truncate font-normal">
-                                        {{ dm_item.last_message.content|truncatechars:24 }}
+                                    <span class="block text-[11px] {% if other_user and other_user.id == dm_item.other_user.id %}text-blue-100{% else %}text-slate-500 dark:text-zinc-400{% endif %} truncate font-normal mt-0.5">
+                                        {{ dm_item.last_message.content|truncatechars:28 }}
                                     </span>
                                 {% endif %}
                             </div>
@@ -419,5 +710,6 @@
     });
 })();
 </script>
+<script src="{% static 'js/aether_chat_composer.js' %}?v={% now 'U' %}"></script>
 {% endblock %}
 

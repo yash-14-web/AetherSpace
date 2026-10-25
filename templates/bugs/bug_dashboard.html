@@ -146,15 +146,11 @@
                 <div class="relative w-36 h-36 flex items-center justify-center">
                     <svg class="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
                         <circle cx="18" cy="18" r="15.915" fill="none" stroke="currentColor" stroke-width="3" class="text-slate-100 dark:text-zinc-800/60"/>
-                        <!-- Open slice -->
-                        <circle cx="18" cy="18" r="15.915" fill="none" stroke="#ef4444" stroke-width="3.5"
-                                stroke-dasharray="{{ status_breakdown.open.pct }} 100" stroke-dashoffset="0" stroke-linecap="round"/>
-                        <!-- In progress slice -->
-                        <circle cx="18" cy="18" r="15.915" fill="none" stroke="#3b82f6" stroke-width="3.5"
-                                stroke-dasharray="{{ status_breakdown.in_progress.pct }} 100" stroke-dashoffset="-{{ status_breakdown.open.pct }}" stroke-linecap="round"/>
-                        <!-- Resolved slice -->
-                        <circle cx="18" cy="18" r="15.915" fill="none" stroke="#10b981" stroke-width="3.5"
-                                stroke-dasharray="{{ status_breakdown.resolved.pct }} 100" stroke-dashoffset="-{{ status_breakdown.open.pct|add:status_breakdown.in_progress.pct }}" stroke-linecap="round"/>
+                        <!-- Dynamic status segments (Open, In Progress, Resolved, Closed) -->
+                        {% for segment in chart_segments %}
+                            <circle cx="18" cy="18" r="15.915" fill="none" stroke="{{ segment.color }}" stroke-width="3.5"
+                                    stroke-dasharray="{{ segment.dasharray }}" stroke-dashoffset="{{ segment.dashoffset }}"/>
+                        {% endfor %}
                     </svg>
                     <div class="absolute flex flex-col items-center justify-center text-center">
                         <span class="text-2xl font-black text-slate-900 dark:text-zinc-100">{{ total_bugs }}</span>

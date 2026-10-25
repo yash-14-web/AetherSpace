@@ -16,9 +16,7 @@
     <!-- Header matching Panel 5 & Google Chat space header -->
     <div class="p-6 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800/80 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div class="flex items-center space-x-3">
-            <div class="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-xl">
-                {% if channel.is_private %}🔒{% else %}#{% endif %}
-            </div>
+            {% include 'components/identity_badge.html' with entity=channel size='w-12 h-12' radius='rounded-2xl' text_size='text-lg' is_channel=True %}
             <div>
                 <div class="flex items-center space-x-2">
                     <h1 class="text-lg sm:text-xl font-bold text-slate-900 dark:text-zinc-100">
@@ -139,6 +137,30 @@
                 </div>
             </div>
         </div>
+
+        {% if can_manage %}
+        <!-- Channel Visual Identity Management -->
+        <div class="p-6 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 shadow-sm space-y-4">
+            <div>
+                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500">
+                    Channel Visual Identity &amp; Icon
+                </h3>
+                <p class="text-[11px] text-slate-500 dark:text-zinc-400 mt-0.5">
+                    Configure a built-in icon or upload a custom image avatar for #{{ channel.name }}.
+                </p>
+            </div>
+            <form method="post" enctype="multipart/form-data" class="space-y-4">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="update_identity">
+                {% include 'components/identity_picker.html' with entity=channel is_channel=True file_input_name="avatar_file" label="Channel Visual Identity" %}
+                <div class="flex justify-end pt-2">
+                    <button type="submit" class="px-5 py-2 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-xs transition-colors">
+                        Save Identity Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+        {% endif %}
     </div>
 
     <!-- TAB 2: MEMBERS (Google Chat Style Management) -->

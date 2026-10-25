@@ -217,6 +217,29 @@ class UserProfile(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     @property
+    def skills(self):
+        """Return list of skill strings stored in profile preferences."""
+        if not self.preferences or not isinstance(self.preferences, dict):
+            return []
+        skills_data = self.preferences.get('skills', [])
+        if isinstance(skills_data, list):
+            return [str(s).strip() for s in skills_data if str(s).strip()]
+        return []
+
+    def set_skills(self, skills_list):
+        """Clean and persist list of unique skills in profile preferences."""
+        if not isinstance(self.preferences, dict):
+            self.preferences = {}
+        cleaned = []
+        seen = set()
+        for s in skills_list:
+            item = str(s).strip()
+            if item and item.lower() not in seen:
+                seen.add(item.lower())
+                cleaned.append(item[:50])
+        self.preferences['skills'] = cleaned
+
+    @property
     def availability_status(self):
         pref = self.preferences or {}
         pref_status = pref.get('status', 'available')

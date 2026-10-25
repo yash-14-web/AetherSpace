@@ -261,6 +261,155 @@ class MeetingViewsAndRBACTests(TestCase):
         self.assertContains(response, 'Architecture Sync')
         self.assertNotContains(response, 'No upcoming meetings')
 
+    def test_meet_hub_instant_meeting_lifecycle_live_then_ended(self):
+        """
+        Verify:
+        1. Instant meeting appears in live_meetings and NOT in upcoming_meetings.
+        2. Leaving the instant meeting when alone transitions it to ENDED.
+        3. Refreshing Meet Hub shows no live conference banner.
+        """
+        self.client.force_login(self.owner)
+        meeting = create_instant_meeting(
+            workspace=self.workspace,
+            host=self.owner,
+            title='Ad-hoc Sync Meeting'
+        )
+
+        hub_url = reverse('meetings:meet_hub', kwargs={'slug': self.workspace.slug})
+        resp1 = self.client.get(hub_url)
+        self.assertEqual(resp1.status_code, 200)
+        self.assertIn(meeting, resp1.context['live_meetings'])
+        self.assertNotIn(meeting, resp1.context['upcoming_meetings'])
+        self.assertContains(resp1, 'Live Conference')
+        self.assertContains(resp1, 'Ad-hoc Sync Meeting')
+
+        # Host leaves via meeting_end_api
+        end_url = reverse('meetings:meeting_end_api', kwargs={
+            'slug': self.workspace.slug,
+            'meeting_code': meeting.meeting_code
+        })
+        leave_resp = self.client.post(
+            end_url,
+            data=json.dumps({'action': 'leave'}),
+            content_type='application/json'
+        )
+        self.assertEqual(leave_resp.status_code, 200)
+
+        # Meeting must be transitioned to ENDED
+        meeting.refresh_from_db()
+        self.assertEqual(meeting.status, MeetingStatus.ENDED)
+
+        # Re-fetch Meet Hub: Must NOT be live or in upcoming
+        resp2 = self.client.get(hub_url)
+        self.assertEqual(resp2.status_code, 200)
+        self.assertEqual(resp2.context['live_meetings'].count(), 0)
+        self.assertNotIn(meeting, resp2.context['upcoming_meetings'])
+        self.assertNotContains(resp2, 'Live Conference')
+        self.assertContains(resp2, 'Meeting ready')
+
+    def test_meet_hub_chat_calls_excluded_from_hub(self):
+        """Verify chat-initiated calls never appear in Meet Hub live banner, upcoming, or counts."""
+        channel = Channel.objects.create(
+            workspace=self.workspace,
+            name='dev-chat',
+            slug='dev-chat',
+            created_by=self.owner
+        )
+        chat_meeting = create_chat_call(
+            workspace=self.workspace,
+            host=self.owner,
+            channel=channel
+        )
+        self.assertEqual(chat_meeting.status, MeetingStatus.LIVE)
+        self.assertEqual(chat_meeting.meeting_type, MeetingType.CHAT_CALL)
+
+        self.client.force_login(self.owner)
+        hub_url = reverse('meetings:meet_hub', kwargs={'slug': self.workspace.slug})
+        response = self.client.get(hub_url)
+        self.assertEqual(response.status_code, 200)
+
+        # Must NOT appear in live_meetings or upcoming_meetings
+        self.assertNotIn(chat_meeting, response.context['live_meetings'])
+        self.assertNotIn(chat_meeting, response.context['upcoming_meetings'])
+        self.assertEqual(response.context['metrics']['live_count'], 0)
+        self.assertNotContains(response, 'Live Conference')
+        self.assertContains(response, 'Meeting ready')
+
+    def test_multi_participant_leave_vs_end_meeting(self):
+        """
+        Verify:
+        1. When participant 1 leaves a 2-person meeting, meeting remains LIVE for participant 2.
+        2. When participant 2 leaves, the instant meeting transitions to ENDED.
+        """
+        meeting = create_instant_meeting(
+            workspace=self.workspace,
+            host=self.owner,
+            title='Two Person Sync'
+        )
+        record_participant_join(meeting, self.contributor)
+
+        # Contributor leaves
+        self.client.force_login(self.contributor)
+        end_url = reverse('meetings:meeting_end_api', kwargs={
+            'slug': self.workspace.slug,
+            'meeting_code': meeting.meeting_code
+        })
+        resp1 = self.client.post(
+            end_url,
+            data=json.dumps({'action': 'leave'}),
+            content_type='application/json'
+        )
+        self.assertEqual(resp1.status_code, 200)
+
+        # Meeting is still LIVE because owner is still connected
+        meeting.refresh_from_db()
+        self.assertEqual(meeting.status, MeetingStatus.LIVE)
+
+        # Owner leaves
+        self.client.force_login(self.owner)
+        resp2 = self.client.post(
+            end_url,
+            data=json.dumps({'action': 'leave'}),
+            content_type='application/json'
+        )
+        self.assertEqual(resp2.status_code, 200)
+
+        # Meeting is now ENDED
+        meeting.refresh_from_db()
+        self.assertEqual(meeting.status, MeetingStatus.ENDED)
+
+    def test_upcoming_meeting_not_duplicated_and_ended_meeting_not_in_upcoming(self):
+        """
+        Verify:
+        1. Scheduled meetings appear in upcoming_meetings.
+        2. Ending a scheduled meeting removes it from upcoming_meetings.
+        3. No duplicate cards appear.
+        """
+        start_time = timezone.now() + timedelta(days=1)
+        sched_meeting = schedule_meeting(
+            workspace=self.workspace,
+            host=self.owner,
+            title='Future Sprint Planning',
+            scheduled_start=start_time,
+            duration_minutes=45
+        )
+
+        self.client.force_login(self.owner)
+        hub_url = reverse('meetings:meet_hub', kwargs={'slug': self.workspace.slug})
+        resp1 = self.client.get(hub_url)
+        self.assertIn(sched_meeting, resp1.context['upcoming_meetings'])
+        self.assertNotIn(sched_meeting, resp1.context['live_meetings'])
+
+        # End the scheduled meeting
+        end_meeting(sched_meeting)
+        sched_meeting.refresh_from_db()
+        self.assertEqual(sched_meeting.status, MeetingStatus.ENDED)
+
+        resp2 = self.client.get(hub_url)
+        self.assertNotIn(sched_meeting, resp2.context['upcoming_meetings'])
+        self.assertNotIn(sched_meeting, resp2.context['live_meetings'])
+        self.assertIn(sched_meeting, resp2.context['recent_ended'])
+
     def test_meet_hub_access_denied_outsider(self):
         self.client.force_login(self.outsider)
         url = reverse('meetings:meet_hub', kwargs={'slug': self.workspace.slug})
@@ -674,3 +823,142 @@ class JitsiIntegrationTests(TestCase):
         resp_ended = self.client.get(url)
         self.assertEqual(resp_ended.status_code, 200)
         self.assertContains(resp_ended, 'Meeting Has Ended')
+
+
+class MeetHubSubphase52UIFixesTests(TestCase):
+    """
+    Subphase 5.2 UI & Theme Consistency Regression Tests:
+    1. Mobile responsive width constraint for meeting details popover.
+    2. Conference loading indicator while Jitsi initializes.
+    3. Meeting code copy button with visual feedback and keyboard accessibility.
+    4. Pop-out companion window blocked pop-up safeguard.
+    5. Meet Hub empty-state icon uses standard dark:text-zinc-600 instead of hardcoded navy.
+    """
+    def setUp(self):
+        ModuleStatus.objects.update_or_create(
+            module_key='meetings',
+            defaults={
+                'name': 'Meet Hub',
+                'status': ModuleStatus.STATUS_AVAILABLE,
+            }
+        )
+        self.owner = User.objects.create_user(
+            username='sub52_owner',
+            email='sub52@example.com',
+            password='TestPassword123!'
+        )
+        self.workspace = Workspace.objects.create(
+            name='Subphase52 Workspace',
+            slug='subphase52-ws',
+            owner=self.owner
+        )
+        WorkspaceMembership.objects.create(
+            workspace=self.workspace,
+            user=self.owner,
+            role=WorkspaceRole.ADMIN
+        )
+        self.meeting = create_instant_meeting(
+            workspace=self.workspace,
+            host=self.owner,
+            title='Subphase 5.2 Sync Meeting',
+            is_audio_only=False
+        )
+
+    def test_meeting_room_popover_responsive_width_constraint(self):
+        """Verify the meeting details popover uses responsive w-[calc(100vw-2rem)] sm:w-80 max-w-sm."""
+        self.client.force_login(self.owner)
+        url = reverse('meetings:meeting_room', kwargs={
+            'slug': self.workspace.slug,
+            'meeting_code': self.meeting.meeting_code
+        })
+        resp = self.client.get(url)
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'w-[calc(100vw-2rem)] sm:w-80 max-w-sm')
+        self.assertNotContains(resp, 'top-8 w-80 p-4')
+
+    def test_meeting_room_connecting_loading_indicator_rendered(self):
+        """Verify conference initialization shows connecting indicator with Jitsi lifecycle handlers."""
+        self.client.force_login(self.owner)
+        url = reverse('meetings:meeting_room', kwargs={
+            'slug': self.workspace.slug,
+            'meeting_code': self.meeting.meeting_code
+        })
+        resp = self.client.get(url)
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'id="jitsi-loading-container"')
+        self.assertContains(resp, 'Connecting to conference…')
+        self.assertContains(resp, 'isConnecting: true')
+        self.assertContains(resp, "this.isConnecting = false")
+
+    def test_meeting_room_copy_code_accessible_button_and_feedback(self):
+        """Verify meeting code is an accessible button with copy feedback states."""
+        self.client.force_login(self.owner)
+        url = reverse('meetings:meeting_room', kwargs={
+            'slug': self.workspace.slug,
+            'meeting_code': self.meeting.meeting_code
+        })
+        resp = self.client.get(url)
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "copiedCodeNotice ? 'Copied code!' :")
+        self.assertContains(resp, "copyMeetingCode")
+        self.assertContains(resp, "fallbackCopy")
+
+    def test_meeting_room_popout_blocked_popup_safeguard(self):
+        """Verify popOutWindow includes pop-up blocker detection and alert message."""
+        self.client.force_login(self.owner)
+        url = reverse('meetings:meeting_room', kwargs={
+            'slug': self.workspace.slug,
+            'meeting_code': self.meeting.meeting_code
+        })
+        resp = self.client.get(url)
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "companionWin.closed")
+        self.assertContains(resp, "Pop-up blocked: Please allow pop-ups for AetherSpace")
+
+    def test_meet_hub_theme_consistency_and_standard_tokens(self):
+        """Verify Meet Hub empty state icon uses dark:text-zinc-600 and no hardcoded navy #384968."""
+        self.client.force_login(self.owner)
+        url = reverse('meetings:meet_hub', kwargs={'slug': self.workspace.slug})
+        resp = self.client.get(url)
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'dark:text-zinc-600')
+        self.assertNotContains(resp, '#384968')
+
+    def test_abandoned_meeting_with_missing_leave_beacon_cleaned_up_from_live_banner(self):
+        """
+        Verify:
+        When a meeting was abandoned (browser closed without beacon, left_at IS NULL),
+        Meet Hub auto-closes the meeting, clears the stale live conference banner,
+        and displays 'Meeting ready' with 0 Live Now.
+        """
+        stale_time = timezone.now() - timedelta(minutes=15)
+        # Simulate meeting abandoned by user without calling leave beacon
+        Meeting.objects.filter(id=self.meeting.id).update(
+            created_at=stale_time,
+            updated_at=stale_time,
+            status=MeetingStatus.LIVE
+        )
+        # left_at is NULL in database
+        MeetingParticipant.objects.filter(meeting=self.meeting).update(left_at=None)
+
+        self.client.force_login(self.owner)
+        url = reverse('meetings:meet_hub', kwargs={'slug': self.workspace.slug})
+        resp = self.client.get(url)
+        self.assertEqual(resp.status_code, 200)
+
+        # Database state must be transitioned to ENDED
+        self.meeting.refresh_from_db()
+        self.assertEqual(self.meeting.status, MeetingStatus.ENDED)
+
+        # Participant left_at must be populated
+        part = MeetingParticipant.objects.get(meeting=self.meeting, user=self.owner)
+        self.assertIsNotNone(part.left_at)
+
+        # Context and UI must have 0 live meetings
+        self.assertEqual(len(resp.context['live_meetings']), 0)
+        self.assertEqual(resp.context['metrics']['live_count'], 0)
+        self.assertNotContains(resp, 'Live Conference')
+        self.assertNotContains(resp, 'Join Active Call')
+        self.assertContains(resp, 'Meeting ready')
+
+

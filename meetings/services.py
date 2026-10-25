@@ -356,17 +356,11 @@ def record_participant_join(meeting: Meeting, user, role=ParticipantRole.ATTENDE
 def record_participant_leave(meeting: Meeting, user) -> bool:
     """
     Record that a user left the meeting room.
+    Records attendance departure timestamp without prematurely destroying
+    the meeting for active, duplicate, or reconnecting participants.
     """
     active_sessions = meeting.participants.filter(user=user, left_at__isnull=True)
     active_sessions.update(left_at=timezone.now())
-
-    # If no more participants remain and meeting is an instant call, auto-mark ended
-    if meeting.status == MeetingStatus.LIVE and meeting.meeting_type in (MeetingType.INSTANT, MeetingType.CHAT_CALL):
-        if not meeting.participants.filter(left_at__isnull=True).exists():
-            meeting.status = MeetingStatus.ENDED
-            meeting.actual_end = timezone.now()
-            meeting.save(update_fields=['status', 'actual_end', 'updated_at'])
-
     return True
 
 
@@ -892,6 +886,29 @@ from typing import Tuple, Optional, Dict, Any
 from django.conf import settings
 
 
+# Strings that indicate the API key ID has not been replaced with real credentials.
+# These are checked case-insensitively against JAAS_API_KEY_ID.
+_PLACEHOLDER_SUBSTRINGS = [
+    'your_api_key',
+    'your-api-key',
+    'replace_me',
+    'replace-me',
+    'placeholder',
+    'example',
+    'changeme',
+    'todo',
+    'xxx',
+    'insert_key',
+    'insert-key',
+]
+
+
+def _is_placeholder_key_id(api_key_id: str) -> bool:
+    """Return True if the API key ID looks like an unmodified placeholder."""
+    lower = api_key_id.lower()
+    return any(substr in lower for substr in _PLACEHOLDER_SUBSTRINGS)
+
+
 def _b64url_encode(data: bytes) -> str:
     """Encode bytes using URL-safe Base64 without padding."""
     return base64.urlsafe_b64encode(data).decode('utf-8').rstrip('=')
@@ -907,14 +924,56 @@ def get_jaas_status() -> Dict[str, Any]:
     has_env_key = bool(getattr(settings, 'JAAS_PRIVATE_KEY', '').strip())
     key_path = getattr(settings, 'JAAS_PRIVATE_KEY_PATH', '').strip()
     has_path_key = bool(key_path and os.path.exists(key_path))
+    placeholder_key = _is_placeholder_key_id(api_key_id) if api_key_id else False
 
     return {
         'is_configured': bool(app_id),
         'app_id': app_id,
         'has_api_key_id': bool(api_key_id),
+        'has_placeholder_key_id': placeholder_key,
         'has_private_key': bool(has_env_key or has_path_key),
         'key_source': 'env' if has_env_key else ('file' if has_path_key else 'none'),
     }
+
+
+def validate_jaas_credentials() -> Tuple[bool, Optional[str]]:
+    """
+    Comprehensive validation of JaaS credentials.
+    Returns (is_valid, error_message).
+    - If JaaS is not enabled (no JAAS_APP_ID), returns (True, None) — no validation needed.
+    - If JaaS is enabled, checks that all required credentials are present and not placeholders.
+    - Does NOT verify that credentials are registered with 8x8. That requires live testing.
+    """
+    app_id = getattr(settings, 'JAAS_APP_ID', '').strip()
+    if not app_id:
+        return True, None  # JaaS not enabled; nothing to validate.
+
+    api_key_id = getattr(settings, 'JAAS_API_KEY_ID', '').strip()
+    if not api_key_id:
+        return False, "JaaS is enabled (JAAS_APP_ID is set) but JAAS_API_KEY_ID is missing."
+
+    if _is_placeholder_key_id(api_key_id):
+        return False, (
+            "JaaS is enabled but JAAS_API_KEY_ID contains a placeholder value. "
+            "Replace it with your real 8x8 JaaS API key ID from the JaaS console."
+        )
+
+    # Check private key availability
+    has_env_key = bool(getattr(settings, 'JAAS_PRIVATE_KEY', '').strip())
+    key_path = getattr(settings, 'JAAS_PRIVATE_KEY_PATH', '').strip()
+    has_path_key = bool(key_path and os.path.exists(key_path))
+    if not has_env_key and not has_path_key:
+        return False, (
+            "JaaS is enabled but no RSA private key is configured. "
+            "Set JAAS_PRIVATE_KEY or JAAS_PRIVATE_KEY_PATH."
+        )
+
+    # Attempt to parse the private key without signing anything
+    private_key, parse_err = load_jaas_private_key()
+    if parse_err or not private_key:
+        return False, f"JaaS private key is present but invalid: {parse_err}"
+
+    return True, None
 
 
 def load_jaas_private_key():
@@ -969,6 +1028,12 @@ def generate_jaas_jwt(
     api_key_id = getattr(settings, 'JAAS_API_KEY_ID', '').strip()
     if not api_key_id:
         return None, "8x8 JaaS is enabled but JAAS_API_KEY_ID is missing."
+
+    if _is_placeholder_key_id(api_key_id):
+        return None, (
+            "8x8 JaaS is enabled but JAAS_API_KEY_ID contains a placeholder value "
+            "('your_api_key_id'). Replace it with a real key ID from the 8x8 JaaS console."
+        )
 
     private_key, err = load_jaas_private_key()
     if err or not private_key:

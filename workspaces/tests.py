@@ -1,4 +1,4 @@
-from django.test import TestCase, Client
+from django.test import TestCase, Client, override_settings
 from django.urls import reverse
 from django.contrib.auth import get_user_model
 from accounts.models import UserRole, ApprovalStatus
@@ -542,6 +542,22 @@ class ProjectDetailsEditTests(TestCase):
         self.workspace.refresh_from_db()
         self.assertEqual(self.workspace.name, 'Original Project')
 
+    def test_project_details_get_renders_with_real_metrics_and_navigation(self):
+        self.client.login(email="admin.pd@aetherspace.dev", password=self.password)
+        url = reverse('workspaces:project_details', kwargs={'slug': self.workspace.slug})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'workspaces/project_details.html')
+        self.assertContains(response, 'Project Scope &amp; Architecture')
+        self.assertContains(response, 'Current Sprint')
+        self.assertContains(response, 'Active Tasks')
+        self.assertContains(response, 'Reported Bugs')
+        self.assertContains(response, 'Team Contributors')
+        self.assertContains(response, 'Workspace Navigation')
+        self.assertContains(response, 'Agile Sprint Planning')
+        self.assertContains(response, 'Kanban Board')
+        self.assertEqual(response.context['total_members_count'], 2)
+
 
 import io
 from PIL import Image
@@ -773,6 +789,235 @@ class GlobalAccessRequestSubmissionTest(TestCase):
         data = response.json()
         self.assertEqual(data.get('status'), 'error')
         self.assertIn('justification reason is required', data.get('message', ''))
+
+
+class WorkspaceOrgChartHierarchyTests(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.password = "SecurePassword123!"
+
+        self.owner = User.objects.create_user(
+            email="owner.org@aetherspace.dev",
+            password=self.password,
+            full_name="Yaswanth Owner",
+            contributor_id="10001C"
+        )
+        self.admin = User.objects.create_user(
+            email="admin.org@aetherspace.dev",
+            password=self.password,
+            full_name="System Admin",
+            contributor_id="10002C"
+        )
+        self.manager = User.objects.create_user(
+            email="manager.org@aetherspace.dev",
+            password=self.password,
+            full_name="Engineering Lead",
+            contributor_id="10003C"
+        )
+        self.contrib1 = User.objects.create_user(
+            email="contrib1.org@aetherspace.dev",
+            password=self.password,
+            full_name="Ramu Developer",
+            contributor_id="10004C"
+        )
+        self.contrib2 = User.objects.create_user(
+            email="contrib2.org@aetherspace.dev",
+            password=self.password,
+            full_name="Rajesh QA",
+            contributor_id="10005C"
+        )
+
+        self.workspace = Workspace.objects.create(
+            name="Org Workspace",
+            slug="org-workspace",
+            owner=self.owner
+        )
+
+        # Level 1: Owner
+        self.m_owner = WorkspaceMembership.objects.create(
+            workspace=self.workspace,
+            user=self.owner,
+            role=WorkspaceRole.ADMIN,
+            functional_role="Product Manager",
+            role_tag="Product",
+            status=MembershipStatus.ACTIVE
+        )
+
+        # Level 2: Admin reports to Owner
+        self.m_admin = WorkspaceMembership.objects.create(
+            workspace=self.workspace,
+            user=self.admin,
+            role=WorkspaceRole.ADMIN,
+            functional_role="System Administrator",
+            role_tag="Management",
+            reporting_to=self.m_owner,
+            status=MembershipStatus.ACTIVE
+        )
+
+        # Level 3: Manager reports to Admin
+        self.m_manager = WorkspaceMembership.objects.create(
+            workspace=self.workspace,
+            user=self.manager,
+            role=WorkspaceRole.MANAGER,
+            functional_role="Engineering Lead",
+            role_tag="Management",
+            reporting_to=self.m_admin,
+            status=MembershipStatus.ACTIVE
+        )
+
+        # Level 4: Contributor 1 reports to Manager
+        self.m_contrib1 = WorkspaceMembership.objects.create(
+            workspace=self.workspace,
+            user=self.contrib1,
+            role=WorkspaceRole.CONTRIBUTOR,
+            functional_role="Full Stack Developer",
+            role_tag="Full Stack",
+            reporting_to=self.m_manager,
+            status=MembershipStatus.ACTIVE
+        )
+
+        # Level 4: Contributor 2 reports to Manager
+        self.m_contrib2 = WorkspaceMembership.objects.create(
+            workspace=self.workspace,
+            user=self.contrib2,
+            role=WorkspaceRole.CONTRIBUTOR,
+            functional_role="QA / Test Engineer",
+            role_tag="QA",
+            reporting_to=self.m_manager,
+            status=MembershipStatus.ACTIVE
+        )
+
+    def test_org_chart_renders_all_members_across_four_levels(self):
+        """All 5 members across 4 hierarchy levels are rendered in the visual Org Chart tree."""
+        self.client.login(email=self.owner.email, password=self.password)
+        url = reverse('workspaces:team', kwargs={'slug': self.workspace.slug})
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['hierarchy_levels_count'], 4)
+        self.assertEqual(response.context['reports_mapped_count'], 4)
+        self.assertEqual(response.context['unassigned_count'], 0)
+
+        # All 5 members must be present in response
+        self.assertContains(response, "Yaswanth Owner")
+        self.assertContains(response, "System Admin")
+        self.assertContains(response, "Engineering Lead")
+        self.assertContains(response, "Ramu Developer")
+        self.assertContains(response, "Rajesh QA")
+
+    def test_unassigned_member_is_not_dropped_from_hierarchy(self):
+        """Active member with no manager assignment is included in root_members gracefully."""
+        unassigned_user = User.objects.create_user(
+            email="unassigned@aetherspace.dev",
+            password=self.password,
+            full_name="Solo Contributor",
+            contributor_id="10006C"
+        )
+        WorkspaceMembership.objects.create(
+            workspace=self.workspace,
+            user=unassigned_user,
+            role=WorkspaceRole.CONTRIBUTOR,
+            reporting_to=None,
+            status=MembershipStatus.ACTIVE
+        )
+
+        self.client.login(email=self.owner.email, password=self.password)
+        url = reverse('workspaces:team', kwargs={'slug': self.workspace.slug})
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Solo Contributor")
+        self.assertEqual(response.context['unassigned_count'], 1)
+
+    def test_user_hover_card_api_returns_all_expected_fields(self):
+        """Hover card API endpoint returns complete, isolated profile and reporting metadata."""
+        self.client.login(email=self.owner.email, password=self.password)
+        card_url = f"/auth/api/user-card/{self.contrib1.id}/?workspace={self.workspace.slug}"
+        response = self.client.get(card_url)
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data.get('full_name'), "Ramu Developer")
+        self.assertEqual(data.get('email'), "contrib1.org@aetherspace.dev")
+        self.assertEqual(data.get('contributor_id'), "10004C")
+        self.assertEqual(data.get('system_role'), "Contributor")
+        self.assertEqual(data.get('designation'), "Full Stack Developer")
+        self.assertEqual(data.get('tagging_role'), "Full Stack")
+        self.assertEqual(data.get('reporting_to_name'), "Engineering Lead")
+        self.assertEqual(data.get('reporting_to_role'), "Manager")
+        self.assertEqual(data.get('direct_reports_count'), 0)
+
+
+@override_settings(ALLOWED_HOSTS=['testserver', 'testapp.customdomain.org', 'localhost', '127.0.0.1'])
+class WorkspacePhase1RegressionTests(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.password = "SecurePassword123!"
+        self.admin = User.objects.create_superuser(
+            email="phase1.admin@aetherspace.dev",
+            password=self.password,
+            full_name="Phase1 Admin",
+            contributor_id="P1001A"
+        )
+        self.workspace = Workspace.objects.create(
+            name="Phase1 Workspace",
+            slug="phase1-workspace",
+            owner=self.admin
+        )
+        WorkspaceMembership.objects.create(
+            workspace=self.workspace,
+            user=self.admin,
+            role=WorkspaceRole.ADMIN,
+            status=MembershipStatus.ACTIVE
+        )
+
+    def test_workspace_settings_logo_input_id_and_request_aware_url(self):
+        """Verify settings renders workspace-logo-file-input id and request-aware dynamic URL without hardcoded aetherspace.dev."""
+        self.client.login(email=self.admin.email, password=self.password)
+        custom_host = "testapp.customdomain.org"
+        url = reverse('workspaces:settings', kwargs={'slug': self.workspace.slug})
+        resp = self.client.get(url, HTTP_HOST=custom_host)
+        self.assertEqual(resp.status_code, 200)
+
+        # 1. Logo input ID
+        self.assertContains(resp, 'id="workspace-logo-file-input"')
+
+        # 2. Dynamic request-aware URL with host and scheme
+        expected_url = f"http://{custom_host}{reverse('workspaces:workspace_dashboard', kwargs={'slug': self.workspace.slug})}"
+        self.assertContains(resp, expected_url)
+        self.assertNotContains(resp, "aetherspace.dev/w/")
+
+    def test_workspace_dashboard_dynamic_url_and_sprint_empty_state(self):
+        """Verify dashboard uses request-aware dynamic URL and displays 0% / truthful empty state when no active sprint exists."""
+        from tasks.models import Task, TaskStatus, TaskPriority
+        # Create a backlog task so active_tasks_count > 0
+        Task.objects.create(
+            workspace=self.workspace,
+            task_code="619999",
+            reporter=self.admin,
+            assignee=self.admin,
+            title="Backlog task without sprint",
+            status=TaskStatus.TODO,
+            priority=TaskPriority.MEDIUM
+        )
+
+        self.client.login(email=self.admin.email, password=self.password)
+        custom_host = "testapp.customdomain.org"
+        url = reverse('workspaces:workspace_dashboard', kwargs={'slug': self.workspace.slug})
+        resp = self.client.get(url, HTTP_HOST=custom_host)
+        self.assertEqual(resp.status_code, 200)
+
+        # 1. Request-aware URL in dashboard x-data
+        expected_url = f"http://{custom_host}{reverse('workspaces:workspace_dashboard', kwargs={'slug': self.workspace.slug})}"
+        self.assertContains(resp, expected_url)
+        self.assertNotContains(resp, f"aetherspace.dev/w/{self.workspace.slug}/")
+
+        # 2. Sprint progress fallback must NOT be fake 40%
+        self.assertNotContains(resp, 'width: 40%;')
+        self.assertContains(resp, 'width: 0%;')
+        self.assertContains(resp, 'No active sprint (0%)')
+        self.assertContains(resp, 'No active sprint currently running for this workspace.')
+
 
 
 

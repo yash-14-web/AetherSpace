@@ -1,11 +1,30 @@
+import os
+import io
+import logging
+from PIL import Image
+
+from django.conf import settings
+from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
 from django.db import transaction
 from django.db.models import Q
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.utils import timezone
+
+from files.services import SupabaseStorageService
 from .models import (
     Channel, ChannelMembership, ChannelRole, PostingPermission,
     DirectMessageConversation, Message, MessageAttachment, MessageReaction
 )
+
+logger = logging.getLogger(__name__)
+
+MAX_CHANNEL_AVATAR_SIZE_BYTES = 2 * 1024 * 1024  # 2 MB hard limit
+ALLOWED_CHANNEL_AVATAR_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp', 'svg', 'gif'}
+ALLOWED_CHANNEL_ICONS = {
+    'hash', 'terminal', 'rocket', 'sparkles', 'megaphone', 'chat',
+    'briefcase', 'bulb', 'bug', 'folder', 'lock', 'globe', 'shield', 'cube'
+}
 
 
 def ensure_default_channels(workspace, creator=None):
@@ -455,4 +474,149 @@ def delete_channel(channel, deleted_by):
     channel_name = channel.name
     channel.delete()
     return channel_name
+
+
+def process_and_save_channel_avatar(channel, file_obj=None, avatar_url=None, icon_key=None, remove_avatar=False):
+    """
+    Process, validate, compress, and store the channel avatar or selected icon:
+    1. If remove_avatar is True: Clears both channel.avatar and channel.icon, restoring default identity.
+    2. If icon_key is provided: Validates against ALLOWED_CHANNEL_ICONS, clears old avatar file,
+       and updates channel.icon.
+    3. If avatar_url is provided: Validates the external/cloud URL, clears icon, and updates channel.avatar.
+    4. If file_obj is provided: Validates size (<= 2 MB) and format, optimizes raster images,
+       clears icon, and stores in Supabase Storage (with local fallback).
+    """
+    if remove_avatar:
+        old_avatar = channel.avatar
+        if old_avatar and not old_avatar.startswith(('http://', 'https://')):
+            try:
+                clean_path = old_avatar.lstrip('/')
+                if clean_path.startswith('media/'):
+                    clean_path = clean_path[len('media/'):]
+                if default_storage.exists(clean_path):
+                    default_storage.delete(clean_path)
+            except Exception as e:
+                logger.warning(f"Failed deleting old avatar {old_avatar}: {e}")
+
+        channel.avatar = ''
+        channel.icon = ''
+        channel.save(update_fields=['avatar', 'icon'])
+        return True, "Channel visual identity reset to default."
+
+    if icon_key is not None:
+        clean_key = str(icon_key).strip().lower().replace('icon:', '')
+        if clean_key:
+            if clean_key not in ALLOWED_CHANNEL_ICONS:
+                return False, f"Invalid icon identifier '{clean_key}'. Please select a supported icon."
+            # Clear previous raster avatar file if present
+            if channel.avatar:
+                old_avatar = channel.avatar
+                if old_avatar and not old_avatar.startswith(('http://', 'https://')):
+                    try:
+                        clean_path = old_avatar.lstrip('/')
+                        if clean_path.startswith('media/'):
+                            clean_path = clean_path[len('media/'):]
+                        if default_storage.exists(clean_path):
+                            default_storage.delete(clean_path)
+                    except Exception as e:
+                        logger.warning(f"Failed deleting old avatar {old_avatar}: {e}")
+                channel.avatar = ''
+            channel.icon = clean_key
+            channel.save(update_fields=['icon', 'avatar'])
+            return True, f"Channel icon updated to '{clean_key}'."
+
+    if avatar_url:
+        from core.utils import validate_image_url
+        is_valid, clean_url, err_msg = validate_image_url(avatar_url)
+        if not is_valid:
+            return False, err_msg or "Please enter a valid HTTP/HTTPS image URL."
+        channel.avatar = clean_url
+        channel.icon = ''
+        channel.save(update_fields=['avatar', 'icon'])
+        return True, "Channel avatar URL updated successfully."
+
+    if file_obj:
+        if file_obj.size > MAX_CHANNEL_AVATAR_SIZE_BYTES:
+            size_kb = round(file_obj.size / 1024)
+            return False, f"File size ({size_kb} KB) exceeds the maximum allowed limit of 2 MB."
+
+        ext = os.path.splitext(file_obj.name)[1].lstrip('.').lower()
+        if ext not in ALLOWED_CHANNEL_AVATAR_EXTENSIONS:
+            return False, f"Unsupported file format '.{ext}'. Allowed formats: PNG, JPG, WEBP, SVG, GIF."
+
+        try:
+            content_type = 'image/png'
+            filename = f"avatar_{channel.slug}.png"
+            final_bytes = None
+
+            if ext == 'svg':
+                file_obj.seek(0)
+                svg_content = file_obj.read()
+                svg_text = svg_content.decode('utf-8', errors='ignore')
+                if '<script' in svg_text.lower():
+                    return False, "SVG files containing scripts are rejected for security."
+                content_type = 'image/svg+xml'
+                filename = f"avatar_{channel.slug}.svg"
+                final_bytes = svg_content
+            else:
+                file_obj.seek(0)
+                image = Image.open(file_obj)
+
+                if image.mode in ('RGBA', 'LA') or (image.mode == 'P' and 'transparency' in image.info):
+                    image = image.convert('RGBA')
+                    save_format = 'PNG'
+                    content_type = 'image/png'
+                    filename = f"avatar_{channel.slug}.png"
+                else:
+                    image = image.convert('RGB')
+                    save_format = 'JPEG'
+                    content_type = 'image/jpeg'
+                    filename = f"avatar_{channel.slug}.jpg"
+
+                width, height = image.size
+                min_dim = min(width, height)
+                left = (width - min_dim) / 2
+                top = (height - min_dim) / 2
+                right = (width + min_dim) / 2
+                bottom = (height + min_dim) / 2
+                image = image.crop((left, top, right, bottom))
+                image.thumbnail((256, 256), Image.Resampling.LANCZOS)
+
+                buffer = io.BytesIO()
+                if save_format == 'PNG':
+                    image.save(buffer, format='PNG', optimize=True)
+                else:
+                    image.save(buffer, format='JPEG', quality=90, optimize=True)
+                final_bytes = buffer.getvalue()
+
+            content_file = ContentFile(final_bytes)
+            uploaded_storage_path = SupabaseStorageService.upload_file(
+                file_obj=content_file,
+                workspace_id=str(channel.workspace_id),
+                filename=filename,
+                content_type=content_type
+            )
+
+            # Ensure local storage also has a copy for instant fallback & local development
+            if default_storage.exists(uploaded_storage_path):
+                default_storage.delete(uploaded_storage_path)
+            saved_local = default_storage.save(uploaded_storage_path, ContentFile(final_bytes))
+
+            if SupabaseStorageService.is_supabase_configured():
+                from urllib.parse import quote
+                base_url = settings.SUPABASE_URL.rstrip('/')
+                bucket = quote(settings.SUPABASE_STORAGE_BUCKET)
+                public_url = f"{base_url}/storage/v1/object/public/{bucket}/{uploaded_storage_path}"
+            else:
+                channel.avatar = default_storage.url(saved_local)
+
+            channel.icon = ''
+            channel.save(update_fields=['avatar', 'icon'])
+            return True, "Channel avatar uploaded successfully."
+        except Exception as e:
+            logger.error(f"Error processing channel avatar for {channel}: {e}", exc_info=True)
+            return False, f"Failed to process image: {str(e)}"
+
+    return True, "No changes made."
+
 

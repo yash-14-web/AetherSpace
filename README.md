@@ -4599,13 +4599,163 @@ Phase 4 produced an exhaustive, deeply technical documentation suite directly wi
 - **Owner Manual Verification**: Two-device interactive audio/video testing remains pending owner verification.
 - **Zero Secrets**: All credentials and API keys remain safely isolated in environment variables.
 
+---
 
+# PHASE 5.2: VISUAL IDENTITY PERSISTENCE & RESPONSIVE SELECTOR GRID ENHANCEMENTS
 
+## 1. Defect Resolution Summary
+Resolved two critical defects in the Workspace and Channel Visual Identity feature:
+1. **Persistence Defect Resolved**:
+   - **Root Cause**: `identity_picker.html` previously set `removeImg = true` inside `selectIcon(key)`, causing hidden `remove_avatar` / `remove_logo` inputs to post `'1'` concurrently with `selected_icon`. The view logic prioritized `remove_avatar` / `remove_logo`, wiping out the newly selected icon while displaying a false success message.
+   - **Fix**: Decoupled `remove_avatar` / `remove_logo` to only evaluate to `'1'` when `tab === 'default'`. Server-side services (`chat.services.process_and_save_channel_avatar` and `workspaces.services.process_and_save_workspace_logo`) now enforce strict allowlist validation (`ALLOWED_CHANNEL_ICONS`, `ALLOWED_WORKSPACE_ICONS`), clear conflicting raster avatars when icons are saved, and reject invalid identifiers safely without corrupting records.
+2. **Selector UI Defect Resolved**:
+   - **Root Cause**: Built-in curated icon buttons previously stacked as full-width horizontal rows due to missing grid compilation and layout styling.
+   - **Fix**: Replaced with a compact, responsive CSS Grid (`.identity-icon-grid`) displaying **4 columns on mobile viewports (<640px)** and **6 columns on desktop viewports (>=640px)**. Icon buttons use `.identity-icon-btn` with 1:1 square aspect ratio (`aspect-ratio: 1 / 1`), centered SVG/emojis, active focus rings (`ring-2 ring-blue-500`), accessible `:aria-pressed` / `aria-label` attributes, and `type="button"` to eliminate accidental auto-submits.
 
+## 2. Automated & End-to-End Verification Evidence
+- `python manage.py check`: **0 issues (0 silenced)**
+- `python manage.py test chat.tests.IdentityIconPersistenceAndSecurityTests`: **8 passed, 0 failed (100% OK in 6.4s)**
+- `python manage.py test chat.tests.ChatHomeRedesignAndIdentityTests`: **8 passed, 0 failed (100% OK in 12.8s)**
+- **Playwright End-to-End Verification (`scratch/test_visual_identity_playwright.js`)**:
+  - Desktop 6-column grid verified on Channel Details and Workspace Settings.
+  - Immediate live preview verified on icon button click.
+  - Form submission, redirect, and full page reload persistence verified:
+    - Channel Rocket (`🚀`) icon persisted and rendered in header, details, and chat stream (`identity_channel_details_persisted.png`).
+    - Workspace Sparkles (`✨`) icon persisted and rendered in sidebar, header switcher, and dashboard (`identity_workspace_settings_persisted.png`).
+---
 
+# PHASE 5.3: TIME TRACKING USABILITY FIXES & MANUAL ENTRY ENHANCEMENT
 
+## 1. Usability Defect Resolution & Functional Refinement Summary
+Refined the Time Tracking & Logs dashboard usability and resolved all 4 manual testing defects identified during owner QA while strictly preserving the approved design direction, Django template architecture, Tailwind CSS, Alpine.js, existing authentication, workspace isolation, permissions, and dark/light mode themes.
 
+1. **Defect 1: Active Timer Task Selector In-Flow Layout**:
+   - Replaced fragile absolute dropdown positioning with an in-flow expandable accordion container (`data-testid="active-timer-task-dropdown"`).
+   - In-flow expansion naturally pushes the Work Description textarea and Start/Stop buttons downward, completely eliminating overlapping or crowding with the circular timer ring, description field, and action buttons across desktop, tablet, and mobile.
+   - Added instant quick-search filter (`active-timer-search-input`) supporting task codes (`#123`), defect IDs (`B-######`), and free text keywords.
+   - Segmented selections into `General Workspace Activity`, `Active Tasks`, and `Defects / Bugs`.
 
+2. **Defect 2: Work Item Association & Entry Source Distinction**:
+   - Integrated full defect bug selection into Active Timer (`selectActiveWorkItem('bug', id, bugCode, title, sprint, category)`).
+   - Automatically maps selected bugs to the `Bug Fix` category and links existing tasks (`bug.linked_task`).
+   - `api_timer_start` and `api_timer_status` validate bug defect codes against workspace scope, encode `[Bug: {bug_code}]` and `[{category}]` metadata, and set `TimeEntry.entry_type = TimeEntryType.TIMER`.
+   - Timesheet table clearly renders `⏱️ Timer Entry` (green live stopwatch pill) vs `📝 Manual Entry` (slate edit pill) and displays the `Bug Fix` category badge (`linked_bug_code` or `category`). All attributes persist across page reload.
+
+3. **Defect 3: View Day — Functional Day View & Navigation**:
+   - Connected Today's Timeline "View Day" link (`data-testid="view-day-btn"`) directly to `<a href="?date_range=today#timesheet-section">`.
+   - Anchors smooth scroll to `#timesheet-section` while filtering the timesheet to the current day.
+   - Displays a dedicated highlighted header banner (`data-testid="detailed-day-view-banner"`): `Detailed Day View: {date} [Today]`, showing logged session counts and day navigation buttons (`‹ Prev Day`, `Today`, `Next Day ›`).
+   - Added dedicated empty state for days with zero logged sessions.
+
+4. **Defect 4: Rich Text — Bullet and Numbered List Rendering**:
+   - Overcame Tailwind Preflight's `list-style: none` reset by adding explicit CSS rules in `static/css/src/input.css` with `!important` declarations for `.rich-text-content`, `.aether-chat-editor`, `.chat-bubble`, and `.aether-message-content`.
+   - Enforced `list-style-type: disc !important` (unordered) and `list-style-type: decimal !important` (ordered) with `padding-left: 1.35rem !important;` and `display: list-item !important`.
+   - Removed `.truncate` (`white-space: nowrap`) on timesheet table description cells, replacing with `<div class="rich-text-content text-xs leading-relaxed max-w-xs break-words space-y-1">` to prevent multi-line list flattening.
+   - Replaced naive list regex in `renderMarkdownPreview` with semantic block parsing wrapping items inside styled `<ul class="list-disc pl-5 ...">` and `<ol class="list-decimal pl-5 ...">`.
+   - Recompiled production CSS via `npm.cmd run build:css`.
+
+## 2. Automated & End-to-End Verification Evidence
+- `python manage.py check`: **0 issues (0 silenced)**
+- `python manage.py test timetracking`: **24 passed, 0 failed (100% OK in 25.9s)**
+- `python manage.py test chat`: **92 passed, 0 failed (100% OK in 110.8s)**
+- Total Django Unit/Integration Tests: **116 passed, 0 failed (100% OK)**
+- `npx.cmd playwright test tests/e2e/timetracking_redesign.spec.ts --project=chromium --workers=1`: **11 passed, 0 failed (100% OK in 1.6m)**
+  - Test 1: Dashboard renders header, 4 summary cards, timer panel, timeline, and functional links (`Workspace Team`, `View Day`).
+  - Test 2: Active timer three-dot options menu reveals real actions and triggers manual entry modal.
+  - Test 3: Manual Time Entry Modal: Bug defect selection, 9 categories, and live duration calculation.
+  - Test 4: Markdown toolbar inserts formatting, character counter updates, and Preview toggle functions.
+  - Test 5: Saving manual time entry with Bug and Category persists record, renders badges, source pill, rich text, and contributor hover card.
+  - Test 6: Active timer controls (Start, Pause, Resume, Stop), persistence across page reload, and Timer Entry source pill.
+  - Test 7: Responsive layout test at mobile and tablet viewports without horizontal overflow.
+  - Test 8: Dark and light mode visual rendering consistency.
+  - Test 9: Active timer selector in-flow layout, quick search filter, and defect bug association.
+  - Test 10: Functional Day View navigation, detailed day banner, and offset pagination.
+  - Test 11: Timesheet rich text bullet and numbered list rendering with proper styles and no flattening.
+- `npx.cmd playwright test tests/e2e/chat/chat_rich_text_lists.spec.ts --project=chromium --workers=1`: **2 passed, 0 failed (100% OK in 16.4s)**
+  - Test 1: Bulleted and numbered lists create items, preserve markers, support Enter continuation, and render after reload.
+  - Test 2: Nested lists with Tab indent and formatted content inside items serialize and render accurately.
+- **Visual Verification Artifacts Captured**:
+  - `defect1_active_timer_task_selector_inflow.png`: In-flow active timer accordion expanded with search filter, active tasks, defects (`B-363855`), without overlapping the circular timer or description.
+  - `defect2_work_item_and_entry_source.png`: Timesheet table displaying `Bug Fix` category badges and `⏱️ Timer Entry` vs `📝 Manual Entry` source pills.
+  - `defect3_view_day_banner_and_nav.png`: Detailed Day View banner showing `Detailed Day View: {date} [Today]` and Prev/Next day navigation.
+  - `defect4_rich_text_lists_preview.png`: Manual entry modal with markdown preview rendering distinct disc bullets and numbered list steps.
+
+## 3. Operational Safeguards Maintained
+- **Zero Remote Schema Changes**: `TimeEntry.entry_type` utilized existing database field. Bug association and category metadata safely encoded via description tags and task foreign keys without database disruptions.
+- **No Autonomous Browsing**: All Playwright test scripts executed via terminal CLI with `--workers=1`.
+- **Zero Committed Secrets**: Environment variables and secrets remain safely isolated.
+- **Strict Profile/Avatar Invariance**: Profile pictures, contributor avatars, and people hover cards confirmed untouched and working.
+
+---
+
+# MODULE COMPLETION: Code Reviews Phase 3 — Review Decision & Notification Workflow
+
+## 1. Summary of Delivered Features
+1. **Interactive Review Decision Panel**:
+   - Upgraded Review Decision Panel in `templates/tasks/code_review_detail.html` (Tab 2: Comments & Decision) with interactive Alpine.js decision selection.
+   - 3 decision states supported: **Approve** (`APPROVED`), **Request Changes** (`CHANGES_REQUESTED`), and **Reject** (`REJECTED`).
+   - Non-empty decision rationale / message (minimum 3 characters) required before submission.
+   - Context-aware UI: Renders interactive form for assigned reviewers and workspace Admins/Managers; renders read-only status and reviewer details for contributors; displays completed decision card for finalized reviews.
+2. **Authoritative Decision Endpoint & Service**:
+   - Service function `submit_code_review_decision` in `tasks/services.py` with `@transaction.atomic`.
+   - Endpoint `code_review_decision_view` at `POST /tasks/w/<slug>/reviews/<review_code>/decision/`.
+   - Validates user permissions: assigned reviewer or Admin/Manager override.
+   - Enforces valid state transitions and guards against duplicate decision submissions.
+3. **Linked Task Activity Logging & System Audit History**:
+   - Records a system audit event in `TaskComment` with `system_event_type="CODE_REVIEW_STATUS_CHANGED"`.
+   - Posts a decision discussion comment with bold header, status, reviewer attribution, and detailed rationale.
+   - Appends a `TaskActivity` entry on the linked task containing review code, review status, reviewer name, decision message, and direct URL to the review detail page.
+   - Preserves critical blueprint invariant: approving a code review does NOT mark the linked task `DONE`.
+4. **In-App Notification Dispatch**:
+   - Dispatches a `Notification` to the review requester with category `SYSTEM`, type `INFO`.
+   - Notification contains review code, decision status, reviewer name, decision message, and `action_url` deep link to the review detail screen.
+   - Suppresses self-notifications if the requester is the actor submitting the decision.
+
+## 2. Automated Verification Evidence
+- `python manage.py check`: **0 issues (0 silenced)**
+- `python manage.py test tasks.test_code_reviews_phase3`: **12 passed, 0 failed (100% OK in 27.3s)**
+- `python manage.py test tasks.test_code_reviews_phase2 tasks.test_code_reviews_phase3`: **20 passed, 0 failed (100% OK in 44.6s)**
+- All workspace and task governance rules verified.
+
+---
+
+# MODULE COMPLETION: Task Detail — Comments Tab UI & Functional Bug Fixes
+
+## 1. Summary of Delivered Fixes & Features
+
+1. **Live @Mention Autocomplete (Highest Priority)**:
+   - Integrated dynamic suggestion popover in both the main comment composer and the inline reply composer in `templates/tasks/task_detail.html`.
+   - Real-time filtering by Member Full Name, Username, and unique Contributor ID (`#####C`).
+   - Suggestion card displays team member avatar/initials, full name, functional role badge, and monospace Contributor ID badge.
+   - Comprehensive keyboard navigation: `ArrowUp` and `ArrowDown` to navigate, `Enter` or `Tab` to select, and `Escape` or outside click (`@click.away`) to dismiss.
+   - Mention interpolation adheres strictly to the canonical format `@[Full Name](CID)` (with graceful fallback to `@Full Name`), which is parsed by `rich_text.render_rich_text` and triggers workspace in-app and email notifications.
+   - Positioning is guaranteed above the composer (`absolute bottom-full mb-2 z-50`) without clipping by parent containers or hiding behind adjacent cards.
+   - Added `@ Mention` trigger button to the formatting toolbar for instant mouse-driven autocomplete triggering.
+
+2. **Interactive Three-Dot (`···`) Menus & Permission Gates**:
+   - Upgraded all three-dot buttons on system event banners and user comments with `@click.stop` event handling to prevent bubbling.
+   - **System Event Cards**: Non-destructive actions only ("Copy link to event" with clipboard copy and feedback toast; "Filter system events" which switches active filter to system). Destructive edit/delete options are completely omitted.
+   - **User Comments & Inline Replies**: Features "Copy link", and permission-gated "Edit comment" (inline edit form with save/cancel) and "Delete comment" (with confirmation dialog). Restricted strictly to comment author or members with `can_manage_content` privilege.
+   - Dismissible via outside click (`@click.away`) and global `Escape` key (`@keydown.escape.window`).
+
+3. **Elimination of Overlapping Cards**:
+   - Replaced Tailwind's margin-based `space-y-4` and inverted `:class="sortOrder === 'newest' ? 'flex-col-reverse' : 'flex-col'"` layout with a native flex container utilizing CSS gap: `flex flex-col gap-3.5`.
+   - Native flexbox gap operates along the layout axis without margin collapse or inversion artifacts, guaranteeing uniform 14px separation between all cards regardless of sort order or hidden filtered states.
+   - System event cards updated to compact horizontal banners matching the approved dark-mode mockup:
+     - **Blue**: Task Created / Task Assigned.
+     - **Rose**: Bug Attached / Bug Detached.
+     - **Purple**: Code Review Requested / Status Changed / Decision Submitted.
+
+4. **Threaded Discussions & Thumbs-Up Reactions**:
+   - Structured threading via `metadata.parent_id` with tree connector line (`border-l-2`) and inline reply composer with active blue border.
+   - AJAX-powered thumbs-up reactions (`/tasks/w/<slug>/<task_code>/comments/<comment_id>/react/`) updating count and active state dynamically without page reload.
+
+## 2. Automated Verification Evidence
+- `python manage.py check`: **0 issues (0 silenced)**
+- `python manage.py test tasks.tests.TaskThreadedCommentsAndReactionsTests tasks.tests.TaskDetailT24DataIntegrityTests`: **9 passed, 0 failed (100% OK in 4.9s)**
+- `python manage.py test tasks.tests`: **102 passed, 0 failed (100% OK in 118.4s)**
+- `npm.cmd run build:css`: Tailwind CSS build finished successfully with 0 errors.
+- **Zero Schema Migrations**: Maintained strict database invariance using existing `TaskComment.metadata` JSON fields.
 
 
 

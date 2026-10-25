@@ -12,7 +12,12 @@ Provides multi-tenant project isolation for agile teams of 5–15 members. All t
 2. **Member Invitation**: Workspace Admins invite users via email with an assigned role (`ADMIN`, `MANAGER`, `CONTRIBUTOR`). System generates a secure 64-char token expiring in 7 days (`WorkspaceInvitation`).
 3. **Invitation Acceptance**: Invitee accepts via `/workspaces/invitations/<token>/accept/`, creating an active `WorkspaceMembership`.
 4. **Access Request Flow**: When an unauthorized user attempts to visit a workspace, they encounter the custom 403 page and submit a `WorkspaceAccessRequest` with an optional note.
-5. **Temporary Privilege Elevation**: Contributors submit `GlobalAccessRequest` for specific actions (`task.delete`, `file.upload`), and Admins grant time-bounded `TemporaryAccessGrant` records without permanent role elevation.
+5. **Workspace Visual Identity & Branding**: Workspace Admins customize branding in Workspace Settings:
+   - Curated built-in icons (14 options: `#`, `</>`, `🚀`, `✨`, `📢`, `💬`, `💼`, `💡`, `🪲`, `📁`, `🔒`, `🌐`, `🛡️`, `🧊`) persisted with canonical `icon:<key>` format.
+   - Live responsive selector grid (4 columns on mobile, 6 columns on desktop) with active state rings.
+   - Custom square image uploads with local preview, or default 2-letter uppercase initials fallback.
+   - Enforced backend allowlist validation (`ALLOWED_WORKSPACE_ICONS`) and server-side RBAC.
+6. **Temporary Privilege Elevation**: Contributors submit `GlobalAccessRequest` for specific actions (`task.delete`, `file.upload`), and Admins grant time-bounded `TemporaryAccessGrant` records without permanent role elevation.
 
 ## 4. User Roles & Permissions
 * **Workspace Admin**: Can edit workspace profile, manage seat allocations, revoke invitations, change member roles, and approve access requests.

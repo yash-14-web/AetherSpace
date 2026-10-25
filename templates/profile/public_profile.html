@@ -3,11 +3,16 @@
 {% block profile_content %}
 <div class="space-y-6">
 
+    <!-- Teammate Profile 2-Column Responsive SaaS Layout -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-        <!-- Left: Teammate Biography & Overview -->
-        <div class="lg:col-span-2 aether-card p-5 sm:p-6 rounded-2xl border border-slate-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm space-y-5">
-            <div>
+        <!-- ================================================================= -->
+        <!-- PRIMARY COLUMN (Left 2/3): Teammate About, Profile Info, Shared Workspaces -->
+        <!-- ================================================================= -->
+        <div class="lg:col-span-2 space-y-6">
+
+            <!-- 1. Teammate Biography & Overview -->
+            <div class="aether-card p-5 sm:p-6 rounded-2xl border border-slate-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm space-y-3">
                 <h2 class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 flex items-center space-x-2">
                     <svg class="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -15,219 +20,313 @@
                     <span>Teammate Biography</span>
                 </h2>
 
-                <div class="mt-3">
-                    {% if profile.bio %}
-                        <p class="text-sm text-slate-700 dark:text-zinc-300 leading-relaxed whitespace-pre-line">
-                            {{ profile.bio }}
-                        </p>
-                    {% else %}
-                        <p class="text-xs text-slate-400 dark:text-zinc-500 italic">
-                            This teammate has not added a detailed biography yet.
-                        </p>
-                    {% endif %}
-                </div>
+                {% if profile.bio %}
+                    <p class="text-sm text-slate-700 dark:text-zinc-300 leading-relaxed whitespace-pre-line">
+                        {{ profile.bio }}
+                    </p>
+                {% else %}
+                    <p class="text-xs text-slate-400 dark:text-zinc-500 italic py-2">
+                        This teammate has not added a detailed biography yet.
+                    </p>
+                {% endif %}
             </div>
 
-            <!-- Professional Details Grid -->
-            <div class="pt-4 border-t border-slate-100 dark:border-zinc-800/80 grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                <!-- Functional Designation -->
-                <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-zinc-800/50 border border-slate-200/60 dark:border-zinc-800 space-y-1">
-                    <span class="text-[11px] font-semibold text-slate-400 dark:text-zinc-500 uppercase tracking-wider block">Designation Role</span>
-                    <span class="text-xs font-bold text-slate-900 dark:text-zinc-100">
-                        {{ primary_role.designation|default:profile_user.get_role_display|default:profile_user.role }}
-                    </span>
-                </div>
+            <!-- 2. Profile Information Grid -->
+            <div class="aether-card p-5 sm:p-6 rounded-2xl border border-slate-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm space-y-4">
+                <h2 class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 flex items-center space-x-2">
+                    <svg class="w-4 h-4 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2" />
+                    </svg>
+                    <span>Profile Information</span>
+                </h2>
 
-                <!-- Domain Tagging Role -->
-                <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-zinc-800/50 border border-slate-200/60 dark:border-zinc-800 space-y-1">
-                    <span class="text-[11px] font-semibold text-slate-400 dark:text-zinc-500 uppercase tracking-wider block">Domain Tagging Role</span>
-                    {% if primary_role.role_tag %}
-                        <span class="inline-flex px-2 py-0.5 rounded-md text-[11px] font-bold bg-purple-50 dark:bg-purple-950/70 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800/60">
-                            {{ primary_role.role_tag }}
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                    <!-- Designation Role -->
+                    <div class="p-3 rounded-xl bg-slate-50 dark:bg-zinc-800/50 border border-slate-100 dark:border-zinc-800 space-y-1">
+                        <span class="text-[10px] font-semibold text-slate-400 dark:text-zinc-500 uppercase tracking-wider block">Designation / Role</span>
+                        <span class="font-bold text-slate-900 dark:text-zinc-100 block truncate">
+                            {{ primary_role.designation|default:profile_user.get_role_display|default:profile_user.role }}
                         </span>
-                    {% else %}
-                        <span class="text-xs text-slate-500 dark:text-zinc-400 font-medium">Standard Contributor</span>
-                    {% endif %}
-                </div>
+                    </div>
 
-                <!-- Active Workspace -->
-                <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-zinc-800/50 border border-slate-200/60 dark:border-zinc-800 space-y-1">
-                    <span class="text-[11px] font-semibold text-slate-400 dark:text-zinc-500 uppercase tracking-wider block">Primary Workspace</span>
-                    <span class="text-xs font-semibold text-slate-800 dark:text-zinc-200 flex items-center gap-1.5">
-                        <svg class="w-3.5 h-3.5 text-blue-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
-                        </svg>
-                        <span>{{ primary_role.workspace_name|default:"AetherSpace Team" }}</span>
-                    </span>
-                </div>
-
-                <!-- Reporting Supervisor -->
-                <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-zinc-800/50 border border-slate-200/60 dark:border-zinc-800 space-y-1">
-                    <span class="text-[11px] font-semibold text-slate-400 dark:text-zinc-500 uppercase tracking-wider block">Reporting Hierarchy</span>
-                    {% if primary_role.reporting_to_name and not primary_role.is_owner %}
-                        <div class="flex items-center gap-1.5 pt-0.5">
-                            {% if primary_role.reporting_to_user %}
-                                {% include 'components/avatar.html' with user=primary_role.reporting_to_user size="w-4 h-4" rounded="rounded-full" text_size="text-[9px]" %}
-                            {% endif %}
-                            <span class="text-xs font-bold text-slate-800 dark:text-zinc-200">
-                                {{ primary_role.reporting_to_name }}
+                    <!-- Domain Tagging Role -->
+                    <div class="p-3 rounded-xl bg-slate-50 dark:bg-zinc-800/50 border border-slate-100 dark:border-zinc-800 space-y-1">
+                        <span class="text-[10px] font-semibold text-slate-400 dark:text-zinc-500 uppercase tracking-wider block">Domain Tagging Role</span>
+                        {% if primary_role.role_tag %}
+                            <span class="inline-flex px-2 py-0.5 rounded-md text-[11px] font-bold bg-purple-50 dark:bg-purple-950/70 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800/60">
+                                {{ primary_role.role_tag }}
                             </span>
-                            {% if primary_role.reporting_to_role %}
-                                <span class="text-[10px] text-slate-400 dark:text-zinc-500">({{ primary_role.reporting_to_role }})</span>
-                            {% endif %}
-                        </div>
-                    {% elif primary_role.is_owner %}
-                        <span class="text-xs font-semibold text-amber-600 dark:text-amber-400">Workspace Owner (Direct)</span>
-                    {% else %}
-                        <span class="text-xs text-slate-500 dark:text-zinc-400 font-medium">Workspace Lead / Direct</span>
-                    {% endif %}
-                </div>
+                        {% else %}
+                            <span class="font-medium text-slate-600 dark:text-zinc-400">Standard Contributor</span>
+                        {% endif %}
+                    </div>
 
-                <!-- Contributor ID -->
-                <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-zinc-800/50 border border-slate-200/60 dark:border-zinc-800 space-y-1">
-                    <span class="text-[11px] font-semibold text-slate-400 dark:text-zinc-500 uppercase tracking-wider block">Contributor ID</span>
-                    <span class="font-mono text-xs font-bold text-aether-blue dark:text-blue-400">
-                        {{ profile_user.contributor_id|default:"Unassigned" }}
-                    </span>
-                </div>
-
-                <!-- System Authority -->
-                <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-zinc-800/50 border border-slate-200/60 dark:border-zinc-800 space-y-1">
-                    <span class="text-[11px] font-semibold text-slate-400 dark:text-zinc-500 uppercase tracking-wider block">System Authority</span>
-                    <span class="text-xs font-bold text-slate-800 dark:text-zinc-200">
-                        {{ profile_user.get_role_display|default:profile_user.role }}
-                    </span>
-                </div>
-
-                <!-- Local Timezone -->
-                <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-zinc-800/50 border border-slate-200/60 dark:border-zinc-800 space-y-1">
-                    <span class="text-[11px] font-semibold text-slate-400 dark:text-zinc-500 uppercase tracking-wider block">Local Timezone</span>
-                    <span class="text-xs font-medium text-slate-800 dark:text-zinc-200">
-                        {{ profile_user.timezone|default:"UTC" }}
-                    </span>
-                </div>
-
-                <!-- Member Since -->
-                <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-zinc-800/50 border border-slate-200/60 dark:border-zinc-800 space-y-1">
-                    <span class="text-[11px] font-semibold text-slate-400 dark:text-zinc-500 uppercase tracking-wider block">Member Since</span>
-                    <span class="text-xs font-medium text-slate-800 dark:text-zinc-200">
-                        {{ profile_user.created_at|date:"F Y" }}
-                    </span>
-                </div>
-            </div>
-
-            <!-- Collaboration Actions -->
-            <div class="pt-4 border-t border-slate-100 dark:border-zinc-800 flex flex-wrap items-center justify-between gap-3">
-                <span class="text-xs text-slate-500 dark:text-zinc-400">
-                    Reach out to {{ profile_user.first_name|default:profile_user.email }}:
-                </span>
-                <div class="flex items-center space-x-2">
-                    <a href="mailto:{{ profile_user.email }}" 
-                       class="px-3.5 py-2 text-xs font-semibold rounded-xl bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700 transition inline-flex items-center space-x-1.5 shadow-xs">
-                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                        </svg>
-                        <span>Send Email</span>
-                    </a>
-                    {% if shared_roles %}
-                        <a href="/chat/w/{{ shared_roles.0.workspace_slug }}/dm/{{ profile_user.id }}/" 
-                            class="px-4 py-2 text-xs font-semibold rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition inline-flex items-center space-x-1.5 shadow-sm">
-                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                    <!-- Primary Workspace -->
+                    <div class="p-3 rounded-xl bg-slate-50 dark:bg-zinc-800/50 border border-slate-100 dark:border-zinc-800 space-y-1">
+                        <span class="text-[10px] font-semibold text-slate-400 dark:text-zinc-500 uppercase tracking-wider block">Primary Workspace</span>
+                        <span class="font-semibold text-slate-800 dark:text-zinc-200 flex items-center gap-1.5 truncate">
+                            <svg class="w-3.5 h-3.5 text-blue-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
                             </svg>
-                            <span>Start Direct Chat</span>
-                        </a>
-                    {% endif %}
+                            <span class="truncate">{{ primary_role.workspace_name|default:"AetherSpace Team" }}</span>
+                        </span>
+                    </div>
+
+                    <!-- Contributor ID -->
+                    <div class="p-3 rounded-xl bg-slate-50 dark:bg-zinc-800/50 border border-slate-100 dark:border-zinc-800 space-y-1">
+                        <span class="text-[10px] font-semibold text-slate-400 dark:text-zinc-500 uppercase tracking-wider block">Contributor ID</span>
+                        <span class="font-mono font-bold text-blue-600 dark:text-blue-400 select-all block">
+                            {{ profile_user.contributor_id|default:"Unassigned" }}
+                        </span>
+                    </div>
+
+                    <!-- System Authority -->
+                    <div class="p-3 rounded-xl bg-slate-50 dark:bg-zinc-800/50 border border-slate-100 dark:border-zinc-800 space-y-1">
+                        <span class="text-[10px] font-semibold text-slate-400 dark:text-zinc-500 uppercase tracking-wider block">System Authority</span>
+                        <span class="font-bold text-slate-900 dark:text-zinc-100 uppercase block">
+                            {{ profile_user.get_role_display|default:profile_user.role }}
+                        </span>
+                    </div>
+
+                    <!-- Local Timezone -->
+                    <div class="p-3 rounded-xl bg-slate-50 dark:bg-zinc-800/50 border border-slate-100 dark:border-zinc-800 space-y-1">
+                        <span class="text-[10px] font-semibold text-slate-400 dark:text-zinc-500 uppercase tracking-wider block">Local Timezone</span>
+                        <span class="font-medium text-slate-800 dark:text-zinc-200 block truncate">
+                            {{ profile_user.timezone|default:"UTC" }}
+                        </span>
+                    </div>
+
+                    <!-- Member Since -->
+                    <div class="p-3 rounded-xl bg-slate-50 dark:bg-zinc-800/50 border border-slate-100 dark:border-zinc-800 space-y-1">
+                        <span class="text-[10px] font-semibold text-slate-400 dark:text-zinc-500 uppercase tracking-wider block">Member Since</span>
+                        <span class="font-medium text-slate-800 dark:text-zinc-200 block">
+                            {{ profile_user.created_at|date:"F Y" }}
+                        </span>
+                    </div>
+
+                    <!-- Reporting Hierarchy -->
+                    <div class="p-3 rounded-xl bg-slate-50 dark:bg-zinc-800/50 border border-slate-100 dark:border-zinc-800 space-y-1">
+                        <span class="text-[10px] font-semibold text-slate-400 dark:text-zinc-500 uppercase tracking-wider block">Reporting Line</span>
+                        {% if primary_role.reporting_to_name and not primary_role.is_owner %}
+                            <div class="flex items-center gap-1.5 truncate">
+                                {% if primary_role.reporting_to_user %}
+                                    {% include 'components/avatar.html' with user=primary_role.reporting_to_user size="w-4 h-4" rounded="rounded-full" text_size="text-[8px]" %}
+                                {% endif %}
+                                <span class="font-bold text-slate-800 dark:text-zinc-200 truncate">{{ primary_role.reporting_to_name }}</span>
+                            </div>
+                        {% elif primary_role.is_owner %}
+                            <span class="font-semibold text-amber-600 dark:text-amber-400">Workspace Owner (Direct)</span>
+                        {% else %}
+                            <span class="font-medium text-slate-600 dark:text-zinc-400">Direct / Lead</span>
+                        {% endif %}
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <!-- Right: Shared Workspaces & Teammate Details -->
-        <div class="aether-card p-5 sm:p-6 rounded-2xl border border-slate-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm space-y-4">
-            <h2 class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 flex items-center space-x-2">
-                <svg class="w-4 h-4 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                </svg>
-                <span>Shared Workspaces</span>
-            </h2>
+            <!-- 3. Shared Workspace Memberships -->
+            <div class="aether-card p-5 sm:p-6 rounded-2xl border border-slate-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm space-y-4">
+                <h2 class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 flex items-center space-x-2">
+                    <svg class="w-4 h-4 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                    </svg>
+                    <span>Shared Workspaces ({{ shared_roles|length }})</span>
+                </h2>
 
-            {% if shared_roles %}
-                <div class="space-y-3">
-                    {% for item in shared_roles %}
-                        <div class="p-3.5 rounded-xl border border-slate-200/80 dark:border-zinc-800/80 bg-slate-50/70 dark:bg-zinc-800/40 space-y-2">
-                            <div class="flex items-start justify-between gap-2">
-                                <div>
-                                    <p class="text-xs font-bold text-slate-900 dark:text-zinc-100">{{ item.workspace_name }}</p>
-                                    <p class="text-[10px] text-slate-400 dark:text-zinc-500 font-mono">/{{ item.workspace_slug }}</p>
+                {% if shared_roles %}
+                    <div class="divide-y divide-slate-100 dark:divide-zinc-800/80">
+                        {% for item in shared_roles %}
+                            <div class="py-3 flex items-center justify-between gap-3 group">
+                                <div class="min-w-0 flex-1">
+                                    <div class="flex items-center space-x-2 flex-wrap gap-y-1">
+                                        <a href="/workspaces/w/{{ item.workspace_slug }}/" 
+                                           class="text-xs sm:text-sm font-bold text-slate-900 dark:text-zinc-100 hover:text-blue-600 dark:hover:text-blue-400 truncate">
+                                            {{ item.workspace_name }}
+                                        </a>
+                                        {% if item.is_owner %}
+                                            <span class="px-1.5 py-0.2 text-[9px] font-bold rounded bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400 border border-amber-200 dark:border-amber-900/60 uppercase">
+                                                Owner
+                                            </span>
+                                        {% endif %}
+                                    </div>
+
+                                    <div class="flex items-center space-x-2 text-[11px] text-slate-500 dark:text-zinc-400 mt-1 flex-wrap gap-y-1">
+                                        <span>{{ item.functional_role|default:item.role_display }}</span>
+                                        {% if item.role_tag %}
+                                            <span>&bull;</span>
+                                            <span class="px-1.5 py-0.2 rounded font-bold text-[10px] bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300">
+                                                {{ item.role_tag }}
+                                            </span>
+                                        {% endif %}
+                                        <span>&bull;</span>
+                                        <span>Joined {{ item.joined_at|date:"M Y" }}</span>
+                                    </div>
                                 </div>
-                                <div class="flex items-center gap-1">
-                                    {% if item.is_owner %}
-                                        <span class="px-1.5 py-0.5 text-[9px] font-bold rounded bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400 border border-amber-200 dark:border-amber-900/60 uppercase">
-                                            Owner
-                                        </span>
-                                    {% endif %}
-                                    <span class="px-2 py-0.5 text-[10px] font-bold rounded-md uppercase bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-900/50">
+
+                                <div class="shrink-0 flex items-center space-x-2">
+                                    <span class="px-2.5 py-1 text-[11px] font-bold rounded-lg uppercase
+                                        {% if item.role == 'ADMIN' %}bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-400 border border-purple-200 dark:border-purple-900/60
+                                        {% elif item.role == 'MANAGER' %}bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-400 border border-blue-200 dark:border-blue-900/60
+                                        {% else %}bg-slate-100 text-slate-700 dark:bg-zinc-800 dark:text-zinc-300 border border-slate-200 dark:border-zinc-700{% endif %}">
                                         {{ item.role_display }}
                                     </span>
                                 </div>
                             </div>
-
-                            <!-- Scope Strip: { Designation Role • Tagging Role • Workspace } -->
-                            <div class="pt-2 border-t border-slate-200/50 dark:border-zinc-700/50 flex items-center gap-1.5 flex-wrap text-xs">
-                                <span class="font-bold text-slate-800 dark:text-zinc-200 text-[11px]">
-                                    {{ item.functional_role|default:item.role_display }}
-                                </span>
-                                {% if item.role_tag %}
-                                    <span class="text-slate-300 dark:text-zinc-600 font-black text-[9px]">&bull;</span>
-                                    <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800/60">
-                                        {{ item.role_tag }}
-                                    </span>
-                                {% endif %}
-                            </div>
-
-                            <!-- Reporting and Member Since -->
-                            <div class="pt-1.5 text-[10px] text-slate-400 dark:text-zinc-500 flex items-center justify-between flex-wrap gap-1">
-                                <span>Joined {{ item.joined_at|date:"M Y" }}</span>
-                                {% if item.reporting_to and not item.is_owner %}
-                                    <div class="flex items-center gap-1">
-                                        <span>Reports to:</span>
-                                        <span class="font-semibold text-slate-700 dark:text-zinc-300">
-                                            {{ item.reporting_to.user.full_name|default:item.reporting_to.user.email }}
-                                        </span>
-                                    </div>
-                                {% endif %}
-                            </div>
-                        </div>
-                    {% endfor %}
-                </div>
-            {% else %}
-                <p class="text-xs text-slate-400 dark:text-zinc-500 italic">
-                    No active shared workspaces found.
-                </p>
-            {% endif %}
-
-            <!-- Contact Card Details -->
-            <div class="pt-3 border-t border-slate-100 dark:border-zinc-800/80 space-y-2 text-xs">
-                <div class="flex items-center justify-between py-1">
-                    <span class="text-slate-400 dark:text-zinc-500">Email</span>
-                    <a href="mailto:{{ profile_user.email }}" class="text-aether-blue dark:text-blue-400 font-medium hover:underline truncate max-w-[180px]">
-                        {{ profile_user.email }}
-                    </a>
-                </div>
-                {% if profile.phone %}
-                    <div class="flex items-center justify-between py-1">
-                        <span class="text-slate-400 dark:text-zinc-500">Phone</span>
-                        <span class="text-slate-700 dark:text-zinc-300 font-medium">{{ profile.phone }}</span>
+                        {% endfor %}
                     </div>
+                {% else %}
+                    <p class="text-xs text-slate-400 dark:text-zinc-500 italic py-4 text-center">
+                        No active shared workspaces found.
+                    </p>
                 {% endif %}
-                <div class="flex items-center justify-between py-1">
-                    <span class="text-slate-400 dark:text-zinc-500">Verification</span>
-                    <span class="text-emerald-600 dark:text-emerald-400 font-semibold inline-flex items-center gap-1">
-                        <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
-                        Verified Teammate
-                    </span>
+            </div>
+
+        </div>
+
+        <!-- ================================================================= -->
+        <!-- SECONDARY COLUMN (Right 1/3): Teammate Availability, Actions, Contact -->
+        <!-- ================================================================= -->
+        <div class="space-y-6">
+
+            <!-- 1. Availability Status Card -->
+            <div class="aether-card p-5 sm:p-6 rounded-2xl border border-slate-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm space-y-3">
+                <h2 class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 flex items-center space-x-2">
+                    <svg class="w-4 h-4 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span>Availability</span>
+                </h2>
+
+                <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-zinc-800/50 border border-slate-100 dark:border-zinc-800 space-y-2">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-semibold text-slate-600 dark:text-zinc-300">Status</span>
+                        <span class="inline-flex items-center space-x-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold
+                            {% if profile.availability_status == 'available' %}bg-emerald-50 text-emerald-700 dark:bg-emerald-950/70 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60
+                            {% elif profile.availability_status == 'busy' %}bg-rose-50 text-rose-700 dark:bg-rose-950/70 dark:text-rose-300 border border-rose-200 dark:border-rose-800/60
+                            {% elif profile.availability_status == 'away' %}bg-amber-50 text-amber-700 dark:bg-amber-950/70 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60
+                            {% else %}bg-slate-100 text-slate-700 dark:bg-zinc-800 dark:text-zinc-300 border border-slate-200 dark:border-zinc-700{% endif %}">
+                            <span class="w-1.5 h-1.5 rounded-full {% if profile.availability_status == 'available' %}bg-emerald-500 animate-pulse{% elif profile.availability_status == 'busy' %}bg-rose-500{% elif profile.availability_status == 'away' %}bg-amber-500{% else %}bg-slate-400{% endif %}"></span>
+                            <span>{{ profile.availability_status|title }}</span>
+                        </span>
+                    </div>
+
+                    {% if profile.status_message %}
+                        <p class="text-xs text-slate-700 dark:text-zinc-300 italic pt-1 border-t border-slate-100 dark:border-zinc-700/60">
+                            &ldquo;{{ profile.status_message }}&rdquo;
+                        </p>
+                    {% endif %}
+
+                    <div class="pt-2 text-[11px] text-slate-500 dark:text-zinc-400 flex items-center justify-between">
+                        <span>Timezone:</span>
+                        <span class="font-medium text-slate-800 dark:text-zinc-200">{{ profile_user.timezone|default:"UTC" }}</span>
+                    </div>
                 </div>
             </div>
+
+            <!-- 2. Reach Out Actions Card -->
+            <div class="aether-card p-5 sm:p-6 rounded-2xl border border-slate-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm space-y-3">
+                <h2 class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 flex items-center space-x-2">
+                    <svg class="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                    </svg>
+                    <span>Connect & Collaborate</span>
+                </h2>
+
+                <div class="space-y-2">
+                    <a href="mailto:{{ profile_user.email }}" 
+                       class="w-full flex items-center justify-between p-2.5 rounded-xl border border-slate-200/80 dark:border-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-800/50 transition-colors text-xs font-semibold text-slate-800 dark:text-zinc-200">
+                        <div class="flex items-center space-x-2">
+                            <svg class="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                            </svg>
+                            <span>Send Email</span>
+                        </div>
+                        <span class="text-slate-400">&rarr;</span>
+                    </a>
+
+                    {% if shared_roles %}
+                        <a href="/chat/w/{{ shared_roles.0.workspace_slug }}/dm/{{ profile_user.id }}/" 
+                           class="w-full flex items-center justify-between p-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 transition-colors text-xs font-bold text-white shadow-sm">
+                            <div class="flex items-center space-x-2">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                                </svg>
+                                <span>Start Direct Chat</span>
+                            </div>
+                            <span>&rarr;</span>
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- 3. Contact Details Card -->
+            <div class="aether-card p-5 sm:p-6 rounded-2xl border border-slate-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm space-y-3">
+                <h2 class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 flex items-center space-x-2">
+                    <svg class="w-4 h-4 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                    </svg>
+                    <span>Contact Details</span>
+                </h2>
+
+                <div class="space-y-2.5 text-xs">
+                    <div class="flex justify-between items-center py-1 border-b border-slate-100 dark:border-zinc-800/60">
+                        <span class="text-slate-500 dark:text-zinc-400">Email Address</span>
+                        <a href="mailto:{{ profile_user.email }}" class="font-semibold text-blue-600 dark:text-blue-400 hover:underline truncate max-w-[180px]">
+                            {{ profile_user.email }}
+                        </a>
+                    </div>
+
+                    <div class="flex justify-between items-center py-1 border-b border-slate-100 dark:border-zinc-800/60">
+                        <span class="text-slate-500 dark:text-zinc-400">Verification</span>
+                        {% if profile_user.is_verified %}
+                            <span class="inline-flex items-center space-x-1 font-semibold text-emerald-600 dark:text-emerald-400">
+                                <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                                </svg>
+                                <span>Verified Teammate</span>
+                            </span>
+                        {% else %}
+                            <span class="font-semibold text-amber-500">Unverified</span>
+                        {% endif %}
+                    </div>
+
+                    {% if profile.phone %}
+                        <div class="flex justify-between items-center py-1 border-b border-slate-100 dark:border-zinc-800/60">
+                            <span class="text-slate-500 dark:text-zinc-400">Phone</span>
+                            <span class="font-semibold text-slate-800 dark:text-zinc-200">{{ profile.phone }}</span>
+                        </div>
+                    {% endif %}
+
+                    <div class="flex justify-between items-center py-1">
+                        <span class="text-slate-500 dark:text-zinc-400">Contributor ID</span>
+                        <span class="font-mono font-bold text-blue-600 dark:text-blue-400 select-all">{{ profile_user.contributor_id|default:"—" }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4. Teammate Skills & Focus Areas Card -->
+            <div class="aether-card p-5 sm:p-6 rounded-2xl border border-slate-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm space-y-3">
+                <h2 class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 flex items-center space-x-2">
+                    <svg class="w-4 h-4 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                    </svg>
+                    <span>Skills & Domain Focus</span>
+                </h2>
+
+                {% if profile.skills %}
+                    <div class="flex flex-wrap gap-1.5 text-xs">
+                        {% for s in profile.skills %}
+                            <span class="px-2.5 py-1 rounded-lg font-medium bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 border border-slate-200 dark:border-zinc-700">
+                                {{ s }}
+                            </span>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-xs text-slate-400 dark:text-zinc-500 italic py-2">
+                        No skills listed yet.
+                    </p>
+                {% endif %}
+            </div>
+
         </div>
 
     </div>

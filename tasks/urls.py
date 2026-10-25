@@ -21,6 +21,14 @@ urlpatterns = [
     path('w/<slug:slug>/sprints/move-task/', views.sprint_move_task_view, name='sprint_move_task'),
     path('w/<slug:slug>/sprints/quick-create-task/', views.sprint_quick_create_task_view, name='sprint_quick_create_task'),
 
+    # Dedicated Code Reviews Module endpoints (must precede <str:task_code> slug router)
+    path('w/<slug:slug>/reviews/', views.code_review_list_view, name='code_review_list'),
+    path('w/<slug:slug>/reviews/request/', views.code_review_request_workspace_view, name='code_review_request_workspace'),
+    path('w/<slug:slug>/reviews/<str:review_code>/', views.code_review_detail_view, name='code_review_detail'),
+    path('w/<slug:slug>/reviews/<str:review_code>/comment/', views.code_review_comment_add_view, name='code_review_comment_add'),
+    path('w/<slug:slug>/reviews/<str:review_code>/start/', views.code_review_start_view, name='code_review_start'),
+    path('w/<slug:slug>/reviews/<str:review_code>/decision/', views.code_review_decision_view, name='code_review_decision'),
+
     path('w/<slug:slug>/<str:task_code>/', views.task_detail_view, name='task_detail'),
     path('w/<slug:slug>/<str:task_code>/edit/', views.task_edit_view, name='task_edit'),
     path('w/<slug:slug>/<str:task_code>/status/', views.task_status_update_view, name='task_status_update'),
@@ -29,6 +37,7 @@ urlpatterns = [
     path('w/<slug:slug>/<str:task_code>/comment/', views.task_comment_add_view, name='task_comment_add'),
     path('w/<slug:slug>/<str:task_code>/comment/<uuid:comment_id>/edit/', views.task_comment_edit_view, name='task_comment_edit'),
     path('w/<slug:slug>/<str:task_code>/comment/<uuid:comment_id>/delete/', views.task_comment_delete_view, name='task_comment_delete'),
+    path('w/<slug:slug>/<str:task_code>/comment/<uuid:comment_id>/react/', views.task_comment_react_view, name='task_comment_react'),
 
     # Bug Linking endpoints
     path('w/<slug:slug>/<str:task_code>/bugs/attach/', views.task_bug_attach_view, name='task_bug_attach'),
@@ -37,13 +46,14 @@ urlpatterns = [
     # Subtask endpoints
     path('w/<slug:slug>/<str:task_code>/subtasks/create/', views.subtask_create_view, name='subtask_create'),
     path('w/<slug:slug>/<str:task_code>/subtasks/<uuid:subtask_id>/toggle/', views.subtask_toggle_view, name='subtask_toggle'),
+    path('w/<slug:slug>/<str:task_code>/subtasks/<uuid:subtask_id>/update/', views.subtask_update_view, name='subtask_update'),
     path('w/<slug:slug>/<str:task_code>/subtasks/<uuid:subtask_id>/delete/', views.subtask_delete_view, name='subtask_delete'),
 
     # Attachment endpoints
     path('w/<slug:slug>/<str:task_code>/attachment/upload/', views.task_attachment_upload_view, name='task_attachment_upload'),
     path('w/<slug:slug>/<str:task_code>/attachment/<uuid:attachment_id>/delete/', views.task_attachment_delete_view, name='task_attachment_delete'),
 
-    # Code Review endpoints
+    # Task-level Code Review endpoints
     path('w/<slug:slug>/<str:task_code>/code-review/create/', views.code_review_create_view, name='code_review_create'),
     path('w/<slug:slug>/code-review/<uuid:review_id>/status/', views.code_review_status_update_view, name='code_review_status_update'),
 

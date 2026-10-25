@@ -23,6 +23,7 @@ urlpatterns = [
     path('profile/roles/', views.profile_roles_view, name='profile_roles'),
     path('profile/avatar/remove/', views.profile_avatar_remove_view, name='profile_avatar_remove'),
     path('profile/banner/remove/', views.profile_banner_remove_view, name='profile_banner_remove'),
+    path('profile/skills/update/', views.profile_skills_update_view, name='profile_skills_update'),
     path('profile/u/<uuid:user_id>/', views.public_profile_view, name='public_profile'),
     path('api/user-card/<str:user_identifier>/', views.api_user_hover_card, name='api_user_hover_card'),
     path('api/status/update/', views.update_availability_status, name='update_availability_status'),

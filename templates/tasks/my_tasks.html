@@ -5,7 +5,7 @@
 {% block content %}
 <div class="space-y-6 max-w-7xl mx-auto">
     
-    <!-- Top Header (Panel 6 Reference) -->
+    <!-- Top Header: Title, Subtitle, Count Badge & Functional Search (Matching Mockup Box 6) -->
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
             <div class="flex items-center space-x-2 text-xs text-slate-500 dark:text-zinc-400 mb-1">
@@ -21,60 +21,69 @@
                     {{ counts.total }} Assigned
                 </span>
             </div>
+            <p class="text-xs text-slate-500 dark:text-zinc-400 mt-1">
+                Cross-workspace personal dashboard
+            </p>
         </div>
 
         <div class="flex items-center space-x-2">
-            <!-- Search within My Tasks -->
-            <div class="relative">
-                <input type="text" placeholder="Search my tasks..." 
-                       class="w-48 sm:w-64 pl-8 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] text-slate-900 dark:text-zinc-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-aether-blue">
-                <svg class="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                </svg>
-            </div>
+            <!-- Search within My Tasks (Functional GET Form) -->
+            <form method="get" class="relative">
+                {% if current_status %}<input type="hidden" name="status" value="{{ current_status }}">{% endif %}
+                {% if current_priority %}<input type="hidden" name="priority" value="{{ current_priority }}">{% endif %}
+                {% if current_workspace %}<input type="hidden" name="workspace" value="{{ current_workspace }}">{% endif %}
+                <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400 dark:text-zinc-500">
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                    </svg>
+                </span>
+                <input type="text" name="q" value="{{ current_q }}" 
+                       placeholder="Search your tasks..." 
+                       class="w-56 sm:w-72 pl-8 pr-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-obsidian-900 text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-aether-blue transition">
+            </form>
         </div>
     </div>
 
-    <!-- Status Tabs (Panel 6) -->
-    <div class="flex items-center space-x-2 border-b border-slate-200 dark:border-zinc-800 overflow-x-auto pb-px text-xs font-semibold">
-        <a href="?{% if current_workspace %}workspace={{ current_workspace }}&{% endif %}{% if current_priority %}priority={{ current_priority }}{% endif %}" 
-           class="px-4 py-2.5 border-b-2 whitespace-nowrap transition {% if not current_status %}border-aether-blue text-aether-blue font-bold{% else %}border-transparent text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200{% endif %}">
+    <!-- Status Tabs: Horizontal Pills with Accurate Counts (Matching Mockup Box 6) -->
+    <div class="flex items-center space-x-2 overflow-x-auto pb-1 text-xs font-semibold">
+        <a href="?{% if current_q %}q={{ current_q }}&{% endif %}{% if current_workspace %}workspace={{ current_workspace }}&{% endif %}{% if current_priority %}priority={{ current_priority }}{% endif %}" 
+           class="px-3.5 py-1.5 rounded-xl whitespace-nowrap transition {% if not current_status %}bg-aether-blue text-white font-bold shadow-2xs{% else %}bg-slate-100 dark:bg-obsidian-900 text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200 border border-slate-200 dark:border-zinc-800{% endif %}">
             All ({{ counts.total }})
         </a>
-        <a href="?status=TODO{% if current_workspace %}&workspace={{ current_workspace }}{% endif %}{% if current_priority %}&priority={{ current_priority }}{% endif %}" 
-           class="px-4 py-2.5 border-b-2 whitespace-nowrap transition {% if current_status == 'TODO' %}border-aether-blue text-aether-blue font-bold{% else %}border-transparent text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200{% endif %}">
+        <a href="?status=TODO{% if current_q %}&q={{ current_q }}{% endif %}{% if current_workspace %}&workspace={{ current_workspace }}{% endif %}{% if current_priority %}&priority={{ current_priority }}{% endif %}" 
+           class="px-3.5 py-1.5 rounded-xl whitespace-nowrap transition {% if current_status == 'TODO' %}bg-aether-blue text-white font-bold shadow-2xs{% else %}bg-slate-100 dark:bg-obsidian-900 text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200 border border-slate-200 dark:border-zinc-800{% endif %}">
             To Do ({{ counts.todo }})
         </a>
-        <a href="?status=IN_PROGRESS{% if current_workspace %}&workspace={{ current_workspace }}{% endif %}{% if current_priority %}&priority={{ current_priority }}{% endif %}" 
-           class="px-4 py-2.5 border-b-2 whitespace-nowrap transition {% if current_status == 'IN_PROGRESS' %}border-aether-blue text-aether-blue font-bold{% else %}border-transparent text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200{% endif %}">
+        <a href="?status=IN_PROGRESS{% if current_q %}&q={{ current_q }}{% endif %}{% if current_workspace %}&workspace={{ current_workspace }}{% endif %}{% if current_priority %}&priority={{ current_priority }}{% endif %}" 
+           class="px-3.5 py-1.5 rounded-xl whitespace-nowrap transition {% if current_status == 'IN_PROGRESS' %}bg-aether-blue text-white font-bold shadow-2xs{% else %}bg-slate-100 dark:bg-obsidian-900 text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200 border border-slate-200 dark:border-zinc-800{% endif %}">
             In Progress ({{ counts.in_progress }})
         </a>
-        <a href="?status=CODE_REVIEW{% if current_workspace %}&workspace={{ current_workspace }}{% endif %}{% if current_priority %}&priority={{ current_priority }}{% endif %}" 
-           class="px-4 py-2.5 border-b-2 whitespace-nowrap transition {% if current_status == 'CODE_REVIEW' %}border-aether-blue text-aether-blue font-bold{% else %}border-transparent text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200{% endif %}">
-            Code Review ({{ counts.review }})
+        <a href="?status=CODE_REVIEW{% if current_q %}&q={{ current_q }}{% endif %}{% if current_workspace %}&workspace={{ current_workspace }}{% endif %}{% if current_priority %}&priority={{ current_priority }}{% endif %}" 
+           class="px-3.5 py-1.5 rounded-xl whitespace-nowrap transition {% if current_status == 'CODE_REVIEW' %}bg-aether-blue text-white font-bold shadow-2xs{% else %}bg-slate-100 dark:bg-obsidian-900 text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200 border border-slate-200 dark:border-zinc-800{% endif %}">
+            Review ({{ counts.review }})
         </a>
-        <a href="?status=TESTING{% if current_workspace %}&workspace={{ current_workspace }}{% endif %}{% if current_priority %}&priority={{ current_priority }}{% endif %}" 
-           class="px-4 py-2.5 border-b-2 whitespace-nowrap transition {% if current_status == 'TESTING' %}border-aether-blue text-aether-blue font-bold{% else %}border-transparent text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200{% endif %}">
+        <a href="?status=TESTING{% if current_q %}&q={{ current_q }}{% endif %}{% if current_workspace %}&workspace={{ current_workspace }}{% endif %}{% if current_priority %}&priority={{ current_priority }}{% endif %}" 
+           class="px-3.5 py-1.5 rounded-xl whitespace-nowrap transition {% if current_status == 'TESTING' %}bg-aether-blue text-white font-bold shadow-2xs{% else %}bg-slate-100 dark:bg-obsidian-900 text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200 border border-slate-200 dark:border-zinc-800{% endif %}">
             Testing ({{ counts.testing }})
         </a>
-        <a href="?status=DONE{% if current_workspace %}&workspace={{ current_workspace }}{% endif %}{% if current_priority %}&priority={{ current_priority }}{% endif %}" 
-           class="px-4 py-2.5 border-b-2 whitespace-nowrap transition {% if current_status == 'DONE' %}border-aether-blue text-aether-blue font-bold{% else %}border-transparent text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200{% endif %}">
+        <a href="?status=DONE{% if current_q %}&q={{ current_q }}{% endif %}{% if current_workspace %}&workspace={{ current_workspace }}{% endif %}{% if current_priority %}&priority={{ current_priority }}{% endif %}" 
+           class="px-3.5 py-1.5 rounded-xl whitespace-nowrap transition {% if current_status == 'DONE' %}bg-aether-blue text-white font-bold shadow-2xs{% else %}bg-slate-100 dark:bg-obsidian-900 text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200 border border-slate-200 dark:border-zinc-800{% endif %}">
             Done ({{ counts.done }})
         </a>
     </div>
 
-    <!-- Workspace Filter -->
+    <!-- Cross-Workspace Filter Pills -->
     {% if active_memberships|length > 1 %}
         <div class="flex items-center space-x-2 text-xs">
             <span class="text-slate-500 dark:text-zinc-400 font-medium">Workspace:</span>
             <div class="flex flex-wrap gap-1.5">
-                <a href="?{% if current_status %}status={{ current_status }}{% endif %}" 
-                   class="px-2.5 py-1 rounded-lg {% if not current_workspace %}bg-aether-blue text-white font-bold{% else %}bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300{% endif %}">
+                <a href="?{% if current_q %}q={{ current_q }}&{% endif %}{% if current_status %}status={{ current_status }}{% endif %}" 
+                   class="px-2.5 py-1 rounded-lg transition {% if not current_workspace %}bg-aether-blue text-white font-bold{% else %}bg-slate-100 dark:bg-obsidian-900 border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 hover:text-slate-900 dark:hover:text-zinc-100{% endif %}">
                     All Workspaces
                 </a>
                 {% for m in active_memberships %}
-                    <a href="?workspace={{ m.workspace.slug }}{% if current_status %}&status={{ current_status }}{% endif %}" 
-                       class="px-2.5 py-1 rounded-lg {% if current_workspace == m.workspace.slug %}bg-aether-blue text-white font-bold{% else %}bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300{% endif %}">
+                    <a href="?workspace={{ m.workspace.slug }}{% if current_q %}&q={{ current_q }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}" 
+                       class="px-2.5 py-1 rounded-lg transition {% if current_workspace == m.workspace.slug %}bg-aether-blue text-white font-bold{% else %}bg-slate-100 dark:bg-obsidian-900 border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 hover:text-slate-900 dark:hover:text-zinc-100{% endif %}">
                         {{ m.workspace.name }}
                     </a>
                 {% endfor %}
@@ -82,76 +91,97 @@
         </div>
     {% endif %}
 
-    <!-- Tasks Table (Panel 6 Reference) -->
-    <div class="aether-card overflow-hidden">
+    <!-- Main Content Container: Desktop Table + Mobile Cards -->
+    <div class="aether-card overflow-hidden border border-slate-200 dark:border-zinc-800 shadow-sm">
         {% if tasks %}
-            <div class="overflow-x-auto">
+            
+            <!-- 1. DESKTOP TABLE VIEW (Visible on >= 1024px, Matching Mockup Box 6) -->
+            <div class="hidden lg:block overflow-x-auto">
                 <table class="w-full text-left border-collapse">
                     <thead>
-                        <tr class="border-b border-slate-200 dark:border-zinc-800/80 bg-slate-50/50 dark:bg-[#090d16] text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500">
-                            <th class="py-3.5 px-4 w-10 text-center">
-                                <input type="checkbox" class="rounded border-slate-300 text-aether-blue focus:ring-aether-blue">
-                            </th>
-                            <th class="py-3.5 px-4 w-28">ID</th>
-                            <th class="py-3.5 px-4">Title</th>
-                            <th class="py-3.5 px-4 w-32">Status</th>
-                            <th class="py-3.5 px-4 w-28">Priority</th>
-                            <th class="py-3.5 px-4 w-44">Assignee</th>
-                            <th class="py-3.5 px-4 w-32">Due Date</th>
-                            <th class="py-3.5 px-4 w-28">Sprint</th>
-                            <th class="py-3.5 px-4 text-right w-16">Action</th>
+                        <tr class="border-b border-slate-200 dark:border-zinc-800/80 bg-slate-50/70 dark:bg-obsidian-950 text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500">
+                            <th class="py-3 px-4 w-28">#</th>
+                            <th class="py-3 px-4">Title</th>
+                            <th class="py-3 px-4 w-36">Workspace</th>
+                            <th class="py-3 px-4 w-32">Status</th>
+                            <th class="py-3 px-4 w-28">Priority</th>
+                            <th class="py-3 px-4 w-32">Due Date</th>
+                            <th class="py-3 px-4 w-28">Updated</th>
+                            <th class="py-3 px-4 text-right w-16">Action</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100 dark:divide-zinc-800/80 text-xs">
                         {% for task in tasks %}
                             <tr class="hover:bg-slate-50/60 dark:hover:bg-zinc-800/40 transition-colors group">
-                                <td class="py-3.5 px-4 text-center">
-                                    <input type="checkbox" class="rounded border-slate-300 text-aether-blue focus:ring-aether-blue">
-                                </td>
+                                
+                                <!-- Task Code -->
                                 <td class="py-3.5 px-4 font-mono font-bold text-aether-blue dark:text-sky-400 whitespace-nowrap">
                                     <a href="{% url 'tasks:task_detail' slug=task.workspace.slug task_code=task.task_code %}" class="hover:underline">
                                         T-{{ task.task_code }}
                                     </a>
                                 </td>
+
+                                <!-- Title -->
                                 <td class="py-3.5 px-4">
-                                    <a href="{% url 'tasks:task_detail' slug=task.workspace.slug task_code=task.task_code %}" class="font-bold text-slate-900 dark:text-zinc-100 hover:text-aether-blue">
+                                    <a href="{% url 'tasks:task_detail' slug=task.workspace.slug task_code=task.task_code %}" class="font-bold text-slate-900 dark:text-zinc-100 hover:text-aether-blue transition">
                                         {{ task.title }}
                                     </a>
-                                    <span class="block text-[11px] text-slate-400 dark:text-zinc-500">{{ task.workspace.name }}</span>
                                 </td>
+
+                                <!-- Workspace Badge -->
+                                <td class="py-3.5 px-4 whitespace-nowrap">
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300">
+                                        {{ task.workspace.name }}
+                                    </span>
+                                </td>
+
+                                <!-- Status Badge -->
                                 <td class="py-3.5 px-4 whitespace-nowrap">
                                     {% if task.status == 'TODO' %}
-                                        <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300">To Do</span>
-                                    {% elif task.status == 'IN_PROGRESS' %}
-                                        <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-blue-50 dark:bg-blue-950/70 text-aether-blue">In Progress</span>
-                                    {% elif task.status == 'CODE_REVIEW' %}
-                                        <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-amber-50 dark:bg-amber-950/70 text-amber-600">Code Review</span>
-                                    {% elif task.status == 'TESTING' %}
-                                        <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-purple-50 dark:bg-purple-950/70 text-purple-600">Testing</span>
-                                    {% elif task.status == 'DONE' %}
-                                        <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-50 dark:bg-emerald-950/70 text-emerald-600">Done</span>
-                                    {% endif %}
-                                </td>
-                                <td class="py-3.5 px-4 whitespace-nowrap">
-                                    {% if task.priority == 'URGENT' %}
-                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 dark:bg-red-950/80 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-900/60">Urgent</span>
-                                    {% elif task.priority == 'HIGH' %}
-                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 dark:bg-rose-950/70 text-rose-600">High</span>
-                                    {% elif task.priority == 'MEDIUM' %}
-                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 dark:bg-amber-950/50 text-amber-600">Medium</span>
-                                    {% else %}
-                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400">Low</span>
-                                    {% endif %}
-                                </td>
-                                <td class="py-3.5 px-4 whitespace-nowrap">
-                                    <div class="flex items-center space-x-2">
-                                        {% include 'components/avatar.html' with user=task.assignee size="w-6 h-6" rounded="rounded-full" text_size="text-[10px]" %}
-                                        <span class="text-xs font-semibold text-slate-800 dark:text-zinc-200 truncate max-w-[110px]">
-                                            {{ task.assignee.full_name|default:task.assignee.email }}
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-200 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300">
+                                            To Do
                                         </span>
-                                    </div>
+                                    {% elif task.status == 'IN_PROGRESS' %}
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-blue-500/15 text-blue-500 border border-blue-500/20">
+                                            In Progress
+                                        </span>
+                                    {% elif task.status == 'CODE_REVIEW' %}
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-purple-500/15 text-purple-400 border border-purple-500/20">
+                                            Code Review
+                                        </span>
+                                    {% elif task.status == 'TESTING' %}
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-400 border border-amber-500/20">
+                                            Testing
+                                        </span>
+                                    {% elif task.status == 'DONE' %}
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
+                                            Done
+                                        </span>
+                                    {% endif %}
                                 </td>
+
+                                <!-- Priority Badge -->
                                 <td class="py-3.5 px-4 whitespace-nowrap">
+                                    {% if task.priority == 'HIGH' or task.priority == 'URGENT' %}
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-500/15 text-rose-500 border border-rose-500/20">
+                                            <span class="w-1.5 h-1.5 rounded-full bg-rose-500 mr-1.5"></span>
+                                            High
+                                        </span>
+                                    {% elif task.priority == 'MEDIUM' %}
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/15 text-amber-500 border border-amber-500/20">
+                                            <span class="w-1.5 h-1.5 rounded-full bg-amber-500 mr-1.5"></span>
+                                            Medium
+                                        </span>
+                                    {% else %}
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
+                                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1.5"></span>
+                                            Low
+                                        </span>
+                                    {% endif %}
+                                </td>
+
+                                <!-- Due Date -->
+                                <td class="py-3.5 px-4 whitespace-nowrap text-slate-500 dark:text-zinc-400">
                                     {% if task.due_date %}
                                         <span class="{% if task.is_overdue %}text-rose-600 dark:text-rose-400 font-bold{% else %}text-slate-600 dark:text-zinc-400{% endif %}">
                                             {{ task.due_date|date:"M d, Y" }}
@@ -160,14 +190,16 @@
                                         <span class="text-slate-400 dark:text-zinc-500">—</span>
                                     {% endif %}
                                 </td>
-                                <td class="py-3.5 px-4 whitespace-nowrap">
-                                    <span class="px-2 py-0.5 rounded-lg bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 font-bold text-[10px]">
-                                        {{ task.sprint|default:"Sprint 01" }}
-                                    </span>
+
+                                <!-- Updated -->
+                                <td class="py-3.5 px-4 whitespace-nowrap text-slate-400 dark:text-zinc-500 text-[11px]">
+                                    {{ task.updated_at|timesince }} ago
                                 </td>
+
+                                <!-- Action -->
                                 <td class="py-3.5 px-4 text-right whitespace-nowrap">
                                     <a href="{% url 'tasks:task_detail' slug=task.workspace.slug task_code=task.task_code %}" 
-                                       class="p-1.5 rounded-lg text-slate-400 hover:text-aether-blue transition">
+                                       class="p-1.5 rounded-lg text-slate-400 hover:text-aether-blue transition inline-block" title="View Task">
                                         &rarr;
                                     </a>
                                 </td>
@@ -176,17 +208,150 @@
                     </tbody>
                 </table>
             </div>
+
+            <!-- 2. MOBILE CARD VIEW (Visible on < 1024px, Matching Mockup Box 6 Mobile) -->
+            <div class="block lg:hidden p-4 space-y-3">
+                {% for task in tasks %}
+                    <div class="rounded-2xl border border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-obsidian-900/60 p-4 space-y-2.5 transition hover:border-slate-300 dark:hover:border-zinc-700">
+                        
+                        <!-- Top Row: Code & Workspace Tag -->
+                        <div class="flex items-center justify-between">
+                            <a href="{% url 'tasks:task_detail' slug=task.workspace.slug task_code=task.task_code %}" 
+                               class="font-mono font-bold text-xs text-aether-blue dark:text-sky-400 hover:underline">
+                                T-{{ task.task_code }}
+                            </a>
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-medium bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400">
+                                {{ task.workspace.name }}
+                            </span>
+                        </div>
+
+                        <!-- Title -->
+                        <div>
+                            <a href="{% url 'tasks:task_detail' slug=task.workspace.slug task_code=task.task_code %}" 
+                               class="font-bold text-sm text-slate-900 dark:text-zinc-100 hover:text-aether-blue line-clamp-2">
+                                {{ task.title }}
+                            </a>
+                        </div>
+
+                        <!-- Bottom Row: Status Badge, Priority Badge & Due Date -->
+                        <div class="flex items-center justify-between flex-wrap gap-2 pt-1 border-t border-slate-200/60 dark:border-zinc-800/60 text-xs">
+                            <div class="flex items-center space-x-1.5 flex-wrap gap-1">
+                                <!-- Status Badge -->
+                                {% if task.status == 'TODO' %}
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-200 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300">
+                                        To Do
+                                    </span>
+                                {% elif task.status == 'IN_PROGRESS' %}
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/15 text-blue-500">
+                                        In Progress
+                                    </span>
+                                {% elif task.status == 'CODE_REVIEW' %}
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-500/15 text-purple-400">
+                                        Review
+                                    </span>
+                                {% elif task.status == 'TESTING' %}
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-400">
+                                        Testing
+                                    </span>
+                                {% elif task.status == 'DONE' %}
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-400">
+                                        Done
+                                    </span>
+                                {% endif %}
+
+                                <!-- Priority Badge -->
+                                {% if task.priority == 'HIGH' or task.priority == 'URGENT' %}
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/15 text-rose-500">
+                                        High
+                                    </span>
+                                {% elif task.priority == 'MEDIUM' %}
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/15 text-amber-500">
+                                        Medium
+                                    </span>
+                                {% else %}
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-500/15 text-emerald-400">
+                                        Low
+                                    </span>
+                                {% endif %}
+                            </div>
+
+                            <span class="text-[10px] text-slate-400 dark:text-zinc-500">
+                                {% if task.due_date %}
+                                    {{ task.due_date|date:"M d" }}
+                                {% else %}
+                                    {{ task.updated_at|timesince }} ago
+                                {% endif %}
+                            </span>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+
+            <!-- Pagination Bar matching mockup: Showing 1 to 15 of 18 tasks -->
+            <div class="px-6 py-3.5 border-t border-slate-200 dark:border-zinc-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500 dark:text-zinc-400 bg-slate-50/50 dark:bg-obsidian-950">
+                <div>
+                    Showing {{ tasks.start_index }} to {{ tasks.end_index }} of {{ tasks.paginator.count }} tasks
+                </div>
+                
+                <div class="flex items-center space-x-3">
+                    {% if tasks.has_other_pages %}
+                        <div class="flex items-center space-x-1">
+                            {% if tasks.has_previous %}
+                                <a href="?page={{ tasks.previous_page_number }}{% if current_q %}&q={{ current_q }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_workspace %}&workspace={{ current_workspace }}{% endif %}{% if current_priority %}&priority={{ current_priority }}{% endif %}" 
+                                   class="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-800 transition">
+                                    &lt;
+                                </a>
+                            {% endif %}
+
+                            {% for p in tasks.paginator.page_range %}
+                                {% if p == tasks.number %}
+                                    <span class="px-2.5 py-1 rounded-lg bg-aether-blue text-white font-bold">
+                                        {{ p }}
+                                    </span>
+                                {% elif p <= 5 %}
+                                    <a href="?page={{ p }}{% if current_q %}&q={{ current_q }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_workspace %}&workspace={{ current_workspace }}{% endif %}{% if current_priority %}&priority={{ current_priority }}{% endif %}" 
+                                       class="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-800 transition">
+                                        {{ p }}
+                                    </a>
+                                {% endif %}
+                            {% endfor %}
+
+                            {% if tasks.has_next %}
+                                <a href="?page={{ tasks.next_page_number }}{% if current_q %}&q={{ current_q }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_workspace %}&workspace={{ current_workspace }}{% endif %}{% if current_priority %}&priority={{ current_priority }}{% endif %}" 
+                                   class="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-800 transition">
+                                    &gt;
+                                </a>
+                            {% endif %}
+                        </div>
+                    {% endif %}
+
+                    <span class="hidden sm:inline-block px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-100 dark:bg-obsidian-900 border border-slate-200 dark:border-zinc-800 text-slate-600 dark:text-zinc-400">
+                        15 / page
+                    </span>
+                </div>
+            </div>
+
         {% else %}
             <div class="py-16 px-4 text-center max-w-md mx-auto space-y-3">
-                <div class="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-zinc-800 text-slate-500 mx-auto flex items-center justify-center">
+                <div class="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-obsidian-900 text-slate-500 dark:text-zinc-400 mx-auto flex items-center justify-center border border-slate-200 dark:border-zinc-800">
                     <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
                     </svg>
                 </div>
-                <h3 class="text-base font-bold text-slate-900 dark:text-zinc-100">You're all caught up!</h3>
+                <h3 class="text-base font-bold text-slate-900 dark:text-zinc-100">
+                    {% if current_q %}No tasks found matching "{{ current_q }}"{% else %}You're all caught up!{% endif %}
+                </h3>
                 <p class="text-xs text-slate-500 dark:text-zinc-400">
-                    No active tasks currently assigned to you in this filter.
+                    {% if current_q %}Try searching with a different term or clearing your search.{% else %}No active tasks currently assigned to you in this filter.{% endif %}
                 </p>
+                {% if current_q %}
+                    <div class="pt-2">
+                        <a href="?{% if current_status %}status={{ current_status }}{% endif %}{% if current_workspace %}&workspace={{ current_workspace }}{% endif %}" 
+                           class="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 text-xs font-semibold hover:bg-slate-200 dark:hover:bg-zinc-700 transition">
+                            Clear Search
+                        </a>
+                    </div>
+                {% endif %}
             </div>
         {% endif %}
     </div>

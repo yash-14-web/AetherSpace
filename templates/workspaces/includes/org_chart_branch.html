@@ -1,0 +1,38 @@
+{% comment %}
+Recursive Org Chart Branch Component
+Props:
+  node: WorkspaceMembership object
+  siblings_count: int
+  is_first: boolean
+  is_last: boolean
+  workspace: Workspace object
+  membership: WorkspaceMembership of the current user
+{% endcomment %}
+<div class="flex flex-col items-center px-3 sm:px-4 relative z-0">
+    <!-- Horizontal Crossbar connecting sibling columns -->
+    {% if siblings_count > 1 %}
+        <div class="absolute top-0 h-0.5 bg-slate-300 dark:bg-zinc-700 z-0
+            {% if is_first %}left-1/2 right-0
+            {% elif is_last %}left-0 right-1/2
+            {% else %}left-0 right-0{% endif %}"></div>
+    {% endif %}
+
+    <!-- Vertical Drop Line from crossbar into this node -->
+    <div class="w-0.5 h-8 bg-slate-300 dark:bg-zinc-700 z-0"></div>
+
+    <!-- Member Node Card -->
+    {% include 'workspaces/includes/org_chart_card.html' with node=node %}
+
+    <!-- Direct Reports (Sub-branches, recursively rendered) -->
+    {% if node.hierarchy_reports %}
+        <!-- Vertical Stem Down from this node to its direct reports -->
+        <div class="w-0.5 h-8 bg-slate-300 dark:bg-zinc-700 z-0"></div>
+
+        <!-- Direct Reports Row Container -->
+        <div class="flex items-start justify-center relative z-0">
+            {% for child in node.hierarchy_reports %}
+                {% include 'workspaces/includes/org_chart_branch.html' with node=child siblings_count=node.hierarchy_reports|length is_first=forloop.first is_last=forloop.last %}
+            {% endfor %}
+        </div>
+    {% endif %}
+</div>

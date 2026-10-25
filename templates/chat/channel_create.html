@@ -21,8 +21,11 @@
         </div>
 
         <!-- Channel Create Form -->
-        <form method="POST" class="space-y-4">
+        <form method="POST" enctype="multipart/form-data" class="space-y-4">
             {% csrf_token %}
+
+            <!-- Channel Visual Identity: Curated Icon, Image Upload, or Default -->
+            {% include 'components/identity_picker.html' with label="Channel Visual Identity" is_channel=True file_input_name="avatar_file" %}
 
             {% if form.non_field_errors %}
                 <div class="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 text-xs text-rose-700 dark:text-rose-300">

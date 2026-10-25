@@ -289,6 +289,17 @@ class ProfileUpdateForm(forms.Form):
             'class': 'w-full px-3.5 py-2.5 text-sm rounded-lg border transition-colors focus:outline-none focus:ring-2 focus:ring-aether-blue border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100',
         })
     )
+    skills = forms.CharField(
+        max_length=1000,
+        required=False,
+        label=_("Skills & Expertise"),
+        help_text=_("Comma-separated list of technical skills (e.g. Python, Django, PostgreSQL, Alpine.js)"),
+        widget=forms.TextInput(attrs={
+            'id': 'profile-skills',
+            'placeholder': 'Python, Django, PostgreSQL, Alpine.js',
+            'class': 'w-full px-3.5 py-2.5 text-sm rounded-lg border transition-colors focus:outline-none focus:ring-2 focus:ring-aether-blue border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500',
+        })
+    )
 
 
 class AvatarUploadForm(forms.Form):

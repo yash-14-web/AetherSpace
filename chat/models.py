@@ -37,6 +37,18 @@ class Channel(models.Model):
         choices=PostingPermission.choices,
         default=PostingPermission.ALL
     )
+    icon = models.CharField(
+        max_length=64,
+        blank=True,
+        default='',
+        help_text="Built-in icon key (e.g. 'icon:terminal', 'icon:rocket') or emoji symbol"
+    )
+    avatar = models.CharField(
+        max_length=1024,
+        blank=True,
+        default='',
+        help_text="Supabase storage URL, storage path, or external link for channel avatar"
+    )
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -78,6 +90,36 @@ class Channel(models.Model):
     @property
     def display_name(self):
         return f"#{self.name.lstrip('#')}"
+
+    @property
+    def avatar_url(self):
+        """Returns the accessible URL for the channel avatar, or empty string if not configured."""
+        if not self.avatar:
+            return ''
+        avatar_str = self.avatar.strip()
+        if avatar_str.startswith(('http://', 'https://', '/media/', '/static/')):
+            return avatar_str
+        if getattr(settings, 'SUPABASE_URL', '') and getattr(settings, 'SUPABASE_STORAGE_BUCKET', ''):
+            import urllib.parse
+            base_url = settings.SUPABASE_URL.rstrip('/')
+            bucket = urllib.parse.quote(settings.SUPABASE_STORAGE_BUCKET)
+            return f"{base_url}/storage/v1/object/public/{bucket}/{avatar_str}"
+        return f"{settings.MEDIA_URL.rstrip('/')}/{avatar_str.lstrip('/')}"
+
+    @property
+    def icon_name(self):
+        if self.icon and self.icon.startswith('icon:'):
+            return self.icon.replace('icon:', '', 1)
+        return self.icon or ''
+
+    @property
+    def identity_type(self):
+        """Returns 'image', 'icon', or 'default'."""
+        if self.avatar:
+            return 'image'
+        if self.icon and self.icon.strip():
+            return 'icon'
+        return 'default'
 
     @property
     def member_count(self):

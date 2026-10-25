@@ -1,180 +1,164 @@
 {% extends 'base.html' %}
-{% load static %}
+{% load static rich_text %}
 
 {% block title %}{{ title }} — AetherSpace{% endblock %}
 
 {% block content %}
-<div class="space-y-6 max-w-7xl mx-auto pb-12"     x-data="{ 
-         manualModalOpen: false,
-         timerStatus: '{% if active_timer %}{{ active_timer.status|lower }}{% else %}idle{% endif %}',
-         timerId: '{{ active_timer.id|default:'' }}',
-         elapsedSeconds: {{ active_timer.current_duration_seconds|default:0 }},
-         timerInterval: null,
-         selectedTask: '{{ active_timer.task_id|default:'' }}',
-         taskTitle: '{{ active_timer.task.title|default:'' }}',
-         taskCode: '{% if active_timer.task %}#{{ active_timer.task.task_code }}{% endif %}',
-         description: '{{ active_timer.description|default:'' }}',
-         
-         init() {
-             window.aetherSpaceActiveTimerRunning = (this.timerStatus === 'running');
-             if (this.timerStatus === 'running') {
-                 this.startTicker();
-             }
+<style>
+    /* Prevent native browser select/option/input dropdown menus from rendering white popups in dark mode */
+    html.dark select, html.dark option, html.dark input, html.dark textarea {
+        color-scheme: dark;
+    }
+    html:not(.dark) select, html:not(.dark) option, html:not(.dark) input, html:not(.dark) textarea {
+        color-scheme: light;
+    }
 
-             // Listen for availability changes to Away or Out of Office
-             window.addEventListener('aetherspace:status_changed_away', () => {
-                 if (this.timerStatus === 'running') {
-                     this.timerStatus = 'paused';
-                     this.stopTicker();
-                 }
-             });
-         },
+    /* Scoped styling for rich-text editor and formatted output */
+    #rich-text-editor, .rich-text-content {
+        outline: none;
+    }
+    #rich-text-editor ul, .rich-text-content ul {
+        list-style-type: disc !important;
+        padding-left: 1.5rem !important;
+        margin-top: 0.35rem !important;
+        margin-bottom: 0.35rem !important;
+    }
+    #rich-text-editor ol, .rich-text-content ol {
+        list-style-type: decimal !important;
+        padding-left: 1.5rem !important;
+        margin-top: 0.35rem !important;
+        margin-bottom: 0.35rem !important;
+    }
+    #rich-text-editor li, .rich-text-content li {
+        margin-top: 0.2rem !important;
+        margin-bottom: 0.2rem !important;
+        display: list-item !important;
+        line-height: 1.45 !important;
+    }
+    #rich-text-editor blockquote, .rich-text-content blockquote {
+        border-left: 3px solid #3b82f6 !important;
+        padding-left: 0.75rem !important;
+        margin-top: 0.35rem !important;
+        margin-bottom: 0.35rem !important;
+        font-style: italic !important;
+        color: #64748b !important;
+    }
+    .dark #rich-text-editor blockquote, .dark .rich-text-content blockquote {
+        color: #94a3b8 !important;
+    }
+    #rich-text-editor h3, .rich-text-content h3 {
+        font-size: 1rem !important;
+        font-weight: 700 !important;
+        margin-top: 0.5rem !important;
+        margin-bottom: 0.25rem !important;
+        color: #0f172a !important;
+    }
+    .dark #rich-text-editor h3, .dark .rich-text-content h3 {
+        color: #f8fafc !important;
+    }
+    #rich-text-editor a, .rich-text-content a {
+        color: #2563eb !important;
+        text-decoration: underline !important;
+    }
+    .dark #rich-text-editor a, .dark .rich-text-content a {
+        color: #60a5fa !important;
+    }
+    #rich-text-editor:empty:before {
+        content: attr(placeholder);
+        color: #94a3b8;
+        pointer-events: none;
+        display: block;
+    }
+    .dark #rich-text-editor:empty:before {
+        color: #64748b;
+    }
+</style>
+<div class="space-y-6 max-w-7xl mx-auto pb-16" x-data="timeTrackerDashboard()">
 
-         startTicker() {
-             clearInterval(this.timerInterval);
-             this.timerInterval = setInterval(() => {
-                 this.elapsedSeconds++;
-             }, 1000);
-         },
-
-         stopTicker() {
-             clearInterval(this.timerInterval);
-         },
-
-         formatTime(totalSecs) {
-             const h = Math.floor(totalSecs / 3600);
-             const m = Math.floor((totalSecs % 3600) / 60);
-             const s = totalSecs % 60;
-             return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-         },
-
-         async startTimer() {
-             const formData = new FormData();
-             formData.append('task_id', this.selectedTask);
-             formData.append('description', this.description);
-             formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
-
-             try {
-                 const res = await fetch('{% url 'timetracking:api_timer_start' slug=workspace.slug %}', {
-                     method: 'POST',
-                     body: formData
-                 });
-                 const data = await res.json();
-                 if (data.status === 'ok') {
-                     this.timerStatus = 'running';
-                     this.timerId = data.timer_id;
-                     this.taskCode = data.task_code;
-                     this.taskTitle = data.task_title;
-                     this.elapsedSeconds = 0;
-                     this.startTicker();
-                     if (data.user_availability) {
-                         window.dispatchEvent(new CustomEvent('aetherspace:status_updated', { detail: { status: data.user_availability } }));
-                     }
-                 }
-             } catch (e) {
-                 console.error('Failed to start timer:', e);
-             }
-         },
-
-         async pauseTimer() {
-             const formData = new FormData();
-             formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
-
-             try {
-                 const res = await fetch('{% url 'timetracking:api_timer_pause' slug=workspace.slug %}', {
-                     method: 'POST',
-                     body: formData
-                 });
-                 const data = await res.json();
-                 if (data.status === 'ok') {
-                     this.timerStatus = 'paused';
-                     this.stopTicker();
-                     if (data.elapsed_seconds !== undefined) {
-                         this.elapsedSeconds = data.elapsed_seconds;
-                     }
-                 }
-             } catch (e) {
-                 console.error('Failed to pause timer:', e);
-             }
-         },
-
-         async resumeTimer() {
-             const formData = new FormData();
-             formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
-
-             try {
-                 const res = await fetch('{% url 'timetracking:api_timer_resume' slug=workspace.slug %}', {
-                     method: 'POST',
-                     body: formData
-                 });
-                 const data = await res.json();
-                 if (data.status === 'ok') {
-                     this.timerStatus = 'running';
-                     if (data.elapsed_seconds !== undefined) {
-                         this.elapsedSeconds = data.elapsed_seconds;
-                     }
-                     this.startTicker();
-                     if (data.user_availability) {
-                         window.dispatchEvent(new CustomEvent('aetherspace:status_updated', { detail: { status: data.user_availability } }));
-                     }
-                 }
-             } catch (e) {
-                 console.error('Failed to resume timer:', e);
-             }
-         },
-
-         async stopTimer() {
-             const formData = new FormData();
-             formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
-
-             try {
-                 const res = await fetch('{% url 'timetracking:api_timer_stop' slug=workspace.slug %}', {
-                     method: 'POST',
-                     body: formData
-                 });
-                 const data = await res.json();
-                 if (data.status === 'ok') {
-                     this.timerStatus = 'idle';
-                     this.stopTicker();
-                     window.location.reload();
-                 }
-             } catch (e) {
-                 console.error('Failed to stop timer:', e);
-             }
-         }
-     }">
-
-    <!-- Top Header & Actions -->
-    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <!-- SECTION A: Header & Navigation Controls -->
+    <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <!-- Title & Breadcrumb -->
         <div>
-            <div class="flex items-center space-x-2 text-sm text-slate-500 dark:text-zinc-400 mb-1">
-                <a href="{% url 'workspaces:workspace_dashboard' slug=workspace.slug %}" class="hover:text-aether-blue transition-colors">{{ workspace.name }}</a>
+            <div class="flex items-center space-x-2 text-xs font-medium text-slate-400 dark:text-zinc-400 mb-1.5">
+                <a href="{% url 'workspaces:workspace_dashboard' slug=workspace.slug %}" class="hover:text-blue-500 transition-colors">{{ workspace.name }}</a>
                 <span>/</span>
-                <span class="text-slate-800 dark:text-zinc-200 font-semibold">Time Tracking</span>
+                <span class="text-slate-200 dark:text-zinc-200 font-semibold">Time Tracking</span>
             </div>
-            <h1 class="text-2xl sm:text-3xl font-black text-slate-900 dark:text-zinc-50 tracking-tight flex items-center space-x-3">
-                <span>Time Tracking & Logs</span>
-                <span class="text-xs font-mono font-bold px-2.5 py-1 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-900/60 shadow-xs">
+            <div class="flex items-center space-x-3">
+                <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-zinc-50 tracking-tight">
+                    Time Tracking & Logs
+                </h1>
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-600/15 text-blue-400 border border-blue-500/30">
                     Time Tracker
                 </span>
-            </h1>
-            <p class="text-sm text-slate-500 dark:text-zinc-400 mt-1">
-                Track task sprint hours, monitor active timers, and review daily timesheets for {{ workspace.name }}.
+            </div>
+            <p class="text-xs sm:text-sm text-slate-500 dark:text-zinc-400 mt-1">
+                Track your work, log time against tasks, and review productivity across projects and sprints.
             </p>
         </div>
 
-        <div class="flex items-center space-x-3">
-            <button type="button" @click="manualModalOpen = true" 
-                    class="aether-button-secondary text-sm px-4 py-2.5 flex items-center space-x-2 shadow-sm font-medium">
-                <svg class="w-4 h-4 text-slate-500 dark:text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+        <!-- Date Range Navigation, Log Button & Export Button -->
+        <div class="flex items-center flex-wrap gap-2.5">
+            <!-- Range Selector Dropdown -->
+            <div class="relative" @click.outside="rangeDropdownOpen = false">
+                <button type="button" @click="rangeDropdownOpen = !rangeDropdownOpen"
+                        class="px-3 py-2 rounded-xl text-xs font-semibold bg-white dark:bg-[#11192d] hover:bg-slate-50 dark:hover:bg-[#152038] text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-800 flex items-center space-x-1.5 transition">
+                    <span class="capitalize">{{ date_filter }}</span>
+                    <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                    </svg>
+                </button>
+                <div x-show="rangeDropdownOpen" x-cloak
+                     class="absolute left-0 mt-1.5 w-36 rounded-xl bg-white dark:bg-[#11192d] border border-slate-200 dark:border-zinc-800 shadow-2xl py-1 z-30 text-xs">
+                    <a href="?date_range=today" class="block px-3 py-2 text-slate-700 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-[#1a2540]">Today</a>
+                    <a href="?date_range=week" class="block px-3 py-2 text-slate-700 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-[#1a2540]">This Week</a>
+                    <a href="?date_range=month" class="block px-3 py-2 text-slate-700 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-[#1a2540]">This Month</a>
+                    <a href="?date_range=all" class="block px-3 py-2 text-slate-700 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-[#1a2540]">All Time</a>
+                </div>
+            </div>
+
+            <!-- Offset Arrows -->
+            <div class="flex items-center rounded-xl bg-white dark:bg-[#11192d] border border-slate-200 dark:border-zinc-800 overflow-hidden">
+                <a href="?date_range={{ date_filter }}&offset={{ prev_offset }}{% if member_filter %}&member={{ member_filter }}{% endif %}{% if task_filter %}&task={{ task_filter }}{% endif %}"
+                   class="p-2 text-slate-400 hover:text-slate-900 dark:hover:text-zinc-100 hover:bg-slate-100 dark:hover:bg-[#18233d] transition"
+                   title="Previous Period">
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"/>
+                    </svg>
+                </a>
+                <span class="w-[1px] h-4 bg-slate-200 dark:bg-zinc-800"></span>
+                <a href="?date_range={{ date_filter }}&offset={{ next_offset }}{% if member_filter %}&member={{ member_filter }}{% endif %}{% if task_filter %}&task={{ task_filter }}{% endif %}"
+                   class="p-2 text-slate-400 hover:text-slate-900 dark:hover:text-zinc-100 hover:bg-slate-100 dark:hover:bg-[#18233d] transition"
+                   title="Next Period">
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/>
+                    </svg>
+                </a>
+            </div>
+
+            <!-- Date Range Indicator Button -->
+            <div class="px-3.5 py-2 rounded-xl text-xs font-semibold bg-white dark:bg-[#11192d] text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-800 flex items-center space-x-2">
+                <span>{{ range_label }}</span>
+                <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                </svg>
+            </div>
+
+            <!-- Log Time Manually Button -->
+            <button type="button" @click="openManualModal()"
+                    data-testid="log-time-manually-btn"
+                    class="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-blue-600 hover:bg-blue-500 text-white flex items-center space-x-2 shadow-lg shadow-blue-600/25 active:scale-95 transition-all">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
                 </svg>
                 <span>Log Time Manually</span>
             </button>
-            <a href="{% url 'timetracking:export_timesheet_csv' slug=workspace.slug %}?date_range={{ date_filter }}{% if member_filter %}&member={{ member_filter }}{% endif %}" 
-               class="aether-button-primary text-sm px-4 py-2.5 flex items-center space-x-2 shadow-sm shadow-blue-500/20 font-semibold"
+
+            <!-- Export CSV Button -->
+            <a href="{% url 'timetracking:export_timesheet_csv' slug=workspace.slug %}?date_range={{ date_filter }}{% if member_filter %}&member={{ member_filter }}{% endif %}"
+               class="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-medium bg-white dark:bg-[#11192d] hover:bg-slate-50 dark:hover:bg-[#152038] text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-800 flex items-center space-x-2 transition"
                title="Export CSV Timesheet">
-                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
                 </svg>
                 <span>Export CSV</span>
@@ -182,349 +166,928 @@
         </div>
     </div>
 
-    <!-- Time Tracker Card (Featured Control) -->
-    <div class="aether-card p-6 sm:p-7 border-2 transition-all"
-         :class="{
-             'border-emerald-500 shadow-xl shadow-emerald-500/10': timerStatus === 'running',
-             'border-amber-500 shadow-xl shadow-amber-500/10': timerStatus === 'paused',
-             'border-slate-200 dark:border-zinc-800': timerStatus === 'idle'
-         }">
-        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-            <!-- Left: Task & Note Configuration -->
-            <div class="flex-1 space-y-4">
+    <!-- SECTION B: 4 Summary Cards (Real Database Metrics) -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- Card 1: Today's Hours -->
+        <div id="card-todays-hours" class="rounded-2xl p-5 bg-white dark:bg-[#10192d] border border-slate-200/80 dark:border-zinc-800/80 shadow-xs flex items-center justify-between">
+            <div class="space-y-1">
+                <span class="text-xs font-medium text-slate-500 dark:text-zinc-400">Today's Hours</span>
                 <div class="flex items-center space-x-2.5">
-                    <template x-if="timerStatus === 'running'">
-                        <span class="w-3 h-3 rounded-full shrink-0 bg-emerald-500 animate-ping"></span>
-                    </template>
-                    <template x-if="timerStatus === 'paused'">
-                        <span class="w-3 h-3 rounded-full shrink-0 bg-amber-400"></span>
-                    </template>
-                    <template x-if="timerStatus === 'idle'">
-                        <span class="w-3 h-3 rounded-full shrink-0 bg-slate-400"></span>
-                    </template>
+                    <span class="text-2xl sm:text-3xl font-black text-slate-900 dark:text-zinc-50 tracking-tight">{{ today_hours_formatted }}</span>
+                    {% if today_trend_pct > 0 %}
+                        <span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/10 text-emerald-500 dark:text-emerald-400">
+                            ↑ {{ today_trend_pct }}%
+                        </span>
+                    {% endif %}
+                </div>
+                <p class="text-[11px] text-slate-400 dark:text-zinc-500">Across {{ today_task_count }} task{{ today_task_count|pluralize }}</p>
+            </div>
+            <div class="w-12 h-12 rounded-xl bg-blue-500/15 text-blue-500 dark:text-blue-400 flex items-center justify-center shrink-0">
+                <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+            </div>
+        </div>
 
-                    <span class="text-xs font-bold uppercase tracking-wider"
+        <!-- Card 2: This Week -->
+        <div id="card-this-week" class="rounded-2xl p-5 bg-white dark:bg-[#10192d] border border-slate-200/80 dark:border-zinc-800/80 shadow-xs flex items-center justify-between">
+            <div class="space-y-1">
+                <span class="text-xs font-medium text-slate-500 dark:text-zinc-400">This Week</span>
+                <div class="flex items-center space-x-2.5">
+                    <span class="text-2xl sm:text-3xl font-black text-slate-900 dark:text-zinc-50 tracking-tight">{{ week_hours_formatted }}</span>
+                    {% if week_trend_pct > 0 %}
+                        <span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/10 text-emerald-500 dark:text-emerald-400">
+                            ↑ {{ week_trend_pct }}%
+                        </span>
+                    {% endif %}
+                </div>
+                <p class="text-[11px] text-slate-400 dark:text-zinc-500">Total logged time</p>
+            </div>
+            <div class="w-12 h-12 rounded-xl bg-emerald-500/15 text-emerald-500 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                </svg>
+            </div>
+        </div>
+
+        <!-- Card 3: This Month -->
+        <div id="card-this-month" class="rounded-2xl p-5 bg-white dark:bg-[#10192d] border border-slate-200/80 dark:border-zinc-800/80 shadow-xs flex items-center justify-between">
+            <div class="space-y-1">
+                <span class="text-xs font-medium text-slate-500 dark:text-zinc-400">This Month</span>
+                <div class="flex items-center space-x-2.5">
+                    <span class="text-2xl sm:text-3xl font-black text-slate-900 dark:text-zinc-50 tracking-tight">{{ month_hours_formatted }}</span>
+                    {% if month_trend_pct > 0 %}
+                        <span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/10 text-emerald-500 dark:text-emerald-400">
+                            ↑ {{ month_trend_pct }}%
+                        </span>
+                    {% endif %}
+                </div>
+                <p class="text-[11px] text-slate-400 dark:text-zinc-500">Calendar month total</p>
+            </div>
+            <div class="w-12 h-12 rounded-xl bg-purple-500/15 text-purple-500 dark:text-purple-400 flex items-center justify-center shrink-0">
+                <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                </svg>
+            </div>
+        </div>
+
+        <!-- Card 4: Workspace Team -->
+        <div id="card-workspace-team" class="rounded-2xl p-5 bg-white dark:bg-[#10192d] border border-slate-200/80 dark:border-zinc-800/80 shadow-xs flex items-center justify-between">
+            <div class="space-y-1">
+                <a href="{% url 'workspaces:team' slug=workspace.slug %}" class="group inline-flex items-center space-x-1.5 text-xs font-medium text-slate-500 dark:text-zinc-400 hover:text-blue-500 dark:hover:text-blue-400 transition" title="View Workspace Team">
+                    <span>Workspace Team</span>
+                    <svg class="w-3.5 h-3.5 text-slate-400 group-hover:text-blue-500 dark:group-hover:text-blue-400 group-hover:translate-x-0.5 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                    </svg>
+                </a>
+                <div class="flex items-center space-x-2.5">
+                    <span class="text-2xl sm:text-3xl font-black text-slate-900 dark:text-zinc-50 tracking-tight">{{ team_total_formatted }}</span>
+                </div>
+                <p class="text-[11px] text-slate-400 dark:text-zinc-500">Across {{ team_members_count }} member{{ team_members_count|pluralize }}</p>
+            </div>
+            <div class="w-12 h-12 rounded-xl bg-blue-500/15 text-blue-500 dark:text-blue-400 flex items-center justify-center shrink-0">
+                <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
+                </svg>
+            </div>
+        </div>
+    </div>
+
+    <!-- SECTION C: Middle Grid (Left: Active Timer | Right: Timeline & Weekly Overview) -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <!-- LEFT: Active Timer Card (Columns 1-7) -->
+        <div class="lg:col-span-6 xl:col-span-7 rounded-2xl p-6 sm:p-7 bg-white dark:bg-[#10192d] border border-slate-200/80 dark:border-zinc-800/80 shadow-xs flex flex-col gap-4">
+            <!-- Panel Header -->
+            <div class="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-zinc-800/60">
+                <div>
+                    <div class="flex items-center space-x-2">
+                        <span class="w-2.5 h-2.5 rounded-full"
+                              :class="{
+                                  'bg-emerald-500 animate-pulse': timerStatus === 'running',
+                                  'bg-amber-400': timerStatus === 'paused',
+                                  'bg-slate-400': timerStatus === 'idle'
+                              }"></span>
+                        <h2 class="text-base font-bold text-slate-900 dark:text-zinc-100">
+                            Active Timer
+                        </h2>
+                    </div>
+                    <p class="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
+                        Track time against an assigned task or log general workspace activity.
+                    </p>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <span class="px-2.5 py-1 rounded-full text-xs font-semibold flex items-center space-x-1.5"
                           :class="{
-                              'text-emerald-600 dark:text-emerald-400': timerStatus === 'running',
-                              'text-amber-600 dark:text-amber-400': timerStatus === 'paused',
-                              'text-slate-600 dark:text-zinc-300': timerStatus === 'idle'
-                          }"
-                          x-text="timerStatus === 'running' ? '🟢 Timer Running' : (timerStatus === 'paused' ? '⏸ Timer Paused' : 'Ready to Start Timer')">
+                              'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20': timerStatus === 'running',
+                              'bg-amber-500/10 text-amber-400 border border-amber-500/20': timerStatus === 'paused',
+                              'bg-slate-500/10 text-slate-400 border border-slate-500/20': timerStatus === 'idle'
+                          }">
+                        <span class="w-1.5 h-1.5 rounded-full"
+                              :class="{
+                                  'bg-emerald-400': timerStatus === 'running',
+                                  'bg-amber-400': timerStatus === 'paused',
+                                  'bg-slate-400': timerStatus === 'idle'
+                              }"></span>
+                        <span x-text="timerStatus === 'running' ? 'Running' : (timerStatus === 'paused' ? 'Paused' : 'Ready')"></span>
                     </span>
-                </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4" x-show="timerStatus === 'idle'">
-                    <div>
-                        <label class="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1.5">Associate with Sprint Task</label>
-                        <select x-model="selectedTask" 
-                                class="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-aether-blue transition">
-                            <option value="">General Workspace Activity (No Task)</option>
-                            {% for t in available_tasks %}
-                                <option value="{{ t.id }}">#{{ t.task_code }} — {{ t.title|truncatechars:45 }}</option>
-                            {% endfor %}
-                        </select>
+                    <!-- Options Dropdown Menu -->
+                    <div class="relative" @click.outside="timerMenuOpen = false">
+                        <button type="button" @click="timerMenuOpen = !timerMenuOpen"
+                                data-testid="timer-options-menu-btn"
+                                class="p-1 text-slate-400 hover:text-slate-200 rounded-lg transition hover:bg-slate-100 dark:hover:bg-[#18233d]" title="Timer Options">
+                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M6 10a2 2 0 11-4 0 2 2 0 014 0zM12 10a2 2 0 11-4 0 2 2 0 014 0zM16 12a2 2 0 100-4 2 2 0 000 4z"/>
+                            </svg>
+                        </button>
+                        <div x-show="timerMenuOpen" x-cloak
+                             class="absolute right-0 mt-1.5 w-52 rounded-xl bg-white dark:bg-[#11192d] border border-slate-200 dark:border-zinc-800 shadow-2xl py-1 z-30 text-xs">
+                            <button type="button" @click="timerMenuOpen = false; openManualModal()"
+                                    data-testid="timer-menu-manual-entry"
+                                    class="w-full text-left px-3.5 py-2 text-slate-700 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-[#1a2540] flex items-center space-x-2">
+                                <svg class="w-3.5 h-3.5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                                </svg>
+                                <span>Log Time Manually</span>
+                            </button>
+                            <button type="button" @click="timerMenuOpen = false; taskDropdownOpen = true; switchingTask = true"
+                                    data-testid="timer-menu-switch-task"
+                                    class="w-full text-left px-3.5 py-2 text-slate-700 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-[#1a2540] flex items-center space-x-2">
+                                <svg class="w-3.5 h-3.5 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                                </svg>
+                                <span>Select / Switch Work Item</span>
+                            </button>
+                            <button type="button" @click="timerMenuOpen = false; clearActiveTask()"
+                                    data-testid="timer-menu-clear-task"
+                                    x-show="selectedTask || selectedBugCode"
+                                    class="w-full text-left px-3.5 py-2 text-slate-700 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-[#1a2540] flex items-center space-x-2">
+                                <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                </svg>
+                                <span>Clear Work Item Selection</span>
+                            </button>
+                            <button type="button" @click="timerMenuOpen = false; stopTimer()"
+                                    data-testid="timer-menu-stop-timer"
+                                    x-show="timerStatus !== 'idle'"
+                                    class="w-full text-left px-3.5 py-2 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 flex items-center space-x-2 border-t border-slate-100 dark:border-zinc-800">
+                                <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                                    <rect x="4" y="4" width="12" height="12" rx="2"/>
+                                </svg>
+                                <span>Stop Active Timer</span>
+                            </button>
+                        </div>
                     </div>
-                    <div>
-                        <label class="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1.5">What are you working on?</label>
-                        <input type="text" x-model="description" placeholder="e.g. Implementing auth backend..." 
-                               class="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-aether-blue transition">
-                    </div>
-                </div>
-
-                <!-- Display active task when running or paused -->
-                <div x-show="timerStatus !== 'idle'" class="space-y-1.5">
-                    <div class="flex items-center space-x-2.5">
-                        <template x-if="taskCode">
-                            <span class="font-mono text-xs font-extrabold px-2.5 py-1 rounded bg-blue-50 dark:bg-blue-950/60 text-aether-blue dark:text-blue-400 border border-blue-200 dark:border-blue-900/60" x-text="taskCode"></span>
-                        </template>
-                        <h3 class="text-lg font-bold text-slate-900 dark:text-zinc-100" x-text="taskTitle || 'General Workspace Effort'"></h3>
-                    </div>
-                    <p class="text-sm text-slate-500 dark:text-zinc-400 italic" x-text="description || 'No additional note'"></p>
                 </div>
             </div>
 
-            <!-- Right: Big Monospace Clock & Action Buttons -->
-            <div class="flex items-center space-x-6 shrink-0 justify-between lg:justify-end border-t lg:border-t-0 pt-4 lg:pt-0 border-slate-100 dark:border-zinc-800">
-                <div class="text-right">
-                    <div class="font-mono text-4xl sm:text-5xl font-black tracking-widest text-slate-900 dark:text-zinc-50"
-                         x-text="formatTime(elapsedSeconds)">
-                        00:00:00
-                    </div>
-                    <span class="text-xs text-slate-400 dark:text-zinc-500 uppercase tracking-widest font-bold mt-1 block">HOURS : MINS : SECS</span>
-                </div>
-
-                <div>
-                    <!-- IDLE: Start Timer -->
-                    <template x-if="timerStatus === 'idle'">
-                        <button type="button" @click="startTimer()" 
-                                data-testid="start-timer-btn"
-                                class="px-6 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm flex items-center space-x-2 shadow-lg shadow-emerald-600/25 active:scale-95 transition-all">
-                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"/>
-                            </svg>
-                            <span>Start Timer</span>
-                        </button>
-                    </template>
-
-                    <!-- RUNNING: Pause Timer or Stop Timer -->
-                    <template x-if="timerStatus === 'running'">
-                        <div class="flex items-center space-x-2.5">
-                            <button type="button" @click="pauseTimer()" 
-                                    data-testid="pause-timer-btn"
-                                    class="px-4 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs sm:text-sm flex items-center space-x-2 shadow-md shadow-amber-500/20 active:scale-95 transition-all">
-                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/>
+            <!-- Panel Content (Form on Left | Circular Timer on Right) -->
+            <div class="pt-5 flex flex-col md:flex-row items-center gap-6">
+                <!-- Left Details Form -->
+                <div class="flex-1 w-full space-y-4">
+                    <!-- Task / Work Item Selector Box -->
+                    <div class="relative" @click.outside="taskDropdownOpen = false">
+                        <label class="block text-xs font-bold text-slate-600 dark:text-zinc-300 mb-1.5">Task / Work Item</label>
+                        <div @click="taskDropdownOpen = !taskDropdownOpen"
+                             data-testid="active-timer-task-selector"
+                             class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-[#0c1322] cursor-pointer hover:border-slate-300 dark:hover:border-zinc-700 transition flex items-center justify-between">
+                             <div class="flex items-center space-x-3 truncate">
+                                <!-- Category / Item Icon Badge -->
+                                <div class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+                                     :class="selectedBugCode ? 'bg-rose-500/20 text-rose-400' : (selectedTask ? 'bg-purple-500/20 text-purple-400' : 'bg-slate-500/20 text-slate-400')">
+                                    <template x-if="selectedBugCode">
+                                        <svg class="w-4 h-4 text-rose-500 dark:text-rose-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                                        </svg>
+                                    </template>
+                                    <template x-if="!selectedBugCode && selectedTask">
+                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/>
+                                        </svg>
+                                    </template>
+                                    <template x-if="!selectedBugCode && !selectedTask">
+                                        <span class="text-xs">⚡</span>
+                                    </template>
+                                </div>
+                                <div class="truncate">
+                                    <h4 class="text-xs sm:text-sm font-bold text-slate-900 dark:text-zinc-100 truncate"
+                                        x-text="taskTitle || 'General Workspace Activity'"></h4>
+                                    <p class="text-[11px] text-slate-400 dark:text-zinc-500 truncate"
+                                       x-text="selectedBugCode ? (`{{ workspace.name }} • Defect • ` + selectedBugCode) : (selectedTask ? (`{{ workspace.name }} • ` + (taskSprint || 'Sprint') + ` • #` + taskCode) : 'Work not associated with a specific task')"></p>
+                                </div>
+                            </div>
+                            <div class="flex items-center space-x-1.5 shrink-0 ml-2">
+                                <template x-if="selectedTask || selectedBugCode">
+                                    <button type="button" @click.stop="clearActiveTask()" class="p-1 text-slate-400 hover:text-rose-500 transition" title="Clear Work Item">
+                                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                        </svg>
+                                    </button>
+                                </template>
+                                <svg class="w-4 h-4 text-slate-400 transition-transform" :class="{ 'rotate-180': taskDropdownOpen }" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
                                 </svg>
-                                <span>Pause Timer</span>
-                            </button>
-                            <button type="button" @click="stopTimer()" 
-                                    data-testid="stop-timer-btn"
-                                    class="px-4 py-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs sm:text-sm flex items-center space-x-2 shadow-md shadow-rose-600/20 active:scale-95 transition-all animate-pulse">
-                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z" clip-rule="evenodd"/>
-                                </svg>
-                                <span>Stop Timer</span>
-                            </button>
+                            </div>
                         </div>
-                    </template>
 
-                    <!-- PAUSED: Resume Timer or Stop Timer -->
-                    <template x-if="timerStatus === 'paused'">
-                        <div class="flex items-center space-x-2.5">
-                            <button type="button" @click="resumeTimer()" 
-                                    data-testid="resume-timer-btn"
-                                    class="px-4 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm flex items-center space-x-2 shadow-md shadow-emerald-600/20 active:scale-95 transition-all">
+                        <!-- Dropdown List: High-elevation overlay dropdown with dark/light theme consistency -->
+                        <div x-show="taskDropdownOpen" x-cloak
+                             data-testid="active-timer-task-dropdown"
+                             class="absolute left-0 right-0 top-full mt-1.5 w-full rounded-xl bg-white dark:bg-[#11192d] border border-slate-200 dark:border-zinc-800 shadow-2xl max-h-72 overflow-y-auto divide-y divide-slate-100 dark:divide-zinc-800/80 z-50">
+                            <!-- Quick Filter Search Input -->
+                            <div class="p-2.5 sticky top-0 bg-white dark:bg-[#11192d] z-20 border-b border-slate-100 dark:border-zinc-800">
+                                <div class="relative">
+                                    <input type="text" x-model="activeTimerSearch"
+                                           data-testid="active-timer-search-input"
+                                           placeholder="Search work items (#123 or B-123456)..."
+                                           class="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-[#0c1322] text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition">
+                                    <svg class="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                                    </svg>
+                                </div>
+                            </div>
+
+                            <!-- Option 1: General Workspace Activity -->
+                            <div @click="clearActiveTask(); taskDropdownOpen = false"
+                                 data-testid="active-timer-option-general"
+                                 x-show="!activeTimerSearch || 'general workspace activity'.includes(activeTimerSearch.toLowerCase())"
+                                 :class="(!selectedTask && !selectedBugCode) ? 'bg-blue-50/70 dark:bg-blue-900/20' : 'hover:bg-slate-50 dark:hover:bg-[#1a2540]'"
+                                 class="px-3.5 py-2.5 text-xs cursor-pointer flex items-center space-x-2.5 transition">
+                                <span class="w-7 h-7 rounded-lg bg-slate-500/20 text-slate-500 dark:text-slate-400 flex items-center justify-center shrink-0 text-xs font-bold">⚡</span>
+                                <div class="truncate">
+                                    <span class="font-bold text-slate-900 dark:text-zinc-100 block truncate"
+                                          :class="(!selectedTask && !selectedBugCode) ? 'text-blue-600 dark:text-blue-400' : ''">General Workspace Activity</span>
+                                    <span class="text-[10px] text-slate-500 dark:text-zinc-400 block truncate">Log time without attaching to a specific sprint task or defect</span>
+                                </div>
+                            </div>
+
+                            <!-- Section: Tasks Assigned to Current User -->
+                            <div class="px-3.5 py-1.5 bg-slate-50 dark:bg-[#0c1322] text-[10px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400 flex items-center justify-between border-t border-slate-100 dark:border-zinc-800">
+                                <span>{% if is_privileged %}Tasks Assigned to You{% else %}Your Assigned Tasks{% endif %} ({{ assigned_tasks|length }})</span>
+                            </div>
+                            {% for t in assigned_tasks %}
+                                <div @click="selectActiveWorkItem('task', '{{ t.id }}', '{{ t.task_code }}', '{{ t.title|escapejs }}', '{{ t.sprint_ref.name|default:'Sprint 3'|escapejs }}', 'Development')"
+                                     data-testid="active-timer-task-{{ t.task_code }}"
+                                     x-show="!activeTimerSearch || ('{{ t.task_code }} {{ t.title|escapejs }}').toLowerCase().includes(activeTimerSearch.toLowerCase())"
+                                     :class="selectedTask == '{{ t.id }}' ? 'bg-blue-50/70 dark:bg-blue-900/20' : 'hover:bg-slate-50 dark:hover:bg-[#1a2540]'"
+                                     class="px-3.5 py-2 text-xs cursor-pointer flex items-center space-x-2.5 transition">
+                                    <span class="w-7 h-7 rounded-lg bg-blue-500/20 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 font-mono text-[10px] font-bold">#</span>
+                                    <div class="truncate">
+                                        <span class="font-semibold text-slate-900 dark:text-zinc-100 block truncate"
+                                              :class="selectedTask == '{{ t.id }}' ? 'text-blue-600 dark:text-blue-400 font-bold' : ''">#{{ t.task_code }} — {{ t.title }}</span>
+                                        <span class="text-[10px] text-slate-500 dark:text-zinc-400 block truncate">{{ workspace.name }} • {{ t.sprint_ref.name|default:'Sprint 3' }} • Assigned to you</span>
+                                    </div>
+                                </div>
+                            {% empty %}
+                                <div class="px-3.5 py-2 text-[11px] text-slate-400 dark:text-zinc-500 italic bg-white dark:bg-[#11192d]">No tasks currently assigned to you.</div>
+                            {% endfor %}
+
+                            <!-- Section: Defects Assigned to Current User -->
+                            <div class="px-3.5 py-1.5 bg-slate-50 dark:bg-[#0c1322] text-[10px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400 flex items-center justify-between border-t border-slate-100 dark:border-zinc-800">
+                                <span>{% if is_privileged %}Defects Assigned to You{% else %}Your Assigned Defects{% endif %} ({{ assigned_bugs|length }})</span>
+                            </div>
+                            {% for b in assigned_bugs %}
+                                <div @click="selectActiveWorkItem('bug', '{{ b.id }}', '{{ b.bug_code }}', '{{ b.title|escapejs }}', 'Defect / Bug', 'Bug fixes')"
+                                     data-testid="active-timer-bug-{{ b.bug_code }}"
+                                     x-show="!activeTimerSearch || ('{{ b.bug_code }} {{ b.title|escapejs }}').toLowerCase().includes(activeTimerSearch.toLowerCase())"
+                                     :class="selectedBugCode == '{{ b.bug_code }}' ? 'bg-rose-50/70 dark:bg-rose-950/30' : 'hover:bg-slate-50 dark:hover:bg-[#1a2540]'"
+                                     class="px-3.5 py-2 text-xs cursor-pointer flex items-center space-x-2.5 transition">
+                                    <span class="w-7 h-7 rounded-lg bg-rose-500/20 text-rose-500 dark:text-rose-400 flex items-center justify-center shrink-0 text-xs">🪲</span>
+                                    <div class="truncate">
+                                        <span class="font-semibold text-slate-900 dark:text-zinc-100 block truncate"
+                                              :class="selectedBugCode == '{{ b.bug_code }}' ? 'text-rose-600 dark:text-rose-400 font-bold' : ''">{{ b.bug_code }} — {{ b.title }}</span>
+                                        <span class="text-[10px] text-rose-600 dark:text-rose-400/80 block truncate">{{ workspace.name }} • Bug Fix • {{ b.get_severity_display|default:'Medium' }} • Assigned to you</span>
+                                    </div>
+                                </div>
+                            {% empty %}
+                                <div class="px-3.5 py-2 text-[11px] text-slate-400 dark:text-zinc-500 italic bg-white dark:bg-[#11192d]">No defects currently assigned to you.</div>
+                            {% endfor %}
+
+                            <!-- PM / Manager Workspace-Wide Items -->
+                            {% if is_privileged and other_tasks %}
+                                <div class="px-3.5 py-1.5 bg-slate-50 dark:bg-[#0c1322] text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-zinc-400 flex items-center justify-between border-t border-slate-100 dark:border-zinc-800">
+                                    <span>Workspace Tasks ({{ other_tasks|length }})</span>
+                                </div>
+                                {% for t in other_tasks %}
+                                    <div @click="selectActiveWorkItem('task', '{{ t.id }}', '{{ t.task_code }}', '{{ t.title|escapejs }}', '{{ t.sprint_ref.name|default:'Sprint 3'|escapejs }}', 'Development')"
+                                         data-testid="active-timer-task-{{ t.task_code }}"
+                                         x-show="!activeTimerSearch || ('{{ t.task_code }} {{ t.title|escapejs }}').toLowerCase().includes(activeTimerSearch.toLowerCase())"
+                                         :class="selectedTask == '{{ t.id }}' ? 'bg-blue-50/70 dark:bg-blue-900/20' : 'hover:bg-slate-50 dark:hover:bg-[#1a2540]'"
+                                         class="px-3.5 py-2 text-xs cursor-pointer flex items-center space-x-2.5 transition">
+                                        <span class="w-7 h-7 rounded-lg bg-slate-500/20 text-slate-500 dark:text-slate-400 flex items-center justify-center shrink-0 font-mono text-[10px]">#</span>
+                                        <div class="truncate">
+                                            <span class="font-semibold text-slate-900 dark:text-zinc-100 block truncate"
+                                                  :class="selectedTask == '{{ t.id }}' ? 'text-blue-600 dark:text-blue-400 font-bold' : ''">#{{ t.task_code }} — {{ t.title }}</span>
+                                            <span class="text-[10px] text-slate-500 dark:text-zinc-400 block truncate">{{ workspace.name }} • {{ t.sprint_ref.name|default:'Sprint 3' }} • {% if t.assignee %}{{ t.assignee.full_name|default:t.assignee.email }}{% else %}Unassigned{% endif %}</span>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            {% endif %}
+
+                            {% if is_privileged and other_bugs %}
+                                <div class="px-3.5 py-1.5 bg-slate-50 dark:bg-[#0c1322] text-[10px] font-bold uppercase tracking-wider text-rose-500/80 flex items-center justify-between border-t border-slate-100 dark:border-zinc-800">
+                                    <span>Workspace Defects ({{ other_bugs|length }})</span>
+                                </div>
+                                {% for b in other_bugs %}
+                                    <div @click="selectActiveWorkItem('bug', '{{ b.id }}', '{{ b.bug_code }}', '{{ b.title|escapejs }}', 'Defect / Bug', 'Bug fixes')"
+                                         data-testid="active-timer-bug-{{ b.bug_code }}"
+                                         x-show="!activeTimerSearch || ('{{ b.bug_code }} {{ b.title|escapejs }}').toLowerCase().includes(activeTimerSearch.toLowerCase())"
+                                         :class="selectedBugCode == '{{ b.bug_code }}' ? 'bg-rose-50/70 dark:bg-rose-950/30' : 'hover:bg-slate-50 dark:hover:bg-[#1a2540]'"
+                                         class="px-3.5 py-2 text-xs cursor-pointer flex items-center space-x-2.5 transition">
+                                        <span class="w-7 h-7 rounded-lg bg-rose-500/20 text-rose-400 flex items-center justify-center shrink-0 text-xs">🪲</span>
+                                        <div class="truncate">
+                                            <span class="font-semibold text-slate-900 dark:text-zinc-100 block truncate"
+                                                  :class="selectedBugCode == '{{ b.bug_code }}' ? 'text-rose-600 dark:text-rose-400 font-bold' : ''">{{ b.bug_code }} — {{ b.title }}</span>
+                                            <span class="text-[10px] text-rose-500 dark:text-rose-400/80 block truncate">{{ workspace.name }} • Bug Fix • {{ b.get_severity_display|default:'Medium' }} • {% if b.assignee %}{{ b.assignee.full_name|default:b.assignee.email }}{% else %}Unassigned{% endif %}</span>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Work Description Textarea -->
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 dark:text-zinc-300 mb-1.5">Work Description</label>
+                        <div class="relative">
+                            <textarea x-model="description" maxlength="500" rows="2"
+                                      placeholder="Working on auth backend and API integration..."
+                                      class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-[#0c1322] text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition resize-none"></textarea>
+                            <span class="absolute right-2.5 bottom-2 text-[10px] font-mono text-slate-400 dark:text-zinc-500"
+                                  x-text="`${(description || '').length}/500`"></span>
+                        </div>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="pt-1 flex items-center flex-wrap gap-2.5">
+                        <!-- IDLE: Start Timer -->
+                        <template x-if="timerStatus === 'idle'">
+                            <button type="button" @click="startTimer()"
+                                    data-testid="start-timer-btn"
+                                    class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs flex items-center space-x-2 shadow-lg shadow-blue-600/25 active:scale-95 transition-all">
                                 <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                                     <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"/>
                                 </svg>
-                                <span>Resume Timer</span>
+                                <span>Start Timer</span>
                             </button>
-                            <button type="button" @click="stopTimer()" 
-                                    data-testid="stop-timer-btn"
-                                    class="px-4 py-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs sm:text-sm flex items-center space-x-2 shadow-md shadow-rose-600/20 active:scale-95 transition-all">
-                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z" clip-rule="evenodd"/>
-                                </svg>
-                                <span>Stop Timer</span>
-                            </button>
+                        </template>
+
+                        <!-- RUNNING: Stop Timer, Pause, Switch Task -->
+                        <template x-if="timerStatus === 'running'">
+                            <div class="flex items-center flex-wrap gap-2">
+                                <button type="button" @click="stopTimer()"
+                                        data-testid="stop-timer-btn"
+                                        class="px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-semibold text-xs flex items-center space-x-2 shadow-lg shadow-rose-600/25 active:scale-95 transition-all">
+                                    <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                                        <rect x="4" y="4" width="12" height="12" rx="2"/>
+                                    </svg>
+                                    <span>Stop Timer</span>
+                                </button>
+                                <button type="button" @click="pauseTimer()"
+                                        data-testid="pause-timer-btn"
+                                        class="px-3.5 py-2.5 rounded-xl bg-white dark:bg-[#131d33] hover:bg-slate-100 dark:hover:bg-[#1a2642] text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-800 font-semibold text-xs flex items-center space-x-1.5 transition">
+                                    <svg class="w-3.5 h-3.5 text-slate-400" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                                    </svg>
+                                    <span>Pause</span>
+                                </button>
+                                <button type="button" @click="taskDropdownOpen = true; switchingTask = true"
+                                        class="px-3.5 py-2.5 rounded-xl bg-white dark:bg-[#131d33] hover:bg-slate-100 dark:hover:bg-[#1a2642] text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-800 font-semibold text-xs flex items-center space-x-1.5 transition">
+                                    <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                                    </svg>
+                                    <span>Switch Task</span>
+                                </button>
+                            </div>
+                        </template>
+
+                        <!-- PAUSED: Resume Timer, Stop Timer, Switch Task -->
+                        <template x-if="timerStatus === 'paused'">
+                            <div class="flex items-center flex-wrap gap-2">
+                                <button type="button" @click="resumeTimer()"
+                                        data-testid="resume-timer-btn"
+                                        class="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs flex items-center space-x-2 shadow-lg shadow-emerald-600/25 active:scale-95 transition-all">
+                                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"/>
+                                    </svg>
+                                    <span>Resume Timer</span>
+                                </button>
+                                <button type="button" @click="stopTimer()"
+                                        data-testid="stop-timer-btn"
+                                        class="px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-semibold text-xs flex items-center space-x-2 transition">
+                                    <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                                        <rect x="4" y="4" width="12" height="12" rx="2"/>
+                                    </svg>
+                                    <span>Stop Timer</span>
+                                </button>
+                                <button type="button" @click="taskDropdownOpen = true; switchingTask = true"
+                                        class="px-3.5 py-2.5 rounded-xl bg-white dark:bg-[#131d33] hover:bg-slate-100 dark:hover:bg-[#1a2642] text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-800 font-semibold text-xs flex items-center space-x-1.5 transition">
+                                    <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                                    </svg>
+                                    <span>Switch Task</span>
+                                </button>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Right Circular Timer Ring -->
+                <div class="relative w-48 h-48 sm:w-52 sm:h-52 flex items-center justify-center shrink-0">
+                    <svg class="w-full h-full -rotate-90 transform" viewBox="0 0 160 160">
+                        <defs>
+                            <linearGradient id="timerCyanBluePurple" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" stop-color="#06b6d4"/>
+                                <stop offset="50%" stop-color="#2563eb"/>
+                                <stop offset="100%" stop-color="#9333ea"/>
+                            </linearGradient>
+                            <filter id="timerHalo" x="-20%" y="-20%" width="140%" height="140%">
+                                <feGaussianBlur stdDeviation="3.5" result="blur"/>
+                                <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+                            </filter>
+                        </defs>
+                        <!-- Track Circle -->
+                        <circle cx="80" cy="80" r="68" stroke="currentColor" stroke-width="7" fill="none" class="text-slate-200 dark:text-[#18233d]"/>
+                        <!-- Animated Glowing Ring -->
+                        <circle cx="80" cy="80" r="68" stroke="url(#timerCyanBluePurple)" stroke-width="7" stroke-linecap="round" fill="none"
+                                :stroke-dasharray="427"
+                                :stroke-dashoffset="timerStatus === 'running' ? (427 - (427 * (elapsedSeconds % 3600) / 3600)) : (timerStatus === 'paused' ? 120 : 0)"
+                                class="transition-all duration-1000 ease-linear"
+                                filter="url(#timerHalo)"/>
+                    </svg>
+
+                    <!-- Inside Ring Text -->
+                    <div class="absolute inset-0 flex flex-col items-center justify-center text-center">
+                        <div class="font-mono text-2xl sm:text-3xl font-extrabold tracking-wider text-slate-900 dark:text-zinc-50"
+                             x-text="formatTime(elapsedSeconds)">
+                            00:00:00
                         </div>
-                    </template>
+                        <span class="text-[9px] text-slate-400 dark:text-zinc-500 uppercase tracking-widest font-bold mt-1">
+                            HOURS : MINS : SECS
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT: Today's Timeline & This Week Overview (Columns 8-12) -->
+        <div class="lg:col-span-6 xl:col-span-5 flex flex-col gap-5">
+            <!-- Top: Today's Timeline -->
+            <div class="rounded-2xl p-5 bg-white dark:bg-[#10192d] border border-slate-200/80 dark:border-zinc-800/80 shadow-xs flex-1 flex flex-col">
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="text-sm font-bold text-slate-900 dark:text-zinc-100">
+                        Today's Timeline
+                    </h3>
+                    <a href="?date_range=today#timesheet-section"
+                       id="view-day-btn"
+                       data-testid="view-day-btn"
+                       @click.prevent="
+                           if (window.location.search.includes('date_range=today')) {
+                               const el = document.getElementById('timesheet-section');
+                               if (el) {
+                                   el.scrollIntoView({ behavior: 'smooth' });
+                                   el.classList.add('ring-2', 'ring-blue-500/50');
+                                   setTimeout(() => el.classList.remove('ring-2', 'ring-blue-500/50'), 2000);
+                               }
+                           } else {
+                               window.location.href = '?date_range=today#timesheet-section';
+                           }
+                       "
+                       class="group flex items-center space-x-1 text-xs font-semibold text-blue-500 hover:text-blue-400 transition" title="View Detailed Day View">
+                        <span>View Day</span>
+                        <svg class="w-3.5 h-3.5 text-blue-500 group-hover:translate-x-0.5 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                        </svg>
+                    </a>
+                </div>
+
+                <!-- Timeline Bar Chart Area -->
+                <div class="relative pt-1 flex-1 flex flex-col justify-between">
+                    <!-- Hours Axis -->
+                    <div class="flex items-center justify-between text-[10px] font-mono text-slate-400 dark:text-zinc-500 pb-2 border-b border-slate-100 dark:border-zinc-800/60">
+                        <span>09:00</span>
+                        <span>10:00</span>
+                        <span>11:00</span>
+                        <span>12:00</span>
+                        <span>13:00</span>
+                        <span>14:00</span>
+                        <span>15:00</span>
+                        <span>16:00</span>
+                        <span>17:00</span>
+                    </div>
+
+                    <!-- Recorded Session Bars: Lane-packed to eliminate overlaps -->
+                    <div class="py-2.5 space-y-1.5 flex-1 flex flex-col justify-center">
+                        {% if timeline_lanes %}
+                            {% for lane in timeline_lanes %}
+                                <div class="relative h-8 rounded-lg bg-slate-50/60 dark:bg-[#0c1322]/60 border border-slate-100/80 dark:border-zinc-800/40">
+                                    {% for item in lane %}
+                                        <div class="absolute top-0.5 bottom-0.5 rounded-md px-2 py-0.5 shadow-xs text-xs transition-all flex items-center justify-between {{ item.category_info.timeline_color }} group cursor-pointer overflow-hidden select-none"
+                                             style="left: {{ item.left_pct }}%; width: {{ item.width_pct }}%; min-width: 28px;"
+                                             title="{{ item.item_code }} — {{ item.title }} ({{ item.duration_formatted }}) [{{ item.source_display }}]">
+                                            <!-- Short Entry Mode -->
+                                            {% if item.is_short %}
+                                                <div class="w-full flex items-center justify-center font-bold text-[10px] truncate" title="{{ item.item_code }} — {{ item.title }} ({{ item.duration_formatted }})">
+                                                    {% if item.item_type == 'bug' %}🪲 {{ item.item_code }}{% elif item.item_type == 'task' %}{{ item.item_code }}{% else %}⚡{% endif %}
+                                                </div>
+                                            {% else %}
+                                                <div class="flex items-center space-x-1.5 truncate text-[11px] font-semibold pr-1 min-w-0">
+                                                    <span class="opacity-80 text-[10px] shrink-0">
+                                                        {% if item.item_type == 'bug' %}🪲{% elif item.item_type == 'task' %}#{% else %}⚡{% endif %}
+                                                    </span>
+                                                    <span class="truncate">{{ item.title }}</span>
+                                                </div>
+                                                <span class="text-[9px] opacity-90 font-mono shrink-0 font-bold ml-1">{{ item.duration_formatted }}</span>
+                                            {% endif %}
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="py-4 flex-1 flex flex-col items-center justify-center text-center text-slate-400 dark:text-zinc-500 space-y-1.5">
+                                <div class="w-8 h-8 rounded-full bg-slate-100 dark:bg-zinc-800/80 flex items-center justify-center text-slate-400 dark:text-zinc-400 mb-0.5">
+                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                    </svg>
+                                </div>
+                                <span class="text-xs font-semibold text-slate-700 dark:text-zinc-300">No recorded sessions today</span>
+                                <span class="text-[10px] text-slate-400 dark:text-zinc-500">Start the timer or log manual effort to plot your day</span>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bottom: This Week Overview (7 Bars) -->
+            <div class="rounded-2xl p-5 bg-white dark:bg-[#10192d] border border-slate-200/80 dark:border-zinc-800/80 shadow-xs">
+                <h3 class="text-xs font-bold text-slate-700 dark:text-zinc-300 mb-3">
+                    This Week Overview
+                </h3>
+
+                <div class="grid grid-cols-7 gap-2 items-end h-24 pt-2">
+                    {% for day in week_days %}
+                        <div class="flex flex-col items-center justify-end h-full">
+                            <!-- Vertical Bar -->
+                            <div class="w-full max-w-[28px] rounded-t-md transition-all duration-300 {% if day.is_today %}bg-blue-600 shadow-sm shadow-blue-500/30{% elif day.has_hours %}bg-slate-300 dark:bg-zinc-700{% else %}bg-slate-100 dark:bg-zinc-800/50{% endif %}"
+                                 style="height: {{ day.height_pct }}%;"></div>
+
+                            <!-- Day and Hours Label -->
+                            <span class="text-[10px] font-bold mt-2 {% if day.is_today %}text-blue-500 font-extrabold{% else %}text-slate-500 dark:text-zinc-400{% endif %}">
+                                {{ day.abbr }}
+                            </span>
+                            <span class="text-[9px] font-mono {% if day.is_today %}text-blue-400 font-bold{% else %}text-slate-400 dark:text-zinc-500{% endif %}">
+                                {{ day.formatted }}
+                            </span>
+                        </div>
+                    {% endfor %}
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- 4 Real Database Metric Cards -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <!-- Today's Hours -->
-        <div class="aether-card p-5 space-y-1.5 border-l-4 border-l-blue-500">
-            <span class="text-xs font-semibold text-slate-500 dark:text-zinc-400">Today's Logged Hours</span>
-            <div class="flex items-baseline space-x-2">
-                <span class="text-2xl font-black text-slate-900 dark:text-zinc-50">{{ today_hours }}</span>
-                <span class="text-xs text-slate-400 dark:text-zinc-500 font-medium">hours</span>
-            </div>
-            <p class="text-[11px] text-slate-400 dark:text-zinc-500">Individual daily contribution</p>
-        </div>
-
-        <!-- This Week's Hours -->
-        <div class="aether-card p-5 space-y-1.5 border-l-4 border-l-indigo-500">
-            <span class="text-xs font-semibold text-slate-500 dark:text-zinc-400">This Week's Hours</span>
-            <div class="flex items-baseline space-x-2">
-                <span class="text-2xl font-black text-slate-900 dark:text-zinc-50">{{ week_hours }}</span>
-                <span class="text-xs text-slate-400 dark:text-zinc-500 font-medium">hours</span>
-            </div>
-            <p class="text-[11px] text-slate-400 dark:text-zinc-500">Current sprint week total</p>
-        </div>
-
-        <!-- This Month's Hours -->
-        <div class="aether-card p-5 space-y-1.5 border-l-4 border-l-cyan-500">
-            <span class="text-xs font-semibold text-slate-500 dark:text-zinc-400">Monthly Total</span>
-            <div class="flex items-baseline space-x-2">
-                <span class="text-2xl font-black text-slate-900 dark:text-zinc-50">{{ month_hours }}</span>
-                <span class="text-xs text-slate-400 dark:text-zinc-500 font-medium">hours</span>
-            </div>
-            <p class="text-[11px] text-slate-400 dark:text-zinc-500">Calendar month logged work</p>
-        </div>
-
-        <!-- Team Week Hours or Active Timer Info -->
-        <div class="aether-card p-5 space-y-1.5 border-l-4 border-l-amber-500">
-            {% if is_privileged and team_week_hours is not None %}
-                <span class="text-xs font-semibold text-slate-500 dark:text-zinc-400">Workspace Team Total</span>
-                <div class="flex items-baseline space-x-2">
-                    <span class="text-2xl font-black text-amber-600 dark:text-amber-400">{{ team_week_hours }}</span>
-                    <span class="text-xs text-slate-400 dark:text-zinc-500 font-medium">hours this week</span>
+    <!-- SECTION D: Timesheet History Table -->
+    <div id="timesheet-section" class="rounded-2xl bg-white dark:bg-[#10192d] border border-slate-200/80 dark:border-zinc-800/80 shadow-xs overflow-hidden">
+        <!-- Detailed Day View Banner (When Filtering to Today / Specific Day) -->
+        {% if date_filter == 'today' %}
+            <div data-testid="detailed-day-view-banner" class="px-5 py-4 bg-gradient-to-r from-blue-600/10 via-purple-600/10 to-transparent border-b border-blue-500/20 space-y-3.5">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-9 h-9 rounded-xl bg-blue-600/20 text-blue-400 flex items-center justify-center shrink-0">
+                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <h4 class="text-sm sm:text-base font-bold text-slate-900 dark:text-zinc-50 flex items-center space-x-2">
+                                <span>Daily View: {{ range_label }}</span>
+                                {% if offset == 0 %}
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-600 text-white shadow-xs">Today</span>
+                                {% endif %}
+                            </h4>
+                            <p class="text-xs text-slate-500 dark:text-zinc-400">
+                                Total logged effort: <span class="font-bold text-slate-900 dark:text-zinc-100 font-mono">{{ day_total_formatted }}</span> across {{ logs_page.paginator.count }} session{{ logs_page.paginator.count|pluralize }}
+                            </p>
+                        </div>
+                    </div>
+                    <!-- Day Navigation Controls -->
+                    <div class="flex items-center space-x-2">
+                        <a href="?date_range=today&offset={{ prev_offset }}#timesheet-section"
+                           data-testid="day-view-prev-btn"
+                           class="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-white dark:bg-[#11192d] border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-[#18233d] transition flex items-center space-x-1"
+                           title="Previous Day">
+                            <span>‹</span>
+                            <span>Prev Day</span>
+                        </a>
+                        {% if offset != 0 %}
+                            <a href="?date_range=today&offset=0#timesheet-section"
+                               class="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 text-white hover:bg-blue-500 transition"
+                               title="Jump to Today">
+                                Today
+                            </a>
+                        {% endif %}
+                        <a href="?date_range=today&offset={{ next_offset }}#timesheet-section"
+                           data-testid="day-view-next-btn"
+                           class="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-white dark:bg-[#11192d] border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-[#18233d] transition flex items-center space-x-1"
+                           title="Next Day">
+                            <span>Next Day</span>
+                            <span>›</span>
+                        </a>
+                        <a href="?date_range=week#timesheet-section"
+                           class="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-700 transition"
+                           title="Return to Weekly Timesheet">
+                            Back to Week
+                        </a>
+                    </div>
                 </div>
-                <p class="text-[11px] text-slate-400 dark:text-zinc-500">Across all team contributors</p>
-            {% else %}
-                <span class="text-xs font-semibold text-slate-500 dark:text-zinc-400">Current Status</span>
-                <div class="flex items-baseline space-x-2">
-                    <span class="text-2xl font-black text-slate-900 dark:text-zinc-50">
-                        {% if active_timer.status == 'RUNNING' %}Running{% elif active_timer.status == 'PAUSED' %}Paused{% elif active_timer %}Active{% else %}Idle{% endif %}
-                    </span>
-                </div>
-                <p class="text-[11px] text-slate-400 dark:text-zinc-500">
-                    {% if active_timer.status == 'RUNNING' %}Live timer in progress{% elif active_timer.status == 'PAUSED' %}Timer paused (work preserved){% else %}Ready for sprint work{% endif %}
-                </p>
-            {% endif %}
-        </div>
-    </div>
 
-    <!-- Filter Bar & History Table -->
-    <div class="aether-card overflow-hidden">
-        <!-- Filter Controls Form -->
-        <form method="GET" class="p-4 sm:px-5 border-b border-slate-100 dark:border-zinc-800 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                <!-- Daily Breakdown Cards -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 border-t border-blue-500/10 text-xs">
+                    <div class="p-2 rounded-xl bg-white/60 dark:bg-[#0c1322]/60 border border-slate-200/50 dark:border-zinc-800/50">
+                        <span class="text-[10px] text-slate-400 dark:text-zinc-500 block">Tasks Effort</span>
+                        <span class="font-bold text-blue-500 font-mono text-xs">{{ day_task_formatted }}</span>
+                    </div>
+                    <div class="p-2 rounded-xl bg-white/60 dark:bg-[#0c1322]/60 border border-slate-200/50 dark:border-zinc-800/50">
+                        <span class="text-[10px] text-slate-400 dark:text-zinc-500 block">Defects Effort</span>
+                        <span class="font-bold text-rose-500 font-mono text-xs">{{ day_bug_formatted }}</span>
+                    </div>
+                    <div class="p-2 rounded-xl bg-white/60 dark:bg-[#0c1322]/60 border border-slate-200/50 dark:border-zinc-800/50">
+                        <span class="text-[10px] text-slate-400 dark:text-zinc-500 block">Timer Effort</span>
+                        <span class="font-bold text-emerald-500 font-mono text-xs">{{ day_timer_formatted }}</span>
+                    </div>
+                    <div class="p-2 rounded-xl bg-white/60 dark:bg-[#0c1322]/60 border border-slate-200/50 dark:border-zinc-800/50">
+                        <span class="text-[10px] text-slate-400 dark:text-zinc-500 block">Manual Effort</span>
+                        <span class="font-bold text-purple-500 font-mono text-xs">{{ day_manual_formatted }}</span>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+
+        <!-- Controls Bar -->
+        <div class="p-4 sm:p-5 border-b border-slate-100 dark:border-zinc-800/60 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <!-- Filter Pills -->
             <div class="flex items-center space-x-2">
-                <h2 class="text-sm font-bold text-slate-900 dark:text-zinc-100">
-                    Timesheet History
-                </h2>
-            </div>
+                <span id="timesheet-heading" class="text-sm font-bold text-slate-900 dark:text-zinc-100 mr-2">Time Entries</span>
+                <div class="flex items-center p-1 bg-slate-100 dark:bg-[#0c1322] rounded-xl text-xs font-semibold">
 
-            <div class="flex items-center flex-wrap gap-2.5">
-                <!-- Date Range Pills -->
-                <div class="flex items-center p-1 bg-slate-100 dark:bg-zinc-800/80 rounded-lg text-xs font-semibold">
-                    <a href="?date_range=today{% if member_filter %}&member={{ member_filter }}{% endif %}{% if task_filter %}&task={{ task_filter }}{% endif %}" 
-                       class="px-2.5 py-1 rounded-md transition-colors {% if date_filter == 'today' %}bg-white dark:bg-zinc-900 text-aether-blue shadow-sm{% else %}text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200{% endif %}">
+                    <a href="?date_range=today{% if member_filter %}&member={{ member_filter }}{% endif %}{% if task_filter %}&task={{ task_filter }}{% endif %}"
+                       class="px-3 py-1.5 rounded-lg transition {% if date_filter == 'today' %}bg-blue-600 text-white shadow-xs{% else %}text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200{% endif %}">
                         Today
                     </a>
-                    <a href="?date_range=week{% if member_filter %}&member={{ member_filter }}{% endif %}{% if task_filter %}&task={{ task_filter }}{% endif %}" 
-                       class="px-2.5 py-1 rounded-md transition-colors {% if date_filter == 'week' %}bg-white dark:bg-zinc-900 text-aether-blue shadow-sm{% else %}text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200{% endif %}">
+                    <a href="?date_range=week{% if member_filter %}&member={{ member_filter }}{% endif %}{% if task_filter %}&task={{ task_filter }}{% endif %}"
+                       class="px-3 py-1.5 rounded-lg transition {% if date_filter == 'week' %}bg-blue-600 text-white shadow-xs{% else %}text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200{% endif %}">
                         This Week
                     </a>
-                    <a href="?date_range=month{% if member_filter %}&member={{ member_filter }}{% endif %}{% if task_filter %}&task={{ task_filter }}{% endif %}" 
-                       class="px-2.5 py-1 rounded-md transition-colors {% if date_filter == 'month' %}bg-white dark:bg-zinc-900 text-aether-blue shadow-sm{% else %}text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200{% endif %}">
+                    <a href="?date_range=month{% if member_filter %}&member={{ member_filter }}{% endif %}{% if task_filter %}&task={{ task_filter }}{% endif %}"
+                       class="px-3 py-1.5 rounded-lg transition {% if date_filter == 'month' %}bg-blue-600 text-white shadow-xs{% else %}text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200{% endif %}">
                         This Month
                     </a>
-                    <a href="?date_range=all{% if member_filter %}&member={{ member_filter }}{% endif %}{% if task_filter %}&task={{ task_filter }}{% endif %}" 
-                       class="px-2.5 py-1 rounded-md transition-colors {% if date_filter == 'all' %}bg-white dark:bg-zinc-900 text-aether-blue shadow-sm{% else %}text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200{% endif %}">
+                    <a href="?date_range=all{% if member_filter %}&member={{ member_filter }}{% endif %}{% if task_filter %}&task={{ task_filter }}{% endif %}"
+                       class="px-3 py-1.5 rounded-lg transition {% if date_filter == 'all' %}bg-blue-600 text-white shadow-xs{% else %}text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200{% endif %}">
                         All Time
                     </a>
                 </div>
+            </div>
 
-                <!-- Member Filter (Managers/Admins only) -->
+            <!-- Dropdowns & Search Form -->
+            <form method="GET" class="flex items-center flex-wrap gap-2.5">
+                <input type="hidden" name="date_range" value="{{ date_filter }}">
+                {% if offset %}
+                    <input type="hidden" name="offset" value="{{ offset }}">
+                {% endif %}
+
+                <!-- Project Filter Dropdown -->
+                <select name="project" onchange="this.form.submit()"
+                        class="px-3 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] text-slate-700 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                    <option value="">All Projects</option>
+                    <option value="{{ workspace.slug }}" {% if project_filter == workspace.slug %}selected{% endif %}>{{ workspace.name }}</option>
+                </select>
+
+                <!-- Task Filter Dropdown -->
+                <select name="task" onchange="this.form.submit()"
+                        class="px-3 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] text-slate-700 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                    <option value="">All Tasks</option>
+                    {% for t in available_tasks %}
+                        <option value="{{ t.task_code }}" {% if task_filter == t.task_code %}selected{% endif %}>#{{ t.task_code }} — {{ t.title|truncatechars:30 }}</option>
+                    {% endfor %}
+                </select>
+
+                <!-- Member Filter (Managers/Admins) -->
                 {% if is_privileged and workspace_members %}
-                    <select name="member" onchange="this.form.submit()" 
-                            class="px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-aether-blue">
-                        <option value="">All Team Members</option>
+                    <select name="member" onchange="this.form.submit()"
+                            class="px-3 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] text-slate-700 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                        <option value="">All Members</option>
                         {% for m in workspace_members %}
-                            <option value="{{ m.user.id }}" {% if member_filter == m.user.id|stringformat:'s' %}selected{% endif %}>
-                                {{ m.user.full_name|default:m.user.email }} ({{ m.user.contributor_id }})
-                            </option>
+                            <option value="{{ m.user.id }}" {% if member_filter == m.user.id|stringformat:'s' %}selected{% endif %}>{{ m.user.full_name|default:m.user.email }}</option>
                         {% endfor %}
                     </select>
                 {% endif %}
 
-                <!-- Task Search Input -->
+                <!-- Search Input -->
                 <div class="relative">
-                    <input type="text" name="task" value="{{ task_filter }}" placeholder="Filter by task..." 
-                           class="pl-7 pr-3 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-aether-blue">
-                    <svg class="w-3.5 h-3.5 text-slate-400 absolute left-2 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <input type="text" name="q" value="{{ search_query }}" placeholder="Search entries..."
+                           class="pl-8 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                    <svg class="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                     </svg>
                 </div>
-            </div>
-        </form>
+            </form>
+        </div>
 
-        <!-- Time Logs Table -->
+        <!-- Table Content -->
         <div class="overflow-x-auto">
             <table class="w-full text-left text-xs">
-                <thead class="bg-slate-50 dark:bg-obsidian-950 text-slate-500 dark:text-zinc-400 uppercase text-[10px] tracking-wider border-b border-slate-100 dark:border-zinc-800">
+                <thead class="bg-slate-50 dark:bg-[#0c1322] text-slate-500 dark:text-zinc-400 uppercase text-[10px] tracking-wider border-b border-slate-100 dark:border-zinc-800">
                     <tr>
-                        <th class="py-3 px-5">Date & Time</th>
-                        <th class="py-3 px-4">Contributor</th>
-                        <th class="py-3 px-4">Associated Task</th>
-                        <th class="py-3 px-4">Work Description</th>
-                        <th class="py-3 px-4">Type</th>
-                        <th class="py-3 px-4 text-right">Duration</th>
-                        <th class="py-3 px-5 text-right">Actions</th>
+                        <th class="py-3.5 px-5">Date & Time</th>
+                        <th class="py-3.5 px-4">Work Item</th>
+                        <th class="py-3.5 px-4">Category</th>
+                        <th class="py-3.5 px-4">Source</th>
+                        <th class="py-3.5 px-4">Project</th>
+                        <th class="py-3.5 px-4">Description</th>
+                        <th class="py-3.5 px-4">Duration</th>
+                        <th class="py-3.5 px-4">Contributor</th>
+                        <th class="py-3.5 px-5 text-right">Actions</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-slate-100 dark:divide-zinc-800">
+                <tbody class="divide-y divide-slate-100 dark:divide-zinc-800/60">
                     {% for entry in logs_page %}
-                        <tr class="hover:bg-slate-50/50 dark:hover:bg-obsidian-800/40 transition-colors">
+                        <tr class="hover:bg-slate-50/50 dark:hover:bg-[#131d33]/50 transition-colors">
                             <!-- Date & Time -->
                             <td class="py-3.5 px-5 whitespace-nowrap">
-                                <span class="font-semibold text-slate-800 dark:text-zinc-200 block">{{ entry.started_at|date:"M d, Y" }}</span>
-                                <span class="text-[11px] text-slate-400 dark:text-zinc-500">{{ entry.started_at|date:"H:i" }}{% if entry.ended_at %} – {{ entry.ended_at|date:"H:i" }}{% endif %}</span>
+                                <span class="font-semibold text-slate-900 dark:text-zinc-100 block">{{ entry.started_at|date:"M d, Y" }}</span>
+                                <span class="text-[11px] text-slate-400 dark:text-zinc-500">{{ entry.started_at|date:"H:i" }}{% if entry.ended_at %} - {{ entry.ended_at|date:"H:i" }}{% endif %}</span>
                             </td>
 
-                            <!-- Contributor -->
+                            <!-- Work Item with colored icon badge -->
                             <td class="py-3.5 px-4 whitespace-nowrap">
-                                <div class="flex items-center space-x-2">
-                                    <div class="w-6 h-6 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-700 text-white font-bold text-[10px] flex items-center justify-center shrink-0">
-                                        {{ entry.user.full_name|default:entry.user.email|slice:":2"|upper }}
+                                <div class="flex items-center space-x-2.5">
+                                    <div class="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 {{ entry.category_info.badge_bg }}">
+                                        {% if entry.category_info.icon == 'bug' %}
+                                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                                            </svg>
+                                        {% elif entry.category_info.icon == 'database' %}
+                                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"/>
+                                            </svg>
+                                        {% elif entry.category_info.icon == 'palette' %}
+                                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4 5 5 0 013-4.5 7 7 0 0110-2c3.5 0 6 2.5 6 6a5 5 0 01-5 5 3 3 0 01-3-3v-1a2 2 0 00-2-2h-1a2 2 0 00-2 2v1a4 4 0 01-2 2z"/>
+                                            </svg>
+                                        {% elif entry.category_info.icon == 'code-review' %}
+                                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                            </svg>
+                                        {% else %}
+                                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/>
+                                            </svg>
+                                        {% endif %}
                                     </div>
-                                    <div class="truncate">
-                                        <span class="font-semibold text-slate-900 dark:text-zinc-100 block truncate">{{ entry.user.full_name|default:entry.user.email }}</span>
-                                        <span class="font-mono text-[10px] text-slate-400 dark:text-zinc-500">{{ entry.user.contributor_id }}</span>
+                                    <div class="truncate max-w-[220px]">
+                                        {% if entry.task %}
+                                            <div class="flex items-center space-x-1.5 truncate">
+                                                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-500/15 text-blue-500 dark:text-blue-400 border border-blue-500/30 shrink-0">TASK</span>
+                                                <a href="{% url 'tasks:task_detail' slug=workspace.slug task_code=entry.task.task_code %}"
+                                                   class="font-semibold text-slate-900 dark:text-zinc-100 hover:text-blue-500 transition truncate"
+                                                   title="#{{ entry.task.task_code }} — {{ entry.task.title }}">
+                                                    #{{ entry.task.task_code }} — {{ entry.task.title }}
+                                                </a>
+                                            </div>
+                                        {% elif entry.linked_bug_code %}
+                                            <div class="truncate">
+                                                <div class="flex items-center space-x-1.5 truncate">
+                                                    <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-rose-500/15 text-rose-500 dark:text-rose-400 border border-rose-500/30 shrink-0">DEFECT</span>
+                                                    <a href="{% url 'bugs:bug_detail' slug=workspace.slug bug_code=entry.linked_bug_code %}"
+                                                       class="font-semibold text-rose-500 dark:text-rose-400 hover:underline transition truncate"
+                                                       title="{{ entry.linked_bug_code }}{% if entry.linked_bug %} — {{ entry.linked_bug.title }}{% endif %}">
+                                                        {{ entry.linked_bug_code }}{% if entry.linked_bug %} — {{ entry.linked_bug.title }}{% endif %}
+                                                    </a>
+                                                </div>
+                                                {% if entry.linked_bug and entry.linked_bug.severity %}
+                                                    <span class="text-[10px] text-rose-400/80 block mt-0.5 truncate">{{ entry.linked_bug.get_severity_display|default:entry.linked_bug.severity }}</span>
+                                                {% endif %}
+                                            </div>
+                                        {% else %}
+                                            <div class="flex items-center space-x-1.5 truncate">
+                                                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-slate-500/15 text-slate-400 border border-slate-500/30 shrink-0">GENERAL</span>
+                                                <span class="font-semibold text-slate-700 dark:text-zinc-300 truncate">General Workspace Effort</span>
+                                            </div>
+                                        {% endif %}
                                     </div>
                                 </div>
                             </td>
 
-                            <!-- Associated Task -->
+                            <!-- Category / Work Type -->
                             <td class="py-3.5 px-4 whitespace-nowrap">
-                                {% if entry.task %}
-                                    <a href="{% url 'tasks:task_detail' slug=workspace.slug task_code=entry.task.task_code %}" 
-                                       class="inline-flex items-center space-x-1.5 font-mono text-xs font-bold text-aether-blue dark:text-blue-400 hover:underline">
-                                        <span>#{{ entry.task.task_code }}</span>
-                                        <span class="font-sans font-normal text-slate-600 dark:text-zinc-300 truncate max-w-[160px]">{{ entry.task.title }}</span>
-                                    </a>
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border {{ entry.category_info.bg }}">
+                                    <span class="w-1.5 h-1.5 rounded-full {{ entry.category_info.dot }} mr-1.5"></span>
+                                    {{ entry.category_info.name }}
+                                </span>
+                            </td>
+
+                            <!-- Entry Source (Timer vs Manual vs Legacy) -->
+                            <td class="py-3.5 px-4 whitespace-nowrap">
+                                {% if entry.entry_source_display == 'Timer' %}
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20" title="Created by active live stopwatch timer">
+                                        ⏱️ Timer
+                                    </span>
+                                {% elif entry.entry_source_display == 'Manual' %}
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20" title="Created by manual time log modal">
+                                        📝 Manual
+                                    </span>
                                 {% else %}
-                                    <span class="text-slate-400 dark:text-zinc-500 italic text-[11px]">General Work</span>
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-500/10 text-slate-400 border border-slate-500/20" title="Legacy timesheet entry">
+                                        📋 Legacy
+                                    </span>
                                 {% endif %}
                             </td>
 
-                            <!-- Description -->
-                            <td class="py-3.5 px-4 max-w-xs truncate text-slate-600 dark:text-zinc-300">
-                                {{ entry.description|default:"—" }}
+                            <!-- Project & Sprint -->
+                            <td class="py-3.5 px-4 whitespace-nowrap text-slate-700 dark:text-zinc-300">
+                                <div class="truncate max-w-[140px]">
+                                    <div class="flex items-center space-x-1.5">
+                                        <span class="w-4 h-4 rounded bg-blue-600/20 text-blue-400 font-extrabold flex items-center justify-center text-[10px]">A</span>
+                                        <span class="font-semibold text-slate-800 dark:text-zinc-200 truncate">{{ entry.project_name }}</span>
+                                    </div>
+                                    {% if entry.sprint_name and entry.sprint_name != '—' %}
+                                        <span class="text-[10px] text-slate-400 dark:text-zinc-500 block truncate ml-5.5">{{ entry.sprint_name }}</span>
+                                    {% endif %}
+                                </div>
                             </td>
 
-                            <!-- Type -->
-                            <td class="py-3.5 px-4 whitespace-nowrap">
-                                {% if entry.entry_type == 'TIMER' %}
-                                    <span class="inline-flex items-center space-x-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/50">
-                                        <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                                        </svg>
-                                        <span>Stopwatch</span>
-                                    </span>
-                                {% else %}
-                                    <span class="inline-flex items-center space-x-1 px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 border border-slate-200 dark:border-zinc-700">
-                                        <span>Manual</span>
-                                    </span>
-                                {% endif %}
+                            <!-- Description (Safe Rich-Text Rendered) -->
+                            <td class="py-3.5 px-4 max-w-xs text-slate-600 dark:text-zinc-300">
+                                <div class="rich-text-content text-xs leading-relaxed max-w-xs break-words space-y-1" title="{{ entry.clean_description }}">
+                                    {{ entry.clean_description|render_rich_text|default:"—" }}
+                                </div>
                             </td>
 
                             <!-- Duration -->
-                            <td class="py-3.5 px-4 whitespace-nowrap text-right">
-                                <span class="font-mono text-sm font-black text-slate-900 dark:text-zinc-50">
-                                    {{ entry.duration_formatted }}
-                                </span>
-                                <span class="text-[10px] text-slate-400 dark:text-zinc-500 block font-mono">({{ entry.hours_decimal }} hrs)</span>
+                            <td class="py-3.5 px-4 whitespace-nowrap font-mono font-bold text-slate-900 dark:text-zinc-100">
+                                {{ entry.duration_formatted }}
+                            </td>
+
+                            <!-- Contributor Avatar & Name (Reusable People Hover Card) -->
+                            <td class="py-3.5 px-4 whitespace-nowrap">
+                                {% include 'components/people_hover_card.html' with target_user=entry.user workspace=workspace workspace_slug=workspace.slug target_member=entry.workspace_member show_name=True avatar_size='w-7 h-7' %}
                             </td>
 
                             <!-- Actions -->
                             <td class="py-3.5 px-5 whitespace-nowrap text-right">
                                 {% if entry.user == user or is_privileged %}
-                                    <form method="POST" action="{% url 'timetracking:delete_time_entry' slug=workspace.slug entry_id=entry.id %}" 
-                                          onsubmit="return confirm('Are you sure you want to delete this time log?');" class="inline-block">
-                                        {% csrf_token %}
-                                        <button type="submit" class="p-1 rounded text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 transition-colors" title="Delete Time Log">
+                                    <div class="flex items-center justify-end space-x-1.5">
+                                        <!-- Edit Action Button -->
+                                        <button type="button"
+                                                @click="openEditModal({
+                                                    id: '{{ entry.id }}',
+                                                    date: '{{ entry.started_at|date:'Y-m-d' }}',
+                                                    startTime: '{{ entry.started_at|date:'h:i A' }}',
+                                                    endTime: '{{ entry.ended_at|date:'h:i A'|default:'12:00 PM' }}',
+                                                    durationFormatted: '{{ entry.duration_formatted }}',
+                                                    taskId: '{{ entry.task_id|default:'' }}',
+                                                    taskCode: '{{ entry.task.task_code|default:'' }}',
+                                                    taskTitle: '{{ entry.task.title|default:''|escapejs }}',
+                                                    taskSprint: '{{ entry.sprint_name|default:''|escapejs }}',
+                                                    bugCode: '{{ entry.linked_bug_code|default:''|escapejs }}',
+                                                    category: '{{ entry.category|default:'Development'|escapejs }}',
+                                                    billable: {{ entry.is_billable|yesno:'true,false' }},
+                                                    description: '{{ entry.clean_description|default:''|escapejs }}'
+                                                })"
+                                                class="p-1 rounded text-slate-400 hover:text-blue-500 transition"
+                                                title="Edit Time Log">
                                             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                                             </svg>
                                         </button>
-                                    </form>
+
+                                        <!-- Delete Action Button -->
+                                        <form method="POST" action="{% url 'timetracking:delete_time_entry' slug=workspace.slug entry_id=entry.id %}"
+                                              onsubmit="return confirm('Are you sure you want to delete this time entry?');" class="inline-block">
+                                            {% csrf_token %}
+                                            <button type="submit" class="p-1 rounded text-slate-400 hover:text-rose-500 transition" title="Delete Time Log">
+                                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                                </svg>
+                                            </button>
+                                        </form>
+                                    </div>
                                 {% endif %}
                             </td>
                         </tr>
                     {% empty %}
                         <tr>
-                            <td colspan="7" class="py-12 text-center text-slate-400 dark:text-zinc-500">
-                                <svg class="w-10 h-10 mx-auto mb-2 text-slate-300 dark:text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <td colspan="9" class="py-12 text-center text-slate-400 dark:text-zinc-500">
+                                <svg class="w-10 h-10 mx-auto mb-2 text-slate-300 dark:text-zinc-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
                                 </svg>
-                                <p class="text-sm font-semibold">No time entries recorded</p>
-                                <p class="text-xs text-slate-400 dark:text-zinc-500 mt-0.5">Use the live stopwatch or click "Log Time Manually" to record sprint hours.</p>
+                                {% if date_filter == 'today' %}
+                                    <p class="text-sm font-semibold">No time entries recorded for {{ range_label }}</p>
+                                    <p class="text-xs text-slate-400 dark:text-zinc-500 mt-0.5">Start the live timer or click "Log Time Manually" to log work for this day.</p>
+                                {% else %}
+                                    <p class="text-sm font-semibold">No time entries recorded for this period</p>
+                                    <p class="text-xs text-slate-400 dark:text-zinc-500 mt-0.5">Click "Log Time Manually" or run the timer to begin recording effort.</p>
+                                {% endif %}
                             </td>
                         </tr>
                     {% endfor %}
@@ -532,7 +1095,7 @@
             </table>
         </div>
 
-        <!-- Pagination Controls -->
+        <!-- Pagination -->
         {% if logs_page.has_other_pages %}
             <div class="px-5 py-3 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between text-xs">
                 <span class="text-slate-500 dark:text-zinc-400">
@@ -541,13 +1104,13 @@
                 <div class="flex items-center space-x-1.5">
                     {% if logs_page.has_previous %}
                         <a href="?page={{ logs_page.previous_page_number }}&date_range={{ date_filter }}{% if member_filter %}&member={{ member_filter }}{% endif %}{% if task_filter %}&task={{ task_filter }}{% endif %}"
-                           class="px-2.5 py-1 rounded border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800">
+                           class="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800">
                             Previous
                         </a>
                     {% endif %}
                     {% if logs_page.has_next %}
                         <a href="?page={{ logs_page.next_page_number }}&date_range={{ date_filter }}{% if member_filter %}&member={{ member_filter }}{% endif %}{% if task_filter %}&task={{ task_filter }}{% endif %}"
-                           class="px-2.5 py-1 rounded border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800">
+                           class="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800">
                             Next
                         </a>
                     {% endif %}
@@ -556,116 +1119,823 @@
         {% endif %}
     </div>
 
-    <!-- Manual Time Entry Modal -->
-    <div x-show="manualModalOpen" 
-         x-transition:enter="transition ease-out duration-150" 
-         x-transition:enter-start="opacity-0" 
-         x-transition:enter-end="opacity-100" 
-         x-transition:leave="transition ease-in duration-100" 
-         x-transition:leave-start="opacity-100" 
-         x-transition:leave-end="opacity-0" 
-         class="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4" 
-         style="display: none;">
-        
-        <div @click.outside="manualModalOpen = false" 
-             class="aether-card max-w-md w-full p-6 space-y-4 shadow-2xl relative rounded-2xl">
-            
-            <div class="flex items-center justify-between border-b border-slate-100 dark:border-zinc-800 pb-3">
-                <h3 class="text-base font-bold text-slate-900 dark:text-zinc-100 flex items-center space-x-2">
-                    <svg class="w-4 h-4 text-aether-blue" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                    </svg>
-                    <span>Log Time Manually</span>
-                </h3>
-                <button type="button" @click="manualModalOpen = false" class="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200">
+    <!-- SECTION E: Log Time Manually Modal (Exact Match to Image 2) -->
+    <div x-show="manualModalOpen" x-cloak
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-150"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         class="fixed inset-0 z-50 overflow-y-auto bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
+
+        <div @click.outside="manualModalOpen = false"
+             class="w-full max-w-2xl rounded-2xl bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-slate-800 shadow-2xl p-6 sm:p-7 space-y-5 text-slate-900 dark:text-slate-100 relative">
+
+            <!-- Modal Header -->
+            <div class="flex items-start justify-between pb-3 border-b border-slate-100 dark:border-slate-800/80">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 rounded-xl bg-blue-600/20 text-blue-500 dark:text-blue-400 flex items-center justify-center shrink-0">
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="text-base sm:text-lg font-bold text-slate-900 dark:text-white"
+                            x-text="editingEntryId ? 'Edit Time Entry' : 'Log Time Manually'">
+                            Log Time Manually
+                        </h3>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">
+                            Create a time entry for past work or offline activity.
+                        </p>
+                    </div>
+                </div>
+                <button type="button" @click="manualModalOpen = false"
+                        class="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition">
                     <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                     </svg>
                 </button>
             </div>
 
-            <form method="POST" action="{% url 'timetracking:manual_time_entry' slug=workspace.slug %}" class="space-y-4">
+            <!-- Error Banner -->
+            <div x-show="formError" x-cloak class="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-500 dark:text-rose-400 text-xs">
+                <span x-text="formError"></span>
+            </div>
+
+            <!-- Form Content -->
+            <form id="manual-entry-form-native" method="POST" action="{% url 'timetracking:manual_time_entry' slug=workspace.slug %}"
+                  @submit.prevent="submitModalEntry()" class="space-y-4 text-xs">
                 {% csrf_token %}
 
-                <div>
-                    <label class="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-1">Select Task (Optional)</label>
-                    {{ manual_form.task }}
-                </div>
-
-                <div>
-                    <label class="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-1">Date Worked</label>
-                    {{ manual_form.date }}
-                </div>
-
-                <div class="grid grid-cols-2 gap-3">
+                <!-- Row 1: Date *, Start Time *, End Time * -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <!-- Date Input -->
                     <div>
-                        <label class="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-1">Hours</label>
-                        {{ manual_form.hours }}
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                            Date <span class="text-rose-500 dark:text-rose-400">*</span>
+                        </label>
+                        <div class="relative">
+                            <input type="date" x-model="modalDate" required
+                                   class="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-slate-50/70 dark:bg-[#0b1325] text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 transition">
+                        </div>
                     </div>
+
+                    <!-- Start Time -->
                     <div>
-                        <label class="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-1">Minutes</label>
-                        {{ manual_form.minutes }}
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                            Start Time <span class="text-rose-500 dark:text-rose-400">*</span>
+                        </label>
+                        <div class="relative">
+                            <input type="text" x-model="modalStartTime" @input="calculateModalDuration()" placeholder="09:00 AM" required
+                                   class="w-full pl-8 pr-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-slate-50/70 dark:bg-[#0b1325] text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition">
+                            <svg class="w-4 h-4 text-slate-400 absolute left-2.5 top-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                        </div>
+                    </div>
+
+                    <!-- End Time -->
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                            End Time <span class="text-rose-500 dark:text-rose-400">*</span>
+                        </label>
+                        <div class="relative">
+                            <input type="text" x-model="modalEndTime" @input="calculateModalDuration()" placeholder="11:30 AM" required
+                                   class="w-full pl-8 pr-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-slate-50/70 dark:bg-[#0b1325] text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition">
+                            <svg class="w-4 h-4 text-slate-400 absolute left-2.5 top-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                        </div>
                     </div>
                 </div>
 
+                <!-- Row 2: Duration (Auto-calculated) -->
                 <div>
-                    <label class="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-1">Work Description</label>
-                    {{ manual_form.description }}
+                    <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Duration</label>
+                    <div class="relative">
+                        <div class="w-full pl-8 pr-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-slate-100/60 dark:bg-[#0b1325] text-slate-900 dark:text-slate-100 font-mono font-bold flex items-center">
+                            <span x-text="modalDurationFormatted">2h 30m</span>
+                        </div>
+                        <svg class="w-4 h-4 text-slate-400 absolute left-2.5 top-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                    </div>
+                    <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Automatically calculated from start and end time.</p>
                 </div>
 
-                <div class="flex items-center justify-end space-x-2 pt-2 border-t border-slate-100 dark:border-zinc-800">
-                    <button type="button" @click="manualModalOpen = false" class="aether-button-secondary text-xs px-3.5 py-2">
-                        Cancel
-                    </button>
-                    <button type="submit" class="aether-button-primary text-xs px-4 py-2 shadow-sm shadow-blue-500/20">
-                        Record Time Log
-                    </button>
+                <!-- Row 3: Task * & Project -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <!-- Task Selector -->
+                    <div class="relative" @click.outside="modalTaskDropdownOpen = false">
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                            Work Item (Task or Bug) <span class="text-rose-500 dark:text-rose-400">*</span>
+                        </label>
+                        <div @click="modalTaskDropdownOpen = !modalTaskDropdownOpen"
+                             id="modal-work-item-selector"
+                             data-testid="modal-work-item-trigger"
+                             class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-slate-50/70 dark:bg-[#0b1325] cursor-pointer hover:border-slate-300 dark:hover:border-slate-600 transition flex items-center justify-between">
+                            <div class="flex items-center space-x-2.5 truncate">
+                                <div class="w-6 h-6 rounded-md flex items-center justify-center shrink-0"
+                                     :class="modalBugCode ? 'bg-rose-500/20 text-rose-500 dark:text-rose-400' : 'bg-purple-500/20 text-purple-600 dark:text-purple-400'">
+                                    <template x-if="modalBugCode">
+                                        <span class="text-xs">🐞</span>
+                                    </template>
+                                    <template x-if="!modalBugCode">
+                                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/>
+                                        </svg>
+                                    </template>
+                                </div>
+                                <div class="truncate">
+                                    <span class="font-bold text-slate-900 dark:text-white block truncate"
+                                          x-text="modalTaskTitle || 'General Workspace Activity'"></span>
+                                    <span class="text-[10px] text-slate-500 dark:text-slate-400 truncate"
+                                          x-text="modalBugCode ? (`{{ workspace.name }} • Defect • ` + modalBugCode) : (modalTaskId ? (`{{ workspace.name }} • ` + (modalTaskSprint || 'Sprint 3') + ` • TASK-` + modalTaskCode) : 'General Workspace Effort')"></span>
+                                </div>
+                            </div>
+                            <svg class="w-4 h-4 text-slate-400 shrink-0 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                            </svg>
+                        </div>
+
+                        <!-- Task & Bug Dropdown List -->
+                        <div x-show="modalTaskDropdownOpen" x-cloak
+                             data-testid="modal-work-item-dropdown"
+                             class="absolute left-0 mt-1.5 w-full rounded-xl bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-slate-700 shadow-2xl max-h-60 overflow-y-auto py-1 z-30 divide-y divide-slate-100 dark:divide-slate-800/80">
+                            <!-- Option: General Workspace Activity -->
+                            <div @click="selectModalWorkItem('general', '', '', 'General Workspace Activity', '', '')"
+                                 data-testid="modal-option-general"
+                                 class="px-3 py-2 text-xs hover:bg-slate-50 dark:hover:bg-[#1a2540] cursor-pointer flex items-center space-x-2 transition">
+                                <span class="w-5 h-5 rounded bg-slate-500/20 text-slate-500 dark:text-slate-300 flex items-center justify-center text-xs">⚡</span>
+                                <div>
+                                    <span class="font-semibold text-slate-900 dark:text-white block">General Workspace Activity</span>
+                                    <span class="text-[10px] text-slate-500 dark:text-slate-400">Non-task effort</span>
+                                </div>
+                            </div>
+
+                            <!-- Section: Tasks Assigned to You -->
+                            <div>
+                                <div class="px-3 py-1 text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider bg-slate-100 dark:bg-slate-900/80">
+                                    {% if is_privileged %}Tasks Assigned to You{% else %}Your Assigned Tasks{% endif %} ({{ assigned_tasks|length }})
+                                </div>
+                                {% for t in assigned_tasks %}
+                                    <div @click="selectModalWorkItem('task', '{{ t.id }}', '{{ t.task_code }}', '{{ t.title|escapejs }}', '{{ t.sprint_ref.name|default:'Sprint 3'|escapejs }}', 'Development')"
+                                         data-testid="modal-task-{{ t.task_code }}"
+                                         class="px-3 py-2 text-xs hover:bg-slate-50 dark:hover:bg-[#1a2540] cursor-pointer flex items-center space-x-2 border-t border-slate-100 dark:border-slate-800/50 transition">
+                                        <span class="w-5 h-5 rounded bg-blue-500/20 text-blue-600 dark:text-blue-400 flex items-center justify-center font-mono text-[10px] font-bold">#</span>
+                                        <div class="truncate">
+                                            <span class="font-semibold text-slate-900 dark:text-white block truncate">#{{ t.task_code }} — {{ t.title }}</span>
+                                            <span class="text-[10px] text-slate-500 dark:text-slate-400">{{ workspace.name }} • {{ t.sprint_ref.name|default:'Sprint 3' }} • Assigned to you</span>
+                                        </div>
+                                    </div>
+                                {% empty %}
+                                    <div class="px-3 py-2 text-[11px] text-slate-400 dark:text-slate-500 italic">No tasks currently assigned to you.</div>
+                                {% endfor %}
+                            </div>
+
+                            <!-- Section: Defects Assigned to You -->
+                            <div>
+                                <div class="px-3 py-1 text-[10px] font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider bg-slate-100 dark:bg-slate-900/80">
+                                    {% if is_privileged %}Defects Assigned to You{% else %}Your Assigned Defects{% endif %} ({{ assigned_bugs|length }})
+                                </div>
+                                {% for b in assigned_bugs %}
+                                    <div @click="selectModalWorkItem('bug', '{{ b.linked_task_id|default:'' }}', '{{ b.bug_code }}', '{{ b.title|escapejs }}', '{{ b.linked_task.sprint_ref.name|default:'Defect'|escapejs }}', 'Bug fixes')"
+                                         data-testid="modal-bug-option-{{ b.bug_code }}"
+                                         class="px-3 py-2 text-xs hover:bg-slate-50 dark:hover:bg-[#1a2540] cursor-pointer flex items-center space-x-2 border-t border-slate-100 dark:border-slate-800/50 transition">
+                                        <span class="w-5 h-5 rounded bg-rose-500/20 text-rose-500 dark:text-rose-400 flex items-center justify-center text-xs shrink-0">🪲</span>
+                                        <div class="truncate">
+                                            <span class="font-semibold text-slate-900 dark:text-white block truncate">{{ b.bug_code }} — {{ b.title }}</span>
+                                            <span class="text-[10px] text-rose-600 dark:text-rose-400/80">{{ workspace.name }} • Defect • {{ b.get_severity_display|default:b.severity }} • Assigned to you</span>
+                                        </div>
+                                    </div>
+                                {% empty %}
+                                    <div class="px-3 py-2 text-[11px] text-slate-400 dark:text-slate-500 italic">No defects currently assigned to you.</div>
+                                {% endfor %}
+                            </div>
+
+                            <!-- Section: Workspace Tasks (Privileged PMs & Managers only) -->
+                            {% if is_privileged and other_tasks %}
+                                <div>
+                                    <div class="px-3 py-1 text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider bg-slate-100 dark:bg-slate-900/80">
+                                        Workspace Tasks ({{ other_tasks|length }})
+                                    </div>
+                                    {% for t in other_tasks %}
+                                        <div @click="selectModalWorkItem('task', '{{ t.id }}', '{{ t.task_code }}', '{{ t.title|escapejs }}', '{{ t.sprint_ref.name|default:'Sprint 3'|escapejs }}', 'Development')"
+                                             data-testid="modal-task-{{ t.task_code }}"
+                                             class="px-3 py-2 text-xs hover:bg-slate-50 dark:hover:bg-[#1a2540] cursor-pointer flex items-center space-x-2 border-t border-slate-100 dark:border-slate-800/50 transition">
+                                            <span class="w-5 h-5 rounded bg-slate-500/20 text-slate-500 dark:text-slate-400 flex items-center justify-center font-mono text-[10px]">#</span>
+                                            <div class="truncate">
+                                                <span class="font-semibold text-slate-900 dark:text-white block truncate">#{{ t.task_code }} — {{ t.title }}</span>
+                                                <span class="text-[10px] text-slate-500 dark:text-slate-400">{{ workspace.name }} • {{ t.sprint_ref.name|default:'Sprint 3' }} • {% if t.assignee %}{{ t.assignee.full_name|default:t.assignee.email }}{% else %}Unassigned{% endif %}</span>
+                                            </div>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+
+                            <!-- Section: Workspace Defects (Privileged PMs & Managers only) -->
+                            {% if is_privileged and other_bugs %}
+                                <div>
+                                    <div class="px-3 py-1 text-[10px] font-bold text-rose-600 dark:text-rose-400/80 uppercase tracking-wider bg-slate-100 dark:bg-slate-900/80">
+                                        Workspace Defects ({{ other_bugs|length }})
+                                    </div>
+                                    {% for b in other_bugs %}
+                                        <div @click="selectModalWorkItem('bug', '{{ b.linked_task_id|default:'' }}', '{{ b.bug_code }}', '{{ b.title|escapejs }}', '{{ b.linked_task.sprint_ref.name|default:'Defect'|escapejs }}', 'Bug fixes')"
+                                             data-testid="modal-bug-option-{{ b.bug_code }}"
+                                             class="px-3 py-2 text-xs hover:bg-slate-50 dark:hover:bg-[#1a2540] cursor-pointer flex items-center space-x-2 border-t border-slate-100 dark:border-slate-800/50 transition">
+                                            <span class="w-5 h-5 rounded bg-rose-500/20 text-rose-500 dark:text-rose-400 flex items-center justify-center text-xs shrink-0">🪲</span>
+                                            <div class="truncate">
+                                                <span class="font-semibold text-slate-900 dark:text-white block truncate">{{ b.bug_code }} — {{ b.title }}</span>
+                                                <span class="text-[10px] text-rose-600 dark:text-rose-400/80">{{ workspace.name }} • Defect • {{ b.get_severity_display|default:b.severity }} • {% if b.assignee %}{{ b.assignee.full_name|default:b.assignee.email }}{% else %}Unassigned{% endif %}</span>
+                                            </div>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Project (Prepopulated Workspace) -->
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Project</label>
+                        <div class="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-slate-50/70 dark:bg-[#0b1325] text-slate-900 dark:text-slate-100 flex items-center space-x-2">
+                            <span class="w-5 h-5 rounded bg-blue-600/20 text-blue-500 dark:text-blue-400 font-extrabold flex items-center justify-center text-[10px]">A</span>
+                            <span class="font-medium text-slate-900 dark:text-white">{{ workspace.name }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Row 4: Sprint (Optional) & Category -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <!-- Sprint (Optional) -->
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Sprint (Optional)</label>
+                        <select x-model="modalSprintId"
+                                class="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-slate-50/70 dark:bg-[#0b1325] text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 transition">
+                            <option value="">No Sprint Assigned</option>
+                            {% for s in available_sprints %}
+                                <option value="{{ s.id }}">{{ s.name }} ({{ s.start_date|date:"M d" }} - {{ s.end_date|date:"M d" }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Category with 9 options matching required specifications -->
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Work Type / Category</label>
+                        <select x-model="modalCategory"
+                                class="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-slate-50/70 dark:bg-[#0b1325] text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 transition">
+                            <option value="Development">🔵 Task / Development</option>
+                            <option value="Bug fixes">🔴 Bug Fix</option>
+                            <option value="Documentation">🌐 Documentation</option>
+                            <option value="Meeting">👥 Meeting</option>
+                            <option value="Research">🔬 Research</option>
+                            <option value="Code review">🟡 Code Review</option>
+                            <option value="Design">🟣 Design</option>
+                            <option value="API integration">⚡ API Integration</option>
+                            <option value="Other">⚪ Other</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Row 5: Work Description * with Rich Text Editor -->
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center justify-between">
+                        <span>Work Description <span class="text-rose-500 dark:text-rose-400">*</span></span>
+                        <span class="text-[10px] text-slate-500 dark:text-slate-400 font-normal">Rich text with lists &amp; links supported</span>
+                    </label>
+
+                    <!-- Rich-Text Editor Container -->
+                    <div class="border border-slate-200 dark:border-slate-700/80 rounded-xl overflow-hidden bg-white dark:bg-[#0b1325] focus-within:border-blue-500/80 focus-within:ring-1 focus-within:ring-blue-500/50 transition">
+                        <!-- Toolbar -->
+                        <div class="px-2.5 py-1.5 bg-slate-100 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs flex-wrap gap-1">
+                            <!-- Left: Action Buttons -->
+                            <div class="flex items-center space-x-0.5">
+                                <button type="button" @click="formatDoc('formatBlock', '<h3>')" data-testid="rte-btn-h3" class="px-2 py-1 rounded hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs" title="Heading 3">H3</button>
+                                <button type="button" @click="formatDoc('formatBlock', '<p>')" data-testid="rte-btn-p" class="px-2 py-1 rounded hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold text-xs" title="Paragraph">¶</button>
+                                <span class="w-[1px] h-3.5 bg-slate-300 dark:bg-slate-700 mx-1"></span>
+                                <button type="button" @click="formatDoc('bold')" data-testid="rte-btn-bold" class="px-2 py-1 rounded hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold" title="Bold (Ctrl+B)">B</button>
+                                <button type="button" @click="formatDoc('italic')" data-testid="rte-btn-italic" class="px-2 py-1 rounded hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 italic font-serif" title="Italic (Ctrl+I)">I</button>
+                                <span class="w-[1px] h-3.5 bg-slate-300 dark:bg-slate-700 mx-1"></span>
+                                <button type="button" @click="formatDoc('insertUnorderedList')" data-testid="rte-btn-bullet-list" class="px-2 py-1 rounded hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-mono" title="Bulleted List (≡)">≡</button>
+                                <button type="button" @click="formatDoc('insertOrderedList')" data-testid="rte-btn-numbered-list" class="px-2 py-1 rounded hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-mono" title="Numbered List (1.)">1.</button>
+                                <button type="button" @click="formatDoc('formatBlock', '<blockquote>')" data-testid="rte-btn-quote" class="px-2 py-1 rounded hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300" title="Blockquote">❝</button>
+                                <button type="button" @click="insertLink()" data-testid="rte-btn-link" class="px-2 py-1 rounded hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300" title="Insert Link">🔗</button>
+                                <span class="w-[1px] h-3.5 bg-slate-300 dark:bg-slate-700 mx-1"></span>
+                                <button type="button" @click="formatDoc('removeFormat')" data-testid="rte-btn-clear" class="px-2 py-1 rounded hover:bg-slate-200 dark:hover:bg-slate-800 text-rose-500 hover:text-rose-600 dark:text-rose-400 dark:hover:text-rose-300 text-xs" title="Clear Formatting">Tx</button>
+                            </div>
+
+                            <!-- Right: Preview Toggle -->
+                            <button type="button" @click="modalRichPreview = !modalRichPreview"
+                                    data-testid="toggle-preview-btn"
+                                    class="px-2.5 py-1 rounded bg-slate-200 dark:bg-slate-800/90 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-medium text-[11px] transition flex items-center space-x-1">
+                                <span x-text="modalRichPreview ? 'Edit' : 'Preview'"></span>
+                            </button>
+                        </div>
+
+                        <!-- Contenteditable Editor or Preview -->
+                        <div x-show="!modalRichPreview">
+                            <div id="rich-text-editor"
+                                 contenteditable="true"
+                                 @input="syncFromEditor()"
+                                 @blur="syncFromEditor()"
+                                 @keyup="syncFromEditor()"
+                                 class="w-full min-h-[100px] max-h-[220px] overflow-y-auto px-3.5 py-2.5 bg-transparent text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none text-xs sm:text-sm rich-text-content"
+                                 placeholder="Worked on implementing authentication backend and integrated with the new API endpoints..."></div>
+                        </div>
+                        <div x-show="modalRichPreview" x-cloak
+                             data-testid="modal-rich-preview-container"
+                             class="p-3.5 min-h-[100px] max-h-[220px] overflow-y-auto text-slate-800 dark:text-slate-200 text-xs sm:text-sm bg-slate-50 dark:bg-slate-900/40 rich-text-content"
+                             x-html="getRenderedPreview()"></div>
+
+                        <!-- Hidden Native Input for Form Submission Fallback -->
+                        <input type="hidden" name="description" :value="modalDescription" id="modal-hidden-description">
+                    </div>
+
+                    <!-- Character counter & Help text -->
+                    <div class="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400 mt-1">
+                        <span>Use toolbar buttons or standard shortcuts for rich formatting.</span>
+                        <span class="font-mono" x-text="`${modalCharCount}/1000`"></span>
+                    </div>
+                </div>
+
+                <!-- Footer: Billable Checkbox & Action Buttons -->
+                <div class="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800/80">
+                    <label class="flex items-center space-x-2 text-xs text-slate-600 dark:text-slate-300 cursor-pointer">
+                        <input type="checkbox" x-model="modalBillable"
+                               class="rounded border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-blue-600 focus:ring-blue-500">
+                        <span>Mark as billable (if applicable)</span>
+                    </label>
+
+                    <div class="flex items-center space-x-3">
+                        <button type="button" @click="manualModalOpen = false"
+                                data-testid="modal-cancel-btn"
+                                class="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/60 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold transition">
+                            Cancel
+                        </button>
+                        <button type="submit" :disabled="isSubmitting"
+                                data-testid="save-time-entry-btn"
+                                class="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold flex items-center space-x-2 shadow-lg shadow-blue-600/25 active:scale-95 transition disabled:opacity-50">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/>
+                            </svg>
+                            <span x-text="isSubmitting ? 'Saving...' : 'Save Time Entry'">Save Time Entry</span>
+                        </button>
+                    </div>
                 </div>
             </form>
         </div>
     </div>
-
-    <!-- Unobtrusive Active Timer Pause Confirmation Modal (Triggered when User changes status to Away/OOO) -->
-    <div x-show="showPauseConfirmation" 
-         x-cloak
-         class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs"
-         x-transition:enter="transition ease-out duration-200"
-         x-transition:enter-start="opacity-0 scale-95"
-         x-transition:enter-end="opacity-100 scale-100"
-         x-transition:leave="transition ease-in duration-150"
-         x-transition:leave-start="opacity-100 scale-100"
-         x-transition:leave-end="opacity-0 scale-95">
-        <div class="aether-card max-w-md w-full p-6 space-y-4 shadow-2xl border-2 border-amber-500/50"
-             @click.outside="showPauseConfirmation = false">
-            <div class="flex items-center space-x-3">
-                <div class="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-500 flex items-center justify-center shrink-0">
-                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                    </svg>
-                </div>
-                <div>
-                    <h3 class="text-base font-bold text-slate-900 dark:text-zinc-100">Active Timer in Progress</h3>
-                    <p class="text-xs text-slate-500 dark:text-zinc-400">Availability status update detected</p>
-                </div>
-            </div>
-
-            <p class="text-sm text-slate-700 dark:text-zinc-300 leading-relaxed font-normal">
-                You're currently tracking time. Would you like to pause your timer?
-            </p>
-
-            <div class="flex items-center justify-end space-x-3 pt-3 border-t border-slate-100 dark:border-zinc-800">
-                <button type="button" 
-                        @click="showPauseConfirmation = false" 
-                        class="aether-button-secondary text-xs px-4 py-2.5 font-semibold">
-                    Keep Tracking
-                </button>
-                <button type="button" 
-                        @click="showPauseConfirmation = false; stopTimer()" 
-                        class="px-4 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-md transition-colors">
-                    Pause Timer
-                </button>
-            </div>
-        </div>
-    </div>
 </div>
+
+<script>
+document.addEventListener('alpine:init', () => {
+    Alpine.data('timeTrackerDashboard', () => ({
+        manualModalOpen: false,
+        editModalOpen: false,
+        editingEntryId: null,
+
+        // Active Timer State
+        timerStatus: '{{ active_timer.status|lower|default:'idle' }}',
+        timerId: '{{ active_timer.id|default:'' }}',
+        elapsedSeconds: {{ active_timer.current_duration_seconds|default:0 }},
+        timerInterval: null,
+        selectedTask: '{{ active_timer.task_id|default:'' }}',
+        selectedBugCode: '{{ active_timer.linked_bug_code|default:'' }}',
+        taskTitle: '{% if active_timer.task %}{{ active_timer.task.title|escapejs }}{% elif active_timer.linked_bug_code %}Defect {{ active_timer.linked_bug_code }}{% endif %}',
+        taskCode: '{% if active_timer.task %}{{ active_timer.task.task_code }}{% elif active_timer.linked_bug_code %}{{ active_timer.linked_bug_code }}{% endif %}',
+        taskSprint: '{% if active_timer.task %}{{ active_timer.sprint_name|escapejs }}{% elif active_timer.linked_bug_code %}Defect / Bug{% endif %}',
+        taskCategory: '{{ active_timer.category|default:'Development'|escapejs }}',
+        description: '{{ active_timer.clean_description|default:''|escapejs }}',
+        taskDropdownOpen: false,
+        activeTimerSearch: '',
+        timerMenuOpen: false,
+        switchingTask: false,
+
+        // Manual / Edit Modal Form State
+        modalDate: '{{ today|date:'Y-m-d' }}' || (new Date()).toISOString().split('T')[0],
+        modalStartTime: '09:00 AM',
+        modalEndTime: '11:30 AM',
+        modalDurationFormatted: '2h 30m',
+        modalTaskId: '{{ available_tasks.0.id|default:'' }}',
+        modalTaskTitle: '{{ available_tasks.0.title|default:''|escapejs }}',
+        modalTaskCode: '{{ available_tasks.0.task_code|default:'' }}',
+        modalTaskSprint: '{{ available_tasks.0.sprint_ref.name|default:'Sprint 3'|escapejs }}',
+        modalBugCode: '',
+        modalSprintId: '{{ available_sprints.0.id|default:'' }}',
+        modalCategory: 'Development',
+        modalBillable: false,
+        modalDescription: '',
+        modalRichPreview: false,
+        modalCharCount: 0,
+        modalTaskDropdownOpen: false,
+        isSubmitting: false,
+        formError: '',
+
+        // Filter dropdowns
+        projectDropdownOpen: false,
+        taskFilterDropdownOpen: false,
+        memberDropdownOpen: false,
+        rangeDropdownOpen: false,
+
+        init() {
+            window.aetherSpaceActiveTimerRunning = (this.timerStatus === 'running');
+            if (this.timerStatus === 'running') {
+                this.startTicker();
+            }
+
+            // If URL includes #timesheet-section, smooth-scroll and highlight
+            if (window.location.hash === '#timesheet-section') {
+                setTimeout(() => {
+                    const el = document.getElementById('timesheet-section');
+                    if (el) {
+                        el.scrollIntoView({ behavior: 'smooth' });
+                        el.classList.add('ring-2', 'ring-blue-500/50');
+                        setTimeout(() => el.classList.remove('ring-2', 'ring-blue-500/50'), 2000);
+                    }
+                }, 200);
+            }
+
+            // Listen for availability changes to Away or Out of Office
+            window.addEventListener('aetherspace:status_changed_away', () => {
+                if (this.timerStatus === 'running') {
+                    this.pauseTimer();
+                }
+            });
+
+            // Calculate initial duration for manual modal
+            this.calculateModalDuration();
+        },
+
+        startTicker() {
+            clearInterval(this.timerInterval);
+            this.timerInterval = setInterval(() => {
+                this.elapsedSeconds++;
+            }, 1000);
+        },
+
+        stopTicker() {
+            clearInterval(this.timerInterval);
+        },
+
+        formatTime(totalSecs) {
+            const h = Math.floor(totalSecs / 3600);
+            const m = Math.floor((totalSecs % 3600) / 60);
+            const s = totalSecs % 60;
+            return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+        },
+
+        parseTimeString(str) {
+            if (!str) return null;
+            str = str.trim().toUpperCase();
+            const match = str.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/);
+            if (!match) return null;
+            let h = parseInt(match[1], 10);
+            const m = parseInt(match[2], 10);
+            const p = match[3];
+            if (p === 'PM' && h < 12) h += 12;
+            if (p === 'AM' && h === 12) h = 0;
+            return h * 60 + m;
+        },
+
+        calculateModalDuration() {
+            const s = this.parseTimeString(this.modalStartTime);
+            const e = this.parseTimeString(this.modalEndTime);
+            if (s !== null && e !== null) {
+                let diff = e - s;
+                if (diff < 0) {
+                    diff += 24 * 60;
+                }
+                if (diff > 0) {
+                    const h = Math.floor(diff / 60);
+                    const m = diff % 60;
+                    this.modalDurationFormatted = (h > 0) ? `${h}h ${m.toString().padStart(2, '0')}m` : `${m}m`;
+                    return;
+                }
+            }
+            this.modalDurationFormatted = '0h 00m';
+        },
+
+        selectActiveWorkItem(type, id, code, title, sprint, category) {
+            if (type === 'task') {
+                this.selectedTask = id;
+                this.selectedBugCode = '';
+                this.taskCode = code;
+                this.taskTitle = title;
+                this.taskSprint = sprint;
+                this.taskCategory = category || 'Development';
+            } else if (type === 'bug') {
+                this.selectedTask = '';
+                this.selectedBugCode = code;
+                this.taskCode = code;
+                this.taskTitle = title;
+                this.taskSprint = 'Defect / Bug';
+                this.taskCategory = 'Bug fixes';
+            } else {
+                this.clearActiveTask();
+            }
+            this.taskDropdownOpen = false;
+
+            if (this.timerStatus === 'running' && this.switchingTask) {
+                this.startTimer();
+                this.switchingTask = false;
+            }
+        },
+
+        selectActiveTask(id, code, title, sprint, category) {
+            this.selectActiveWorkItem('task', id, code, title, sprint, category);
+        },
+
+        clearActiveTask() {
+            this.selectedTask = '';
+            this.selectedBugCode = '';
+            this.taskCode = '';
+            this.taskTitle = '';
+            this.taskSprint = '';
+            this.taskCategory = 'Development';
+        },
+
+        async startTimer() {
+            const formData = new FormData();
+            formData.append('task_id', this.selectedTask || '');
+            formData.append('bug_code', this.selectedBugCode || '');
+            formData.append('category', this.taskCategory || 'Development');
+            formData.append('description', this.description);
+            formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+            try {
+                const res = await fetch('{% url 'timetracking:api_timer_start' slug=workspace.slug %}', {
+                    method: 'POST',
+                    body: formData,
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                });
+                const data = await res.json();
+                if (data.status === 'ok') {
+                    this.timerStatus = 'running';
+                    this.timerId = data.timer_id;
+                    this.taskCode = (data.task_code || '').replace('#', '');
+                    this.taskTitle = data.task_title || '';
+                    if (data.bug_code) {
+                        this.selectedBugCode = data.bug_code;
+                        this.taskCategory = data.category || 'Bug fixes';
+                    }
+                    this.elapsedSeconds = 0;
+                    this.startTicker();
+                    if (data.user_availability) {
+                        window.dispatchEvent(new CustomEvent('aetherspace:status_updated', { detail: { status: data.user_availability } }));
+                    }
+                }
+            } catch (e) {
+                console.error('Failed to start timer:', e);
+            }
+        },
+
+        async pauseTimer() {
+            const formData = new FormData();
+            formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+            try {
+                const res = await fetch('{% url 'timetracking:api_timer_pause' slug=workspace.slug %}', {
+                    method: 'POST',
+                    body: formData,
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                });
+                const data = await res.json();
+                if (data.status === 'ok') {
+                    this.timerStatus = 'paused';
+                    this.stopTicker();
+                    if (data.elapsed_seconds !== undefined) {
+                        this.elapsedSeconds = data.elapsed_seconds;
+                    }
+                }
+            } catch (e) {
+                console.error('Failed to pause timer:', e);
+            }
+        },
+
+        async resumeTimer() {
+            const formData = new FormData();
+            formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+            try {
+                const res = await fetch('{% url 'timetracking:api_timer_resume' slug=workspace.slug %}', {
+                    method: 'POST',
+                    body: formData,
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                });
+                const data = await res.json();
+                if (data.status === 'ok') {
+                    this.timerStatus = 'running';
+                    if (data.elapsed_seconds !== undefined) {
+                        this.elapsedSeconds = data.elapsed_seconds;
+                    }
+                    this.startTicker();
+                    if (data.user_availability) {
+                        window.dispatchEvent(new CustomEvent('aetherspace:status_updated', { detail: { status: data.user_availability } }));
+                    }
+                }
+            } catch (e) {
+                console.error('Failed to resume timer:', e);
+            }
+        },
+
+        async stopTimer() {
+            const formData = new FormData();
+            formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+            try {
+                const res = await fetch('{% url 'timetracking:api_timer_stop' slug=workspace.slug %}', {
+                    method: 'POST',
+                    body: formData,
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                });
+                const data = await res.json();
+                if (data.status === 'ok') {
+                    this.timerStatus = 'idle';
+                    this.stopTicker();
+                    window.location.reload();
+                }
+            } catch (e) {
+                console.error('Failed to stop timer:', e);
+            }
+        },
+
+        selectModalWorkItem(type, id, code, title, sprint, category) {
+            if (type === 'task') {
+                this.modalTaskId = id;
+                this.modalBugCode = '';
+                this.modalTaskCode = code;
+                this.modalTaskTitle = title;
+                this.modalTaskSprint = sprint;
+                if (category && (!this.modalCategory || this.modalCategory === 'Bug fixes' || this.modalCategory === 'Development')) {
+                    this.modalCategory = category;
+                }
+            } else if (type === 'bug') {
+                this.modalTaskId = id || '';
+                this.modalBugCode = code;
+                this.modalTaskCode = code;
+                this.modalTaskTitle = title;
+                this.modalTaskSprint = 'Defect / Bug';
+                this.modalCategory = 'Bug fixes';
+            } else {
+                // general
+                this.modalTaskId = '';
+                this.modalBugCode = '';
+                this.modalTaskCode = '';
+                this.modalTaskTitle = 'General Workspace Activity';
+                this.modalTaskSprint = '';
+            }
+            this.modalTaskDropdownOpen = false;
+        },
+
+        openManualModal() {
+            this.editingEntryId = null;
+            this.modalDate = '{{ today|date:'Y-m-d' }}' || (new Date()).toISOString().split('T')[0];
+            this.modalStartTime = '09:00 AM';
+            this.modalEndTime = '11:30 AM';
+            this.modalDurationFormatted = '2h 30m';
+            this.modalTaskId = '{{ available_tasks.0.id|default:'' }}';
+            this.modalTaskCode = '{{ available_tasks.0.task_code|default:'' }}';
+            this.modalTaskTitle = '{{ available_tasks.0.title|default:''|escapejs }}';
+            this.modalTaskSprint = '{{ available_tasks.0.sprint_ref.name|default:'Sprint 3'|escapejs }}';
+            this.modalBugCode = '';
+            this.modalSprintId = '{{ available_sprints.0.id|default:'' }}';
+            this.modalCategory = 'Development';
+            this.modalBillable = false;
+            this.modalDescription = '';
+            this.modalRichPreview = false;
+            this.modalCharCount = 0;
+            this.formError = '';
+            this.calculateModalDuration();
+            this.manualModalOpen = true;
+
+            this.$nextTick(() => {
+                const editor = document.getElementById('rich-text-editor');
+                if (editor) {
+                    editor.innerHTML = '';
+                }
+            });
+        },
+
+        openEditModal(entry) {
+            this.editingEntryId = entry.id;
+            this.modalDate = entry.date;
+            this.modalStartTime = entry.startTime || '09:00 AM';
+            this.modalEndTime = entry.endTime || '11:30 AM';
+            this.modalDurationFormatted = entry.durationFormatted || '2h 30m';
+            this.modalTaskId = entry.taskId || '';
+            this.modalTaskCode = entry.taskCode || '';
+            this.modalTaskTitle = entry.taskTitle || '';
+            this.modalTaskSprint = entry.taskSprint || '';
+            this.modalBugCode = entry.bugCode || '';
+            this.modalCategory = entry.category || 'Development';
+            this.modalBillable = entry.billable || false;
+            this.modalDescription = entry.description || '';
+            this.modalRichPreview = false;
+            this.modalCharCount = (entry.description || '').length;
+            this.formError = '';
+            this.calculateModalDuration();
+            this.manualModalOpen = true;
+
+            this.$nextTick(() => {
+                const editor = document.getElementById('rich-text-editor');
+                if (editor) {
+                    editor.innerHTML = this.modalDescription;
+                    this.syncFromEditor();
+                }
+            });
+        },
+
+        formatDoc(cmd, val = null) {
+            const editor = document.getElementById('rich-text-editor');
+            if (!editor) return;
+            editor.focus();
+            document.execCommand(cmd, false, val);
+            this.syncFromEditor();
+        },
+
+        insertLink() {
+            const editor = document.getElementById('rich-text-editor');
+            if (!editor) return;
+            editor.focus();
+            const url = prompt('Enter link URL (e.g. https://example.com):', 'https://');
+            if (url && url.trim() && url !== 'https://') {
+                document.execCommand('createLink', false, url.trim());
+                this.syncFromEditor();
+            }
+        },
+
+        syncFromEditor() {
+            const editor = document.getElementById('rich-text-editor');
+            if (!editor) return;
+            let html = editor.innerHTML;
+            const plain = (editor.innerText || '').trim();
+            if (!plain && !editor.querySelector('img')) {
+                html = '';
+            }
+            this.modalDescription = html;
+            this.modalCharCount = plain.length;
+        },
+
+        getRenderedPreview() {
+            if (!this.modalDescription || !this.modalDescription.trim()) {
+                return '<p class="italic text-slate-500">No description provided.</p>';
+            }
+            return this.modalDescription;
+        },
+
+        async submitModalEntry() {
+            this.syncFromEditor();
+            if (!this.modalDescription || !this.modalDescription.trim()) {
+                this.formError = 'Work description is required.';
+                return;
+            }
+
+            this.isSubmitting = true;
+            this.formError = '';
+
+            const formData = new FormData();
+            formData.append('date', this.modalDate);
+            formData.append('start_time', this.modalStartTime);
+            formData.append('end_time', this.modalEndTime);
+            formData.append('task', this.modalTaskId);
+            formData.append('bug_code', this.modalBugCode || '');
+            formData.append('category', this.modalCategory);
+            if (this.modalBillable) {
+                formData.append('is_billable', 'on');
+            }
+            formData.append('description', this.modalDescription);
+            formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+            const url = this.editingEntryId
+                ? `/timetracking/w/{{ workspace.slug }}/edit/${this.editingEntryId}/`
+                : '{% url 'timetracking:manual_time_entry' slug=workspace.slug %}';
+
+            try {
+                const res = await fetch(url, {
+                    method: 'POST',
+                    body: formData,
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                });
+                const data = await res.json();
+                if (data.status === 'ok') {
+                    this.manualModalOpen = false;
+                    window.location.reload();
+                } else {
+                    this.formError = data.message || 'Failed to save time entry.';
+                }
+            } catch (e) {
+                const form = document.getElementById('manual-entry-form-native');
+                if (form) {
+                    form.submit();
+                } else {
+                    this.formError = 'Submission failed. Please check inputs and try again.';
+                }
+            } finally {
+                this.isSubmitting = false;
+            }
+        }
+    }));
+});
+</script>
 {% endblock %}

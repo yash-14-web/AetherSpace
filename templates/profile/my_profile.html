@@ -3,334 +3,591 @@
 {% block profile_content %}
 <div class="space-y-6">
 
-    <!-- Top Section: Bio & Contact Overview -->
+    <!-- Overview 2-Column Responsive SaaS Layout -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <!-- Left: Bio & About Card -->
-        <div class="lg:col-span-2 aether-card p-5 sm:p-6 rounded-2xl border border-slate-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm">
-            <h2 class="text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 mb-3 flex items-center space-x-2">
-                <svg class="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span>About & Professional Bio</span>
-            </h2>
-            {% if profile.bio %}
-                <p class="text-sm text-slate-700 dark:text-zinc-300 leading-relaxed whitespace-pre-line">
-                    {{ profile.bio }}
-                </p>
-            {% else %}
-                <div class="py-6 text-center text-xs text-slate-400 dark:text-zinc-500 border border-dashed border-slate-200 dark:border-zinc-800 rounded-xl">
-                    <p>No professional biography added yet.</p>
+
+        <!-- ================================================================= -->
+        <!-- PRIMARY COLUMN (Left 2/3): About, Profile Info, Workspaces, Deliverables -->
+        <!-- ================================================================= -->
+        <div class="lg:col-span-2 space-y-6">
+
+            <!-- 1. About & Professional Bio Card -->
+            <div class="aether-card p-5 sm:p-6 rounded-2xl border border-slate-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm space-y-3">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 flex items-center space-x-2">
+                        <svg class="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span>About & Professional Bio</span>
+                    </h2>
                     {% if is_own_profile %}
-                        <a href="{% url 'accounts:profile_edit' %}" class="mt-2 inline-block font-semibold text-blue-600 dark:text-blue-400 hover:underline">
-                            + Add your bio & headline
+                        <a href="{% url 'accounts:profile_edit' %}" class="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline">
+                            Edit &rarr;
                         </a>
                     {% endif %}
                 </div>
-            {% endif %}
 
-            <!-- Quick Skills / Focus Areas -->
-            <div class="mt-5 pt-4 border-t border-slate-100 dark:border-zinc-800/80 flex items-center justify-between flex-wrap gap-2 text-xs">
-                <div class="flex items-center space-x-2 text-slate-500 dark:text-zinc-400">
-                    <span class="font-semibold text-slate-700 dark:text-zinc-300">Focus Areas:</span>
-                    <span class="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300">Full-Stack</span>
-                    <span class="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300">Agile Workflows</span>
-                    <span class="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300">Team Collaboration</span>
-                </div>
-                {% if is_own_profile %}
-                    <a href="{% url 'accounts:profile_edit' %}" class="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline">
-                        Edit details &rarr;
-                    </a>
+                {% if profile.bio %}
+                    <p class="text-sm text-slate-700 dark:text-zinc-300 leading-relaxed whitespace-pre-line">
+                        {{ profile.bio }}
+                    </p>
+                {% else %}
+                    <div class="py-6 text-center text-xs text-slate-400 dark:text-zinc-500 border border-dashed border-slate-200 dark:border-zinc-800 rounded-xl">
+                        <p>No professional biography added yet.</p>
+                        {% if is_own_profile %}
+                            <a href="{% url 'accounts:profile_edit' %}" class="mt-2 inline-block font-semibold text-blue-600 dark:text-blue-400 hover:underline">
+                                + Add your bio & headline
+                            </a>
+                        {% endif %}
+                    </div>
                 {% endif %}
             </div>
-        </div>
 
-        <!-- Right: Contact & Account Metadata -->
-        <div class="aether-card p-5 sm:p-6 rounded-2xl border border-slate-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm space-y-4">
-            <h2 class="text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 flex items-center space-x-2">
-                <svg class="w-4 h-4 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2" />
-                </svg>
-                <span>Account Information</span>
-            </h2>
+            <!-- 2. Profile Information Grid -->
+            <div class="aether-card p-5 sm:p-6 rounded-2xl border border-slate-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm space-y-4">
+                <h2 class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 flex items-center space-x-2">
+                    <svg class="w-4 h-4 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2" />
+                    </svg>
+                    <span>Profile Information</span>
+                </h2>
 
-            <div class="space-y-2.5 text-xs">
-                <div class="flex justify-between items-center py-1.5 border-b border-slate-100 dark:border-zinc-800/60">
-                    <span class="text-slate-500 dark:text-zinc-400">Designation Role</span>
-                    <span class="font-bold text-slate-800 dark:text-zinc-100">{{ primary_role.designation|default:profile_user.get_role_display|default:profile_user.role }}</span>
-                </div>
-                {% if primary_role.role_tag %}
-                    <div class="flex justify-between items-center py-1.5 border-b border-slate-100 dark:border-zinc-800/60">
-                        <span class="text-slate-500 dark:text-zinc-400">Tagging Role</span>
-                        <span class="px-2 py-0.5 rounded-md font-bold text-[11px] bg-purple-50 dark:bg-purple-950/70 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800/60">
-                            {{ primary_role.role_tag }}
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                    <!-- Designation / Job Title -->
+                    <div class="p-3 rounded-xl bg-slate-50 dark:bg-zinc-800/50 border border-slate-100 dark:border-zinc-800 space-y-1">
+                        <span class="text-[10px] font-semibold text-slate-400 dark:text-zinc-500 uppercase tracking-wider block">Designation / Role</span>
+                        <span class="font-bold text-slate-900 dark:text-zinc-100 block truncate">
+                            {{ primary_role.designation|default:profile_user.get_role_display|default:profile_user.role }}
                         </span>
                     </div>
-                {% endif %}
-                {% if primary_role.workspace_name %}
-                    <div class="flex justify-between items-center py-1.5 border-b border-slate-100 dark:border-zinc-800/60">
-                        <span class="text-slate-500 dark:text-zinc-400">Primary Workspace</span>
-                        <span class="font-semibold text-slate-800 dark:text-zinc-200">{{ primary_role.workspace_name }}</span>
+
+                    <!-- Domain Tagging Role -->
+                    <div class="p-3 rounded-xl bg-slate-50 dark:bg-zinc-800/50 border border-slate-100 dark:border-zinc-800 space-y-1">
+                        <span class="text-[10px] font-semibold text-slate-400 dark:text-zinc-500 uppercase tracking-wider block">Domain Tagging Role</span>
+                        {% if primary_role.role_tag %}
+                            <span class="inline-flex px-2 py-0.5 rounded-md text-[11px] font-bold bg-purple-50 dark:bg-purple-950/70 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800/60">
+                                {{ primary_role.role_tag }}
+                            </span>
+                        {% else %}
+                            <span class="font-medium text-slate-600 dark:text-zinc-400">Standard Contributor</span>
+                        {% endif %}
                     </div>
-                {% endif %}
-                {% if primary_role.reporting_to_name and not primary_role.is_owner %}
-                    <div class="flex justify-between items-center py-1.5 border-b border-slate-100 dark:border-zinc-800/60">
-                        <span class="text-slate-500 dark:text-zinc-400">Reports To</span>
-                        <div class="flex items-center gap-1.5">
-                            {% if primary_role.reporting_to_user %}
-                                {% include 'components/avatar.html' with user=primary_role.reporting_to_user size="w-4 h-4" rounded="rounded-full" text_size="text-[8px]" %}
-                            {% endif %}
-                            <span class="font-bold text-slate-800 dark:text-zinc-200">{{ primary_role.reporting_to_name }}</span>
-                        </div>
+
+                    <!-- Primary Workspace -->
+                    <div class="p-3 rounded-xl bg-slate-50 dark:bg-zinc-800/50 border border-slate-100 dark:border-zinc-800 space-y-1">
+                        <span class="text-[10px] font-semibold text-slate-400 dark:text-zinc-500 uppercase tracking-wider block">Primary Workspace</span>
+                        {% if primary_role.workspace_name %}
+                            <a href="{% url 'workspaces:workspace_dashboard' slug=primary_role.workspace_slug %}" 
+                               class="font-semibold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1.5 truncate">
+                                <svg class="w-3.5 h-3.5 text-blue-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                                </svg>
+                                <span class="truncate">{{ primary_role.workspace_name }}</span>
+                            </a>
+                        {% else %}
+                            <span class="font-medium text-slate-500 dark:text-zinc-400">Unassigned</span>
+                        {% endif %}
                     </div>
-                {% endif %}
-                <div class="flex justify-between py-1.5 border-b border-slate-100 dark:border-zinc-800/60">
-                    <span class="text-slate-500 dark:text-zinc-400">Email Address</span>
-                    <span class="font-semibold text-slate-800 dark:text-zinc-200">{{ profile_user.email }}</span>
+
+                    <!-- Contributor ID -->
+                    <div class="p-3 rounded-xl bg-slate-50 dark:bg-zinc-800/50 border border-slate-100 dark:border-zinc-800 space-y-1">
+                        <span class="text-[10px] font-semibold text-slate-400 dark:text-zinc-500 uppercase tracking-wider block">Contributor ID</span>
+                        <span class="font-mono font-bold text-blue-600 dark:text-blue-400 select-all block">
+                            {{ profile_user.contributor_id|default:"—" }}
+                        </span>
+                    </div>
+
+                    <!-- System Authority -->
+                    <div class="p-3 rounded-xl bg-slate-50 dark:bg-zinc-800/50 border border-slate-100 dark:border-zinc-800 space-y-1">
+                        <span class="text-[10px] font-semibold text-slate-400 dark:text-zinc-500 uppercase tracking-wider block">System Authority</span>
+                        <span class="font-bold text-slate-900 dark:text-zinc-100 uppercase block">
+                            {{ profile_user.get_role_display|default:profile_user.role }}
+                        </span>
+                    </div>
+
+                    <!-- Timezone -->
+                    <div class="p-3 rounded-xl bg-slate-50 dark:bg-zinc-800/50 border border-slate-100 dark:border-zinc-800 space-y-1">
+                        <span class="text-[10px] font-semibold text-slate-400 dark:text-zinc-500 uppercase tracking-wider block">Local Timezone</span>
+                        <span class="font-medium text-slate-800 dark:text-zinc-200 block truncate">
+                            {{ profile_user.timezone|default:"UTC" }}
+                        </span>
+                    </div>
+
+                    <!-- Member Since -->
+                    <div class="p-3 rounded-xl bg-slate-50 dark:bg-zinc-800/50 border border-slate-100 dark:border-zinc-800 space-y-1">
+                        <span class="text-[10px] font-semibold text-slate-400 dark:text-zinc-500 uppercase tracking-wider block">Member Since</span>
+                        <span class="font-medium text-slate-800 dark:text-zinc-200 block">
+                            {{ profile_user.created_at|date:"F Y" }}
+                        </span>
+                    </div>
+
+                    <!-- Reporting Hierarchy -->
+                    <div class="p-3 rounded-xl bg-slate-50 dark:bg-zinc-800/50 border border-slate-100 dark:border-zinc-800 space-y-1">
+                        <span class="text-[10px] font-semibold text-slate-400 dark:text-zinc-500 uppercase tracking-wider block">Reporting Line</span>
+                        {% if primary_role.reporting_to_name and not primary_role.is_owner %}
+                            <div class="flex items-center gap-1.5 truncate">
+                                {% if primary_role.reporting_to_user %}
+                                    {% include 'components/avatar.html' with user=primary_role.reporting_to_user size="w-4 h-4" rounded="rounded-full" text_size="text-[8px]" %}
+                                {% endif %}
+                                <span class="font-bold text-slate-800 dark:text-zinc-200 truncate">{{ primary_role.reporting_to_name }}</span>
+                            </div>
+                        {% elif primary_role.is_owner %}
+                            <span class="font-semibold text-amber-600 dark:text-amber-400">Workspace Owner (Direct)</span>
+                        {% else %}
+                            <span class="font-medium text-slate-600 dark:text-zinc-400">Direct / Lead</span>
+                        {% endif %}
+                    </div>
                 </div>
-                <div class="flex justify-between py-1.5 border-b border-slate-100 dark:border-zinc-800/60">
-                    <span class="text-slate-500 dark:text-zinc-400">Contributor ID</span>
-                    <span class="font-mono font-bold text-aether-blue dark:text-blue-400 select-all">{{ profile_user.contributor_id|default:"—" }}</span>
-                </div>
-                <div class="flex justify-between py-1.5 border-b border-slate-100 dark:border-zinc-800/60">
-                    <span class="text-slate-500 dark:text-zinc-400">Timezone</span>
-                    <span class="font-semibold text-slate-800 dark:text-zinc-200">{{ profile_user.timezone|default:"UTC" }}</span>
-                </div>
-                <div class="flex justify-between py-1.5 border-b border-slate-100 dark:border-zinc-800/60">
-                    <span class="text-slate-500 dark:text-zinc-400">System Role</span>
-                    <span class="font-bold text-blue-600 dark:text-blue-400 uppercase">{{ profile_user.role|default:"CONTRIBUTOR" }}</span>
-                </div>
-                <div class="flex justify-between py-1.5 border-b border-slate-100 dark:border-zinc-800/60">
-                    <span class="text-slate-500 dark:text-zinc-400">Email Status</span>
-                    {% if profile_user.is_verified %}
-                        <span class="font-semibold text-emerald-600 dark:text-emerald-400">Verified</span>
-                    {% else %}
-                        <span class="font-semibold text-amber-500">Pending Verification</span>
+            </div>
+
+            <!-- 3. Workspace Memberships Card -->
+            <div class="aether-card p-5 sm:p-6 rounded-2xl border border-slate-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm space-y-4">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 flex items-center space-x-2">
+                        <svg class="w-4 h-4 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                        </svg>
+                        <span>Workspace Memberships ({{ workspace_roles|length }})</span>
+                    </h2>
+                    {% if workspace_roles|length > 3 %}
+                        <a href="{% url 'accounts:profile_roles' %}" class="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline">
+                            View all &rarr;
+                        </a>
                     {% endif %}
                 </div>
-                <div class="flex justify-between py-1.5">
-                    <span class="text-slate-500 dark:text-zinc-400">Active Workspaces</span>
-                    <span class="font-semibold text-slate-800 dark:text-zinc-200">{{ metrics.workspaces_count }}</span>
-                </div>
-            </div>
-        </div>
-    </div>
 
-    <!-- Middle Section: Recent Tasks & Bugs Side by Side -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {% if workspace_roles %}
+                    <div class="divide-y divide-slate-100 dark:divide-zinc-800/80">
+                        {% for item in workspace_roles|slice:":5" %}
+                            <div class="py-3 flex items-center justify-between gap-3 group">
+                                <div class="min-w-0 flex-1">
+                                    <div class="flex items-center space-x-2 flex-wrap gap-y-1">
+                                        <a href="/workspaces/w/{{ item.workspace_slug }}/" 
+                                           class="text-xs sm:text-sm font-bold text-slate-900 dark:text-zinc-100 hover:text-blue-600 dark:hover:text-blue-400 truncate">
+                                            {{ item.workspace_name }}
+                                        </a>
+                                        {% if item.is_owner %}
+                                            <span class="px-1.5 py-0.2 text-[9px] font-bold rounded bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400 border border-amber-200 dark:border-amber-900/60 uppercase">
+                                                Owner
+                                            </span>
+                                        {% endif %}
+                                    </div>
 
-        <!-- 1. Active Assigned Tasks -->
-        <div class="aether-card p-5 sm:p-6 rounded-2xl border border-slate-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm space-y-4">
-            <div class="flex items-center justify-between">
-                <div class="flex items-center space-x-2">
-                    <div class="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-xs">
-                        TSK
-                    </div>
-                    <div>
-                        <h2 class="text-sm font-bold text-slate-900 dark:text-zinc-100">Assigned Tasks</h2>
-                        <p class="text-[11px] text-slate-500 dark:text-zinc-400">Active sprint tasks requiring your focus</p>
-                    </div>
-                </div>
-                <a href="{% url 'accounts:profile_tasks' %}" class="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline">
-                    View all ({{ metrics.total_assigned_tasks }}) &rarr;
-                </a>
-            </div>
+                                    <div class="flex items-center space-x-2 text-[11px] text-slate-500 dark:text-zinc-400 mt-1 flex-wrap gap-y-1">
+                                        <span>{{ item.functional_role|default:item.role_display }}</span>
+                                        {% if item.role_tag %}
+                                            <span>&bull;</span>
+                                            <span class="px-1.5 py-0.2 rounded font-bold text-[10px] bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300">
+                                                {{ item.role_tag }}
+                                            </span>
+                                        {% endif %}
+                                        <span>&bull;</span>
+                                        <span>Joined {{ item.joined_at|date:"M Y" }}</span>
+                                    </div>
+                                </div>
 
-            {% if recent_tasks %}
-                <div class="divide-y divide-slate-100 dark:divide-zinc-800/70">
-                    {% for task in recent_tasks %}
-                        <div class="py-3 flex items-center justify-between gap-3 group">
-                            <div class="min-w-0 flex-1">
-                                <div class="flex items-center space-x-2">
-                                    <span class="font-mono text-xs font-bold text-blue-600 dark:text-blue-400">#{{ task.task_code }}</span>
-                                    <span class="text-[10px] px-1.5 py-0.2 rounded bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 font-medium">
-                                        {{ task.workspace.name }}
+                                <div class="shrink-0 flex items-center space-x-2">
+                                    <span class="px-2.5 py-1 text-[11px] font-bold rounded-lg uppercase
+                                        {% if item.role == 'ADMIN' %}bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-400 border border-purple-200 dark:border-purple-900/60
+                                        {% elif item.role == 'MANAGER' %}bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-400 border border-blue-200 dark:border-blue-900/60
+                                        {% else %}bg-slate-100 text-slate-700 dark:bg-zinc-800 dark:text-zinc-300 border border-slate-200 dark:border-zinc-700{% endif %}">
+                                        {{ item.role_display }}
                                     </span>
                                 </div>
-                                <a href="/tasks/w/{{ task.workspace.slug }}/{{ task.id }}/" 
-                                   class="text-xs sm:text-sm font-semibold text-slate-900 dark:text-zinc-100 hover:text-blue-600 dark:hover:text-blue-400 truncate block mt-0.5">
-                                    {{ task.title }}
-                                </a>
                             </div>
-
-                            <div class="flex items-center space-x-2 shrink-0">
-                                <!-- Priority pill -->
-                                <span class="px-2 py-0.5 text-[10px] font-bold rounded-md uppercase
-                                    {% if task.priority == 'URGENT' %}bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-400 border border-rose-200 dark:border-rose-900/50
-                                    {% elif task.priority == 'HIGH' %}bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400 border border-amber-200 dark:border-amber-900/50
-                                    {% elif task.priority == 'MEDIUM' %}bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-400 border border-blue-200 dark:border-blue-900/50
-                                    {% else %}bg-slate-100 text-slate-700 dark:bg-zinc-800 dark:text-zinc-300{% endif %}">
-                                    {{ task.priority }}
-                                </span>
-
-                                <!-- Status badge -->
-                                <span class="px-2 py-0.5 text-[10px] font-semibold rounded-md
-                                    {% if task.status == 'DONE' %}bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400
-                                    {% elif task.status == 'IN_PROGRESS' %}bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-400
-                                    {% else %}bg-slate-100 text-slate-700 dark:bg-zinc-800 dark:text-zinc-300{% endif %}">
-                                    {{ task.get_status_display }}
-                                </span>
-                            </div>
-                        </div>
-                    {% endfor %}
-                </div>
-            {% else %}
-                <div class="py-8 text-center text-xs text-slate-400 dark:text-zinc-500 border border-dashed border-slate-200 dark:border-zinc-800 rounded-xl">
-                    <p>No tasks currently assigned to you.</p>
-                </div>
-            {% endif %}
-        </div>
-
-        <!-- 2. Relevant Defects & Bugs -->
-        <div class="aether-card p-5 sm:p-6 rounded-2xl border border-slate-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm space-y-4">
-            <div class="flex items-center justify-between">
-                <div class="flex items-center space-x-2">
-                    <div class="w-8 h-8 rounded-lg bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center font-bold text-xs">
-                        BUG
+                        {% endfor %}
                     </div>
-                    <div>
-                        <h2 class="text-sm font-bold text-slate-900 dark:text-zinc-100">Assigned Defects</h2>
-                        <p class="text-[11px] text-slate-500 dark:text-zinc-400">Defects and bugs requiring resolution</p>
+                {% else %}
+                    <div class="py-6 text-center text-xs text-slate-400 dark:text-zinc-500 border border-dashed border-slate-200 dark:border-zinc-800 rounded-xl">
+                        <p>No active workspace memberships found.</p>
                     </div>
-                </div>
-                <a href="{% url 'accounts:profile_bugs' %}" class="text-xs font-semibold text-rose-600 dark:text-rose-400 hover:underline">
-                    View all ({{ metrics.assigned_bugs_count }}) &rarr;
-                </a>
+                {% endif %}
             </div>
 
-            {% if recent_bugs %}
-                <div class="divide-y divide-slate-100 dark:divide-zinc-800/70">
-                    {% for bug in recent_bugs %}
-                        <div class="py-3 flex items-center justify-between gap-3 group">
-                            <div class="min-w-0 flex-1">
-                                <div class="flex items-center space-x-2">
-                                    <span class="font-mono text-xs font-bold text-rose-600 dark:text-rose-400">{{ bug.bug_code }}</span>
-                                    <span class="text-[10px] px-1.5 py-0.2 rounded bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 font-medium">
-                                        {{ bug.workspace.name }}
-                                    </span>
-                                </div>
-                                <a href="/bugs/w/{{ bug.workspace.slug }}/{{ bug.id }}/" 
-                                   class="text-xs sm:text-sm font-semibold text-slate-900 dark:text-zinc-100 hover:text-rose-600 dark:hover:text-rose-400 truncate block mt-0.5">
-                                    {{ bug.title }}
-                                </a>
-                            </div>
-
-                            <div class="flex items-center space-x-2 shrink-0">
-                                <!-- Severity pill -->
-                                <span class="px-2 py-0.5 text-[10px] font-bold rounded-md
-                                    {% if bug.severity == 'SEV1' %}bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-400
-                                    {% elif bug.severity == 'SEV2' %}bg-orange-100 text-orange-800 dark:bg-orange-950/60 dark:text-orange-400
-                                    {% elif bug.severity == 'SEV3' %}bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-400
-                                    {% else %}bg-slate-100 text-slate-700 dark:bg-zinc-800 dark:text-zinc-300{% endif %}">
-                                    {{ bug.severity }}
-                                </span>
-
-                                <!-- Status badge -->
-                                <span class="px-2 py-0.5 text-[10px] font-semibold rounded-md
-                                    {% if bug.status == 'RESOLVED' or bug.status == 'CLOSED' %}bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400
-                                    {% elif bug.status == 'IN_PROGRESS' %}bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-400
-                                    {% else %}bg-slate-100 text-slate-700 dark:bg-zinc-800 dark:text-zinc-300{% endif %}">
-                                    {{ bug.get_status_display }}
-                                </span>
-                            </div>
-                        </div>
-                    {% endfor %}
-                </div>
-            {% else %}
-                <div class="py-8 text-center text-xs text-slate-400 dark:text-zinc-500 border border-dashed border-slate-200 dark:border-zinc-800 rounded-xl">
-                    <p>No defects currently assigned to you. All clean!</p>
-                </div>
-            {% endif %}
-        </div>
-    </div>
-
-    <!-- Bottom Section: Workspace Memberships & Recent Activity -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-        <!-- 1. Accessible Workspaces -->
-        <div class="aether-card p-5 sm:p-6 rounded-2xl border border-slate-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm space-y-4">
-            <div class="flex items-center justify-between">
-                <h2 class="text-sm font-bold text-slate-900 dark:text-zinc-100 flex items-center space-x-2">
-                    <svg class="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                    </svg>
-                    <span>Workspaces</span>
-                </h2>
-                <a href="{% url 'accounts:profile_roles' %}" class="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline">
-                    View roles &rarr;
-                </a>
-            </div>
-
-            {% if workspace_roles %}
-                <div class="space-y-2.5">
-                    {% for item in workspace_roles|slice:":4" %}
-                        <a href="/workspaces/w/{{ item.workspace_slug }}/" 
-                           class="flex items-center justify-between p-2.5 rounded-xl border border-slate-100 dark:border-zinc-800/80 hover:bg-slate-50 dark:hover:bg-zinc-800/50 transition-colors">
-                            <div class="min-w-0">
-                                <p class="text-xs font-bold text-slate-900 dark:text-zinc-100 truncate">{{ item.workspace_name }}</p>
-                                <p class="text-[10px] text-slate-500 dark:text-zinc-400">Joined {{ item.joined_at|date:"M Y" }}</p>
-                            </div>
-                            <span class="px-2 py-0.5 text-[10px] font-bold rounded-md uppercase
-                                {% if item.role == 'ADMIN' %}bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-400 border border-purple-200 dark:border-purple-900/60
-                                {% elif item.role == 'MANAGER' %}bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-400 border border-blue-200 dark:border-blue-900/60
-                                {% else %}bg-slate-100 text-slate-700 dark:bg-zinc-800 dark:text-zinc-300{% endif %}">
-                                {{ item.role_display }}
-                            </span>
+            <!-- 4. Active Sprint Tasks & Defects (Side by Side) -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Assigned Tasks Preview -->
+                <div class="p-4 sm:p-5 rounded-2xl border border-slate-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm space-y-3">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-xs font-bold text-slate-900 dark:text-zinc-100 flex items-center space-x-1.5">
+                            <span class="w-2 h-2 rounded-full bg-blue-500"></span>
+                            <span>Assigned Tasks</span>
+                        </h3>
+                        <a href="{% url 'accounts:profile_tasks' %}" class="text-[11px] font-semibold text-blue-600 dark:text-blue-400 hover:underline">
+                            View ({{ metrics.total_assigned_tasks }})
                         </a>
-                    {% endfor %}
+                    </div>
+                    {% if recent_tasks %}
+                        <div class="space-y-2">
+                            {% for task in recent_tasks|slice:":3" %}
+                                <a href="/tasks/w/{{ task.workspace.slug }}/{{ task.id }}/" 
+                                   class="block p-2.5 rounded-xl border border-slate-100 dark:border-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-800/40 transition-colors">
+                                    <div class="flex items-center justify-between text-[11px]">
+                                        <span class="font-mono font-bold text-blue-600 dark:text-blue-400">#{{ task.task_code }}</span>
+                                        <span class="text-[10px] font-semibold text-slate-500 dark:text-zinc-400">{{ task.get_status_display }}</span>
+                                    </div>
+                                    <p class="text-xs font-semibold text-slate-800 dark:text-zinc-200 truncate mt-1">{{ task.title }}</p>
+                                </a>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-xs text-slate-400 dark:text-zinc-500 py-3 text-center">No assigned sprint tasks.</p>
+                    {% endif %}
                 </div>
-            {% else %}
-                <div class="py-6 text-center text-xs text-slate-400 dark:text-zinc-500 border border-dashed border-slate-200 dark:border-zinc-800 rounded-xl">
-                    <p>No active workspace memberships found.</p>
-                </div>
-            {% endif %}
-        </div>
 
-        <!-- 2. Recent Personal Activity Stream (Rule 57: Text-based; no radar/graph charts) -->
-        <div class="lg:col-span-2 aether-card p-5 sm:p-6 rounded-2xl border border-slate-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm space-y-4">
-            <div class="flex items-center justify-between">
-                <div class="flex items-center space-x-2">
-                    <div class="w-8 h-8 rounded-lg bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center font-bold text-xs">
-                        ACT
+                <!-- Assigned Defects Preview -->
+                <div class="p-4 sm:p-5 rounded-2xl border border-slate-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm space-y-3">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-xs font-bold text-slate-900 dark:text-zinc-100 flex items-center space-x-1.5">
+                            <span class="w-2 h-2 rounded-full bg-rose-500"></span>
+                            <span>Assigned Defects</span>
+                        </h3>
+                        <a href="{% url 'accounts:profile_bugs' %}" class="text-[11px] font-semibold text-rose-600 dark:text-rose-400 hover:underline">
+                            View ({{ metrics.assigned_bugs_count }})
+                        </a>
                     </div>
-                    <div>
-                        <h2 class="text-sm font-bold text-slate-900 dark:text-zinc-100">Recent Personal Activity</h2>
-                        <p class="text-[11px] text-slate-500 dark:text-zinc-400">Chronological stream of your actions and updates</p>
-                    </div>
+                    {% if recent_bugs %}
+                        <div class="space-y-2">
+                            {% for bug in recent_bugs|slice:":3" %}
+                                <a href="/bugs/w/{{ bug.workspace.slug }}/{{ bug.id }}/" 
+                                   class="block p-2.5 rounded-xl border border-slate-100 dark:border-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-800/40 transition-colors">
+                                    <div class="flex items-center justify-between text-[11px]">
+                                        <span class="font-mono font-bold text-rose-600 dark:text-rose-400">{{ bug.bug_code }}</span>
+                                        <span class="text-[10px] font-semibold text-slate-500 dark:text-zinc-400">{{ bug.get_status_display }}</span>
+                                    </div>
+                                    <p class="text-xs font-semibold text-slate-800 dark:text-zinc-200 truncate mt-1">{{ bug.title }}</p>
+                                </a>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-xs text-slate-400 dark:text-zinc-500 py-3 text-center">No open defects assigned.</p>
+                    {% endif %}
                 </div>
-                <a href="{% url 'accounts:profile_activity' %}" class="text-xs font-semibold text-purple-600 dark:text-purple-400 hover:underline">
-                    View full log &rarr;
-                </a>
             </div>
 
-            {% if recent_activities %}
-                <div class="space-y-3">
-                    {% for act in recent_activities %}
-                        <div class="flex items-start space-x-3 p-2.5 rounded-xl border border-slate-100 dark:border-zinc-800/60 hover:bg-slate-50/60 dark:hover:bg-zinc-800/40 transition-colors">
-                            <div class="w-7 h-7 rounded-lg shrink-0 flex items-center justify-center text-xs mt-0.5
-                                {% if act.category == 'TASKS' %}bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400
-                                {% elif act.category == 'BUGS' %}bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400
-                                {% else %}bg-slate-100 text-slate-600 dark:bg-zinc-800 dark:text-zinc-300{% endif %}">
-                                {% if act.category == 'TASKS' %}T{% elif act.category == 'BUGS' %}B{% else %}F{% endif %}
-                            </div>
-                            <div class="min-w-0 flex-1">
-                                <p class="text-xs text-slate-800 dark:text-zinc-200">
-                                    <span class="font-semibold">{{ act.action }}:</span> {{ act.description }}
-                                </p>
-                                <div class="flex items-center space-x-2 text-[10px] text-slate-400 dark:text-zinc-500 mt-1">
-                                    <span>{{ act.workspace }}</span>
-                                    <span>&bull;</span>
-                                    <span>{{ act.timestamp|timesince }} ago</span>
-                                </div>
-                            </div>
-                        </div>
-                    {% endfor %}
-                </div>
-            {% else %}
-                <div class="py-8 text-center text-xs text-slate-400 dark:text-zinc-500 border border-dashed border-slate-200 dark:border-zinc-800 rounded-xl">
-                    <p>No activity logged yet. Start collaborating in tasks and chat to build your activity history.</p>
-                </div>
-            {% endif %}
         </div>
+
+        <!-- ================================================================= -->
+        <!-- SECONDARY COLUMN (Right 1/3): Availability, Contact, Actions, Skills -->
+        <!-- ================================================================= -->
+        <div class="space-y-6">
+
+            <!-- 1. Availability Status Card -->
+            <div class="aether-card p-5 sm:p-6 rounded-2xl border border-slate-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm space-y-3">
+                <h2 class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 flex items-center space-x-2">
+                    <svg class="w-4 h-4 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span>Availability</span>
+                </h2>
+
+                <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-zinc-800/50 border border-slate-100 dark:border-zinc-800 space-y-2">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-semibold text-slate-600 dark:text-zinc-300">Status</span>
+                        <span class="inline-flex items-center space-x-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold
+                            {% if profile.availability_status == 'available' %}bg-emerald-50 text-emerald-700 dark:bg-emerald-950/70 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60
+                            {% elif profile.availability_status == 'busy' %}bg-rose-50 text-rose-700 dark:bg-rose-950/70 dark:text-rose-300 border border-rose-200 dark:border-rose-800/60
+                            {% elif profile.availability_status == 'away' %}bg-amber-50 text-amber-700 dark:bg-amber-950/70 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60
+                            {% else %}bg-slate-100 text-slate-700 dark:bg-zinc-800 dark:text-zinc-300 border border-slate-200 dark:border-zinc-700{% endif %}">
+                            <span class="w-1.5 h-1.5 rounded-full {% if profile.availability_status == 'available' %}bg-emerald-500 animate-pulse{% elif profile.availability_status == 'busy' %}bg-rose-500{% elif profile.availability_status == 'away' %}bg-amber-500{% else %}bg-slate-400{% endif %}"></span>
+                            <span>{{ profile.availability_status|title }}</span>
+                        </span>
+                    </div>
+
+                    {% if profile.status_message %}
+                        <p class="text-xs text-slate-700 dark:text-zinc-300 italic pt-1 border-t border-slate-100 dark:border-zinc-700/60">
+                            &ldquo;{{ profile.status_message }}&rdquo;
+                        </p>
+                    {% endif %}
+
+                    <div class="pt-2 text-[11px] text-slate-500 dark:text-zinc-400 flex items-center justify-between">
+                        <span>Timezone:</span>
+                        <span class="font-medium text-slate-800 dark:text-zinc-200">{{ profile_user.timezone|default:"UTC" }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. Contact Information & Verification Card -->
+            <div class="aether-card p-5 sm:p-6 rounded-2xl border border-slate-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm space-y-4">
+                <h2 class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 flex items-center space-x-2">
+                    <svg class="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                    <span>Contact Information</span>
+                </h2>
+
+                <div class="space-y-3 text-xs">
+                    <div class="flex justify-between items-center py-1.5 border-b border-slate-100 dark:border-zinc-800/60">
+                        <span class="text-slate-500 dark:text-zinc-400">Email Address</span>
+                        <a href="mailto:{{ profile_user.email }}" class="font-semibold text-blue-600 dark:text-blue-400 hover:underline truncate max-w-[180px]">
+                            {{ profile_user.email }}
+                        </a>
+                    </div>
+
+                    <div class="flex justify-between items-center py-1.5 border-b border-slate-100 dark:border-zinc-800/60">
+                        <span class="text-slate-500 dark:text-zinc-400">Verification</span>
+                        {% if profile_user.is_verified %}
+                            <span class="inline-flex items-center space-x-1 font-semibold text-emerald-600 dark:text-emerald-400">
+                                <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                                </svg>
+                                <span>Verified</span>
+                            </span>
+                        {% else %}
+                            <span class="font-semibold text-amber-500">Pending</span>
+                        {% endif %}
+                    </div>
+
+                    {% if profile.phone %}
+                        <div class="flex justify-between items-center py-1.5 border-b border-slate-100 dark:border-zinc-800/60">
+                            <span class="text-slate-500 dark:text-zinc-400">Phone</span>
+                            <span class="font-semibold text-slate-800 dark:text-zinc-200">{{ profile.phone }}</span>
+                        </div>
+                    {% endif %}
+
+                    <div class="flex justify-between items-center py-1.5">
+                        <span class="text-slate-500 dark:text-zinc-400">Contributor ID</span>
+                        <span class="font-mono font-bold text-blue-600 dark:text-blue-400 select-all">{{ profile_user.contributor_id|default:"—" }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. Quick Actions Card -->
+            <div class="aether-card p-5 sm:p-6 rounded-2xl border border-slate-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm space-y-3">
+                <h2 class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 flex items-center space-x-2">
+                    <svg class="w-4 h-4 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                    <span>Quick Actions</span>
+                </h2>
+
+                <div class="space-y-2">
+                    <a href="{% url 'accounts:profile_edit' %}" 
+                       class="w-full flex items-center justify-between p-2.5 rounded-xl border border-slate-200/80 dark:border-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-800/50 transition-colors text-xs font-semibold text-slate-800 dark:text-zinc-200">
+                        <div class="flex items-center space-x-2">
+                            <svg class="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                            <span>Edit Profile & Banner</span>
+                        </div>
+                        <span class="text-slate-400">&rarr;</span>
+                    </a>
+
+                    <a href="{% url 'accounts:profile_tasks' %}" 
+                       class="w-full flex items-center justify-between p-2.5 rounded-xl border border-slate-200/80 dark:border-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-800/50 transition-colors text-xs font-semibold text-slate-800 dark:text-zinc-200">
+                        <div class="flex items-center space-x-2">
+                            <svg class="w-4 h-4 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                            </svg>
+                            <span>View Assigned Tasks</span>
+                        </div>
+                        <span class="text-slate-400">&rarr;</span>
+                    </a>
+
+                    <a href="{% url 'accounts:profile_activity' %}" 
+                       class="w-full flex items-center justify-between p-2.5 rounded-xl border border-slate-200/80 dark:border-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-800/50 transition-colors text-xs font-semibold text-slate-800 dark:text-zinc-200">
+                        <div class="flex items-center space-x-2">
+                            <svg class="w-4 h-4 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span>Activity History</span>
+                        </div>
+                        <span class="text-slate-400">&rarr;</span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- 4. Skills & Focus Areas Card (Editable by Profile Owner) -->
+            {{ profile.skills|json_script:"profile-skills-data" }}
+            <div class="aether-card p-5 sm:p-6 rounded-2xl border border-slate-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm space-y-3"
+                 x-data="{
+                     isEditing: false,
+                     skillsList: JSON.parse(document.getElementById('profile-skills-data')?.textContent || '[]'),
+                     newSkill: '',
+                     errorMessage: '',
+                     isSaving: false,
+                     saveSuccess: false,
+                     startEditing() {
+                         this.errorMessage = '';
+                         this.saveSuccess = false;
+                         this.isEditing = true;
+                         this.$nextTick(() => { this.$refs.skillInput?.focus(); });
+                     },
+                     cancelEditing() {
+                         this.skillsList = JSON.parse(document.getElementById('profile-skills-data')?.textContent || '[]');
+                         this.newSkill = '';
+                         this.errorMessage = '';
+                         this.isEditing = false;
+                     },
+                     addSkill() {
+                         const clean = this.newSkill.trim();
+                         if (!clean) {
+                             this.errorMessage = 'Please enter a skill name.';
+                             return;
+                         }
+                         if (clean.length > 50) {
+                             this.errorMessage = 'Skill name cannot exceed 50 characters.';
+                             return;
+                         }
+                         if (this.skillsList.some(s => s.toLowerCase() === clean.toLowerCase())) {
+                             this.errorMessage = 'Skill already exists in your list.';
+                             return;
+                         }
+                         if (this.skillsList.length >= 30) {
+                             this.errorMessage = 'Maximum of 30 skills reached.';
+                             return;
+                         }
+                         this.skillsList.push(clean);
+                         this.newSkill = '';
+                         this.errorMessage = '';
+                     },
+                     removeSkill(index) {
+                         this.skillsList.splice(index, 1);
+                         this.errorMessage = '';
+                     },
+                     async saveSkills() {
+                         this.isSaving = true;
+                         this.errorMessage = '';
+                         try {
+                             const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '{{ csrf_token }}';
+                             const res = await fetch('{% url 'accounts:profile_skills_update' %}', {
+                                 method: 'POST',
+                                 headers: {
+                                     'Content-Type': 'application/json',
+                                     'X-CSRFToken': csrfToken,
+                                     'X-Requested-With': 'XMLHttpRequest'
+                                 },
+                                 body: JSON.stringify({ skills: this.skillsList })
+                             });
+                             const data = await res.json();
+                             if (data.success) {
+                                 this.skillsList = data.skills;
+                                 const scriptEl = document.getElementById('profile-skills-data');
+                                 if (scriptEl) scriptEl.textContent = JSON.stringify(data.skills);
+                                 this.saveSuccess = true;
+                                 this.isEditing = false;
+                                 setTimeout(() => { this.saveSuccess = false; }, 3000);
+                             } else {
+                                 this.errorMessage = data.error || 'Failed to save skills.';
+                             }
+                         } catch (err) {
+                             this.errorMessage = 'A network error occurred while saving.';
+                         } finally {
+                             this.isSaving = false;
+                         }
+                     }
+                 }">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 flex items-center space-x-2">
+                        <svg class="w-4 h-4 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                        </svg>
+                        <span>Skills & Focus Areas</span>
+                    </h2>
+
+                    {% if is_own_profile %}
+                        <button type="button" 
+                                x-show="!isEditing"
+                                @click="startEditing()"
+                                class="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center space-x-1">
+                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                            </svg>
+                            <span>Edit Skills</span>
+                        </button>
+                    {% endif %}
+                </div>
+
+                <!-- Success Toast Alert -->
+                <div x-show="saveSuccess" x-cloak class="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 text-xs font-medium flex items-center space-x-1.5 border border-emerald-200 dark:border-emerald-900/60">
+                    <svg class="w-3.5 h-3.5 shrink-0 text-emerald-500" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                    </svg>
+                    <span>Skills updated successfully!</span>
+                </div>
+
+                <!-- Read-Only View Mode -->
+                <div x-show="!isEditing">
+                    <template x-if="skillsList.length > 0">
+                        <div class="flex flex-wrap gap-1.5 text-xs">
+                            <template x-for="skill in skillsList" :key="skill">
+                                <span class="px-2.5 py-1 rounded-lg font-medium bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 border border-slate-200 dark:border-zinc-700" x-text="skill"></span>
+                            </template>
+                        </div>
+                    </template>
+
+                    <template x-if="skillsList.length === 0">
+                        <div class="py-4 text-center text-xs text-slate-400 dark:text-zinc-500 border border-dashed border-slate-200 dark:border-zinc-800 rounded-xl">
+                            <p>No technical skills added yet.</p>
+                            {% if is_own_profile %}
+                                <button type="button" @click="startEditing()" class="mt-1.5 font-semibold text-blue-600 dark:text-blue-400 hover:underline">
+                                    + Add skills
+                                </button>
+                            {% endif %}
+                        </div>
+                    </template>
+                </div>
+
+                <!-- Interactive Edit Mode -->
+                <div x-show="isEditing" x-cloak class="space-y-3 pt-1">
+                    <!-- Add Skill Input Row -->
+                    <div class="flex items-center space-x-2">
+                        <input type="text" 
+                               x-ref="skillInput"
+                               x-model="newSkill" 
+                               @keydown.enter.prevent="addSkill()"
+                               placeholder="e.g. Python, Django, Docker..."
+                               maxlength="50"
+                               class="flex-1 px-3 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-900 dark:text-zinc-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <button type="button" 
+                                @click="addSkill()"
+                                class="px-3 py-1.5 text-xs font-bold rounded-xl bg-blue-600 hover:bg-blue-700 text-white transition-colors shadow-2xs">
+                            + Add
+                        </button>
+                    </div>
+
+                    <!-- Validation Error -->
+                    <p x-show="errorMessage" x-text="errorMessage" class="text-xs text-rose-500 font-medium"></p>
+
+                    <!-- Editable Chips -->
+                    <div class="flex flex-wrap gap-1.5 text-xs min-h-[32px] p-2 rounded-xl bg-slate-50 dark:bg-zinc-800/40 border border-slate-100 dark:border-zinc-800">
+                        <template x-for="(skill, idx) in skillsList" :key="skill">
+                            <span class="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-lg font-medium bg-white dark:bg-zinc-800 text-slate-800 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700 shadow-2xs">
+                                <span x-text="skill"></span>
+                                <button type="button" 
+                                        @click="removeSkill(idx)" 
+                                        title="Remove skill"
+                                        class="text-slate-400 hover:text-rose-500 transition-colors focus:outline-none font-bold text-sm leading-none ml-0.5">
+                                    &times;
+                                </button>
+                            </span>
+                        </template>
+                        <span x-show="skillsList.length === 0" class="text-[11px] text-slate-400 dark:text-zinc-500 py-0.5">
+                            Type a skill above and press Enter or click + Add.
+                        </span>
+                    </div>
+
+                    <!-- Action Controls: Save & Cancel -->
+                    <div class="flex items-center justify-end space-x-2 pt-2 border-t border-slate-100 dark:border-zinc-800/80">
+                        <button type="button" 
+                                @click="cancelEditing()" 
+                                :disabled="isSaving"
+                                class="px-3 py-1.5 text-xs font-semibold rounded-xl bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors">
+                            Cancel
+                        </button>
+                        <button type="button" 
+                                @click="saveSkills()" 
+                                :disabled="isSaving"
+                                class="px-4 py-1.5 text-xs font-bold rounded-xl bg-blue-600 hover:bg-blue-700 text-white transition-colors shadow-sm inline-flex items-center space-x-1.5 disabled:opacity-50">
+                            <span x-show="!isSaving">Save Skills</span>
+                            <span x-show="isSaving">Saving...</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
     </div>
 
 </div>

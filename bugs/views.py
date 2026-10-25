@@ -59,16 +59,40 @@ def bug_dashboard_view(request, slug):
     resolved_count = bugs_qs.filter(status=BugStatus.RESOLVED).count()
     closed_count = bugs_qs.filter(status=BugStatus.CLOSED).count()
 
-    # Calculate status percentages for donut chart
-    def pct(count):
-        return round((count / total_bugs * 100), 1) if total_bugs > 0 else 0
+    # Calculate status percentages and accurate SVG donut segments (circumference = 100)
+    raw_segments = [
+        ('open', 'Open', open_count, '#ef4444'),
+        ('in_progress', 'In Progress', in_progress_count, '#3b82f6'),
+        ('resolved', 'Resolved', resolved_count, '#10b981'),
+        ('closed', 'Closed', closed_count, '#a855f7'),
+    ]
 
-    status_breakdown = {
-        'open': {'count': open_count, 'pct': pct(open_count)},
-        'in_progress': {'count': in_progress_count, 'pct': pct(in_progress_count)},
-        'resolved': {'count': resolved_count, 'pct': pct(resolved_count)},
-        'closed': {'count': closed_count, 'pct': pct(closed_count)},
-    }
+    status_breakdown = {}
+    chart_segments = []
+    accumulated_offset = 0.0
+
+    for key, label, count, color in raw_segments:
+        pct_val = round((count / total_bugs * 100), 1) if total_bugs > 0 else 0.0
+        length_val = (count / total_bugs * 100.0) if total_bugs > 0 else 0.0
+
+        status_breakdown[key] = {
+            'count': count,
+            'pct': pct_val,
+            'label': label,
+            'color': color,
+        }
+
+        if count > 0:
+            chart_segments.append({
+                'key': key,
+                'label': label,
+                'count': count,
+                'color': color,
+                'pct': pct_val,
+                'dasharray': f"{length_val:.2f} 100",
+                'dashoffset': f"-{accumulated_offset:.2f}",
+            })
+            accumulated_offset += length_val
 
     # Priority counts
     priority_counts = {
@@ -83,11 +107,12 @@ def bug_dashboard_view(request, slug):
     top_modules = []
     for item in module_counts:
         c = item['count']
+        mod_pct = round((c / total_bugs * 100), 1) if total_bugs > 0 else 0
         top_modules.append({
             'module': item['module__name'],
             'module_id': item['module__id'],
             'count': c,
-            'pct': pct(c)
+            'pct': mod_pct
         })
 
     # Recent 6 bugs
@@ -102,6 +127,7 @@ def bug_dashboard_view(request, slug):
         'resolved_count': resolved_count,
         'closed_count': closed_count,
         'status_breakdown': status_breakdown,
+        'chart_segments': chart_segments,
         'priority_counts': priority_counts,
         'top_modules': top_modules,
         'recent_bugs': recent_bugs,

@@ -138,6 +138,8 @@ class Workspace(models.Model):
         if not self.logo:
             return ''
         logo_str = self.logo.strip()
+        if logo_str.startswith('icon:'):
+            return ''
         if logo_str.startswith(('http://', 'https://', '/media/', '/static/')):
             return logo_str
         # If Supabase is configured with bucket and base URL
@@ -147,6 +149,22 @@ class Workspace(models.Model):
             bucket = urllib.parse.quote(settings.SUPABASE_STORAGE_BUCKET)
             return f"{base_url}/storage/v1/object/public/{bucket}/{logo_str}"
         return f"{settings.MEDIA_URL.rstrip('/')}/{logo_str.lstrip('/')}"
+
+    @property
+    def icon_name(self):
+        """Returns the icon name if an icon: identifier is set, else empty string."""
+        if self.logo and self.logo.startswith('icon:'):
+            return self.logo.replace('icon:', '', 1).strip()
+        return ''
+
+    @property
+    def identity_type(self):
+        """Returns 'image', 'icon', or 'default'."""
+        if not self.logo:
+            return 'default'
+        if self.logo.startswith('icon:'):
+            return 'icon'
+        return 'image'
 
     @property
     def tech_stack_list(self):

@@ -36,17 +36,8 @@
     <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <!-- Left: Workspace Selector -->
         <div class="flex items-center space-x-3">
-            <div class="flex items-center space-x-2 px-3 py-1.5 rounded-xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 shadow-2xs">
-                {% if workspace.logo_url %}
-                    <img src="{{ workspace.logo_url }}" alt="{{ workspace.name }}" class="w-5 h-5 rounded-md object-cover shrink-0 border border-slate-200/50 dark:border-zinc-800 shadow-xs" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                    <div style="display:none;" class="w-5 h-5 rounded-md bg-gradient-to-tr from-blue-600 to-indigo-700 text-white font-bold text-[10px] items-center justify-center shrink-0">
-                        {{ workspace.name|slice:":2"|upper }}
-                    </div>
-                {% else %}
-                    <div class="w-5 h-5 rounded-md bg-gradient-to-tr from-blue-600 to-indigo-700 text-white font-bold text-[10px] flex items-center justify-center shrink-0">
-                        {{ workspace.name|slice:":2"|upper }}
-                    </div>
-                {% endif %}
+            <div class="flex items-center space-x-2 px-3 py-1.5 rounded-xl bg-white dark:bg-obsidian-800 border border-slate-200 dark:border-zinc-800 shadow-2xs">
+                {% include 'components/identity_badge.html' with entity=workspace size='w-5 h-5' radius='rounded-md' text_size='text-[10px]' %}
                 <span class="text-xs font-bold text-slate-900 dark:text-zinc-100">{{ workspace.name }}</span>
             </div>
         </div>
@@ -70,7 +61,7 @@
                     <span>Board</span>
                 </a>
                 <a href="{% url 'tasks:sprint_planning' slug=workspace.slug %}" 
-                   class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-white dark:bg-[#0c1322] text-aether-blue shadow-2xs">
+                   class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-white dark:bg-obsidian-800 text-aether-blue shadow-2xs">
                     <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
                     </svg>
@@ -143,7 +134,7 @@
     <!-- Sprint Lifecycle Status Metrics KPI Row -->
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <!-- Planned -->
-        <div class="p-4 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200/80 dark:border-zinc-800 shadow-2xs hover:border-blue-500/40 transition">
+        <div class="p-4 rounded-2xl bg-white dark:bg-obsidian-800 border border-slate-200/80 dark:border-zinc-800 shadow-2xs hover:border-blue-500/40 transition">
             <div class="flex items-center justify-between">
                 <span class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">Planned Sprints</span>
                 <span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
@@ -155,7 +146,7 @@
         </div>
 
         <!-- Active -->
-        <div class="p-4 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200/80 dark:border-zinc-800 shadow-2xs hover:border-emerald-500/40 transition">
+        <div class="p-4 rounded-2xl bg-white dark:bg-obsidian-800 border border-slate-200/80 dark:border-zinc-800 shadow-2xs hover:border-emerald-500/40 transition">
             <div class="flex items-center justify-between">
                 <span class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">Active Sprint</span>
                 <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
@@ -167,7 +158,7 @@
         </div>
 
         <!-- Completed -->
-        <div class="p-4 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200/80 dark:border-zinc-800 shadow-2xs hover:border-purple-500/40 transition">
+        <div class="p-4 rounded-2xl bg-white dark:bg-obsidian-800 border border-slate-200/80 dark:border-zinc-800 shadow-2xs hover:border-purple-500/40 transition">
             <div class="flex items-center justify-between">
                 <span class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">Completed Sprints</span>
                 <span class="w-2.5 h-2.5 rounded-full bg-purple-500"></span>
@@ -179,7 +170,7 @@
         </div>
 
         <!-- Cancelled -->
-        <div class="p-4 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200/80 dark:border-zinc-800 shadow-2xs hover:border-slate-400/40 transition">
+        <div class="p-4 rounded-2xl bg-white dark:bg-obsidian-800 border border-slate-200/80 dark:border-zinc-800 shadow-2xs hover:border-slate-400/40 transition">
             <div class="flex items-center justify-between">
                 <span class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">Cancelled Sprints</span>
                 <span class="w-2.5 h-2.5 rounded-full bg-rose-400 dark:bg-zinc-500"></span>
@@ -193,7 +184,7 @@
 
     <!-- Active Sprint Hero Card -->
     {% if active_sprint %}
-        <div class="p-6 rounded-2xl bg-gradient-to-br from-white via-white to-blue-50/30 dark:from-[#0c1322] dark:via-[#0c1322] dark:to-blue-950/20 border border-blue-200/80 dark:border-blue-900/50 shadow-md relative overflow-hidden">
+        <div class="p-6 rounded-2xl bg-gradient-to-br from-white via-white to-blue-50/30 dark:from-obsidian-800 dark:via-obsidian-800 dark:to-blue-950/20 border border-blue-200/80 dark:border-blue-900/50 shadow-md relative overflow-hidden">
             <!-- Accent glow on right -->
             <div class="absolute -right-16 -top-16 w-48 h-48 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
 
@@ -332,7 +323,7 @@
         </div>
     {% else %}
         <!-- Empty Active Sprint State -->
-        <div class="p-6 rounded-2xl bg-white dark:bg-[#0c1322] border border-dashed border-slate-300 dark:border-zinc-800 text-center space-y-3">
+        <div class="p-6 rounded-2xl bg-white dark:bg-obsidian-800 border border-dashed border-slate-300 dark:border-zinc-800 text-center space-y-3">
             <div class="w-12 h-12 mx-auto rounded-full bg-blue-50 dark:bg-blue-950/60 flex items-center justify-center text-aether-blue">
                 <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
@@ -397,7 +388,7 @@
         {% if planned_sprints %}
             <div class="space-y-4">
                 {% for sprint in planned_sprints %}
-                    <div class="p-5 rounded-xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 shadow-2xs space-y-4"
+                    <div class="p-5 rounded-xl bg-white dark:bg-obsidian-800 border border-slate-200 dark:border-zinc-800 shadow-2xs space-y-4"
                          x-data="{ expanded: true }">
                         <!-- Sprint Header -->
                         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -486,7 +477,7 @@
                 {% endfor %}
             </div>
         {% else %}
-            <div class="p-6 rounded-xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 text-center py-8">
+            <div class="p-6 rounded-xl bg-white dark:bg-obsidian-800 border border-slate-200 dark:border-zinc-800 text-center py-8">
                 <p class="text-xs text-slate-500 dark:text-zinc-400">
                     No future planned sprints. Create a new iteration to schedule upcoming deliverables.
                 </p>
@@ -521,7 +512,7 @@
                 {% endfor %}
             </div>
         {% else %}
-            <div class="p-8 rounded-xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 text-center">
+            <div class="p-8 rounded-xl bg-white dark:bg-obsidian-800 border border-slate-200 dark:border-zinc-800 text-center">
                 <p class="text-xs text-slate-500 dark:text-zinc-400">
                     Product Backlog is completely clear! Great job. Add new tasks anytime.
                 </p>
@@ -603,7 +594,7 @@
          x-transition:leave-start="opacity-100"
          x-transition:leave-end="opacity-0"
          style="display: none;">
-        <div class="w-full max-w-lg rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 p-6 shadow-2xl space-y-4"
+        <div class="w-full max-w-lg rounded-2xl bg-white dark:bg-obsidian-800 border border-slate-200 dark:border-zinc-800 p-6 shadow-2xl space-y-4"
              @click.away="createSprintModalOpen = false">
             <div class="flex items-center justify-between border-b border-slate-100 dark:border-zinc-800 pb-3">
                 <h3 class="text-base font-bold text-slate-900 dark:text-zinc-100">Create New Sprint</h3>
@@ -684,7 +675,7 @@
          x-transition:leave-start="opacity-100"
          x-transition:leave-end="opacity-0"
          style="display: none;">
-        <div class="w-full max-w-lg rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 p-6 shadow-2xl space-y-4"
+        <div class="w-full max-w-lg rounded-2xl bg-white dark:bg-obsidian-800 border border-slate-200 dark:border-zinc-800 p-6 shadow-2xl space-y-4"
              @click.away="editSprintModalOpen = false">
             <div class="flex items-center justify-between border-b border-slate-100 dark:border-zinc-800 pb-3">
                 <h3 class="text-base font-bold text-slate-900 dark:text-zinc-100">Edit Sprint Details</h3>
@@ -769,7 +760,7 @@
              x-transition:leave-start="opacity-100"
              x-transition:leave-end="opacity-0"
              style="display: none;">
-            <div class="w-full max-w-lg rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 p-6 shadow-2xl space-y-4"
+            <div class="w-full max-w-lg rounded-2xl bg-white dark:bg-obsidian-800 border border-slate-200 dark:border-zinc-800 p-6 shadow-2xl space-y-4"
                  @click.away="completeSprintModalOpen = false">
                 <div class="flex items-center justify-between border-b border-slate-100 dark:border-zinc-800 pb-3">
                     <div class="flex items-center space-x-2">
@@ -828,7 +819,7 @@
          x-transition:leave-start="opacity-100"
          x-transition:leave-end="opacity-0"
          style="display: none;">
-        <div class="w-full max-w-lg rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800 p-6 shadow-2xl space-y-4"
+        <div class="w-full max-w-lg rounded-2xl bg-white dark:bg-obsidian-800 border border-slate-200 dark:border-zinc-800 p-6 shadow-2xl space-y-4"
              @click.away="quickTaskModalOpen = false">
             <div class="flex items-center justify-between border-b border-slate-100 dark:border-zinc-800 pb-3">
                 <h3 class="text-base font-bold text-slate-900 dark:text-zinc-100">Create Task</h3>

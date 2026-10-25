@@ -707,3 +707,171 @@ class BugMentionReDoSSecurityTests(TestCase):
         self.assertEqual(resp.status_code, 302)
         # Must execute in under 500ms
         self.assertLess(elapsed, 0.5, f"Bug comment parsing took too long: {elapsed:.3f}s")
+
+
+class BugDashboardAndUIRemediationPhase3Tests(TestCase):
+    """
+    Phase 3 Remediation Regression Tests:
+    1. Bug Dashboard donut chart: accurate server-side calculation for all 4 statuses
+       and zero-data safety.
+    2. Kanban board: non-misleading subtitle reflecting card-menu status changes.
+    3. Bug Severity vs Priority: distinct visual badge styling for SEV1-SEV4.
+    """
+
+    def setUp(self):
+        self.client = Client()
+        self.user = User.objects.create_user(
+            email='remediation@aetherspace.dev',
+            password='Password123!',
+            full_name='Remediation Engineer'
+        )
+        self.workspace = Workspace.objects.create(
+            name='Remediation Workspace',
+            slug='remediation-ws',
+            owner=self.user
+        )
+        WorkspaceMembership.objects.create(
+            workspace=self.workspace,
+            user=self.user,
+            role=WorkspaceRole.ADMIN,
+            status=MembershipStatus.ACTIVE
+        )
+        self.client.force_login(self.user)
+
+    def test_bug_dashboard_zero_bugs_safe_handling(self):
+        url = reverse('bugs:bug_dashboard', kwargs={'slug': self.workspace.slug})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+
+        # Context asserts
+        self.assertEqual(response.context['total_bugs'], 0)
+        self.assertEqual(response.context['chart_segments'], [])
+        for key in ['open', 'in_progress', 'resolved', 'closed']:
+            self.assertEqual(response.context['status_breakdown'][key]['count'], 0)
+            self.assertEqual(response.context['status_breakdown'][key]['pct'], 0.0)
+
+        # HTML asserts: neutral circle rendered, no NaN or template syntax error
+        content = response.content.decode('utf-8')
+        self.assertIn('<span class="text-2xl font-black text-slate-900 dark:text-zinc-100">0</span>', content)
+        self.assertNotIn('NaN', content)
+
+    def test_bug_dashboard_all_four_statuses_donut_segments(self):
+        # Create 1 Open, 1 In Progress, 1 Resolved, 1 Closed (25% each)
+        create_bug(
+            workspace=self.workspace,
+            reporter=self.user,
+            title="Open bug",
+            priority=BugPriority.HIGH,
+            severity=BugSeverity.SEV1,
+            status=BugStatus.OPEN
+        )
+        create_bug(
+            workspace=self.workspace,
+            reporter=self.user,
+            title="In progress bug",
+            priority=BugPriority.MEDIUM,
+            severity=BugSeverity.SEV2,
+            status=BugStatus.IN_PROGRESS
+        )
+        create_bug(
+            workspace=self.workspace,
+            reporter=self.user,
+            title="Resolved bug",
+            priority=BugPriority.LOW,
+            severity=BugSeverity.SEV3,
+            status=BugStatus.RESOLVED
+        )
+        create_bug(
+            workspace=self.workspace,
+            reporter=self.user,
+            title="Closed bug",
+            priority=BugPriority.LOW,
+            severity=BugSeverity.SEV4,
+            status=BugStatus.CLOSED
+        )
+
+        url = reverse('bugs:bug_dashboard', kwargs={'slug': self.workspace.slug})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+
+        self.assertEqual(response.context['total_bugs'], 4)
+        chart_segments = response.context['chart_segments']
+        self.assertEqual(len(chart_segments), 4)
+
+        expected_segments = [
+            {'key': 'open', 'color': '#ef4444', 'dasharray': '25.00 100', 'dashoffset': '-0.00'},
+            {'key': 'in_progress', 'color': '#3b82f6', 'dasharray': '25.00 100', 'dashoffset': '-25.00'},
+            {'key': 'resolved', 'color': '#10b981', 'dasharray': '25.00 100', 'dashoffset': '-50.00'},
+            {'key': 'closed', 'color': '#a855f7', 'dasharray': '25.00 100', 'dashoffset': '-75.00'},
+        ]
+
+        for actual, expected in zip(chart_segments, expected_segments):
+            self.assertEqual(actual['key'], expected['key'])
+            self.assertEqual(actual['color'], expected['color'])
+            self.assertEqual(actual['dasharray'], expected['dasharray'])
+            self.assertEqual(actual['dashoffset'], expected['dashoffset'])
+
+        content = response.content.decode('utf-8')
+        # Check rendered SVG circles
+        self.assertIn('stroke="#ef4444"', content)
+        self.assertIn('stroke="#3b82f6"', content)
+        self.assertIn('stroke="#10b981"', content)
+        self.assertIn('stroke="#a855f7"', content)
+        self.assertIn('stroke-dasharray="25.00 100"', content)
+        self.assertIn('stroke-dashoffset="-75.00"', content)
+        # Verify no stroke-linecap="round" on chart circle segments causing overlap distortion
+        circle_lines = [line for line in content.splitlines() if 'cx="18"' in line and 'r="15.915"' in line]
+        for circle_line in circle_lines:
+            self.assertNotIn('stroke-linecap="round"', circle_line)
+
+    def test_kanban_board_subtitle_is_accurate(self):
+        url = reverse('tasks:task_board', kwargs={'slug': self.workspace.slug})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode('utf-8')
+        self.assertIn("Track workflow stages and update task status via the card menu.", content)
+        self.assertNotIn("Drag and drop tasks to update status.", content)
+
+    def test_bug_list_and_detail_severity_badges_distinction(self):
+        bug1 = create_bug(
+            workspace=self.workspace,
+            reporter=self.user,
+            title="Critical Sev1 Bug",
+            priority=BugPriority.HIGH,
+            severity=BugSeverity.SEV1,
+            status=BugStatus.OPEN
+        )
+        bug4 = create_bug(
+            workspace=self.workspace,
+            reporter=self.user,
+            title="Minor Sev4 Bug",
+            priority=BugPriority.LOW,
+            severity=BugSeverity.SEV4,
+            status=BugStatus.OPEN
+        )
+
+        # 1. Bug list view
+        list_url = reverse('bugs:bug_list', kwargs={'slug': self.workspace.slug})
+        list_resp = self.client.get(list_url)
+        self.assertEqual(list_resp.status_code, 200)
+        list_content = list_resp.content.decode('utf-8')
+
+        # Severity badges rendered with angular monospace styling
+        self.assertIn("SEV-1", list_content)
+        self.assertIn("border-red-500/30", list_content)
+        self.assertIn("SEV-4", list_content)
+        self.assertIn("border-slate-500/30", list_content)
+
+        # 2. Bug detail view
+        detail_url = reverse('bugs:bug_detail', kwargs={
+            'slug': self.workspace.slug,
+            'bug_code': bug1.bug_code
+        })
+        detail_resp = self.client.get(detail_url)
+        self.assertEqual(detail_resp.status_code, 200)
+        detail_content = detail_resp.content.decode('utf-8')
+
+        # Distinct severity badge on detail page
+        self.assertIn("border border-red-500/30", detail_content)
+        self.assertIn("text-red-600 dark:text-red-400", detail_content)
+

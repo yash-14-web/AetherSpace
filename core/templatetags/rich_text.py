@@ -14,7 +14,7 @@ ALLOWED_TAGS = [
 ]
 
 ALLOWED_ATTRIBUTES = {
-    'a': ['href', 'title', 'target', 'rel'],
+    'a': ['href', 'title', 'target', 'rel', 'class'],
     'span': ['class', 'data-contributor-id', 'data-user-id', 'data-user-hover', 'data-user-name', 'data-workspace-slug'],
     'input': ['type', 'checked', 'disabled', 'class'],
     'li': ['class'],
@@ -111,9 +111,7 @@ def _mention_replacer(match):
         name = match.group(1)
         user_id = match.group(2)
         return (
-            f'<span class="aether-mention inline-flex items-center space-x-1 px-2 py-0.5 rounded-full '
-            f'text-xs font-semibold bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/25 '
-            f'hover:bg-blue-500/25 cursor-pointer transition" data-user-hover="" data-user-id="{user_id}" '
+            f'<span class="aether-mention select-none" data-user-hover="" data-user-id="{user_id}" '
             f'data-user-name="{name}">@{name}</span>'
         )
 
@@ -121,9 +119,7 @@ def _mention_replacer(match):
     if match.group(3):
         cid = match.group(3)
         return (
-            f'<span class="aether-mention inline-flex items-center space-x-1 px-1.5 py-0.5 rounded-full '
-            f'text-xs font-mono font-bold bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/25 '
-            f'hover:bg-blue-500/25 cursor-pointer transition" data-user-hover="" data-contributor-id="{cid}" '
+            f'<span class="aether-mention font-mono font-bold select-none" data-user-hover="" data-contributor-id="{cid}" '
             f'data-user-name="{cid}">@{cid}</span>'
         )
 
@@ -131,9 +127,7 @@ def _mention_replacer(match):
     if match.group(4):
         raw_name = match.group(4).strip()
         return (
-            f'<span class="aether-mention inline-flex items-center space-x-1 px-2 py-0.5 rounded-full '
-            f'text-xs font-medium bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/25 '
-            f'hover:bg-blue-500/25 cursor-pointer transition" data-user-hover="" data-user-name="{raw_name}">@{raw_name}</span>'
+            f'<span class="aether-mention select-none" data-user-hover="" data-user-name="{raw_name}">@{raw_name}</span>'
         )
 
     return match.group(0)
@@ -190,8 +184,8 @@ def normalize_markdown_delimiters(text):
         code_blocks.append(m.group(0))
         return f"__AETHER_MD_CODE_{len(code_blocks)-1}__"
 
-    # Match fenced code blocks and inline code
-    protected = re.sub(r'(```[\s\S]*?```|`[^`\n]+`)', _preserve, str(text))
+    # Match fenced code blocks (3+ backticks) and inline code spans (including double/multi-backtick spans)
+    protected = re.sub(r'(`{3,}[\s\S]*?`{3,}|``[\s\S]*?``|`[^`\r\n]+`)', _preserve, str(text))
 
     # Normalize bold with trailing/leading inner spaces: ** word ** -> **word**
     protected = re.sub(
@@ -223,18 +217,42 @@ def normalize_markdown_blocks(text):
     """
     Ensures block-level markdown structures (lists, blockquotes) preceded or followed
     by paragraph text are recognized by Markdown parsers by inserting a blank line boundary.
+    Also ensures transitions between unordered and ordered lists at the same indentation level
+    are separated so they do not merge into a single list.
+    Preserves lines inside fenced code blocks without modification.
     """
     if not text:
         return ""
     lines = text.split("\n")
     normalized_lines = []
+    ul_marker = re.compile(r'^\s*[-*+]\s+')
+    ol_marker = re.compile(r'^\s*\d+\.\s+')
     list_marker = re.compile(r'^\s*([-*+]|\d+\.)\s+')
     quote_marker = re.compile(r'^\s*>\s*')
+    code_fence_marker = re.compile(r'^\s*`{3,}')
+    in_code_block = False
+
     for i, line in enumerate(lines):
+        if code_fence_marker.match(line):
+            in_code_block = not in_code_block
+            normalized_lines.append(line)
+            continue
+
+        if in_code_block:
+            normalized_lines.append(line)
+            continue
+
         prev = lines[i - 1] if i > 0 else ""
         if list_marker.match(line):
             if i > 0 and prev.strip() and not list_marker.match(prev):
                 normalized_lines.append("")
+            elif i > 0 and ((ul_marker.match(prev) and ol_marker.match(line)) or (ol_marker.match(prev) and ul_marker.match(line))):
+                prev_indent = len(prev) - len(prev.lstrip(' '))
+                line_indent = len(line) - len(line.lstrip(' '))
+                if prev_indent == line_indent:
+                    normalized_lines.append("")
+        elif i > 0 and list_marker.match(prev) and line.strip() and not list_marker.match(line):
+            normalized_lines.append("")
         elif quote_marker.match(line):
             if i > 0 and prev.strip() and not quote_marker.match(prev):
                 normalized_lines.append("")
@@ -242,6 +260,40 @@ def normalize_markdown_blocks(text):
             normalized_lines.append("")
         normalized_lines.append(line)
     return "\n".join(normalized_lines)
+
+
+def normalize_markdown_list_indentation(text: str) -> str:
+    """
+    Normalizes 2-space indented list items to 4-space indentation so that CommonMark-style
+    2-space nested lists are correctly recognized by Python-Markdown without flattening.
+    Preserves lines inside fenced code blocks without modification.
+    """
+    if not text:
+        return ""
+    lines = text.split("\n")
+    normalized = []
+    list_marker = re.compile(r'^( +)([-*+]|\d+\.)\s+')
+    code_fence_marker = re.compile(r'^\s*`{3,}')
+    in_code_block = False
+
+    for line in lines:
+        if code_fence_marker.match(line):
+            in_code_block = not in_code_block
+            normalized.append(line)
+            continue
+
+        if in_code_block:
+            normalized.append(line)
+            continue
+
+        m = list_marker.match(line)
+        if m:
+            leading_spaces = len(m.group(1))
+            if leading_spaces % 2 == 0 and leading_spaces < 4:
+                normalized.append('    ' * (leading_spaces // 2) + line.lstrip(' '))
+                continue
+        normalized.append(line)
+    return "\n".join(normalized)
 
 
 def normalize_standalone_task_brackets(text: str) -> str:
@@ -283,13 +335,16 @@ def render_rich_text(value):
     # Normalize block boundaries (lists, quotes) without preceding blank lines
     normalized_value = normalize_markdown_blocks(normalized_value)
 
+    # Normalize 2-space nested lists to 4-space indentation for Python-Markdown
+    normalized_value = normalize_markdown_list_indentation(normalized_value)
+
     # Normalize standalone task brackets: [ ] Task or [x] Task -> - [ ] Task / - [x] Task (ReDoS-safe O(N) scan)
     normalized_value = normalize_standalone_task_brackets(normalized_value)
 
     # Parse markdown into HTML
     raw_html = markdown.markdown(
         normalized_value,
-        extensions=['nl2br', 'extra', 'tables', 'fenced_code']
+        extensions=['nl2br', 'extra', 'tables', 'fenced_code', 'sane_lists']
     )
 
     # Convert task checkboxes in lists (both standard <li> and paragraph-wrapped <li><p>)

@@ -60,9 +60,7 @@
                                 <a href="{{ ws.get_absolute_url }}" 
                                    class="flex items-center justify-between px-3.5 py-2 text-xs font-medium hover:bg-slate-50 dark:hover:bg-zinc-800/60 transition-colors {% if current_workspace and current_workspace.id == ws.id %}text-aether-blue font-bold bg-blue-50/50 dark:bg-blue-950/30{% else %}text-slate-700 dark:text-zinc-300{% endif %}">
                                     <div class="flex items-center space-x-2.5 truncate">
-                                        <div class="w-5 h-5 rounded bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-bold text-[10px] flex items-center justify-center shrink-0">
-                                            {{ ws.name|slice:":1"|upper }}
-                                        </div>
+                                        {% include 'components/identity_badge.html' with entity=ws size='w-5 h-5' radius='rounded' text_size='text-[10px]' %}
                                         <span class="truncate">{{ ws.name }}</span>
                                     </div>
                                     {% if current_workspace and current_workspace.id == ws.id %}

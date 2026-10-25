@@ -365,4 +365,109 @@ class AuditFixesTestCase(TestCase):
         })
         self.assertTrue(avatar_form.is_valid(), f"AvatarForm errors: {avatar_form.errors}")
 
+    def test_user_hover_card_multiple_memberships_and_rbac_isolation(self):
+        """Test multi-workspace hover card serialization, per-workspace ownership, and strict RBAC isolation."""
+        # Create additional workspaces
+        ws_flora = Workspace.objects.create(name='Flora AI', slug='flora-ai', owner=self.admin)
+        ws_lumen = Workspace.objects.create(name='Lumen', slug='lumen', owner=self.manager)
+
+        # Add memberships for manager across multiple workspaces
+        WorkspaceMembership.objects.create(
+            workspace=ws_flora,
+            user=self.manager,
+            role=WorkspaceRole.CONTRIBUTOR,
+            functional_role='Frontend Developer',
+            role_tag='Frontend',
+            status=MembershipStatus.ACTIVE
+        )
+        WorkspaceMembership.objects.create(
+            workspace=ws_lumen,
+            user=self.manager,
+            role=WorkspaceRole.CONTRIBUTOR,
+            functional_role='',
+            role_tag='Engineering',
+            status=MembershipStatus.ACTIVE
+        )
+
+        card_url = reverse('accounts:api_user_hover_card', kwargs={'user_identifier': self.manager.id})
+
+        # 1. Self-View: Manager viewing themselves sees all 3 memberships
+        self.client.force_login(self.manager)
+        resp = self.client.get(card_url)
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertEqual(len(data['memberships']), 3)
+        self.assertTrue(data['is_self'])
+        self.assertEqual(data['email'], self.manager.email)
+        self.assertEqual(data['profile_url'], '/auth/profile/')
+        self.assertEqual(data['mailto_url'], f"mailto:{self.manager.email}")
+
+        # Check membership details and per-workspace ownership
+        flora_m = next((m for m in data['memberships'] if m['workspace_slug'] == 'flora-ai'), None)
+        self.assertIsNotNone(flora_m)
+        self.assertEqual(flora_m['workspace_name'], 'Flora AI')
+        self.assertEqual(flora_m['role'], 'CONTRIBUTOR')
+        self.assertEqual(flora_m['role_display'], 'Contributor')
+        self.assertEqual(flora_m['functional_role'], 'Frontend Developer')
+        self.assertEqual(flora_m['tagging_role'], 'Frontend')
+        self.assertFalse(flora_m['is_owner'])  # owned by admin, not manager
+
+        lumen_m = next((m for m in data['memberships'] if m['workspace_slug'] == 'lumen'), None)
+        self.assertIsNotNone(lumen_m)
+        self.assertEqual(lumen_m['workspace_name'], 'Lumen')
+        self.assertEqual(lumen_m['role'], 'CONTRIBUTOR')
+        self.assertEqual(lumen_m['functional_role'], '')  # missing optional field omitted safely
+        self.assertEqual(lumen_m['tagging_role'], 'Engineering')
+        self.assertTrue(lumen_m['is_owner'])  # owned by manager
+
+        eng_m = next((m for m in data['memberships'] if m['workspace_slug'] == 'engineering-core'), None)
+        self.assertIsNotNone(eng_m)
+        self.assertEqual(eng_m['workspace_name'], 'Engineering Core')
+        self.assertEqual(eng_m['role'], 'MANAGER')
+        self.assertEqual(eng_m['role_display'], 'Manager')
+        self.assertTrue(eng_m['is_owner'])  # owned by manager
+
+        # 2. Administrator Authorization: Admin sees all 3 memberships of target user
+        self.client.force_login(self.admin)
+        resp = self.client.get(card_url)
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertEqual(len(data['memberships']), 3)
+
+        # 3. Contributor Authorization: Ordinary contributor (developer) only shares 'engineering-core'
+        # Must NOT disclose 'flora-ai' or 'lumen' memberships to developer
+        self.client.force_login(self.developer)
+        resp = self.client.get(card_url)
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertEqual(len(data['memberships']), 1)
+        self.assertEqual(data['memberships'][0]['workspace_slug'], 'engineering-core')
+        slugs = [m['workspace_slug'] for m in data['memberships']]
+        self.assertNotIn('flora-ai', slugs)
+        self.assertNotIn('lumen', slugs)
+
+        # 4. User with zero memberships returns empty list safely
+        resp_outsider = self.client.get(reverse('accounts:api_user_hover_card', kwargs={'user_identifier': self.outsider.id}))
+        self.assertEqual(resp_outsider.status_code, 200)
+        data_outsider = resp_outsider.json()
+        self.assertEqual(data_outsider['memberships'], [])
+
+    def test_hover_card_template_elements_and_action_buttons(self):
+        """Verify people hover card renders the approved UI structure, badges, actions, and expander."""
+        self.client.force_login(self.manager)
+        task_url = reverse('tasks:task_detail', kwargs={'slug': self.workspace.slug, 'task_code': self.task.task_code})
+        resp = self.client.get(task_url)
+        self.assertEqual(resp.status_code, 200)
+        # Check approved UI components
+        self.assertContains(resp, '★ OWNER')
+        self.assertContains(resp, 'getRoleBadge(m)')
+        self.assertContains(resp, 'expandedWorkspaces')
+        self.assertContains(resp, '+${data.memberships.length - 3} more')
+        # Check action buttons (Email & Profile always present)
+        self.assertContains(resp, 'data.mailto_url')
+        self.assertContains(resp, 'data.profile_url')
+        self.assertContains(resp, 'Email')
+        self.assertContains(resp, 'Profile')
+
+
 

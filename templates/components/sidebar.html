@@ -197,16 +197,7 @@
                         </div>
                     </div>
                     <div class="flex items-center space-x-2.5 mt-2 truncate">
-                        {% if current_workspace.logo_url %}
-                            <img src="{{ current_workspace.logo_url }}" alt="{{ current_workspace.name }}" class="w-7 h-7 rounded-lg object-cover shrink-0 border border-slate-200/50 dark:border-zinc-800 shadow-sm" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                            <div style="display:none;" class="w-7 h-7 rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-700 text-white font-bold text-xs items-center justify-center shrink-0">
-                                {{ current_workspace.name|slice:":2"|upper }}
-                            </div>
-                        {% else %}
-                            <div class="w-7 h-7 rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-700 text-white font-bold text-xs flex items-center justify-center shrink-0">
-                                {{ current_workspace.name|slice:":2"|upper }}
-                            </div>
-                        {% endif %}
+                        {% include 'components/identity_badge.html' with entity=current_workspace size='w-7 h-7' radius='rounded-lg' text_size='text-xs' %}
                         <span class="text-[14.5px] font-bold text-slate-900 dark:text-zinc-100 truncate tracking-tight">{{ current_workspace.name }}</span>
                     </div>
                 </div>
@@ -247,6 +238,39 @@
                             <a href="{% url 'tasks:sprint_planning' slug=current_workspace.slug %}" 
                                class="block py-1.5 px-2.5 text-[13.5px] font-medium text-slate-600 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-zinc-100 hover:bg-slate-100 dark:hover:bg-zinc-800/50 rounded-lg transition-colors">
                                 • Sprint Planning
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Code Reviews -->
+                    <div>
+                        <a href="{% url 'tasks:code_review_list' slug=current_workspace.slug %}" 
+                           class="flex items-center space-x-2.5 px-3 py-2.5 text-[14px] font-semibold rounded-xl text-slate-700 dark:text-zinc-300 hover:bg-slate-200/60 dark:hover:bg-zinc-800/60 transition-colors {% if request.resolver_match.url_name == 'code_review_list' or request.resolver_match.url_name == 'code_review_request_workspace' %}bg-slate-200/50 dark:bg-zinc-800/50 text-blue-600 dark:text-blue-400 font-bold{% endif %}">
+                            <svg class="w-4 h-4 text-slate-400 {% if request.resolver_match.url_name == 'code_review_list' %}text-blue-600 dark:text-blue-400{% endif %}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                            </svg>
+                            <span>Code Reviews</span>
+                        </a>
+                        <div class="pl-7 pr-1 space-y-0.5 pb-1.5">
+                            <a href="{% url 'tasks:code_review_list' slug=current_workspace.slug %}" 
+                               class="block py-1.5 px-2.5 text-[13.5px] font-medium text-slate-600 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-zinc-100 hover:bg-slate-100 dark:hover:bg-zinc-800/50 rounded-lg transition-colors {% if request.resolver_match.url_name == 'code_review_list' and not request.GET.filter %}text-blue-600 dark:text-blue-400 font-bold bg-blue-50/50 dark:bg-blue-950/30{% endif %}">
+                                • All Reviews
+                            </a>
+                            <a href="{% url 'tasks:code_review_list' slug=current_workspace.slug %}?filter=assigned_to_me" 
+                               class="block py-1.5 px-2.5 text-[13.5px] font-medium text-slate-600 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-zinc-100 hover:bg-slate-100 dark:hover:bg-zinc-800/50 rounded-lg transition-colors {% if request.GET.filter == 'assigned_to_me' %}text-blue-600 dark:text-blue-400 font-bold bg-blue-50/50 dark:bg-blue-950/30{% endif %}">
+                                • Assigned to Me
+                            </a>
+                            <a href="{% url 'tasks:code_review_list' slug=current_workspace.slug %}?filter=requested_by_me" 
+                               class="block py-1.5 px-2.5 text-[13.5px] font-medium text-slate-600 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-zinc-100 hover:bg-slate-100 dark:hover:bg-zinc-800/50 rounded-lg transition-colors {% if request.GET.filter == 'requested_by_me' %}text-blue-600 dark:text-blue-400 font-bold bg-blue-50/50 dark:bg-blue-950/30{% endif %}">
+                                • Requested by Me
+                            </a>
+                            <a href="{% url 'tasks:code_review_list' slug=current_workspace.slug %}?filter=pending" 
+                               class="block py-1.5 px-2.5 text-[13.5px] font-medium text-slate-600 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-zinc-100 hover:bg-slate-100 dark:hover:bg-zinc-800/50 rounded-lg transition-colors {% if request.GET.filter == 'pending' %}text-blue-600 dark:text-blue-400 font-bold bg-blue-50/50 dark:bg-blue-950/30{% endif %}">
+                                • Pending Reviews
+                            </a>
+                            <a href="{% url 'tasks:code_review_list' slug=current_workspace.slug %}?filter=completed" 
+                               class="block py-1.5 px-2.5 text-[13.5px] font-medium text-slate-600 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-zinc-100 hover:bg-slate-100 dark:hover:bg-zinc-800/50 rounded-lg transition-colors {% if request.GET.filter == 'completed' %}text-blue-600 dark:text-blue-400 font-bold bg-blue-50/50 dark:bg-blue-950/30{% endif %}">
+                                • Completed Reviews
                             </a>
                         </div>
                     </div>

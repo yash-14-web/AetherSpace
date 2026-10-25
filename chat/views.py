@@ -1,3 +1,4 @@
+import datetime
 import json
 import logging
 import re
@@ -25,7 +26,8 @@ from .services import (
     post_channel_message, post_direct_message,
     toggle_pin_message, toggle_reaction, mark_channel_as_read,
     is_default_channel, can_manage_channel, can_delete_channel,
-    add_channel_member, remove_channel_member, leave_channel, delete_channel
+    add_channel_member, remove_channel_member, leave_channel, delete_channel,
+    process_and_save_channel_avatar
 )
 
 User = get_user_model()
@@ -109,27 +111,53 @@ def chat_home_view(request, slug):
     user = request.user
     sidebar_ctx = get_chat_sidebar_context(workspace, user)
 
-    # 4 Metric Cards
+    # 4 Metric Cards with Real Authorized Data
     total_channels = workspace.channels.count()
     total_members = workspace.memberships.filter(status=MembershipStatus.ACTIVE).count()
-    unread_messages_count = 0  # Simplified clean count
+
+    user_channels = sidebar_ctx.get('channels', [])
+
+    # Calculate real unread messages count across user's channels
+    unread_messages_count = 0
+    channel_memberships = ChannelMembership.objects.filter(channel__workspace=workspace, user=user).select_related('channel')
+    for cm in channel_memberships:
+        unread_messages_count += Message.objects.filter(
+            channel=cm.channel,
+            created_at__gt=cm.last_read_at,
+            is_deleted=False
+        ).exclude(sender=user).count()
+
+    # Calculate real user mentions count
+    mention_queries = [Q(content__icontains=f"@{user.email}")]
+    email_local = user.email.split('@')[0] if '@' in user.email else ''
+    if email_local:
+        mention_queries.append(Q(content__icontains=f"@{email_local}"))
+    if getattr(user, 'username', ''):
+        mention_queries.append(Q(content__icontains=f"@{user.username}"))
+    if getattr(user, 'contributor_id', ''):
+        mention_queries.append(Q(content__icontains=f"@{user.contributor_id}"))
+    if user.first_name:
+        mention_queries.append(Q(content__icontains=f"@{user.first_name}"))
+    if getattr(user, 'full_name', ''):
+        mention_queries.append(Q(content__icontains=f"@{user.full_name}"))
+
+    user_mention_q = mention_queries[0]
+    for q_item in mention_queries[1:]:
+        user_mention_q |= q_item
+
     mentions_count = Message.objects.filter(
-        workspace=workspace,
-        content__icontains=f"@{user.first_name}" if user.first_name else f"@{user.email}"
+        Q(workspace=workspace) & user_mention_q & Q(is_deleted=False)
     ).count()
 
-    # Recent Conversations (active channels + DMs with messages)
+    # Recent Channel Activity: Only authorized channels, ordered chronologically descending
     recent_channel_messages = Message.objects.filter(
         workspace=workspace,
         channel__isnull=False,
+        channel__in=user_channels,
         is_deleted=False
-    ).select_related('channel', 'sender').order_by('-created_at')[:8]
+    ).select_related('channel', 'sender').prefetch_related('attachments').order_by('-created_at')[:8]
 
-    # Recent Mentions
-    recent_mentions = Message.objects.filter(
-        workspace=workspace,
-        content__icontains="@"
-    ).select_related('sender', 'channel').order_by('-created_at')[:5]
+    first_channel_slug = user_channels[0].slug if user_channels else 'general'
 
     context = {
         'title': f"{workspace.name} — Chat Home — AetherSpace",
@@ -140,7 +168,7 @@ def chat_home_view(request, slug):
         'unread_messages_count': unread_messages_count,
         'mentions_count': mentions_count,
         'recent_channel_messages': recent_channel_messages,
-        'recent_mentions': recent_mentions,
+        'first_channel_slug': first_channel_slug,
         **sidebar_ctx,
     }
     return render(request, 'chat/chat_home.html', context)
@@ -181,11 +209,25 @@ def channel_view(request, slug, channel_slug):
             messages.error(request, "Failed to send message. An unexpected error occurred.")
 
     # Fetch channel messages with attachments and reactions
-    messages_qs = channel.messages.filter(is_deleted=False).select_related(
+    messages_qs = list(channel.messages.filter(is_deleted=False).select_related(
         'sender', 'pinned_by'
     ).prefetch_related(
         'attachments', 'reactions', 'reactions__user'
-    ).order_by('created_at')
+    ).order_by('created_at'))
+
+    # Decorate consecutive messages from same sender within 5 minutes on same day
+    prev_msg = None
+    for msg in messages_qs:
+        if (prev_msg and 
+            prev_msg.sender_id == msg.sender_id and 
+            (msg.created_at - prev_msg.created_at).total_seconds() < 300 and 
+            prev_msg.created_at.date() == msg.created_at.date() and 
+            not getattr(msg, 'content', '').startswith('CALL_INVITE:') and 
+            not getattr(prev_msg, 'content', '').startswith('CALL_INVITE:')):
+            msg.is_consecutive = True
+        else:
+            msg.is_consecutive = False
+        prev_msg = msg
 
     can_manage = can_manage_channel(channel, user)
     can_delete = can_delete_channel(channel, user)
@@ -200,6 +242,7 @@ def channel_view(request, slug, channel_slug):
         is_active=True
     ).exclude(id__in=existing_member_ids).order_by('full_name', 'email')
 
+    now = timezone.now()
     context = {
         'title': f"#{channel.name} — {workspace.name} — AetherSpace",
         'workspace': workspace,
@@ -212,6 +255,8 @@ def channel_view(request, slug, channel_slug):
         'is_default': is_default,
         'user_channel_membership': user_channel_membership,
         'available_members': available_members,
+        'today_date': now.date(),
+        'yesterday_date': (now - datetime.timedelta(days=1)).date(),
         **sidebar_ctx,
     }
     return render(request, 'chat/channel_view.html', context)
@@ -264,12 +309,27 @@ def direct_message_view(request, slug, user_id):
             logger.exception("Failed to post direct message: %s", e)
             messages.error(request, "Failed to send message. An unexpected error occurred.")
 
-    messages_qs = conversation.messages.filter(is_deleted=False).select_related(
+    messages_qs = list(conversation.messages.filter(is_deleted=False).select_related(
         'sender', 'sender__profile', 'recipient', 'pinned_by'
     ).prefetch_related(
         'attachments', 'reactions', 'reactions__user'
-    ).order_by('created_at')
+    ).order_by('created_at'))
 
+    # Decorate consecutive messages from same sender within 5 minutes on same day
+    prev_msg = None
+    for msg in messages_qs:
+        if (prev_msg and 
+            prev_msg.sender_id == msg.sender_id and 
+            (msg.created_at - prev_msg.created_at).total_seconds() < 300 and 
+            prev_msg.created_at.date() == msg.created_at.date() and 
+            not getattr(msg, 'content', '').startswith('CALL_INVITE:') and 
+            not getattr(prev_msg, 'content', '').startswith('CALL_INVITE:')):
+            msg.is_consecutive = True
+        else:
+            msg.is_consecutive = False
+        prev_msg = msg
+
+    now = timezone.now()
     context = {
         'title': f"{other_user.full_name or other_user.email} — Direct Message — AetherSpace",
         'workspace': workspace,
@@ -277,6 +337,8 @@ def direct_message_view(request, slug, user_id):
         'conversation': conversation,
         'other_user': other_user,
         'chat_messages': messages_qs,
+        'today_date': now.date(),
+        'yesterday_date': (now - datetime.timedelta(days=1)).date(),
         **sidebar_ctx,
     }
     return render(request, 'chat/direct_message.html', context)
@@ -301,6 +363,18 @@ def channel_create_view(request, slug):
             channel.workspace = workspace
             channel.created_by = user
             channel.save()
+
+            # Handle Channel Identity (curated icon or image upload)
+            avatar_file = request.FILES.get('avatar_file') or request.FILES.get('avatar')
+            selected_icon = request.POST.get('selected_icon', '').strip()
+            avatar_url = request.POST.get('avatar_url', '').strip()
+
+            if avatar_file:
+                process_and_save_channel_avatar(channel, file_obj=avatar_file)
+            elif selected_icon:
+                process_and_save_channel_avatar(channel, icon_key=selected_icon)
+            elif avatar_url:
+                process_and_save_channel_avatar(channel, avatar_url=avatar_url)
 
             # Add creator as Owner of the channel
             ChannelMembership.objects.create(
@@ -328,7 +402,7 @@ def channel_details_view(request, slug, channel_slug):
     """
     Channel Details View matching Panel 5 of mockup:
     - Tabs: Overview, Members, Pinned, Files, Settings
-    - Channel Info sidebar
+    - Channel Info sidebar & Identity Configuration
     """
     workspace = request.workspace
     user = request.user
@@ -337,6 +411,51 @@ def channel_details_view(request, slug, channel_slug):
     channel = get_object_or_404(Channel, workspace=workspace, slug=channel_slug)
     if not channel.has_member(user):
         return HttpResponseForbidden("You do not have permission to view this channel.")
+
+    can_manage = can_manage_channel(channel, user)
+
+    # Handle Identity update on POST
+    invalid_selected_icon = None
+    identity_error_msg = None
+
+    if request.method == 'POST':
+        action = request.POST.get('action', '').strip()
+        if action == 'update_identity' or 'selected_icon' in request.POST or 'avatar_file' in request.FILES or request.POST.get('remove_avatar') == '1':
+            if not can_manage:
+                raise PermissionDenied("You do not have permission to modify channel identity.")
+
+            avatar_file = request.FILES.get('avatar_file') or request.FILES.get('avatar')
+            selected_icon = request.POST.get('selected_icon', '').strip()
+            remove_avatar = request.POST.get('remove_avatar') in ['1', 'true', 'True']
+
+            if remove_avatar:
+                success, msg = process_and_save_channel_avatar(channel, remove_avatar=True)
+                if success:
+                    messages.success(request, msg)
+                    return redirect('chat:channel_details', slug=slug, channel_slug=channel.slug)
+                else:
+                    messages.error(request, msg)
+                    identity_error_msg = msg
+            elif avatar_file:
+                success, msg = process_and_save_channel_avatar(channel, file_obj=avatar_file)
+                if success:
+                    messages.success(request, msg)
+                    return redirect('chat:channel_details', slug=slug, channel_slug=channel.slug)
+                else:
+                    messages.error(request, msg)
+                    identity_error_msg = msg
+            elif selected_icon:
+                success, msg = process_and_save_channel_avatar(channel, icon_key=selected_icon)
+                if success:
+                    messages.success(request, msg)
+                    return redirect('chat:channel_details', slug=slug, channel_slug=channel.slug)
+                else:
+                    messages.error(request, msg)
+                    invalid_selected_icon = selected_icon
+                    identity_error_msg = msg
+            else:
+                messages.info(request, "No identity changes were submitted.")
+                return redirect('chat:channel_details', slug=slug, channel_slug=channel.slug)
 
     # Members list
     memberships = channel.memberships.select_related('user').order_by('-role', 'joined_at')
@@ -347,7 +466,6 @@ def channel_details_view(request, slug, channel_slug):
     # Files in channel
     files = MessageAttachment.objects.filter(message__channel=channel, message__is_deleted=False).select_related('message', 'message__sender')
 
-    can_manage = can_manage_channel(channel, user)
     can_delete = can_delete_channel(channel, user)
     is_default = is_default_channel(channel)
     user_channel_membership = channel.memberships.filter(user=user).first()
@@ -373,6 +491,8 @@ def channel_details_view(request, slug, channel_slug):
         'is_default': is_default,
         'user_channel_membership': user_channel_membership,
         'available_members': available_members,
+        'invalid_selected_icon': invalid_selected_icon,
+        'error_msg': identity_error_msg,
         **sidebar_ctx,
     }
     return render(request, 'chat/channel_details.html', context)

@@ -251,6 +251,14 @@ class Task(models.Model):
         return f"T-{self.task_code}"
 
     @property
+    def sprint_display(self):
+        if self.sprint_ref:
+            return self.sprint_ref.name
+        if self.sprint and self.sprint.strip().lower() != 'backlog':
+            return self.sprint
+        return 'Backlog'
+
+    @property
     def is_overdue(self):
         if self.due_date and self.status != TaskStatus.DONE:
             from django.utils import timezone
@@ -399,6 +407,7 @@ class TaskComment(models.Model):
 
     class SystemEventType(models.TextChoices):
         TASK_CREATED = 'TASK_CREATED', _('Task Created')
+        TASK_ASSIGNED = 'TASK_ASSIGNED', _('Task Assigned')
         BUG_ATTACHED = 'BUG_ATTACHED', _('Bug Attached')
         BUG_DETACHED = 'BUG_DETACHED', _('Bug Detached')
         CODE_REVIEW_REQUESTED = 'CODE_REVIEW_REQUESTED', _('Code Review Requested')
@@ -463,6 +472,33 @@ class TaskComment(models.Model):
     def is_system(self):
         return self.comment_type == self.CommentType.SYSTEM
 
+    @property
+    def parent_id(self):
+        if isinstance(self.metadata, dict):
+            return self.metadata.get('parent_id')
+        return None
+
+    @property
+    def is_reply(self):
+        return bool(self.parent_id)
+
+    @property
+    def is_edited(self):
+        if isinstance(self.metadata, dict):
+            return self.metadata.get('is_edited', False)
+        return False
+
+    @property
+    def reactions_dict(self):
+        if isinstance(self.metadata, dict) and isinstance(self.metadata.get('reactions'), dict):
+            return self.metadata.get('reactions')
+        return {}
+
+    @property
+    def thumbs_up_count(self):
+        users = self.reactions_dict.get('thumbs_up', [])
+        return len(users) if isinstance(users, list) else 0
+
 
 class TaskAttachment(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -490,6 +526,7 @@ class CodeReviewStatus(models.TextChoices):
     IN_REVIEW = 'IN_REVIEW', _('In Review')
     CHANGES_REQUESTED = 'CHANGES_REQUESTED', _('Changes Requested')
     APPROVED = 'APPROVED', _('Approved')
+    REJECTED = 'REJECTED', _('Rejected')
     MERGED = 'MERGED', _('Merged')
     CLOSED = 'CLOSED', _('Closed')
 
@@ -524,7 +561,7 @@ class CodeReviewRequest(models.Model):
     )
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True, default='')
-    github_pr_url = models.URLField(max_length=500)
+    github_pr_url = models.URLField(max_length=500, blank=True, default='')
     status = models.CharField(
         max_length=30,
         choices=CodeReviewStatus.choices,
@@ -551,5 +588,38 @@ class CodeReviewRequest(models.Model):
 
     @property
     def is_open(self):
-        return self.status not in [CodeReviewStatus.CLOSED, CodeReviewStatus.MERGED]
+        return self.status not in [CodeReviewStatus.CLOSED, CodeReviewStatus.MERGED, CodeReviewStatus.REJECTED]
+
+    @property
+    def priority(self):
+        return self.task.priority if self.task else 'MEDIUM'
+
+    @property
+    def due_date(self):
+        return self.task.due_date if self.task else None
+
+    @property
+    def safe_github_pr_url(self):
+        if not self.github_pr_url:
+            return ''
+        from core.utils import is_safe_external_url
+        clean_url = self.github_pr_url.strip()
+        if is_safe_external_url(clean_url):
+            return clean_url
+        return ''
+
+    @property
+    def display_pr_url(self):
+        """Returns clean display version of external PR URL, e.g. github.com/owner/repo/pull/123"""
+        safe_url = self.safe_github_pr_url
+        if not safe_url:
+            return ''
+        url = safe_url
+        for prefix in ('https://', 'http://'):
+            if url.startswith(prefix):
+                url = url[len(prefix):]
+                break
+        if url.startswith('www.'):
+            url = url[4:]
+        return url
 

@@ -17,12 +17,12 @@ Props:
      title="{{ user.full_name|default:user.email }}">
     {% if user.avatar and user.avatar|slice:":7" != "preset:" %}
         {# Real Photo URL from Supabase Storage or Media #}
-        <img src="{{ user.avatar }}" 
+        <img src="{% if user.avatar|slice:':4' == 'http' or user.avatar|slice:':1' == '/' %}{{ user.avatar }}{% else %}/media/{{ user.avatar }}{% endif %}" 
              alt="{{ user.full_name|default:user.email }}" 
-             class="w-full h-full object-cover {{ rounded|default:'rounded-full' }}"
+             class="w-full h-full object-cover shrink-0 max-w-full max-h-full {{ rounded|default:'rounded-full' }}"
              loading="lazy"
              onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';">
-        <div style="display:none;" class="w-full h-full {{ rounded|default:'rounded-full' }} bg-gradient-to-tr from-blue-600 to-indigo-700 text-white font-bold {{ text_size|default:'text-xs' }} items-center justify-center">
+        <div style="display:none;" class="w-full h-full {{ rounded|default:'rounded-full' }} bg-gradient-to-tr from-blue-600 to-indigo-700 text-white font-bold {{ text_size|default:'text-xs' }} flex items-center justify-center shrink-0">
             {{ user.full_name|default:user.email|slice:":2"|upper }}
         </div>
     {% elif user.avatar and user.avatar|slice:":7" == "preset:" %}

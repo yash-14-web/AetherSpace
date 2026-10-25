@@ -3,217 +3,452 @@
 {% block title %}Project Details — {{ workspace.name }} — AetherSpace{% endblock %}
 
 {% block content %}
-<div class="space-y-6 max-w-7xl mx-auto py-4 sm:py-6 px-4 sm:px-6" x-data="{ editModalOpen: false }">
+<div class="space-y-6 max-w-7xl mx-auto py-4 sm:py-6 px-4 sm:px-6" x-data="{ editModalOpen: false, copiedSlug: false, copiedHeaderSlug: false }">
     
     <!-- Breadcrumbs -->
-    <div class="flex items-center space-x-2 text-xs text-slate-500 dark:text-zinc-400">
-        <a href="{% url 'workspaces:workspace_dashboard' slug=workspace.slug %}" class="hover:text-aether-blue transition-colors">{{ workspace.name }}</a>
+    <div class="flex items-center space-x-2 text-xs font-medium text-slate-400 dark:text-zinc-400">
+        <a href="{% url 'workspaces:workspace_dashboard' slug=workspace.slug %}" class="hover:text-blue-500 transition-colors">{{ workspace.name }}</a>
         <span>/</span>
-        <span class="text-slate-900 dark:text-zinc-200 font-medium">Project Details</span>
+        <span class="text-slate-800 dark:text-zinc-200 font-semibold">Project Details</span>
     </div>
 
-    <!-- Project Header Card (Matching Panel 2 from Design Reference) -->
-    <div class="aether-card p-6 sm:p-8 space-y-6">
-        <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+    <!-- SECTION A: Project Header Card -->
+    <div class="rounded-2xl p-5 sm:p-6 bg-white dark:bg-[#0c101d] border border-slate-200/80 dark:border-[#1a2338] shadow-xs relative overflow-hidden space-y-5">
+        <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-5 relative z-10">
+            <!-- Left: Icon & Project Metadata -->
             <div class="flex items-start space-x-4 min-w-0">
-                <div class="w-14 h-14 rounded-2xl overflow-hidden shadow-lg shadow-blue-500/20 border border-blue-400/25 flex items-center justify-center shrink-0 flex-none bg-gradient-to-tr from-blue-600 via-indigo-600 to-violet-700 text-white font-black text-xl">
-                    {% if workspace.logo_url %}
-                        <img src="{{ workspace.logo_url }}" alt="{{ workspace.name }}" class="w-full h-full object-cover" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                        <span style="display:none;" class="w-full h-full items-center justify-center">
-                            {{ workspace.name|slice:":2"|upper }}
-                        </span>
-                    {% else %}
-                        {{ workspace.name|slice:":2"|upper }}
-                    {% endif %}
-                </div>
+                {% include 'components/identity_badge.html' with entity=workspace size='w-12 h-12' radius='rounded-xl' text_size='text-lg' extra_class='shadow-md shrink-0' %}
                 <div class="space-y-1 min-w-0">
                     <div class="flex flex-wrap items-center gap-2.5">
-                        <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-zinc-50">
+                        <h1 class="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
                             {{ workspace.name }}
                         </h1>
-                        <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/50">
-                            ● Active Project
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shadow-2xs">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse mr-1.5"></span>
+                            {{ workspace.get_status_display|default:"Active Project" }}
                         </span>
                         {% if membership.is_admin %}
-                            <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-300 border border-purple-200 dark:border-purple-900/50">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
                                 Admin
                             </span>
                         {% elif membership.is_manager %}
-                            <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-300 border border-blue-200 dark:border-blue-900/50">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
                                 Manager
+                            </span>
+                        {% else %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-500/10 text-slate-600 dark:text-slate-400 border border-slate-500/20">
+                                Contributor
                             </span>
                         {% endif %}
                     </div>
-                    <p class="text-sm text-slate-500 dark:text-zinc-400 leading-relaxed max-w-3xl">
-                        {{ workspace.description|default:"High-performance collaborative workspace for agile team development." }}
+                    <p class="text-xs text-slate-500 dark:text-zinc-400 font-normal mt-0.5">
+                        Primary workspace for {{ workspace.name }} team
+                    </p>
+                    <p class="text-xs text-slate-600 dark:text-zinc-400 mt-2 max-w-2xl leading-relaxed">
+                        {{ long_description }}
                     </p>
                 </div>
             </div>
 
-            <!-- Quick Action Links & Edit Button -->
-            <div class="flex items-center space-x-2.5 shrink-0">
-                {% if can_edit %}
-                    <button type="button" 
-                            @click="editModalOpen = true" 
-                            class="px-4 py-2 text-xs font-semibold rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-800 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700 transition flex items-center space-x-1.5 shadow-xs">
-                        <svg class="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                        </svg>
-                        <span>Edit Details</span>
-                    </button>
-                {% endif %}
-                <a href="{% url 'workspaces:workspace_dashboard' slug=workspace.slug %}" class="aether-button-primary text-xs px-4 py-2 flex items-center space-x-1.5 shadow-md shadow-blue-500/20">
-                    <span>Dashboard</span>
-                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
-                    </svg>
-                </a>
-            </div>
-        </div>
-
-        <!-- Tech Stack Badges (Dynamic from Database) -->
-        <div class="pt-4 border-t border-slate-100 dark:border-zinc-800 flex flex-wrap items-center gap-2">
-            <span class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500 mr-2">Tech Stack:</span>
-            {% for tech in tech_stack %}
-                <span class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-[#0c1322] text-slate-700 dark:text-zinc-300 border border-slate-200 dark:border-zinc-800">
-                    {{ tech }}
-                </span>
-            {% empty %}
-                <span class="text-xs text-slate-400 italic">No tech stack configured yet.</span>
-            {% endfor %}
-        </div>
-    </div>
-
-    <!-- 4 High-Fidelity Metric Cards -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <!-- Current Sprint Card -->
-        <a href="{% url 'tasks:sprint_planning' slug=workspace.slug %}" class="aether-card p-5 space-y-2 hover:border-blue-500/50 transition group block">
-            <div class="flex items-center justify-between">
-                <span class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">Current Sprint</span>
-                <span class="text-[10px] text-blue-600 dark:text-blue-400 group-hover:underline">Plan &rarr;</span>
-            </div>
-            <div class="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-zinc-50 truncate">
-                {{ current_sprint.name|default:"Sprint 1" }}
-            </div>
-            <div class="text-xs font-semibold text-aether-blue">
-                {% if current_sprint and current_sprint.days_remaining is not None %}
-                    {{ current_sprint.days_remaining }} days remaining
-                {% elif current_sprint %}
-                    {{ current_sprint.get_status_display }}
-                {% else %}
-                    Sprint Planning Ready
-                {% endif %}
-            </div>
-        </a>
-
-        <!-- Active Tasks Card -->
-        <a href="{% url 'tasks:task_list' slug=workspace.slug %}" class="aether-card p-5 space-y-2 hover:border-emerald-500/50 transition group block">
-            <div class="flex items-center justify-between">
-                <span class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">Active Tasks</span>
-                <span class="text-[10px] text-emerald-600 dark:text-emerald-400 group-hover:underline">View &rarr;</span>
-            </div>
-            <div class="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-zinc-50">{{ active_tasks_count }}</div>
-            <div class="text-xs font-semibold text-emerald-600 dark:text-emerald-400">{{ task_schedule_pct }}% on schedule</div>
-        </a>
-
-        <!-- Reported Bugs Card -->
-        <a href="{% url 'bugs:bug_list' slug=workspace.slug %}" class="aether-card p-5 space-y-2 hover:border-rose-500/50 transition group block">
-            <div class="flex items-center justify-between">
-                <span class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">Reported Bugs</span>
-                <span class="text-[10px] text-rose-500 group-hover:underline">Triage &rarr;</span>
-            </div>
-            <div class="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-zinc-50">{{ open_bugs_count }}</div>
-            <div class="text-xs font-semibold text-rose-500">{{ high_sev_bugs_count }} high severity</div>
-        </a>
-
-        <!-- Team Contributors Card -->
-        <a href="{% url 'workspaces:team' slug=workspace.slug %}" class="aether-card p-5 space-y-2 hover:border-purple-500/50 transition group block">
-            <div class="flex items-center justify-between">
-                <span class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">Team Contributors</span>
-                <span class="text-[10px] text-purple-600 dark:text-purple-400 group-hover:underline">Team &rarr;</span>
-            </div>
-            <div class="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-zinc-50">{{ total_members_count }}</div>
-            <div class="text-xs font-semibold text-slate-500 dark:text-zinc-400">Assigned seats</div>
-        </a>
-    </div>
-
-    <!-- Project Specifications & Architecture Details -->
-    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        
-        <!-- Left: Specification Overview (8 cols) -->
-        <div class="lg:col-span-8 space-y-6">
-            <div class="aether-card p-6 space-y-4">
-                <div class="flex items-center justify-between">
-                    <h3 class="text-base sm:text-lg font-bold text-slate-900 dark:text-zinc-100 tracking-tight">
-                        Project Scope & Architecture
-                    </h3>
+            <!-- Right: Action Controls & Header Metadata -->
+            <div class="flex flex-col items-start lg:items-end justify-between gap-3 shrink-0">
+                <div class="flex items-center space-x-2.5 self-start sm:self-auto">
                     {% if can_edit %}
                         <button type="button" 
                                 @click="editModalOpen = true" 
-                                class="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline">
-                            Edit Scope & Architecture
+                                class="px-3.5 py-1.5 text-xs font-medium rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-[#131b2e] dark:hover:bg-[#1a243d] text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-[#222e49] transition flex items-center space-x-1.5 shadow-2xs active:scale-95">
+                            <svg class="w-3.5 h-3.5 text-slate-500 dark:text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                            </svg>
+                            <span>Edit Details</span>
                         </button>
                     {% endif %}
-                </div>
-                
-                <div class="text-xs sm:text-sm text-slate-600 dark:text-zinc-300 leading-relaxed space-y-3">
-                    <p class="whitespace-pre-line">{{ workspace.effective_scope }}</p>
-                    <p class="whitespace-pre-line">{{ workspace.effective_architecture }}</p>
+                    <a href="{% url 'workspaces:workspace_dashboard' slug=workspace.slug %}" 
+                       class="px-4 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 hover:bg-blue-500 text-white flex items-center space-x-1.5 shadow-sm active:scale-95 transition">
+                        <span>Open Dashboard</span>
+                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+                        </svg>
+                    </a>
                 </div>
 
-                <div class="pt-4 border-t border-slate-100 dark:border-zinc-800 grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+                <!-- Header Metadata Row (Desktop) -->
+                <div class="hidden sm:flex items-center gap-6 mt-2 text-xs">
                     <div>
-                        <span class="text-slate-400 dark:text-zinc-500 block">Workspace Slug:</span>
-                        <span class="font-mono font-semibold text-slate-800 dark:text-zinc-200">{{ workspace.slug }}</span>
+                        <span class="block text-[11px] text-slate-400 dark:text-zinc-500 font-medium">Workspace Slug</span>
+                        <div class="flex items-center space-x-1 font-semibold text-slate-800 dark:text-zinc-200 font-mono">
+                            <span>{{ workspace.slug }}</span>
+                            <button type="button" 
+                                    @click="navigator.clipboard.writeText('{{ workspace.slug }}'); copiedHeaderSlug = true; setTimeout(() => copiedHeaderSlug = false, 2000)" 
+                                    class="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 transition" 
+                                    title="Copy slug">
+                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                                </svg>
+                            </button>
+                            <span x-show="copiedHeaderSlug" x-cloak class="text-[10px] text-emerald-500 font-sans font-normal">Copied!</span>
+                        </div>
                     </div>
                     <div>
-                        <span class="text-slate-400 dark:text-zinc-500 block">Storage Provider:</span>
+                        <span class="block text-[11px] text-slate-400 dark:text-zinc-500 font-medium">Storage Provider</span>
                         <span class="font-semibold text-emerald-600 dark:text-emerald-400">{{ workspace.storage_provider }}</span>
                     </div>
                     <div>
-                        <span class="text-slate-400 dark:text-zinc-500 block">Security Mode:</span>
+                        <span class="block text-[11px] text-slate-400 dark:text-zinc-500 font-medium">Security Mode</span>
                         <span class="font-semibold text-blue-600 dark:text-blue-400">{{ workspace.security_mode }}</span>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Right: Quick Navigation (4 cols) -->
+        <!-- Subtle decorative ambient glow behind right side -->
+        <div class="absolute -right-10 -bottom-10 w-72 h-36 bg-gradient-to-l from-blue-600/10 via-purple-600/10 to-transparent pointer-events-none rounded-full blur-2xl"></div>
+
+        <!-- Tech Stack Labels (Separated by subtle divider) -->
+        <div class="pt-3.5 border-t border-slate-100 dark:border-[#1a2337] flex flex-wrap items-center gap-2 relative z-10">
+            <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500 mr-2">TECH STACK:</span>
+            {% for tech in tech_stack %}
+                <span class="px-2.5 py-1 rounded-md text-xs font-medium bg-slate-100 dark:bg-[#111728] text-slate-700 dark:text-zinc-300 border border-slate-200/80 dark:border-[#1e2a44] transition shadow-2xs">
+                    {{ tech }}
+                </span>
+            {% empty %}
+                <span class="text-xs text-slate-400 dark:text-zinc-500 italic">No technology stack configured yet.</span>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- SECTION B: Four Consistently Sized Metric Cards -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        
+        <!-- 1. Current Sprint Card -->
+        <a href="{% url 'tasks:sprint_planning' slug=workspace.slug %}" 
+           class="rounded-2xl p-4 sm:p-5 bg-white dark:bg-[#0c101d] border border-slate-200/80 dark:border-[#1a2338] shadow-xs flex flex-col justify-between hover:border-violet-500/50 transition-all group block">
+            <div class="flex items-start space-x-3.5">
+                <div class="w-11 h-11 rounded-xl bg-violet-500/10 text-violet-600 dark:text-violet-400 border border-violet-500/20 flex items-center justify-center shrink-0">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                    </svg>
+                </div>
+                <div class="min-w-0 flex-1">
+                    <span class="text-xs text-slate-500 dark:text-zinc-400 font-medium block truncate">Current Sprint</span>
+                    <div class="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white truncate mt-0.5">
+                        {{ current_sprint.name|default:"Sprint 1" }}
+                    </div>
+                    <div class="text-xs font-medium text-violet-600 dark:text-violet-400 truncate mt-1">
+                        {% if current_sprint and current_sprint.days_remaining is not None %}
+                            {{ current_sprint.days_remaining }} days remaining
+                        {% elif current_sprint %}
+                            {{ current_sprint.get_status_display }}
+                        {% else %}
+                            Sprint Planning Ready
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            <!-- Accent progress bar at bottom -->
+            <div class="w-full bg-slate-100 dark:bg-[#182136] h-1.5 rounded-full overflow-hidden mt-3.5">
+                <div class="h-full rounded-full transition-all duration-500 bg-violet-500" style="width: {{ sprint_progress_pct|default:75 }}%;"></div>
+            </div>
+        </a>
+
+        <!-- 2. Active Tasks Card -->
+        <a href="{% url 'tasks:task_list' slug=workspace.slug %}" 
+           class="rounded-2xl p-4 sm:p-5 bg-white dark:bg-[#0c101d] border border-slate-200/80 dark:border-[#1a2338] shadow-xs flex flex-col justify-between hover:border-blue-500/50 transition-all group block">
+            <div class="flex items-start space-x-3.5">
+                <div class="w-11 h-11 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 flex items-center justify-center shrink-0">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                </div>
+                <div class="min-w-0 flex-1">
+                    <span class="text-xs text-slate-500 dark:text-zinc-400 font-medium block truncate">Active Tasks</span>
+                    <div class="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white truncate mt-0.5">
+                        {{ active_tasks_count }}
+                    </div>
+                    <div class="text-xs font-medium text-blue-600 dark:text-blue-400 truncate mt-1">
+                        In progress
+                    </div>
+                </div>
+            </div>
+            <!-- Accent progress bar at bottom -->
+            <div class="w-full bg-slate-100 dark:bg-[#182136] h-1.5 rounded-full overflow-hidden mt-3.5">
+                <div class="h-full rounded-full transition-all duration-500 bg-blue-500" style="width: {{ task_schedule_pct|default:25 }}%;"></div>
+            </div>
+        </a>
+
+        <!-- 3. Reported Bugs Card -->
+        <a href="{% url 'bugs:bug_list' slug=workspace.slug %}" 
+           class="rounded-2xl p-4 sm:p-5 bg-white dark:bg-[#0c101d] border border-slate-200/80 dark:border-[#1a2338] shadow-xs flex flex-col justify-between hover:border-rose-500/50 transition-all group block">
+            <div class="flex items-start space-x-3.5">
+                <div class="w-11 h-11 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 flex items-center justify-center shrink-0">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                    </svg>
+                </div>
+                <div class="min-w-0 flex-1">
+                    <span class="text-xs text-slate-500 dark:text-zinc-400 font-medium block truncate">Reported Bugs</span>
+                    <div class="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white truncate mt-0.5">
+                        {{ open_bugs_count }}
+                    </div>
+                    <div class="text-xs font-medium text-rose-500 dark:text-rose-400 truncate mt-1">
+                        {% if high_sev_bugs_count > 0 %}
+                            {{ high_sev_bugs_count }} high severity
+                        {% else %}
+                            0 high severity
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            <!-- Accent progress bar at bottom -->
+            <div class="w-full bg-slate-100 dark:bg-[#182136] h-1.5 rounded-full overflow-hidden mt-3.5">
+                <div class="h-full rounded-full transition-all duration-500 bg-rose-500" style="width: {% if open_bugs_count > 0 %}100{% else %}0{% endif %}%;"></div>
+            </div>
+        </a>
+
+        <!-- 4. Team Contributors Card -->
+        <a href="{% url 'workspaces:team' slug=workspace.slug %}" 
+           class="rounded-2xl p-4 sm:p-5 bg-white dark:bg-[#0c101d] border border-slate-200/80 dark:border-[#1a2338] shadow-xs flex flex-col justify-between hover:border-purple-500/50 transition-all group block">
+            <div class="flex items-start space-x-3.5">
+                <div class="w-11 h-11 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 flex items-center justify-center shrink-0">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
+                    </svg>
+                </div>
+                <div class="min-w-0 flex-1">
+                    <span class="text-xs text-slate-500 dark:text-zinc-400 font-medium block truncate">Team Members</span>
+                    <div class="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white truncate mt-0.5">
+                        {{ total_members_count }}
+                    </div>
+                    <div class="text-xs font-medium text-purple-600 dark:text-purple-400 truncate mt-1">
+                        {{ workspace.seats_assigned|default:total_members_count }} assigned · {{ workspace.max_seats }} max
+                    </div>
+                </div>
+            </div>
+            <!-- Accent progress bar at bottom -->
+            <div class="w-full bg-slate-100 dark:bg-[#182136] h-1.5 rounded-full overflow-hidden mt-3.5">
+                <div class="h-full rounded-full transition-all duration-500 bg-purple-500" style="width: {{ member_pct|default:33 }}%;"></div>
+            </div>
+        </a>
+
+    </div>
+
+    <!-- SECTION C: Main Content Area (Two Columns) -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        
+        <!-- Larger Left Column: Project Scope & Architecture (8 cols) -->
+        <div class="lg:col-span-8 space-y-6">
+            <div class="rounded-2xl p-5 sm:p-6 bg-white dark:bg-[#0c101d] border border-slate-200/80 dark:border-[#1a2338] shadow-xs space-y-4">
+                
+                <!-- Panel Heading -->
+                <div class="flex items-center justify-between border-b border-slate-100 dark:border-[#1a2337] pb-3.5">
+                    <div class="flex items-center space-x-2.5">
+                        <svg class="w-5 h-5 text-blue-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                        </svg>
+                        <h2 class="text-sm sm:text-base font-bold text-slate-900 dark:text-white tracking-tight">
+                            Project Scope &amp; Architecture
+                        </h2>
+                    </div>
+                    {% if can_edit %}
+                        <button type="button" 
+                                @click="editModalOpen = true" 
+                                class="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-500 hover:underline flex items-center space-x-1 transition">
+                            <span>Edit Scope &amp; Architecture</span>
+                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+                            </svg>
+                        </button>
+                    {% endif %}
+                </div>
+                
+                <!-- Plain Content (No nested boxes) -->
+                <div class="space-y-3 py-1">
+                    <div class="text-xs sm:text-sm text-slate-700 dark:text-zinc-300 leading-relaxed whitespace-pre-line">
+                        {{ workspace.effective_scope }}
+                    </div>
+                    
+                    <div class="border-t border-slate-100 dark:border-[#1a2337]/70 my-2"></div>
+
+                    <div class="text-xs sm:text-sm text-slate-500 dark:text-zinc-400 leading-relaxed whitespace-pre-line">
+                        {{ workspace.effective_architecture }}
+                    </div>
+                </div>
+
+                <!-- Compact Metadata Row at Bottom -->
+                <div class="pt-4 border-t border-slate-100 dark:border-[#1a2337] flex flex-wrap items-center gap-3">
+                    
+                    <!-- Workspace Slug -->
+                    <div class="px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-[#0b0f1a] border border-slate-200/80 dark:border-[#1a2338] flex items-center space-x-3">
+                        <svg class="w-4 h-4 text-slate-400 dark:text-zinc-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                        </svg>
+                        <div>
+                            <span class="block text-[10px] uppercase font-bold text-slate-400 dark:text-zinc-500">Workspace Slug</span>
+                            <div class="flex items-center space-x-1.5 font-mono text-xs font-semibold text-slate-800 dark:text-zinc-200">
+                                <span>{{ workspace.slug }}</span>
+                                <button type="button" 
+                                        @click="navigator.clipboard.writeText('{{ workspace.slug }}'); copiedSlug = true; setTimeout(() => copiedSlug = false, 2000)" 
+                                        class="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 transition" 
+                                        title="Copy slug">
+                                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                                    </svg>
+                                </button>
+                                <span x-show="copiedSlug" x-cloak class="text-[10px] text-emerald-500 font-sans font-normal">Copied!</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Storage Provider -->
+                    <div class="px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-[#0b0f1a] border border-slate-200/80 dark:border-[#1a2338] flex items-center space-x-3">
+                        <svg class="w-4 h-4 text-emerald-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"/>
+                        </svg>
+                        <div>
+                            <span class="block text-[10px] uppercase font-bold text-slate-400 dark:text-zinc-500">Storage Provider</span>
+                            <span class="text-xs font-semibold text-emerald-600 dark:text-emerald-400">{{ workspace.storage_provider }}</span>
+                        </div>
+                    </div>
+
+                    <!-- Security Mode -->
+                    <div class="px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-[#0b0f1a] border border-slate-200/80 dark:border-[#1a2338] flex items-center space-x-3">
+                        <svg class="w-4 h-4 text-blue-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                        </svg>
+                        <div>
+                            <span class="block text-[10px] uppercase font-bold text-slate-400 dark:text-zinc-500">Security Mode</span>
+                            <span class="text-xs font-semibold text-blue-600 dark:text-blue-400">{{ workspace.security_mode }}</span>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Smaller Right Column: Workspace Navigation (4 cols) -->
         <div class="lg:col-span-4 space-y-6">
-            <div class="aether-card p-5 space-y-3 text-xs">
-                <h3 class="font-bold text-slate-900 dark:text-zinc-100 text-xs uppercase tracking-wider text-slate-400">
-                    Workspace Navigation
-                </h3>
-                <div class="space-y-1 pt-1">
-                    <a href="{% url 'workspaces:workspace_dashboard' slug=workspace.slug %}" class="flex items-center justify-between p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800/60 text-slate-700 dark:text-zinc-300 font-medium transition-colors">
-                        <span>Workspace Dashboard</span>
-                        <span>&rarr;</span>
+            <div class="rounded-2xl p-5 bg-white dark:bg-[#0c101d] border border-slate-200/80 dark:border-[#1a2338] shadow-xs space-y-3">
+                <div class="border-b border-slate-100 dark:border-[#1a2337] pb-3">
+                    <h3 class="font-bold text-slate-400 dark:text-zinc-400 text-xs uppercase tracking-wider">
+                        Workspace Navigation
+                    </h3>
+                </div>
+
+                <div class="space-y-1">
+                    <!-- Workspace Dashboard -->
+                    <a href="{% url 'workspaces:workspace_dashboard' slug=workspace.slug %}" 
+                       class="group flex items-center justify-between px-3 py-2 rounded-lg text-slate-700 dark:text-zinc-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-[#141b2e] transition text-xs font-medium">
+                        <div class="flex items-center space-x-2.5">
+                            <svg class="w-4 h-4 text-slate-400 dark:text-zinc-400 group-hover:text-blue-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+                            </svg>
+                            <span>Workspace Dashboard</span>
+                        </div>
+                        <svg class="w-3.5 h-3.5 text-slate-400 dark:text-zinc-500 group-hover:text-blue-500 group-hover:translate-x-0.5 transition-all" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/>
+                        </svg>
                     </a>
-                    <a href="{% url 'tasks:sprint_planning' slug=workspace.slug %}" class="flex items-center justify-between p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800/60 text-slate-700 dark:text-zinc-300 font-medium transition-colors text-blue-600 dark:text-blue-400">
-                        <span class="font-bold">Agile Sprint Planning</span>
-                        <span>&rarr;</span>
+
+                    <!-- Agile Sprint Planning -->
+                    <a href="{% url 'tasks:sprint_planning' slug=workspace.slug %}" 
+                       class="group flex items-center justify-between px-3 py-2 rounded-lg text-slate-700 dark:text-zinc-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-[#141b2e] transition text-xs font-medium">
+                        <div class="flex items-center space-x-2.5">
+                            <svg class="w-4 h-4 text-slate-400 dark:text-zinc-400 group-hover:text-blue-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                            </svg>
+                            <span>Agile Sprint Planning</span>
+                        </div>
+                        <svg class="w-3.5 h-3.5 text-slate-400 dark:text-zinc-500 group-hover:text-blue-500 group-hover:translate-x-0.5 transition-all" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/>
+                        </svg>
                     </a>
-                    <a href="{% url 'tasks:task_list' slug=workspace.slug %}" class="flex items-center justify-between p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800/60 text-slate-700 dark:text-zinc-300 font-medium transition-colors">
-                        <span>Task List</span>
-                        <span>&rarr;</span>
+
+                    <!-- Task List -->
+                    <a href="{% url 'tasks:task_list' slug=workspace.slug %}" 
+                       class="group flex items-center justify-between px-3 py-2 rounded-lg text-slate-700 dark:text-zinc-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-[#141b2e] transition text-xs font-medium">
+                        <div class="flex items-center space-x-2.5">
+                            <svg class="w-4 h-4 text-slate-400 dark:text-zinc-400 group-hover:text-blue-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+                            </svg>
+                            <span>Task List</span>
+                        </div>
+                        <svg class="w-3.5 h-3.5 text-slate-400 dark:text-zinc-500 group-hover:text-blue-500 group-hover:translate-x-0.5 transition-all" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/>
+                        </svg>
                     </a>
-                    <a href="{% url 'tasks:task_board' slug=workspace.slug %}" class="flex items-center justify-between p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800/60 text-slate-700 dark:text-zinc-300 font-medium transition-colors">
-                        <span>Kanban Board</span>
-                        <span>&rarr;</span>
+
+                    <!-- Kanban Board -->
+                    <a href="{% url 'tasks:task_board' slug=workspace.slug %}" 
+                       class="group flex items-center justify-between px-3 py-2 rounded-lg text-slate-700 dark:text-zinc-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-[#141b2e] transition text-xs font-medium">
+                        <div class="flex items-center space-x-2.5">
+                            <svg class="w-4 h-4 text-slate-400 dark:text-zinc-400 group-hover:text-blue-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"/>
+                            </svg>
+                            <span>Kanban Board</span>
+                        </div>
+                        <svg class="w-3.5 h-3.5 text-slate-400 dark:text-zinc-500 group-hover:text-blue-500 group-hover:translate-x-0.5 transition-all" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/>
+                        </svg>
                     </a>
-                    <a href="{% url 'workspaces:team' slug=workspace.slug %}" class="flex items-center justify-between p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800/60 text-slate-700 dark:text-zinc-300 font-medium transition-colors">
-                        <span>Team Directory</span>
-                        <span>&rarr;</span>
+
+                    <!-- Bug Tracking -->
+                    <a href="{% url 'bugs:bug_list' slug=workspace.slug %}" 
+                       class="group flex items-center justify-between px-3 py-2 rounded-lg text-slate-700 dark:text-zinc-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-[#141b2e] transition text-xs font-medium">
+                        <div class="flex items-center space-x-2.5">
+                            <svg class="w-4 h-4 text-slate-400 dark:text-zinc-400 group-hover:text-blue-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                            </svg>
+                            <span>Bug Tracking</span>
+                        </div>
+                        <svg class="w-3.5 h-3.5 text-slate-400 dark:text-zinc-500 group-hover:text-blue-500 group-hover:translate-x-0.5 transition-all" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/>
+                        </svg>
                     </a>
-                    <a href="{% url 'workspaces:workspace_chat' slug=workspace.slug %}" class="flex items-center justify-between p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800/60 text-slate-700 dark:text-zinc-300 font-medium transition-colors">
-                        <span>Team Chat Hub</span>
-                        <span>&rarr;</span>
+
+                    <!-- Team Directory -->
+                    <a href="{% url 'workspaces:team' slug=workspace.slug %}" 
+                       class="group flex items-center justify-between px-3 py-2 rounded-lg text-slate-700 dark:text-zinc-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-[#141b2e] transition text-xs font-medium">
+                        <div class="flex items-center space-x-2.5">
+                            <svg class="w-4 h-4 text-slate-400 dark:text-zinc-400 group-hover:text-blue-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
+                            </svg>
+                            <span>Team Directory</span>
+                        </div>
+                        <svg class="w-3.5 h-3.5 text-slate-400 dark:text-zinc-500 group-hover:text-blue-500 group-hover:translate-x-0.5 transition-all" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/>
+                        </svg>
                     </a>
+
+                    <!-- Team Chat Hub -->
+                    <a href="{% url 'workspaces:workspace_chat' slug=workspace.slug %}" 
+                       class="group flex items-center justify-between px-3 py-2 rounded-lg text-slate-700 dark:text-zinc-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-[#141b2e] transition text-xs font-medium">
+                        <div class="flex items-center space-x-2.5">
+                            <svg class="w-4 h-4 text-slate-400 dark:text-zinc-400 group-hover:text-blue-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+                            </svg>
+                            <span>Team Chat Hub</span>
+                        </div>
+                        <svg class="w-3.5 h-3.5 text-slate-400 dark:text-zinc-500 group-hover:text-blue-500 group-hover:translate-x-0.5 transition-all" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/>
+                        </svg>
+                    </a>
+
+                    <!-- Workspace Settings -->
                     {% if membership.can_manage_workspace %}
-                        <a href="{% url 'workspaces:settings' slug=workspace.slug %}" class="flex items-center justify-between p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800/60 text-slate-700 dark:text-zinc-300 font-medium transition-colors">
+                    <a href="{% url 'workspaces:settings' slug=workspace.slug %}" 
+                       class="group flex items-center justify-between px-3 py-2 rounded-lg text-slate-700 dark:text-zinc-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-[#141b2e] transition text-xs font-medium">
+                        <div class="flex items-center space-x-2.5">
+                            <svg class="w-4 h-4 text-slate-400 dark:text-zinc-400 group-hover:text-blue-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                            </svg>
                             <span>Workspace Settings</span>
-                            <span>&rarr;</span>
-                        </a>
+                        </div>
+                        <svg class="w-3.5 h-3.5 text-slate-400 dark:text-zinc-500 group-hover:text-blue-500 group-hover:translate-x-0.5 transition-all" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/>
+                        </svg>
+                    </a>
                     {% endif %}
                 </div>
             </div>
@@ -221,15 +456,17 @@
 
     </div>
 
-    <!-- Edit Project Details Modal (Admins & Managers) -->
+    <!-- SECTION D: Edit Project Details Modal (Admins & Managers) -->
     {% if can_edit %}
     <div x-show="editModalOpen" 
          x-cloak 
          class="fixed inset-0 z-50 overflow-y-auto" 
          aria-labelledby="modal-title" 
          role="dialog" 
-         aria-modal="true">
+         aria-modal="true"
+         @keydown.escape.window="editModalOpen = false">
         <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <!-- Modal Backdrop -->
             <div x-show="editModalOpen" 
                  x-transition:enter="ease-out duration-200" 
                  x-transition:enter-start="opacity-0" 
@@ -237,11 +474,12 @@
                  x-transition:leave="ease-in duration-150" 
                  x-transition:leave-start="opacity-100" 
                  x-transition:leave-end="opacity-0" 
-                 class="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity" 
+                 class="fixed inset-0 bg-black/75 backdrop-blur-xs transition-opacity" 
                  @click="editModalOpen = false"></div>
 
             <span class="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
 
+            <!-- Modal Dialog -->
             <div x-show="editModalOpen" 
                  x-transition:enter="ease-out duration-200" 
                  x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95" 
@@ -249,20 +487,22 @@
                  x-transition:leave="ease-in duration-150" 
                  x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100" 
                  x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95" 
-                 class="inline-block align-bottom bg-white dark:bg-zinc-900 rounded-2xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full border border-slate-200 dark:border-zinc-800">
+                 class="inline-block align-bottom bg-white dark:bg-[#0c101d] rounded-2xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full border border-slate-200 dark:border-[#1a2338]">
                 
                 <form method="POST" action="{% url 'workspaces:project_details' slug=workspace.slug %}">
                     {% csrf_token %}
-                    <div class="px-6 py-5 border-b border-slate-100 dark:border-zinc-800 flex items-center justify-between">
+                    <div class="px-6 py-5 border-b border-slate-100 dark:border-[#1a2337] flex items-center justify-between">
                         <div>
-                            <h3 class="text-base font-bold text-slate-900 dark:text-zinc-100">
+                            <h3 class="text-base font-bold text-slate-900 dark:text-white" id="modal-title">
                                 Edit Project Details
                             </h3>
                             <p class="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
                                 Update workspace scope, architecture overview, and technology stack.
                             </p>
                         </div>
-                        <button type="button" @click="editModalOpen = false" class="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200">
+                        <button type="button" 
+                                @click="editModalOpen = false" 
+                                class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-[#141b2e] transition">
                             <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                             </svg>
@@ -271,7 +511,7 @@
 
                     <div class="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
                         <!-- Project Name -->
-                        <div class="space-y-1">
+                        <div class="space-y-1.5">
                             <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">
                                 Project / Workspace Name <span class="text-rose-500">*</span>
                             </label>
@@ -279,23 +519,23 @@
                                    name="name" 
                                    required 
                                    value="{{ workspace.name }}" 
-                                   class="w-full px-3.5 py-2 text-xs bg-slate-50 dark:bg-zinc-900/60 border border-slate-200 dark:border-zinc-800 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-hidden text-slate-900 dark:text-zinc-100">
+                                   class="w-full px-3.5 py-2 text-xs bg-slate-50 dark:bg-[#0a0e19] border border-slate-200 dark:border-[#1e2942] rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-hidden text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500">
                         </div>
 
                         <!-- Tagline / Short Description -->
-                        <div class="space-y-1">
+                        <div class="space-y-1.5">
                             <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">
                                 Tagline / Short Description
                             </label>
                             <input type="text" 
                                    name="description" 
                                    value="{{ workspace.description }}" 
-                                   placeholder="Primary Workspace for agile team development"
-                                   class="w-full px-3.5 py-2 text-xs bg-slate-50 dark:bg-zinc-900/60 border border-slate-200 dark:border-zinc-800 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-hidden text-slate-900 dark:text-zinc-100">
+                                   placeholder="Primary workspace for agile team development"
+                                   class="w-full px-3.5 py-2 text-xs bg-slate-50 dark:bg-[#0a0e19] border border-slate-200 dark:border-[#1e2942] rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-hidden text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500">
                         </div>
 
                         <!-- Tech Stack Tags -->
-                        <div class="space-y-1">
+                        <div class="space-y-1.5">
                             <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">
                                 Tech Stack Badges (Comma-separated)
                             </label>
@@ -303,35 +543,35 @@
                                    name="tech_stack" 
                                    value="{{ workspace.tech_stack }}" 
                                    placeholder="Python 3.12, Django 5.x, PostgreSQL, Supabase Storage, Tailwind CSS, Alpine.js, WebRTC"
-                                   class="w-full px-3.5 py-2 text-xs bg-slate-50 dark:bg-zinc-900/60 border border-slate-200 dark:border-zinc-800 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-hidden text-slate-900 dark:text-zinc-100">
+                                   class="w-full px-3.5 py-2 text-xs bg-slate-50 dark:bg-[#0a0e19] border border-slate-200 dark:border-[#1e2942] rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-hidden text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500">
                             <p class="text-[11px] text-slate-400 dark:text-zinc-500">Separated by commas to generate individual tech badges.</p>
                         </div>
 
                         <!-- Project Scope -->
-                        <div class="space-y-1">
+                        <div class="space-y-1.5">
                             <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">
                                 Project Scope
                             </label>
                             <textarea name="project_scope" 
                                       rows="3" 
                                       placeholder="Describe the overall scope, deliverables, and targets for this initiative..." 
-                                      class="w-full px-3.5 py-2 text-xs bg-slate-50 dark:bg-zinc-900/60 border border-slate-200 dark:border-zinc-800 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-hidden text-slate-900 dark:text-zinc-100">{{ workspace.project_scope }}</textarea>
+                                      class="w-full px-3.5 py-2 text-xs bg-slate-50 dark:bg-[#0a0e19] border border-slate-200 dark:border-[#1e2942] rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-hidden text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500">{{ workspace.project_scope }}</textarea>
                         </div>
 
                         <!-- Architecture Notes -->
-                        <div class="space-y-1">
+                        <div class="space-y-1.5">
                             <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">
-                                Architecture & Engineering Notes
+                                Architecture &amp; Engineering Notes
                             </label>
                             <textarea name="architecture_notes" 
                                       rows="3" 
                                       placeholder="Data isolation, role security, deployment target, infrastructure boundaries..." 
-                                      class="w-full px-3.5 py-2 text-xs bg-slate-50 dark:bg-zinc-900/60 border border-slate-200 dark:border-zinc-800 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-hidden text-slate-900 dark:text-zinc-100">{{ workspace.architecture_notes }}</textarea>
+                                      class="w-full px-3.5 py-2 text-xs bg-slate-50 dark:bg-[#0a0e19] border border-slate-200 dark:border-[#1e2942] rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-hidden text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500">{{ workspace.architecture_notes }}</textarea>
                         </div>
 
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
                             <!-- Storage Provider -->
-                            <div class="space-y-1">
+                            <div class="space-y-1.5">
                                 <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">
                                     Storage Provider
                                 </label>
@@ -339,11 +579,11 @@
                                        name="storage_provider" 
                                        value="{{ workspace.storage_provider }}" 
                                        placeholder="Supabase Storage"
-                                       class="w-full px-3.5 py-2 text-xs bg-slate-50 dark:bg-zinc-900/60 border border-slate-200 dark:border-zinc-800 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-hidden text-slate-900 dark:text-zinc-100">
+                                       class="w-full px-3.5 py-2 text-xs bg-slate-50 dark:bg-[#0a0e19] border border-slate-200 dark:border-[#1e2942] rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-hidden text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500">
                             </div>
 
                             <!-- Security Mode -->
-                            <div class="space-y-1">
+                            <div class="space-y-1.5">
                                 <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">
                                     Security Mode
                                 </label>
@@ -351,19 +591,19 @@
                                        name="security_mode" 
                                        value="{{ workspace.security_mode }}" 
                                        placeholder="Strict RBAC"
-                                       class="w-full px-3.5 py-2 text-xs bg-slate-50 dark:bg-zinc-900/60 border border-slate-200 dark:border-zinc-800 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-hidden text-slate-900 dark:text-zinc-100">
+                                       class="w-full px-3.5 py-2 text-xs bg-slate-50 dark:bg-[#0a0e19] border border-slate-200 dark:border-[#1e2942] rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-hidden text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500">
                             </div>
                         </div>
                     </div>
 
-                    <div class="px-6 py-4 bg-slate-50 dark:bg-zinc-900/60 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-end space-x-2.5">
+                    <div class="px-6 py-4 bg-slate-50/70 dark:bg-[#090d16] border-t border-slate-100 dark:border-[#1a2337] flex items-center justify-end space-x-2.5">
                         <button type="button" 
                                 @click="editModalOpen = false" 
-                                class="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-800 rounded-xl transition">
+                                class="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-[#141b2e] rounded-xl transition">
                             Cancel
                         </button>
                         <button type="submit" 
-                                class="aether-button-primary text-xs px-5 py-2 font-bold shadow-md shadow-blue-500/20">
+                                class="px-5 py-2 text-xs font-bold rounded-xl bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-600/25 active:scale-95 transition-all">
                             Save Changes
                         </button>
                     </div>
@@ -375,4 +615,3 @@
 
 </div>
 {% endblock %}
-

@@ -29,9 +29,7 @@
                     </svg>
                     <span>Channels</span>
                 </button>
-                <span class="text-lg font-bold text-slate-400 dark:text-zinc-500">
-                    {% if channel.is_private %}🔒{% else %}#{% endif %}
-                </span>
+                {% include 'components/identity_badge.html' with entity=channel size='w-7 h-7' radius='rounded-lg' text_size='text-xs' is_channel=True %}
                 <div class="min-w-0 relative">
                     <button type="button" 
                             @click="spaceMenuOpen = !spaceMenuOpen" 
@@ -209,14 +207,37 @@
 
             <!-- Existing Server-Rendered Messages -->
             {% for msg in chat_messages %}
-                <div class="flex items-start space-x-3 group relative p-2 -mx-2 rounded-xl hover:bg-slate-50 dark:hover:bg-zinc-800/40 transition-colors" id="msg-{{ msg.id }}">
-                    <!-- Avatar with Hover Card -->
-                    <div class="shrink-0">
-                        {% include 'components/people_hover_card.html' with target_user=msg.sender workspace_slug=workspace.slug show_name=False avatar_size='w-8 h-8' %}
+                {% ifchanged msg.created_at.date %}
+                    <div class="flex items-center my-4 select-none">
+                        <div class="flex-grow border-t border-slate-200 dark:border-zinc-800"></div>
+                        <span class="px-3 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500 bg-slate-100 dark:bg-zinc-800/80 rounded-full mx-2">
+                            {% if msg.created_at.date == today_date %}
+                                Today
+                            {% elif msg.created_at.date == yesterday_date %}
+                                Yesterday
+                            {% else %}
+                                {{ msg.created_at|date:"M d, Y" }}
+                            {% endif %}
+                        </span>
+                        <div class="flex-grow border-t border-slate-200 dark:border-zinc-800"></div>
+                    </div>
+                {% endifchanged %}
+
+                <div class="flex items-start space-x-3 group relative p-1.5 -mx-2 rounded-xl hover:bg-slate-50 dark:hover:bg-zinc-800/40 transition-colors {% if msg.is_consecutive %}mt-0.5 pt-0.5{% else %}mt-3{% endif %}" id="msg-{{ msg.id }}">
+                    <!-- Avatar with Hover Card (or hover timestamp when consecutive) -->
+                    <div class="shrink-0 w-8 flex justify-center">
+                        {% if not msg.is_consecutive %}
+                            {% include 'components/people_hover_card.html' with target_user=msg.sender workspace_slug=workspace.slug show_name=False avatar_size='w-8 h-8' %}
+                        {% else %}
+                            <span class="hidden group-hover:inline-block text-[9px] font-mono text-slate-400 dark:text-zinc-500 pt-1 text-center select-none">
+                                {{ msg.created_at|date:"g:i" }}
+                            </span>
+                        {% endif %}
                     </div>
 
                     <!-- Body -->
                     <div class="flex-1 min-w-0">
+                        {% if not msg.is_consecutive %}
                         <div class="flex items-baseline space-x-2">
                             {% include 'components/people_hover_card.html' with target_user=msg.sender workspace_slug=workspace.slug show_name=True avatar_size='hidden' %}
                             <span class="text-[10px] text-slate-400 dark:text-zinc-500">
@@ -228,6 +249,7 @@
                                 </span>
                             {% endif %}
                         </div>
+                        {% endif %}
 
                         <!-- Content text or Call Card (Google Chat style) -->
                         {% if msg.content|is_call_invite %}
@@ -287,7 +309,7 @@
                             {% endif %}
                             {% endwith %}
                         {% else %}
-                            <div class="text-xs text-slate-800 dark:text-zinc-200 mt-1 whitespace-pre-line break-words leading-relaxed font-normal">
+                            <div class="aether-message-content text-xs text-slate-800 dark:text-zinc-200 mt-1 whitespace-pre-line break-words leading-relaxed font-normal">
                                 {{ msg.content|render_rich_text }}
                             </div>
                         {% endif %}
@@ -399,7 +421,7 @@
                             </div>
                         </template>
                         <template x-if="!item.content || !item.content.startsWith('CALL_INVITE:')">
-                            <div class="text-xs text-slate-800 dark:text-zinc-200 mt-1 whitespace-pre-line break-words leading-relaxed font-normal" x-html="formatMessageContent(item.content)"></div>
+                            <div class="aether-message-content text-xs text-slate-800 dark:text-zinc-200 mt-1 whitespace-pre-line break-words leading-relaxed font-normal" x-html="item.rendered_content || formatMessageContent(item.content)"></div>
                         </template>
                         <!-- Live Reactions Container -->
                         <div class="flex items-center flex-wrap gap-1.5 mt-2" :id="'reactions-' + item.id"></div>
@@ -439,7 +461,7 @@
         </div>
 
         <!-- 3. Message Input Footer matching Panel 2 -->
-        <div class="p-4 border-t border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] relative">
+        <div class="p-4 border-t border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c1322] relative z-20">
             {% if can_post %}
                 <!-- Mention Autocomplete Popup Dropdown -->
                 <div x-show="showMentions" @click.outside="showMentions = false" style="display: none;"
@@ -533,63 +555,245 @@
                         </template>
                     </div>
 
-                    <div class="rounded-2xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900 overflow-hidden focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20 transition-all">
+                    <div class="rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20 transition-all shadow-xs">
                         <!-- Format Options Toolbar (.comment-toolbar) -->
-                        <div class="comment-toolbar px-2.5 py-1.5 flex items-center flex-wrap gap-1 text-xs select-none">
-                            <button type="button" @click="applyFormat('bold')" class="px-2 py-0.5 rounded font-bold transition" title="Bold (Ctrl+B)">B</button>
-                            <button type="button" @click="applyFormat('italic')" class="px-2 py-0.5 rounded italic font-serif transition" title="Italic (Ctrl+I)">I</button>
-                            <button type="button" @click="applyFormat('strike')" class="px-2 py-0.5 rounded line-through transition" title="Strikethrough (~~text~~)">S</button>
-                            <span class="opacity-30 select-none text-xs">|</span>
-                            <button type="button" @click="applyFormat('code')" class="px-2 py-0.5 rounded text-[11px] font-mono transition" title="Inline Code (`code`)">&lt;/&gt;</button>
-                            <button type="button" @click="applyFormat('codeblock')" class="px-2 py-0.5 rounded font-mono transition" title="Code Block (```)">&lbrace; &rbrace;</button>
-                            <button type="button" @click="applyFormat('quote')" class="px-2 py-0.5 rounded font-serif transition" title="Quote (> text)">&ldquo;</button>
-                            <span class="opacity-30 select-none text-xs">|</span>
-                            <button type="button" @click="applyFormat('bullet')" class="px-2 py-0.5 rounded transition" title="Bullet List (- item)">&bull; List</button>
-                            <button type="button" @click="applyFormat('number')" class="px-2 py-0.5 rounded transition" title="Numbered List (1. item)">1. List</button>
-                            <button type="button" @click="applyFormat('link')" class="px-2 py-0.5 rounded transition" title="Link (Ctrl+K)">🔗</button>
-                            <button type="button" @click="applyFormat('mention')" class="ml-auto px-2 py-0.5 rounded-lg bg-blue-500/15 hover:bg-blue-500/25 text-blue-600 dark:text-blue-400 font-bold transition flex items-center space-x-1" title="Mention teammate (@)">
-                                <span>@ Mention</span>
+                        <div class="comment-toolbar rounded-t-2xl px-3 py-1.5 flex items-center gap-1 text-xs select-none border-b border-slate-200/60 dark:border-zinc-800/80 bg-slate-50/50 dark:bg-zinc-900/50">
+                            <!-- Bold -->
+                            <button type="button" 
+                                    @mousedown.prevent="" 
+                                    @click="format('bold')" 
+                                    :class="activeFormatting.bold ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-300 ring-1 ring-blue-400/40' : 'text-slate-600 dark:text-zinc-400 hover:bg-slate-200/60 dark:hover:bg-zinc-800'"
+                                    class="w-7 h-7 rounded-lg font-bold flex items-center justify-center transition" 
+                                    title="Bold (Ctrl+B)">B</button>
+                            <!-- Italic -->
+                            <button type="button" 
+                                    @mousedown.prevent="" 
+                                    @click="format('italic')" 
+                                    :class="activeFormatting.italic ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-300 ring-1 ring-blue-400/40' : 'text-slate-600 dark:text-zinc-400 hover:bg-slate-200/60 dark:hover:bg-zinc-800'"
+                                    class="w-7 h-7 rounded-lg italic font-serif flex items-center justify-center transition" 
+                                    title="Italic (Ctrl+I)">I</button>
+                            <!-- Strikethrough -->
+                            <button type="button" 
+                                    @mousedown.prevent="" 
+                                    @click="format('strike')" 
+                                    :class="activeFormatting.strike ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-300 ring-1 ring-blue-400/40' : 'text-slate-600 dark:text-zinc-400 hover:bg-slate-200/60 dark:hover:bg-zinc-800'"
+                                    class="w-7 h-7 rounded-lg line-through flex items-center justify-center transition" 
+                                    title="Strikethrough">S</button>
+                            
+                            <span class="h-4 w-px bg-slate-200 dark:bg-zinc-800 mx-1"></span>
+
+                            <!-- Bullet List -->
+                            <button type="button" 
+                                    @mousedown.prevent="" 
+                                    @click="format('bullet')" 
+                                    :class="activeFormatting.bullet ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-300 ring-1 ring-blue-400/40' : 'text-slate-600 dark:text-zinc-400 hover:bg-slate-200/60 dark:hover:bg-zinc-800'"
+                                    class="w-7 h-7 rounded-lg flex items-center justify-center transition text-xs" 
+                                    title="Bulleted List">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16M2 6h.01M2 12h.01M2 18h.01"/></svg>
+                            </button>
+                            <!-- Numbered List -->
+                            <button type="button" 
+                                    @mousedown.prevent="" 
+                                    @click="format('number')" 
+                                    :class="activeFormatting.number ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-300 ring-1 ring-blue-400/40' : 'text-slate-600 dark:text-zinc-400 hover:bg-slate-200/60 dark:hover:bg-zinc-800'"
+                                    class="w-7 h-7 rounded-lg flex items-center justify-center transition text-xs font-semibold" 
+                                    title="Numbered List">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 6h13M7 12h13M7 18h13M3 6h.01M3 12h.01M3 18h.01"/>
+                                </svg>
+                            </button>
+
+                            <span class="h-4 w-px bg-slate-200 dark:bg-zinc-800 mx-1"></span>
+
+                            <!-- Hyperlink -->
+                            <button type="button" 
+                                    @mousedown.prevent="" 
+                                    @click="openLinkModal()" 
+                                    :class="activeFormatting.link ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-300 ring-1 ring-blue-400/40' : 'text-slate-600 dark:text-zinc-400 hover:bg-slate-200/60 dark:hover:bg-zinc-800'"
+                                    class="w-7 h-7 rounded-lg flex items-center justify-center transition" 
+                                    title="Insert Link (Ctrl+K)">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+                            </button>
+
+                            <!-- Inline Code -->
+                            <button type="button" 
+                                    @mousedown.prevent="" 
+                                    @click="format('code')" 
+                                    :class="activeFormatting.code ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-300 ring-1 ring-blue-400/40' : 'text-slate-600 dark:text-zinc-400 hover:bg-slate-200/60 dark:hover:bg-zinc-800'"
+                                    class="w-7 h-7 rounded-lg flex items-center justify-center font-mono text-[11px] transition" 
+                                    title="Inline Code">&lt;/&gt;</button>
+
+                            <!-- Code Block -->
+                            <button type="button" 
+                                    @mousedown.prevent="" 
+                                    @click="format('codeblock')" 
+                                    :class="activeFormatting.codeblock ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-300 ring-1 ring-blue-400/40' : 'text-slate-600 dark:text-zinc-400 hover:bg-slate-200/60 dark:hover:bg-zinc-800'"
+                                    class="w-7 h-7 rounded-lg flex items-center justify-center font-mono text-xs transition" 
+                                    title="Code Block">&lbrace;&rbrace;</button>
+
+                            <!-- Blockquote -->
+                            <button type="button" 
+                                    @mousedown.prevent="" 
+                                    @click="format('quote')" 
+                                    :class="activeFormatting.quote ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-300 ring-1 ring-blue-400/40' : 'text-slate-600 dark:text-zinc-400 hover:bg-slate-200/60 dark:hover:bg-zinc-800'"
+                                    class="w-7 h-7 rounded-lg flex items-center justify-center font-serif text-sm transition" 
+                                    title="Quote">&ldquo;</button>
+
+                            <span class="h-4 w-px bg-slate-200 dark:bg-zinc-800 mx-1"></span>
+
+                            <!-- Mention Button -->
+                            <button type="button" 
+                                    @mousedown.prevent="" 
+                                    @click="showMentions = true; searchMentions('');" 
+                                    class="w-7 h-7 rounded-lg text-slate-600 dark:text-zinc-400 hover:bg-slate-200/60 dark:hover:bg-zinc-800 font-bold flex items-center justify-center transition text-xs" 
+                                    title="Mention teammate (@)">@</button>
+
+                            <!-- Spacer -->
+                            <div class="flex-1"></div>
+
+                            <!-- Undo -->
+                            <button type="button" 
+                                    @mousedown.prevent="" 
+                                    @click="format('undo')" 
+                                    class="w-7 h-7 rounded-lg text-slate-500 hover:text-slate-700 dark:hover:text-zinc-200 hover:bg-slate-200/60 dark:hover:bg-zinc-800 flex items-center justify-center transition" 
+                                    title="Undo (Ctrl+Z)">
+                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>
+                            </button>
+
+                            <!-- Redo -->
+                            <button type="button" 
+                                    @mousedown.prevent="" 
+                                    @click="format('redo')" 
+                                    class="w-7 h-7 rounded-lg text-slate-500 hover:text-slate-700 dark:hover:text-zinc-200 hover:bg-slate-200/60 dark:hover:bg-zinc-800 flex items-center justify-center transition" 
+                                    title="Redo (Ctrl+Y)">
+                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 10h-10a8 8 0 00-8 8v2M21 10l-6 6m6-6l-6-6"/></svg>
                             </button>
                         </div>
 
-                        <!-- Textarea & Send Button Row -->
-                        <div class="flex items-end space-x-2 px-3 pb-2 pt-1">
-                            <!-- File Upload Button -->
+                        <!-- Input Row: Attachment, Emoji, Vertical Line, Text Area, Send Button -->
+                        <div class="flex items-center gap-2 px-3 py-2 bg-white dark:bg-zinc-900 rounded-b-2xl">
+                            <!-- Paperclip Attachment Trigger -->
                             <label class="p-1.5 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors shrink-0" title="Attach file">
                                 <input type="file" name="files" multiple class="hidden" @change="onFilesSelected($event)" x-ref="fileInput">
-                                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
                                 </svg>
                             </label>
 
-                            <!-- Textarea Input with Native & Formatting Commands -->
-                            <textarea name="content" 
-                                      x-ref="chatInput"
-                                      x-model="messageContent" 
-                                      @input="onChatInput($event)"
-                                      @keydown.ctrl.b.prevent="applyFormat('bold')"
-                                      @keydown.meta.b.prevent="applyFormat('bold')"
-                                      @keydown.ctrl.i.prevent="applyFormat('italic')"
-                                      @keydown.meta.i.prevent="applyFormat('italic')"
-                                      @keydown.ctrl.k.prevent="applyFormat('link')"
-                                      @keydown.meta.k.prevent="applyFormat('link')"
-                                      @keydown.arrow-down.prevent="if (showMentions) navigateMentions(1)"
-                                      @keydown.arrow-up.prevent="if (showMentions) navigateMentions(-1)"
-                                      @keydown.enter="if (showMentions) { $event.preventDefault(); selectActiveMention(); } else if (!$event.shiftKey) { $event.preventDefault(); handleSendMessage($event); }"
-                                      @keydown.escape="showMentions = false"
-                                      placeholder="Message #{{ channel.name }} (Type @ to mention, Enter to send)..." 
-                                      rows="2" 
-                                      class="flex-1 bg-transparent border-0 resize-none text-xs text-slate-900 dark:text-zinc-100 focus:ring-0 placeholder:text-slate-400 max-h-36 py-1.5"></textarea>
+                            <!-- Emoji Trigger with Pop-up Dropdown -->
+                            <div class="relative shrink-0">
+                                <button type="button" 
+                                        @mousedown.prevent="" 
+                                        @click="showEmojiPicker = !showEmojiPicker" 
+                                        class="p-1.5 text-slate-400 hover:text-amber-500 dark:hover:text-amber-400 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors" 
+                                        title="Insert Emoji">
+                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                </button>
+                                
+                                <!-- Usable Categorized Emoji Picker Dropdown with Responsive Multi-Column Grid -->
+                                <div x-show="showEmojiPicker" 
+                                     @click.outside="showEmojiPicker = false" 
+                                     @keydown.escape.window="showEmojiPicker = false"
+                                     style="display: none;" 
+                                     class="aether-emoji-picker absolute left-0 bottom-full mb-2 bg-white dark:bg-[#18181b] border border-slate-200 dark:border-zinc-800 rounded-2xl p-3 animate-fadeIn">
+                                    <div class="aether-emoji-header">
+                                        <span class="text-[11px] font-bold text-slate-700 dark:text-zinc-300">Choose Emoji</span>
+                                        <div class="flex items-center space-x-1" role="tablist" aria-label="Emoji categories">
+                                            <template x-for="(cat, catIdx) in emojiCategories" :key="cat.name">
+                                                <button type="button" 
+                                                        role="tab"
+                                                        :aria-selected="activeEmojiCategory === catIdx"
+                                                        @mousedown.prevent=""
+                                                        @click="activeEmojiCategory = catIdx"
+                                                        :class="activeEmojiCategory === catIdx ? 'bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 font-semibold shadow-xs' : 'text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800'"
+                                                        class="px-2 py-0.5 rounded-lg text-xs transition focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                                                        :title="cat.name"
+                                                        :aria-label="cat.name"
+                                                        x-text="cat.icon"></button>
+                                            </template>
+                                        </div>
+                                    </div>
+                                    <div class="aether-emoji-grid" role="grid" aria-label="Emojis">
+                                        <template x-for="emo in emojiCategories[activeEmojiCategory].emojis" :key="emo">
+                                            <button type="button" 
+                                                    role="gridcell"
+                                                    @mousedown.prevent=""
+                                                    @click="insertEmoji(emo)" 
+                                                    class="aether-emoji-btn active:scale-95" 
+                                                    :title="emo"
+                                                    :aria-label="emo"
+                                                    x-text="emo"></button>
+                                        </template>
+                                    </div>
+                                </div>
+                            </div>
 
-                            <!-- Send Button -->
-                            <button type="submit" 
-                                    :disabled="!messageContent.trim() && selectedFiles.length === 0"
-                                    class="p-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed shadow-sm transition-all shrink-0"
-                                    title="Send Message">
-                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
-                                </svg>
-                            </button>
+                            <!-- Vertical Line Separator -->
+                            <span class="h-5 w-px bg-slate-200 dark:bg-zinc-800 shrink-0"></span>
+
+                            <!-- Hidden input for standard POST fallback -->
+                            <input type="hidden" name="content" x-ref="hiddenContent" :value="messageContent">
+
+                            <!-- Contenteditable Rich Text Editor Entry Area -->
+                            <div class="flex-1 min-h-[36px] max-h-48 overflow-y-auto py-1 px-1">
+                                <div contenteditable="true" 
+                                     x-ref="chatEditor"
+                                     @input="saveSelection(); onEditorInput()"
+                                     @keyup="saveSelection(); updateActiveFormatting()"
+                                     @mouseup="saveSelection(); updateActiveFormatting()"
+                                     @keydown="handleEditorKeydown($event)"
+                                     @paste="handleEditorPaste($event)"
+                                     data-placeholder="Type a message in #{{ channel.name }} (Type @ to mention, press Enter to send)..."
+                                     class="aether-chat-editor outline-none text-xs text-slate-900 dark:text-zinc-100 leading-relaxed font-normal min-h-[24px] break-words whitespace-pre-wrap"></div>
+                            </div>
+
+                            <!-- Send Button with Split Dropdown Arrow matching Screenshot -->
+                            <div class="inline-flex items-center rounded-xl bg-blue-600 text-white shadow-xs hover:bg-blue-700 transition shrink-0">
+                                <button type="submit" 
+                                        :disabled="editorIsEmpty && selectedFiles.length === 0"
+                                        class="inline-flex items-center space-x-1.5 px-3.5 py-1.5 font-semibold text-xs disabled:opacity-40 disabled:cursor-not-allowed">
+                                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+                                    </svg>
+                                    <span>Send</span>
+                                </button>
+                                <button type="button" 
+                                        class="pr-2 pl-0.5 py-1.5 hover:bg-blue-700 rounded-r-xl transition text-white/80 hover:text-white" 
+                                        title="Send Options">
+                                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Inline Link Insertion Modal Dialog -->
+                    <div x-show="showLinkModal" 
+                         @click.outside="closeLinkModal()" 
+                         style="display: none;" 
+                         class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs"
+                         @keydown.escape.window="closeLinkModal()">
+                        <div class="w-full max-w-sm bg-white dark:bg-[#0c1322] rounded-2xl border border-slate-200 dark:border-zinc-800 shadow-2xl p-5"
+                             @click.stop="">
+                            <h4 class="text-xs font-bold text-slate-900 dark:text-zinc-100 mb-3">Insert Hyperlink</h4>
+                            <div class="space-y-3">
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider mb-1">Link Text</label>
+                                    <input type="text" x-model="linkText" placeholder="Text to display" class="w-full px-3 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900 text-slate-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider mb-1">Target URL</label>
+                                    <input type="text" x-model="linkUrl" placeholder="https://example.com" class="w-full px-3 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900 text-slate-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500">
+                                </div>
+                                <div x-show="linkError" class="text-[11px] text-red-500 font-medium" x-text="linkError"></div>
+                            </div>
+                            <div class="mt-4 flex items-center justify-end space-x-2">
+                                <button type="button" @click="closeLinkModal()" class="px-3 py-1.5 text-xs font-semibold text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-xl transition">Cancel</button>
+                                <button type="button" @click="insertLink()" class="px-4 py-1.5 text-xs font-bold bg-blue-600 text-white rounded-xl hover:bg-blue-700 shadow-sm transition">Insert</button>
+                            </div>
                         </div>
                     </div>
                 </form>
@@ -897,7 +1101,12 @@
 <!-- Alpine.js WebSocket & Polling Fallback Controller -->
 <script>
 function chatChannelStream(config) {
+    const composerMixin = (window.AetherChatComposer && window.AetherChatComposer.createComposerMixin) 
+        ? window.AetherChatComposer.createComposerMixin() 
+        : {};
+
     return {
+        ...composerMixin,
         wsConnected: false,
         aboutDrawerOpen: false,
         spaceMenuOpen: false,
@@ -923,7 +1132,9 @@ function chatChannelStream(config) {
         setReply(id, author, snippet) {
             this.replyingTo = { id, author, snippet };
             this.$nextTick(() => {
-                if (this.$refs.chatInput) {
+                if (this.$refs.chatEditor) {
+                    this.$refs.chatEditor.focus();
+                } else if (this.$refs.chatInput) {
                     this.$refs.chatInput.focus();
                 }
             });
@@ -933,98 +1144,15 @@ function chatChannelStream(config) {
             this.replyingTo = null;
         },
 
-        applyFormat(type) {
-            const el = this.$refs.chatInput;
-            if (!el) return;
-            const start = el.selectionStart || 0;
-            const end = el.selectionEnd || 0;
-            const val = this.messageContent || '';
-            const selected = val.substring(start, end);
-            let before = val.substring(0, start);
-            let after = val.substring(end);
-            let replacement = '';
-            let newCursor = start;
-
-            switch(type) {
-                case 'bold':
-                    replacement = `**${selected || 'bold text'}**`;
-                    newCursor = selected ? start + replacement.length : start + 2;
-                    break;
-                case 'italic':
-                    replacement = `*${selected || 'italic text'}*`;
-                    newCursor = selected ? start + replacement.length : start + 1;
-                    break;
-                case 'strike':
-                    replacement = `~~${selected || 'strikethrough'}~~`;
-                    newCursor = selected ? start + replacement.length : start + 2;
-                    break;
-                case 'code':
-                    replacement = `\`${selected || 'code'}\``;
-                    newCursor = selected ? start + replacement.length : start + 1;
-                    break;
-                case 'codeblock':
-                    replacement = `\n\`\`\`\n${selected || 'code block'}\n\`\`\`\n`;
-                    newCursor = selected ? start + replacement.length : start + 5;
-                    break;
-                case 'quote':
-                    replacement = `\n> ${selected || 'quote'}\n`;
-                    newCursor = selected ? start + replacement.length : start + 3;
-                    break;
-                case 'bullet':
-                    replacement = `\n- ${selected || 'list item'}\n`;
-                    newCursor = selected ? start + replacement.length : start + 3;
-                    break;
-                case 'number':
-                    replacement = `\n1. ${selected || 'list item'}\n`;
-                    newCursor = selected ? start + replacement.length : start + 4;
-                    break;
-                case 'link':
-                    replacement = selected ? `[${selected}](https://)` : `[link text](https://)`;
-                    newCursor = selected ? start + replacement.length - 1 : start + 1;
-                    break;
-                case 'mention':
-                    replacement = '@';
-                    newCursor = start + 1;
-                    this.messageContent = before + replacement + after;
-                    this.$nextTick(() => {
-                        el.focus();
-                        el.setSelectionRange(newCursor, newCursor);
-                        this.cursorPos = newCursor;
-                        this.mentionQuery = '';
-                        this.searchMentions('');
-                    });
-                    return;
-            }
-            this.messageContent = before + replacement + after;
-            this.$nextTick(() => {
-                el.focus();
-                el.setSelectionRange(newCursor, newCursor);
-            });
-        },
-
         init() {
             this.connectWebSocket();
             this.scrollToBottom();
             window.addEventListener('load', () => this.scrollToBottom());
         },
 
-        onChatInput(e) {
-            const val = e.target.value;
-            const pos = e.target.selectionStart;
-            this.cursorPos = pos;
-            const beforeCursor = val.slice(0, pos);
-            const match = beforeCursor.match(/@([a-zA-Z0-9._-]*)$/);
-            if (match) {
-                this.mentionQuery = match[1];
-                this.searchMentions(this.mentionQuery);
-            } else {
-                this.showMentions = false;
-            }
-        },
-
         async searchMentions(q) {
             try {
-                const res = await fetch(`/workspaces/w/${config.workspaceSlug}/api/mentions/?q=${encodeURIComponent(q)}`);
+                const res = await fetch(`/workspaces/w/${config.workspaceSlug}/api/mentions/?q=${encodeURIComponent(q || '')}`);
                 if (res.ok) {
                     const data = await res.json();
                     this.people = data.people || [];
@@ -1053,27 +1181,9 @@ function chatChannelStream(config) {
         },
 
         selectMention(item) {
-            const textarea = this.$refs.chatInput;
-            const text = this.messageContent;
-            const before = text.slice(0, this.cursorPos);
-            const after = text.slice(this.cursorPos);
-            let insertText = '';
-            if (item.type === 'file') {
-                insertText = `[${item.name}](${item.url}) `;
-            } else {
-                const displayName = (item.full_name || item.name || (item.username && !item.username.includes('@') ? item.username : item.email.split('@')[0])).trim();
-                insertText = `@${displayName} `;
+            if (typeof this.insertMentionPill === 'function') {
+                this.insertMentionPill(item);
             }
-            const newBefore = before.replace(/@([a-zA-Z0-9._\s-]*)$/, insertText);
-            this.messageContent = newBefore + after;
-            this.showMentions = false;
-            this.$nextTick(() => {
-                if (textarea) {
-                    textarea.focus();
-                    const nextPos = newBefore.length;
-                    textarea.setSelectionRange(nextPos, nextPos);
-                }
-            });
         },
 
         formatMessageContent(content) {
@@ -1084,22 +1194,69 @@ function chatChannelStream(config) {
                 .replace(/>/g, '&gt;')
                 .replace(/"/g, '&quot;')
                 .replace(/'/g, '&#39;');
-            // Quotes / Replying to: lines starting with &gt;
+
+            // 1. Code blocks: protect code blocks from markdown & mention transformations
+            const codeBlocks = [];
+            esc = esc.replace(/(?:^|\n)(`{3,})([a-zA-Z0-9_-]*)\n([\s\S]*?)\n\1(?:\n|$)/g, (match, fence, lang, code) => {
+                const id = `__AETHER_CODE_BLOCK_${codeBlocks.length}__`;
+                codeBlocks.push(`<pre class="bg-slate-900 text-slate-100 p-3 rounded-xl text-xs font-mono my-2 border border-slate-800 overflow-x-auto whitespace-pre"><code>${code}</code></pre>`);
+                return `\n${id}\n`;
+            });
+
+            // 2. Inline code: protect inline code from mentions & other formatting
+            const inlineCodes = [];
+            esc = esc.replace(/(`+)([\s\S]*?)\1/g, (match, fence, code) => {
+                const id = `__AETHER_INLINE_CODE_${inlineCodes.length}__`;
+                inlineCodes.push(`<code class="px-1.5 py-0.5 rounded bg-slate-200/80 dark:bg-zinc-800 text-rose-600 dark:text-rose-400 font-mono text-[11px] border border-slate-300 dark:border-zinc-700">${code.trim()}</code>`);
+                return id;
+            });
+
+            // 3. Quotes / Replying to: lines starting with &gt;
             esc = esc.replace(/^&gt;\s*(.*?)$/gm, '<blockquote class="border-l-2 border-blue-500/60 pl-2.5 py-0.5 my-1 text-slate-500 dark:text-zinc-400 italic bg-blue-50/40 dark:bg-blue-950/30 rounded-r text-[11px]">$1</blockquote>');
-            // Bold: **text**
+
+            // 4. Bold: **text**
             esc = esc.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-            // Italic: *text*
+
+            // 5. Italic: *text*
             esc = esc.replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, '<em>$1</em>');
-            // Strike: ~~text~~
+
+            // 6. Strike: ~~text~~
             esc = esc.replace(/~~(.*?)~~/g, '<span class="line-through opacity-75">$1</span>');
-            // Inline code: `code`
-            esc = esc.replace(/`([^`]+)`/g, '<code class="px-1.5 py-0.5 rounded bg-slate-200/80 dark:bg-zinc-800 font-mono text-[11px]">$1</code>');
-            // Complex mentions: @[Full Name](ID)
-            esc = esc.replace(/@\[([^\]]+)\]\(([a-zA-Z0-9_-]+)\)/g, '<span class="aether-mention inline-flex items-center space-x-0.5 px-1.5 py-0.5 rounded-full text-xs font-semibold bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/25 hover:bg-blue-500/25 cursor-pointer transition" data-user-hover data-user-id="$2" data-user-name="$1">@$1</span>');
-            // Contributor ID mentions: @26457C
-            esc = esc.replace(/(?<![a-zA-Z0-9_])@(\d{5}[A-Za-z])\b/g, '<span class="aether-mention inline-flex items-center space-x-0.5 px-1.5 py-0.5 rounded-full text-xs font-mono font-bold bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/25 hover:bg-blue-500/25 cursor-pointer transition" data-user-hover data-contributor-id="$1" data-user-name="$1">@$1</span>');
-            // Text name mentions: @Full Name or @username
-            esc = esc.replace(/(?<![a-zA-Z0-9_])@([A-Z][a-zA-Z0-9_]*(?:\s+[A-Z][a-zA-Z0-9_]*)*|[a-zA-Z0-9_]+)\b/g, '<span class="aether-mention inline-flex items-center space-x-0.5 px-1.5 py-0.5 rounded-full text-xs font-medium bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/25 hover:bg-blue-500/25 cursor-pointer transition" data-user-hover data-user-name="$1">@$1</span>');
+
+            // 7. Links: [text](url)
+            esc = esc.replace(/\[([^\]]+)\]\(((?:https?:\/\/|mailto:)[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="aether-chat-link text-blue-600 dark:text-sky-400 underline font-medium">$1</a>');
+
+            // 8. Mentions:
+            esc = esc.replace(/@\[([^\]]+)\]\(([a-zA-Z0-9_-]+)\)/g, '<span class="aether-mention select-none" data-user-hover data-user-id="$2" data-user-name="$1">@$1</span>');
+            esc = esc.replace(/(?<![a-zA-Z0-9_])@(\d{5}[A-Za-z])\b/g, '<span class="aether-mention font-mono font-bold select-none" data-user-hover data-contributor-id="$1" data-user-name="$1">@$1</span>');
+            esc = esc.replace(/(?<![a-zA-Z0-9_])@([A-Z][a-zA-Z0-9_]*(?:\s+[A-Z][a-zA-Z0-9_]*)*|[a-zA-Z0-9_]+)\b/g, '<span class="aether-mention select-none" data-user-hover data-user-name="$1">@$1</span>');
+
+            // 9. Lists:
+            esc = esc.replace(/(?:^|\n)(?:[ \t]*[-*]\s+.*(?:\n|$))+/g, match => {
+                const lis = match.trim().split('\n').map(l => {
+                    const indent = (l.match(/^[ \t]*/) || [''])[0].length;
+                    const content = l.replace(/^[ \t]*[-*]\s+/, '');
+                    return `<li class="${indent >= 4 ? 'ml-4' : ''}">${content}</li>`;
+                }).join('');
+                return `<ul>${lis}</ul>`;
+            });
+            esc = esc.replace(/(?:^|\n)(?:[ \t]*\d+\.\s+.*(?:\n|$))+/g, match => {
+                const lis = match.trim().split('\n').map(l => {
+                    const indent = (l.match(/^[ \t]*/) || [''])[0].length;
+                    const content = l.replace(/^[ \t]*\d+\.\s+/, '');
+                    return `<li class="${indent >= 4 ? 'ml-4' : ''}">${content}</li>`;
+                }).join('');
+                return `<ol>${lis}</ol>`;
+            });
+
+            // 10. Restore code blocks and inline code
+            inlineCodes.forEach((codeHtml, idx) => {
+                esc = esc.replace(`__AETHER_INLINE_CODE_${idx}__`, () => codeHtml);
+            });
+            codeBlocks.forEach((blockHtml, idx) => {
+                esc = esc.replace(`__AETHER_CODE_BLOCK_${idx}__`, () => blockHtml);
+            });
+
             return esc;
         },
 
@@ -1135,6 +1292,7 @@ function chatChannelStream(config) {
                                 this.liveMessages[existingIdx] = {
                                     id: m.id,
                                     content: m.content,
+                                    rendered_content: m.rendered_content,
                                     sender_name: m.sender_name,
                                     sender_initial: m.sender_initial,
                                     created_at: m.created_at || 'Just now',
@@ -1144,6 +1302,7 @@ function chatChannelStream(config) {
                                 this.liveMessages.push({
                                     id: m.id || Date.now(),
                                     content: m.content,
+                                    rendered_content: m.rendered_content,
                                     sender_name: m.sender_name,
                                     sender_initial: m.sender_initial,
                                     created_at: m.created_at || 'Just now',
@@ -1237,7 +1396,13 @@ function chatChannelStream(config) {
         },
 
         handleSendMessage(e) {
-            let text = this.messageContent.trim();
+            let text = '';
+            const editor = this.$refs.chatEditor;
+            if (editor && window.AetherChatComposer) {
+                text = window.AetherChatComposer.domToMarkdown(editor).trim();
+            } else {
+                text = (this.messageContent || '').trim();
+            }
             const hasFiles = this.selectedFiles.length > 0;
 
             if (!text && !hasFiles) return;
@@ -1245,7 +1410,6 @@ function chatChannelStream(config) {
             if (this.replyingTo && text) {
                 text = `> Replying to @${this.replyingTo.author}: "${this.replyingTo.snippet.replace(/\n/g, ' ')}"\n\n` + text;
                 this.replyingTo = null;
-                this.messageContent = text;
             }
 
             const form = (e && e.target) ? (e.target.closest('form') || document.querySelector('form')) : document.querySelector('form');
@@ -1269,13 +1433,18 @@ function chatChannelStream(config) {
             this.liveMessages.push({
                 id: tempId,
                 content: text,
+                rendered_content: this.formatMessageContent(text),
                 sender_name: config.currentUserName,
                 sender_initial: config.currentUserInitial,
                 created_at: timeStr,
                 is_optimistic: true
             });
 
-            this.messageContent = '';
+            if (typeof this.clearComposer === 'function') {
+                this.clearComposer();
+            } else {
+                this.messageContent = '';
+            }
             this.scrollToBottom();
 
             try {

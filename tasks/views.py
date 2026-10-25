@@ -8,7 +8,7 @@ from django.db.models import Q, Count
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.utils import timezone
 
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import PermissionDenied, ValidationError
 
 from workspaces.permissions import workspace_member_required, can_user_perform_action
 from workspaces.models import Workspace, WorkspaceMembership, MembershipStatus, WorkspaceRole
@@ -18,11 +18,12 @@ from .models import (
     Subtask, TaskAttachment, Sprint, SprintStatus,
     CodeReviewRequest, CodeReviewStatus
 )
-from .forms import TaskForm, TaskFilterForm, CodeReviewRequestForm, TaskCommentForm, SprintForm
+from .forms import TaskForm, TaskFilterForm, CodeReviewRequestForm, WorkspaceCodeReviewRequestForm, TaskCommentForm, SprintForm
 from .services import (
     create_task, update_task, change_task_status,
     sync_subtasks, create_subtask, toggle_subtask, delete_subtask,
     create_code_review_request, update_code_review_status,
+    submit_code_review_decision,
     attach_bug_to_task, detach_bug_from_task
 )
 from files.models import StoredFile
@@ -43,7 +44,7 @@ def task_list_view(request, slug):
     membership = request.membership
 
     # Base queryset for this workspace
-    tasks_qs = Task.objects.filter(workspace=workspace).select_related('assignee', 'reporter')
+    tasks_qs = Task.objects.filter(workspace=workspace).select_related('assignee', 'reporter', 'sprint_ref')
 
     # Metrics summary for filter chips
     status_counts = {
@@ -55,12 +56,16 @@ def task_list_view(request, slug):
         'done': tasks_qs.filter(status=TaskStatus.DONE).count(),
     }
 
+    # Sprints belonging to this workspace
+    workspace_sprints = Sprint.objects.filter(workspace=workspace).order_by('-created_at')
+
     # Process filters
     filter_form = TaskFilterForm(request.GET)
     q = request.GET.get('q', '').strip()
     status_filter = request.GET.get('status', '').strip()
     priority_filter = request.GET.get('priority', '').strip()
     assignee_filter = request.GET.get('assignee', '').strip()
+    sprint_filter = request.GET.get('sprint', '').strip()
 
     if q:
         # Search task_code (allowing query with or without leading '#'), title, and description
@@ -89,6 +94,33 @@ def task_list_view(request, slug):
     if created_by_filter == 'me':
         tasks_qs = tasks_qs.filter(reporter=request.user)
 
+    if sprint_filter:
+        if sprint_filter.lower() == 'backlog':
+            workspace_sprint_names = list(workspace_sprints.values_list('name', flat=True))
+            tasks_qs = tasks_qs.filter(
+                Q(sprint_ref__isnull=True, sprint__iexact='backlog') |
+                Q(sprint_ref__isnull=True, sprint='') |
+                (Q(sprint_ref__isnull=True) & ~Q(sprint__in=workspace_sprint_names))
+            )
+        else:
+            selected_sprint = None
+            try:
+                selected_sprint = workspace_sprints.filter(id=sprint_filter).first()
+            except (ValueError, TypeError, Exception):
+                pass
+
+            if not selected_sprint:
+                selected_sprint = workspace_sprints.filter(name__iexact=sprint_filter).first()
+
+            if selected_sprint:
+                tasks_qs = tasks_qs.filter(
+                    Q(sprint_ref=selected_sprint) |
+                    (Q(sprint_ref__isnull=True) & Q(sprint__iexact=selected_sprint.name))
+                )
+            else:
+                # Scoped isolation: submitted sprint is invalid or from another workspace
+                tasks_qs = tasks_qs.none()
+
     # Pagination: 12 tasks per page
     paginator = Paginator(tasks_qs, 12)
     page_number = request.GET.get('page', 1)
@@ -110,12 +142,14 @@ def task_list_view(request, slug):
         'membership': membership,
         'tasks': tasks_page,
         'status_counts': status_counts,
+        'sprints': workspace_sprints,
         'filter_form': filter_form,
         'current_q': q,
         'current_status': status_filter,
         'current_priority': priority_filter,
         'current_assignee': assignee_filter,
         'current_created_by': created_by_filter,
+        'current_sprint': sprint_filter,
         'active_members': active_members,
         'TaskStatus': TaskStatus,
         'TaskPriority': TaskPriority,
@@ -127,13 +161,13 @@ def task_list_view(request, slug):
 @workspace_member_required
 def task_board_view(request, slug):
     """
-    Kanban Board view grouping tasks into 5 workflow stages:
-    To Do -> In Progress -> Code Review -> Testing -> Done.
+    Kanban Board view grouping tasks into 6 stages:
+    Backlog -> To Do -> In Progress -> Code Review -> Testing -> Done.
     """
     workspace = request.workspace
     membership = request.membership
 
-    tasks_qs = Task.objects.filter(workspace=workspace).select_related('assignee', 'reporter')
+    tasks_qs = Task.objects.filter(workspace=workspace).select_related('assignee', 'reporter', 'sprint_ref')
 
     # Optional quick search/assignee filter on Kanban board
     q = request.GET.get('q', '').strip()
@@ -150,37 +184,86 @@ def task_board_view(request, slug):
     elif assignee_filter and assignee_filter != 'all':
         tasks_qs = tasks_qs.filter(assignee_id=assignee_filter)
 
-    # Group into the 5 columns
+    priority_filter = request.GET.get('priority', '').strip()
+    if priority_filter:
+        tasks_qs = tasks_qs.filter(priority=priority_filter)
+
+    sprint_filter = request.GET.get('sprint', '').strip()
+    if sprint_filter:
+        if sprint_filter.lower() == 'backlog':
+            tasks_qs = tasks_qs.filter(
+                Q(sprint_ref__isnull=True, sprint__iexact='backlog') |
+                Q(sprint_ref__isnull=True, sprint='') |
+                Q(sprint_ref__isnull=True, sprint__isnull=True)
+            )
+        else:
+            tasks_qs = tasks_qs.filter(
+                Q(sprint_ref__id=sprint_filter) |
+                Q(sprint__iexact=sprint_filter)
+            )
+
+    all_tasks = list(tasks_qs)
+
+    # 1. Backlog: Tasks that are in backlog (sprint_display == 'Backlog') and status == TODO
+    backlog_tasks = [t for t in all_tasks if t.sprint_display == 'Backlog' and t.status == TaskStatus.TODO]
+
+    # 2. To Do: Tasks assigned to a sprint with status == TODO
+    todo_tasks = [t for t in all_tasks if t.status == TaskStatus.TODO and t.sprint_display != 'Backlog']
+
+    # 3. In Progress
+    in_progress_tasks = [t for t in all_tasks if t.status == TaskStatus.IN_PROGRESS]
+
+    # 4. Code Review
+    code_review_tasks = [t for t in all_tasks if t.status == TaskStatus.CODE_REVIEW]
+
+    # 5. Testing
+    testing_tasks = [t for t in all_tasks if t.status == TaskStatus.TESTING]
+
+    # 6. Done
+    done_tasks = [t for t in all_tasks if t.status == TaskStatus.DONE]
+
     columns = [
+        {
+            'status': 'BACKLOG',
+            'title': 'Backlog',
+            'color': 'slate',
+            'accent_bg': 'bg-slate-500',
+            'tasks': backlog_tasks
+        },
         {
             'status': TaskStatus.TODO,
             'title': 'To Do',
-            'color': 'slate',
-            'tasks': [t for t in tasks_qs if t.status == TaskStatus.TODO]
+            'color': 'blue',
+            'accent_bg': 'bg-blue-500',
+            'tasks': todo_tasks
         },
         {
             'status': TaskStatus.IN_PROGRESS,
             'title': 'In Progress',
-            'color': 'blue',
-            'tasks': [t for t in tasks_qs if t.status == TaskStatus.IN_PROGRESS]
+            'color': 'sky',
+            'accent_bg': 'bg-sky-500',
+            'tasks': in_progress_tasks
         },
         {
             'status': TaskStatus.CODE_REVIEW,
             'title': 'Code Review',
-            'color': 'amber',
-            'tasks': [t for t in tasks_qs if t.status == TaskStatus.CODE_REVIEW]
+            'color': 'purple',
+            'accent_bg': 'bg-purple-500',
+            'tasks': code_review_tasks
         },
         {
             'status': TaskStatus.TESTING,
             'title': 'Testing',
-            'color': 'purple',
-            'tasks': [t for t in tasks_qs if t.status == TaskStatus.TESTING]
+            'color': 'amber',
+            'accent_bg': 'bg-amber-500',
+            'tasks': testing_tasks
         },
         {
             'status': TaskStatus.DONE,
             'title': 'Done',
             'color': 'emerald',
-            'tasks': [t for t in tasks_qs if t.status == TaskStatus.DONE]
+            'accent_bg': 'bg-emerald-500',
+            'tasks': done_tasks
         },
     ]
 
@@ -189,14 +272,19 @@ def task_board_view(request, slug):
         status=MembershipStatus.ACTIVE
     ).select_related('user')
 
+    workspace_sprints = Sprint.objects.filter(workspace=workspace).order_by('-created_at')
+
     context = {
         'workspace': workspace,
         'membership': membership,
         'columns': columns,
-        'total_tasks': len(tasks_qs),
+        'total_tasks': len(all_tasks),
         'active_members': active_members,
+        'sprints': workspace_sprints,
         'current_q': q,
         'current_assignee': assignee_filter,
+        'current_priority': priority_filter,
+        'current_sprint': sprint_filter,
         'TaskStatus': TaskStatus,
         'TaskPriority': TaskPriority,
         'can_create_task': can_user_perform_action(request.user, workspace, 'task.create'),
@@ -222,6 +310,8 @@ def task_create_view(request, slug):
     if request.method == 'POST':
         form = TaskForm(request.POST, workspace=workspace)
         if form.is_valid():
+            sprint_ref = form.cleaned_data.get('sprint_ref')
+            sprint_name = form.cleaned_data.get('sprint') or (sprint_ref.name if sprint_ref else 'Backlog')
             task = create_task(
                 workspace=workspace,
                 reporter=request.user,
@@ -232,7 +322,8 @@ def task_create_view(request, slug):
                 assignee=form.cleaned_data.get('assignee'),
                 due_date=form.cleaned_data.get('due_date'),
                 estimated_hours=form.cleaned_data.get('estimated_hours'),
-                sprint=form.cleaned_data.get('sprint', 'Sprint 01'),
+                sprint=sprint_name,
+                sprint_ref=sprint_ref,
                 tags=form.cleaned_data.get('tags', '')
             )
             # Sync subtasks if submitted
@@ -286,16 +377,237 @@ def task_detail_view(request, slug, task_code):
     )
 
     activities = task.activities.select_related('actor').order_by('-created_at')
-    comments = task.comments.select_related('author', 'code_review', 'bug').order_by('created_at')
+    
+    # Comments & threaded discussions
+    all_comments = list(task.comments.select_related('author', 'code_review', 'bug').order_by('created_at'))
+    
+    # Pre-fetch membership map for comment authors so people_hover_card gets complete role info
+    comment_author_ids = {c.author_id for c in all_comments if c.author_id}
+    if comment_author_ids:
+        comment_memberships = {
+            m.user_id: m for m in WorkspaceMembership.objects.filter(
+                workspace=workspace,
+                user_id__in=comment_author_ids
+            ).select_related('user')
+        }
+        for c in all_comments:
+            if c.author_id and c.author_id in comment_memberships:
+                c.author_member = comment_memberships[c.author_id]
+                c.author_role = c.author_member.functional_role or c.author_member.get_role_display()
+            else:
+                c.author_member = None
+                c.author_role = "Member"
+    else:
+        for c in all_comments:
+            c.author_member = None
+            c.author_role = "Member"
+
+    # Pre-calculate reaction state for current user on all comments
+    current_user_id_str = str(request.user.id)
+    for c in all_comments:
+        c.has_user_reacted = current_user_id_str in c.reactions_dict.get('thumbs_up', [])
+
+    # Group into root comments and threaded replies (zero-migration)
+    comments_by_id = {str(c.id): c for c in all_comments}
+    for c in all_comments:
+        c.replies_list = []
+
+    root_comments = []
+    for c in all_comments:
+        if c.parent_id and str(c.parent_id) in comments_by_id:
+            parent = comments_by_id[str(c.parent_id)]
+            parent.replies_list.append(c)
+        else:
+            root_comments.append(c)
+
+    comments_total_count = len(all_comments)
+    comments_system_count = sum(1 for c in all_comments if c.is_system)
+    comments_user_count = sum(1 for c in all_comments if not c.is_system)
+
+    # Active workspace members for @mention dropdown helper
+    active_workspace_members = list(
+        WorkspaceMembership.objects.filter(
+            workspace=workspace,
+            status=MembershipStatus.ACTIVE
+        ).select_related('user').order_by('user__first_name', 'user__last_name')
+    )
+
+    comments = all_comments
     related_bugs = task.bugs.select_related('assignee', 'module').order_by('-created_at')
     subtasks = task.subtasks.all()
     attachments = task.attachments.select_related('file', 'file__uploaded_by').all()
-    code_reviews = task.code_reviews.select_related('requester', 'reviewer').order_by('-created_at')
+    
+    # Pre-fetch membership map for attachment uploaders so people_hover_card gets complete role info instantly
+    uploader_user_ids = {att.file.uploaded_by_id for att in attachments if att.file and att.file.uploaded_by_id}
+    if uploader_user_ids:
+        uploader_memberships = {
+            m.user_id: m for m in WorkspaceMembership.objects.filter(
+                workspace=workspace,
+                user_id__in=uploader_user_ids
+            ).select_related('user')
+        }
+        for att in attachments:
+            if att.file and att.file.uploaded_by_id in uploader_memberships:
+                mem = uploader_memberships[att.file.uploaded_by_id]
+                att.uploader_member = mem
+                att.uploader_role = mem.functional_role or mem.get_role_display()
+            else:
+                att.uploader_member = None
+                att.uploader_role = "Member"
+    else:
+        for att in attachments:
+            att.uploader_member = None
+            att.uploader_role = "Member"
+
+    code_reviews = task.code_reviews.select_related('requester', 'reviewer').annotate(
+        comment_count=Count('comments')
+    ).order_by('-updated_at')
+
+    # Pre-fetch membership map for requesters and reviewers
+    cr_user_ids = set()
+    for cr in code_reviews:
+        if cr.requester_id:
+            cr_user_ids.add(cr.requester_id)
+        if cr.reviewer_id:
+            cr_user_ids.add(cr.reviewer_id)
+
+    if cr_user_ids:
+        cr_memberships = {
+            m.user_id: m for m in WorkspaceMembership.objects.filter(
+                workspace=workspace,
+                user_id__in=cr_user_ids
+            ).select_related('user')
+        }
+        for cr in code_reviews:
+            cr.requester_member = cr_memberships.get(cr.requester_id)
+            cr.requester_role = cr.requester_member.functional_role or cr.requester_member.get_role_display() if cr.requester_member else "Member"
+            cr.reviewer_member = cr_memberships.get(cr.reviewer_id)
+            cr.reviewer_role = cr.reviewer_member.functional_role or cr.reviewer_member.get_role_display() if cr.reviewer_member else "Reviewer"
+    else:
+        for cr in code_reviews:
+            cr.requester_member = None
+            cr.requester_role = "Member"
+            cr.reviewer_member = None
+            cr.reviewer_role = "Reviewer"
+
+    cr_total_count = len(code_reviews)
+    cr_pending_count = sum(1 for cr in code_reviews if cr.status in [CodeReviewStatus.REQUESTED, CodeReviewStatus.IN_REVIEW])
+    cr_approved_count = sum(1 for cr in code_reviews if cr.status in [CodeReviewStatus.APPROVED, CodeReviewStatus.MERGED])
+    cr_changes_requested_count = sum(1 for cr in code_reviews if cr.status == CodeReviewStatus.CHANGES_REQUESTED)
+
     code_review_form = CodeReviewRequestForm(task=task, requester=request.user, workspace=workspace)
     comment_form = TaskCommentForm(task=task)
 
     from bugs.models import Bug
     available_bugs = Bug.objects.filter(workspace=workspace).exclude(linked_task=task).order_by('-created_at')
+
+    # Time Tracking & Timer State
+    from timetracking.models import TimeEntry, TimerStatus
+    is_privileged = (
+        membership.is_admin or
+        membership.is_manager or
+        request.user.is_superuser or
+        getattr(request.user, 'is_admin_role', False)
+    )
+    can_track_time = is_privileged or (task.assignee_id == request.user.id)
+
+    active_timer = TimeEntry.objects.filter(
+        workspace=workspace,
+        user=request.user,
+        status__in=[TimerStatus.RUNNING, TimerStatus.PAUSED]
+    ).first()
+    if not active_timer:
+        active_timer = TimeEntry.objects.filter(
+            workspace=workspace,
+            user=request.user,
+            is_running=True
+        ).first()
+
+    is_current_task_timer = bool(active_timer and active_timer.task_id == task.id)
+    if is_current_task_timer:
+        timer_status_str = 'paused' if active_timer.status == TimerStatus.PAUSED else 'running'
+        timer_elapsed_seconds = active_timer.current_duration_seconds
+    else:
+        timer_status_str = 'idle'
+        timer_elapsed_seconds = 0
+
+    estimated_hours = float(task.estimated_hours) if task.estimated_hours else 0.0
+    logged_seconds = task.total_logged_seconds
+    logged_hours = round(logged_seconds / 3600.0, 1)
+
+    if estimated_hours > 0:
+        remaining_hours = max(0.0, round(estimated_hours - (logged_seconds / 3600.0), 1))
+        time_progress_pct = min(100, int(round(((logged_seconds / 3600.0) / estimated_hours) * 100)))
+    else:
+        remaining_hours = 0.0
+        time_progress_pct = 100 if logged_seconds > 0 else 0
+
+    def _fmt_hours(val):
+        if val == 0:
+            return "0h"
+        if val.is_integer():
+            return f"{int(val)}h"
+        return f"{val:.1f}h"
+
+    time_stats = {
+        'can_track': can_track_time,
+        'is_current_timer': is_current_task_timer,
+        'timer_status': timer_status_str,
+        'elapsed_seconds': timer_elapsed_seconds,
+        'estimated_hours': estimated_hours,
+        'logged_hours': logged_hours,
+        'remaining_hours': remaining_hours,
+        'estimated_display': _fmt_hours(estimated_hours) if estimated_hours > 0 else "—",
+        'logged_display': _fmt_hours(logged_hours),
+        'remaining_display': _fmt_hours(remaining_hours) if estimated_hours > 0 else "—",
+        'progress_pct': time_progress_pct,
+    }
+
+    # Due date days remaining calculation
+    days_remaining_text = None
+    days_remaining_color = "text-slate-400 dark:text-zinc-500"
+    if task.due_date and task.status != TaskStatus.DONE:
+        today = timezone.now().date()
+        diff = (task.due_date - today).days
+        if diff > 0:
+            days_remaining_text = f"({diff} day{'s' if diff != 1 else ''} left)"
+            days_remaining_color = "text-rose-500 dark:text-rose-400 font-semibold" if diff <= 3 else "text-emerald-600 dark:text-emerald-400"
+        elif diff == 0:
+            days_remaining_text = "(Due today)"
+            days_remaining_color = "text-rose-600 dark:text-rose-400 font-bold"
+        else:
+            days_remaining_text = f"({abs(diff)} day{'s' if abs(diff) != 1 else ''} overdue)"
+            days_remaining_color = "text-rose-600 dark:text-rose-400 font-bold"
+
+    # Assignee role lookup
+    assignee_role = "Member"
+    assignee_mem = None
+    if task.assignee:
+        assignee_mem = WorkspaceMembership.objects.filter(
+            workspace=workspace,
+            user=task.assignee
+        ).first()
+        if assignee_mem:
+            assignee_role = assignee_mem.functional_role or assignee_mem.get_role_display()
+
+    # Reporter role lookup
+    reporter_role = "Member"
+    reporter_mem = None
+    if task.reporter:
+        reporter_mem = WorkspaceMembership.objects.filter(
+            workspace=workspace,
+            user=task.reporter
+        ).first()
+        if reporter_mem:
+            reporter_role = reporter_mem.functional_role or reporter_mem.get_role_display()
+
+    # Prev and Next task navigation
+    prev_task = Task.objects.filter(workspace=workspace, created_at__lt=task.created_at).order_by('-created_at').first()
+    next_task = Task.objects.filter(workspace=workspace, created_at__gt=task.created_at).order_by('created_at').first()
+
+    # Derived type / primary tag
+    task_tags = [t.strip() for t in task.tags.split(',') if t.strip()] if task.tags else []
+    primary_type = task_tags[0] if task_tags else "Development"
 
     context = {
         'workspace': workspace,
@@ -306,6 +618,11 @@ def task_detail_view(request, slug, task_code):
         'attachments': attachments,
         'activities': activities,
         'comments': comments,
+        'root_comments': root_comments,
+        'comments_total_count': comments_total_count,
+        'comments_system_count': comments_system_count,
+        'comments_user_count': comments_user_count,
+        'active_workspace_members': active_workspace_members,
         'comment_form': comment_form,
         'related_bugs': related_bugs,
         'available_bugs': available_bugs,
@@ -315,6 +632,21 @@ def task_detail_view(request, slug, task_code):
         'TaskStatus': TaskStatus,
         'TaskPriority': TaskPriority,
         'initial_tab': request.GET.get('tab', 'overview'),
+        'time_stats': time_stats,
+        'days_remaining_text': days_remaining_text,
+        'days_remaining_color': days_remaining_color,
+        'assignee_role': assignee_role,
+        'assignee_member': assignee_mem,
+        'reporter_role': reporter_role,
+        'reporter_member': reporter_mem,
+        'prev_task': prev_task,
+        'next_task': next_task,
+        'primary_type': primary_type,
+        'task_tags': task_tags,
+        'cr_total_count': cr_total_count,
+        'cr_pending_count': cr_pending_count,
+        'cr_approved_count': cr_approved_count,
+        'cr_changes_requested_count': cr_changes_requested_count,
     }
     return render(request, 'tasks/task_detail.html', context)
 
@@ -344,6 +676,8 @@ def task_edit_view(request, slug, task_code):
             try:
                 from django.db import transaction
                 with transaction.atomic():
+                    sprint_ref = form.cleaned_data.get('sprint_ref')
+                    sprint_name = form.cleaned_data.get('sprint') or (sprint_ref.name if sprint_ref else 'Backlog')
                     updated_task = update_task(
                         task=task,
                         actor=request.user,
@@ -354,7 +688,8 @@ def task_edit_view(request, slug, task_code):
                         assignee=form.cleaned_data.get('assignee'),
                         due_date=form.cleaned_data.get('due_date'),
                         estimated_hours=form.cleaned_data.get('estimated_hours'),
-                        sprint=form.cleaned_data.get('sprint', 'Sprint 01'),
+                        sprint=sprint_name,
+                        sprint_ref=sprint_ref,
                         tags=form.cleaned_data.get('tags', '')
                     )
                     # Sync subtasks if submitted
@@ -384,6 +719,8 @@ def task_edit_view(request, slug, task_code):
                         raise ValueError("Persistence verification failed for assignee.")
                     if updated_task.due_date != form.cleaned_data.get('due_date'):
                         raise ValueError("Persistence verification failed for due date.")
+                    if updated_task.sprint_ref != form.cleaned_data.get('sprint_ref'):
+                        raise ValueError("Persistence verification failed for sprint.")
 
                 messages.success(request, f"Task #{updated_task.task_code} was successfully updated.")
                 return redirect('tasks:task_detail', slug=workspace.slug, task_code=updated_task.task_code)
@@ -441,7 +778,7 @@ def code_review_create_view(request, slug, task_code):
                     reviewer=form.cleaned_data.get('reviewer')
                 )
                 messages.success(request, f"Code Review Request {cr.review_code} was successfully created.")
-                return redirect(f"{reverse('tasks:task_detail', kwargs={'slug': workspace.slug, 'task_code': task.task_code})}?tab=comments")
+                return redirect(f"{reverse('tasks:task_detail', kwargs={'slug': workspace.slug, 'task_code': task.task_code})}?tab=code_reviews")
             except Exception as e:
                 logger.exception("Failed to create code review for task %s: %s", getattr(task, 'id', None), e)
                 messages.error(request, "Failed to create code review. An unexpected error occurred.")
@@ -476,6 +813,433 @@ def code_review_status_update_view(request, slug, review_id):
         messages.error(request, "Cannot update code review status. An unexpected error occurred.")
 
     return redirect(f"{reverse('tasks:task_detail', kwargs={'slug': workspace.slug, 'task_code': cr.task.task_code})}?tab=code_reviews")
+
+
+@workspace_member_required
+def code_review_list_view(request, slug):
+    """
+    Searchable, filterable, paginated Code Reviews list for a workspace.
+    Displays summary KPI cards, search input, multi-filter controls, and responsive rows.
+    """
+    workspace = request.workspace
+    user = request.user
+
+    # Base queryset strictly scoped to this workspace
+    base_qs = CodeReviewRequest.objects.filter(
+        task__workspace=workspace
+    ).select_related(
+        'task', 'task__workspace', 'requester', 'reviewer'
+    ).order_by('-created_at')
+
+    # Calculate real authorized workspace-level summary metrics
+    total_reviews = base_qs.count()
+    assigned_to_me_count = base_qs.filter(reviewer=user).count()
+    requested_by_me_count = base_qs.filter(requester=user).count()
+    pending_count = base_qs.filter(status=CodeReviewStatus.REQUESTED).count()
+    in_review_count = base_qs.filter(status=CodeReviewStatus.IN_REVIEW).count()
+    changes_requested_count = base_qs.filter(status=CodeReviewStatus.CHANGES_REQUESTED).count()
+    approved_count = base_qs.filter(status=CodeReviewStatus.APPROVED).count()
+    rejected_count = base_qs.filter(status=CodeReviewStatus.REJECTED).count()
+    completed_count = base_qs.filter(
+        status__in=[CodeReviewStatus.APPROVED, CodeReviewStatus.REJECTED, CodeReviewStatus.CLOSED, CodeReviewStatus.MERGED]
+    ).count()
+
+    # Filtering logic
+    filtered_qs = base_qs
+    active_nav_filter = request.GET.get('filter', '').strip()
+
+    if active_nav_filter == 'assigned_to_me':
+        filtered_qs = filtered_qs.filter(reviewer=user)
+        # Dedicated sub-metrics for "Assigned to Me" view (as shown in Mockup Panel 2)
+        panel_counts = {
+            'assigned_to_me': assigned_to_me_count,
+            'pending': base_qs.filter(reviewer=user, status=CodeReviewStatus.REQUESTED).count(),
+            'in_review': base_qs.filter(reviewer=user, status=CodeReviewStatus.IN_REVIEW).count(),
+            'changes_requested': base_qs.filter(reviewer=user, status=CodeReviewStatus.CHANGES_REQUESTED).count(),
+            'completed': base_qs.filter(
+                reviewer=user,
+                status__in=[CodeReviewStatus.APPROVED, CodeReviewStatus.REJECTED, CodeReviewStatus.CLOSED, CodeReviewStatus.MERGED]
+            ).count(),
+        }
+    elif active_nav_filter == 'requested_by_me':
+        filtered_qs = filtered_qs.filter(requester=user)
+        panel_counts = None
+    elif active_nav_filter == 'pending':
+        filtered_qs = filtered_qs.filter(status__in=[CodeReviewStatus.REQUESTED, CodeReviewStatus.IN_REVIEW])
+        panel_counts = None
+    elif active_nav_filter == 'completed':
+        filtered_qs = filtered_qs.filter(
+            status__in=[CodeReviewStatus.APPROVED, CodeReviewStatus.REJECTED, CodeReviewStatus.CLOSED, CodeReviewStatus.MERGED]
+        )
+        panel_counts = None
+    else:
+        panel_counts = None
+
+    # Search filter (title, review code, linked task code, linked task title)
+    search_query = request.GET.get('q', '').strip()
+    if search_query:
+        filtered_qs = filtered_qs.filter(
+            Q(title__icontains=search_query) |
+            Q(review_code__icontains=search_query) |
+            Q(task__task_code__icontains=search_query) |
+            Q(task__title__icontains=search_query)
+        )
+
+    # Status filter
+    status_filter = request.GET.get('status', '').strip()
+    if status_filter:
+        if status_filter.upper() == 'PENDING':
+            status_filter = CodeReviewStatus.REQUESTED
+        filtered_qs = filtered_qs.filter(status=status_filter)
+
+    # Priority filter (from linked task)
+    priority_filter = request.GET.get('priority', '').strip()
+    if priority_filter:
+        filtered_qs = filtered_qs.filter(task__priority=priority_filter)
+
+    # Reviewer filter
+    reviewer_filter = request.GET.get('reviewer', '').strip()
+    if reviewer_filter:
+        filtered_qs = filtered_qs.filter(reviewer_id=reviewer_filter)
+
+    # Requester filter
+    requester_filter = request.GET.get('requester', '').strip()
+    if requester_filter:
+        filtered_qs = filtered_qs.filter(requester_id=requester_filter)
+
+    # Due date filter
+    due_date_filter = request.GET.get('due_date', '').strip()
+    if due_date_filter:
+        try:
+            filtered_qs = filtered_qs.filter(task__due_date=due_date_filter)
+        except Exception:
+            pass
+
+    # Pagination
+    per_page = request.GET.get('per_page', '10')
+    try:
+        per_page = int(per_page)
+        if per_page not in [10, 25, 50]:
+            per_page = 10
+    except (ValueError, TypeError):
+        per_page = 10
+
+    paginator = Paginator(filtered_qs, per_page)
+    page_number = request.GET.get('page', 1)
+    try:
+        page_obj = paginator.get_page(page_number)
+    except (EmptyPage, PageNotAnInteger):
+        page_obj = paginator.get_page(1)
+
+    # Members for filter dropdowns (strictly workspace-scoped)
+    workspace_members = WorkspaceMembership.objects.filter(
+        workspace=workspace,
+        status=MembershipStatus.ACTIVE
+    ).select_related('user').order_by('user__full_name', 'user__email')
+
+    # Workspace-level request form for the modal on the list page
+    request_form = WorkspaceCodeReviewRequestForm(workspace=workspace, requester=user)
+
+    context = {
+        'workspace': workspace,
+        'current_workspace': workspace,
+        'page_obj': page_obj,
+        'reviews': page_obj.object_list,
+        'active_filter': active_nav_filter,
+        'search_query': search_query,
+        'status_filter': status_filter,
+        'priority_filter': priority_filter,
+        'reviewer_filter': reviewer_filter,
+        'requester_filter': requester_filter,
+        'due_date_filter': due_date_filter,
+        'per_page': per_page,
+        # Summary KPI cards
+        'total_reviews': total_reviews,
+        'assigned_to_me_count': assigned_to_me_count,
+        'requested_by_me_count': requested_by_me_count,
+        'pending_count': pending_count,
+        'in_review_count': in_review_count,
+        'changes_requested_count': changes_requested_count,
+        'approved_count': approved_count,
+        'rejected_count': rejected_count,
+        'completed_count': completed_count,
+        'panel_counts': panel_counts,
+        # Dropdown options
+        'workspace_members': workspace_members,
+        'status_choices': CodeReviewStatus.choices,
+        'priority_choices': TaskPriority.choices,
+        'request_form': request_form,
+    }
+    return render(request, 'tasks/code_review_list.html', context)
+
+
+@workspace_member_required
+def code_review_request_workspace_view(request, slug):
+    """
+    Workspace-level Code Review Request View.
+    Allows requester to select an eligible task from the workspace and one eligible reviewer.
+    Supports GET (standalone form page) and POST (form submission).
+    """
+    workspace = request.workspace
+    user = request.user
+
+    if request.method == 'POST':
+        form = WorkspaceCodeReviewRequestForm(
+            request.POST,
+            workspace=workspace,
+            requester=user
+        )
+        if form.is_valid():
+            try:
+                task = form.cleaned_data['task']
+                reviewer = form.cleaned_data.get('reviewer')
+                cr = create_code_review_request(
+                    task=task,
+                    requester=user,
+                    title=form.cleaned_data['title'],
+                    github_pr_url=form.cleaned_data.get('github_pr_url', ''),
+                    description=form.cleaned_data.get('description', ''),
+                    reviewer=reviewer
+                )
+                messages.success(request, f"Code Review Request {cr.review_code} created successfully.")
+                return redirect('tasks:code_review_list', slug=workspace.slug)
+            except Exception as e:
+                logger.exception("Failed to create code review request at workspace level: %s", e)
+                messages.error(request, f"Failed to create code review request: {e}")
+        else:
+            first_err = next(iter(form.errors.values()))[0] if form.errors else "Please check form fields."
+            messages.error(request, f"Failed to create code review request: {first_err}")
+    else:
+        form = WorkspaceCodeReviewRequestForm(workspace=workspace, requester=user)
+
+    context = {
+        'workspace': workspace,
+        'current_workspace': workspace,
+        'form': form,
+    }
+    return render(request, 'tasks/code_review_request_form.html', context)
+
+
+@workspace_member_required
+def code_review_detail_view(request, slug, review_code):
+    """
+    Dedicated Code Review Detail view with 3 tabs:
+    1. Overview (title, description, linked task, status, priority, due date, requester, reviewer, checklist)
+    2. Comments & Decision (discussion stream + review decision panel UI)
+    3. Activity & History (chronological timeline of events, assignments, status transitions)
+    """
+    workspace = request.workspace
+    user = request.user
+
+    cr = get_object_or_404(
+        CodeReviewRequest.objects.select_related(
+            'task', 'task__workspace', 'requester', 'reviewer'
+        ).prefetch_related('task__subtasks'),
+        review_code=review_code,
+        task__workspace=workspace
+    )
+
+    # Active Tab (default to 'overview')
+    active_tab = request.GET.get('tab', 'overview')
+    if active_tab not in ['overview', 'comments', 'history']:
+        active_tab = 'overview'
+
+    # Discussion comments for Tab 2
+    user_comments = TaskComment.objects.filter(
+        code_review=cr,
+        comment_type=TaskComment.CommentType.USER
+    ).select_related('author').order_by('created_at')
+
+    # All timeline events for Tab 3 (system events + review creation + comments)
+    system_events = TaskComment.objects.filter(
+        code_review=cr,
+        comment_type=TaskComment.CommentType.SYSTEM
+    ).select_related('author').order_by('-created_at')
+
+    # Build chronological timeline
+    timeline_events = []
+    # 1. Review creation
+    timeline_events.append({
+        'type': 'CREATION',
+        'title': 'Code Review Requested',
+        'actor': cr.requester,
+        'timestamp': cr.created_at,
+        'details': f"Created review request #{cr.review_code} for linked task #{cr.task.task_code}.",
+        'badge_class': 'bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800'
+    })
+
+    # 2. System events
+    for se in system_events:
+        timeline_events.append({
+            'type': 'SYSTEM',
+            'title': se.get_system_event_type_display() if hasattr(se, 'get_system_event_type_display') else 'Status Update',
+            'actor': se.author,
+            'timestamp': se.created_at,
+            'details': se.content,
+            'badge_class': 'bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800'
+        })
+
+    # 3. User comments
+    for uc in user_comments:
+        timeline_events.append({
+            'type': 'COMMENT',
+            'title': 'Comment Posted',
+            'actor': uc.author,
+            'timestamp': uc.created_at,
+            'details': uc.content[:120] + ('...' if len(uc.content) > 120 else ''),
+            'badge_class': 'bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 border-slate-200 dark:border-zinc-700'
+        })
+
+    # Sort timeline newest first
+    timeline_events.sort(key=lambda x: x['timestamp'], reverse=True)
+
+    # Subtasks / Acceptance checklist from linked task
+    task_subtasks = list(cr.task.subtasks.all())
+    standard_checklist = [
+        "Code follows project architectural standards",
+        "UI/UX matches design and theme specifications",
+        "Proper error handling and validation implemented",
+        "No security vulnerabilities or unescaped outputs",
+        "Automated tests cover all modified behavior",
+    ]
+
+    # Permissions
+    is_assigned_reviewer = (user == cr.reviewer)
+    can_manage_review = (
+        user == cr.requester or
+        request.membership.role in [WorkspaceRole.ADMIN, WorkspaceRole.MANAGER]
+    )
+    can_start_review = (
+        (is_assigned_reviewer or can_manage_review) and
+        cr.status in [CodeReviewStatus.REQUESTED, CodeReviewStatus.CHANGES_REQUESTED]
+    )
+    can_submit_decision = (
+        (is_assigned_reviewer or request.membership.role in [WorkspaceRole.ADMIN, WorkspaceRole.MANAGER]) and
+        cr.status in [CodeReviewStatus.REQUESTED, CodeReviewStatus.IN_REVIEW, CodeReviewStatus.CHANGES_REQUESTED]
+    )
+
+    context = {
+        'workspace': workspace,
+        'current_workspace': workspace,
+        'cr': cr,
+        'active_tab': active_tab,
+        'user_comments': user_comments,
+        'comments_count': user_comments.count(),
+        'timeline_events': timeline_events,
+        'history_count': len(timeline_events),
+        'task_subtasks': task_subtasks,
+        'standard_checklist': standard_checklist,
+        'is_assigned_reviewer': is_assigned_reviewer,
+        'can_manage_review': can_manage_review,
+        'can_start_review': can_start_review,
+        'can_submit_decision': can_submit_decision,
+    }
+    return render(request, 'tasks/code_review_detail.html', context)
+
+
+@workspace_member_required
+def code_review_comment_add_view(request, slug, review_code):
+    """
+    Submits a discussion comment on a dedicated Code Review.
+    """
+    workspace = request.workspace
+    if request.method != 'POST':
+        return HttpResponseBadRequest("POST required")
+
+    cr = get_object_or_404(
+        CodeReviewRequest.objects.select_related('task', 'task__workspace'),
+        review_code=review_code,
+        task__workspace=workspace
+    )
+
+    content = request.POST.get('content', '').strip()
+    if not content:
+        messages.error(request, "Comment cannot be empty.")
+    else:
+        try:
+            TaskComment.objects.create(
+                task=cr.task,
+                author=request.user,
+                comment_type=TaskComment.CommentType.USER,
+                code_review=cr,
+                content=content
+            )
+            messages.success(request, "Comment posted successfully.")
+        except Exception as e:
+            logger.exception("Failed to post code review comment: %s", e)
+            messages.error(request, f"Failed to post comment: {e}")
+
+    return redirect(f"{reverse('tasks:code_review_detail', kwargs={'slug': workspace.slug, 'review_code': cr.review_code})}?tab=comments")
+
+
+@workspace_member_required
+def code_review_start_view(request, slug, review_code):
+    """
+    Transitions a code review from REQUESTED (Pending) or CHANGES_REQUESTED to IN_REVIEW.
+    Authorized for the assigned reviewer or workspace admin/manager.
+    """
+    workspace = request.workspace
+    if request.method != 'POST':
+        return HttpResponseBadRequest("POST required")
+
+    cr = get_object_or_404(
+        CodeReviewRequest.objects.select_related('task', 'task__workspace', 'reviewer', 'requester'),
+        review_code=review_code,
+        task__workspace=workspace
+    )
+
+    is_reviewer = (request.user == cr.reviewer)
+    is_manager = request.membership.role in [WorkspaceRole.ADMIN, WorkspaceRole.MANAGER]
+    if not (is_reviewer or is_manager or request.user == cr.requester):
+        raise PermissionDenied("You do not have permission to start this review.")
+
+    if cr.status in [CodeReviewStatus.REQUESTED, CodeReviewStatus.CHANGES_REQUESTED]:
+        try:
+            update_code_review_status(cr, actor=request.user, new_status=CodeReviewStatus.IN_REVIEW)
+            messages.success(request, f"Review {cr.review_code} is now In Review.")
+        except Exception as e:
+            logger.exception("Failed to start review %s: %s", cr.review_code, e)
+            messages.error(request, f"Failed to start review: {e}")
+    else:
+        messages.info(request, f"Review is already {cr.get_status_display()}.")
+
+    return redirect('tasks:code_review_detail', slug=workspace.slug, review_code=cr.review_code)
+
+
+@workspace_member_required
+def code_review_decision_view(request, slug, review_code):
+    """
+    Submits an authoritative review decision (Approved, Changes Requested, Rejected)
+    for a CodeReviewRequest within the active workspace.
+    """
+    workspace = request.workspace
+    if request.method != 'POST':
+        return HttpResponseBadRequest("POST required")
+
+    cr = get_object_or_404(
+        CodeReviewRequest.objects.select_related('task', 'task__workspace', 'reviewer', 'requester'),
+        review_code=review_code,
+        task__workspace=workspace
+    )
+
+    decision = request.POST.get('decision', '').strip()
+    message = request.POST.get('message', '').strip()
+
+    try:
+        updated_cr = submit_code_review_decision(
+            code_review_id=cr.id,
+            actor=request.user,
+            decision=decision,
+            message=message
+        )
+        messages.success(request, f"Review decision '{updated_cr.get_status_display()}' recorded successfully.")
+    except (ValidationError, PermissionDenied) as e:
+        messages.error(request, str(e.message if hasattr(e, 'message') else e))
+    except Exception as e:
+        logger.exception("Failed to submit review decision: %s", e)
+        messages.error(request, f"Failed to submit review decision: {e}")
+
+    return redirect(f"{reverse('tasks:code_review_detail', kwargs={'slug': workspace.slug, 'review_code': cr.review_code})}?tab=comments")
 
 
 @workspace_member_required
@@ -514,18 +1278,123 @@ def task_status_update_view(request, slug, task_code):
     clean_code = task_code.lstrip('#')
     task = get_object_or_404(Task, workspace=workspace, task_code=clean_code)
 
+    is_ajax = (
+        request.headers.get('x-requested-with') == 'XMLHttpRequest' or
+        request.content_type == 'application/json' or
+        request.GET.get('format') == 'json'
+    )
+
+    from core.utils import safe_redirect
+    fallback_url = reverse('tasks:task_detail', kwargs={'slug': workspace.slug, 'task_code': task.task_code})
+
     new_status = request.POST.get('status', '').strip()
-    if new_status not in dict(TaskStatus.choices):
-        if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.content_type == 'application/json' or request.GET.get('format') == 'json':
+    if new_status == 'BACKLOG':
+        try:
+            old_sprint_display = task.sprint_display
+            old_status = task.status
+            task.sprint_ref = None
+            task.sprint = 'Backlog'
+            task.save(update_fields=['sprint_ref', 'sprint', 'updated_at'])
+            if task.status != TaskStatus.TODO:
+                change_task_status(task, request.user, TaskStatus.TODO)
+            TaskActivity.objects.create(
+                task=task,
+                actor=request.user,
+                action=TaskActivity.Action.STATUS_CHANGED,
+                old_value=old_sprint_display if old_sprint_display != 'Backlog' else old_status,
+                new_value='Backlog',
+                message="Moved task to Backlog."
+            )
+            messages.success(request, f"Task #{task.task_code} moved to Backlog.")
+            if is_ajax:
+                return JsonResponse({
+                    'success': True,
+                    'task_code': task.task_code,
+                    'new_status': 'BACKLOG',
+                    'new_status_display': 'Backlog'
+                })
+            return safe_redirect(request, request.POST.get('next'), fallback=fallback_url)
+        except Exception as e:
+            logger.exception("Error moving task %s to backlog: %s", task_code, e)
+            if is_ajax:
+                return JsonResponse({'success': False, 'message': 'Failed to move task to backlog.'}, status=500)
+            messages.error(request, "Failed to move task to backlog.")
+            return safe_redirect(request, request.POST.get('next'), fallback=fallback_url)
+    elif new_status not in dict(TaskStatus.choices):
+        if is_ajax:
             return JsonResponse({'success': False, 'message': 'Invalid task status.'}, status=400)
         return HttpResponseBadRequest("Invalid task status.")
 
+    if new_status == TaskStatus.TODO and task.sprint_display == 'Backlog':
+        active_sprint = Sprint.objects.filter(workspace=workspace, status=SprintStatus.ACTIVE).first()
+        if active_sprint:
+            task.sprint_ref = active_sprint
+            task.sprint = active_sprint.name
+        else:
+            planned_sprint = Sprint.objects.filter(workspace=workspace, status=SprintStatus.PLANNING).first()
+            if planned_sprint:
+                task.sprint_ref = planned_sprint
+                task.sprint = planned_sprint.name
+            else:
+                task.sprint = 'Sprint 01'
+        task.save(update_fields=['sprint_ref', 'sprint', 'updated_at'])
+        if task.status != TaskStatus.TODO:
+            change_task_status(task, request.user, TaskStatus.TODO)
+        else:
+            TaskActivity.objects.create(
+                task=task,
+                actor=request.user,
+                action=TaskActivity.Action.STATUS_CHANGED,
+                old_value='Backlog',
+                new_value=TaskStatus.TODO,
+                message=f"Moved task to To Do ({task.sprint_display})."
+            )
+        messages.success(request, f"Task #{task.task_code} moved to To Do.")
+        if is_ajax:
+            return JsonResponse({
+                'success': True,
+                'task_code': task.task_code,
+                'new_status': TaskStatus.TODO,
+                'new_status_display': 'To Do'
+            })
+        return safe_redirect(request, request.POST.get('next'), fallback=fallback_url)
+
     if new_status != task.status:
-        change_task_status(task, request.user, new_status)
-        messages.success(request, f"Task #{task.task_code} status updated to {task.get_status_display()}.")
+        try:
+            change_task_status(task, request.user, new_status)
+            messages.success(request, f"Task #{task.task_code} status updated to {task.get_status_display()}.")
+        except (ValidationError, ValueError) as e:
+            # Expected client/validation error
+            user_msg = "Invalid task status."
+            if isinstance(e, ValidationError):
+                if hasattr(e, 'message') and e.message:
+                    user_msg = str(e.message)
+                elif hasattr(e, 'messages') and e.messages:
+                    user_msg = str(e.messages[0])
+                elif hasattr(e, 'message_dict') and e.message_dict:
+                    first_val = next(iter(e.message_dict.values()))
+                    user_msg = str(first_val[0] if isinstance(first_val, list) and first_val else first_val)
+            elif isinstance(e, ValueError):
+                user_msg = str(e) if "Invalid status" in str(e) else "Invalid task status."
+
+            logger.warning("Validation error updating status for task %s to %s: %s", task_code, new_status, e)
+            if is_ajax:
+                return JsonResponse({'success': False, 'message': user_msg}, status=400)
+            messages.error(request, user_msg)
+            return HttpResponseBadRequest(user_msg)
+        except Exception as e:
+            # Unexpected server error: log details server-side only and return generic message
+            logger.exception("Unexpected error updating status for task %s: %s", task_code, e)
+            if is_ajax:
+                return JsonResponse(
+                    {'success': False, 'message': 'An unexpected error occurred while updating task status.'},
+                    status=500
+                )
+            messages.error(request, "An unexpected error occurred while updating task status.")
+            return safe_redirect(request, request.POST.get('next'), fallback=fallback_url)
 
     # If explicit AJAX or JSON requested, return JSON
-    if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.content_type == 'application/json' or request.GET.get('format') == 'json':
+    if is_ajax:
         return JsonResponse({
             'success': True,
             'task_code': task.task_code,
@@ -533,8 +1402,6 @@ def task_status_update_view(request, slug, task_code):
             'new_status_display': task.get_status_display()
         })
 
-    from core.utils import safe_redirect
-    fallback_url = reverse('tasks:task_detail', kwargs={'slug': workspace.slug, 'task_code': task.task_code})
     return safe_redirect(request, request.POST.get('next'), fallback=fallback_url)
 
 
@@ -580,9 +1447,18 @@ def my_tasks_view(request):
         assignee=request.user
     ).select_related('workspace')
 
+    q = request.GET.get('q', '').strip()
     status_filter = request.GET.get('status', '').strip()
     priority_filter = request.GET.get('priority', '').strip()
     workspace_filter = request.GET.get('workspace', '').strip()
+
+    if q:
+        clean_code_q = q.lstrip('#')
+        tasks_qs = tasks_qs.filter(
+            Q(task_code__icontains=clean_code_q) |
+            Q(title__icontains=q) |
+            Q(description__icontains=q)
+        )
 
     if status_filter and status_filter in dict(TaskStatus.choices):
         tasks_qs = tasks_qs.filter(status=status_filter)
@@ -613,6 +1489,7 @@ def my_tasks_view(request):
         'tasks': tasks_page,
         'counts': counts,
         'active_memberships': active_memberships,
+        'current_q': q,
         'current_status': status_filter,
         'current_priority': priority_filter,
         'current_workspace': workspace_filter,
@@ -675,8 +1552,10 @@ def task_delete_view(request, slug, task_code):
 @workspace_member_required
 def task_comment_add_view(request, slug, task_code):
     """
-    Post a new user comment or reviewer feedback on a task.
-    Saves comment, creates a TaskActivity entry, and redirects back to Comments tab.
+    Post a new user comment, threaded reply, or reviewer feedback on a task.
+    Supports parent_id in metadata (zero-migration threaded discussion).
+    Saves comment, creates a TaskActivity entry, notifies mentioned users/parents,
+    and returns JSON (if AJAX) or redirects back to Comments tab.
     """
     if request.method != 'POST':
         return redirect('tasks:task_detail', slug=slug, task_code=task_code)
@@ -687,20 +1566,47 @@ def task_comment_add_view(request, slug, task_code):
 
     content = request.POST.get('content', '').strip()
     code_review_id = request.POST.get('code_review') or request.POST.get('code_review_id')
+    parent_id = request.POST.get('parent_id', '').strip()
+    
     code_review = None
     if code_review_id:
         code_review = CodeReviewRequest.objects.filter(id=code_review_id, task=task).first()
 
+    parent_comment = None
+    comment_metadata = {}
+
+    # Strict zero-migration parent validation:
+    # Must exist, must belong to the exact same task and workspace, cannot be a system comment
+    if parent_id:
+        try:
+            parent_comment = TaskComment.objects.filter(id=parent_id, task=task, task__workspace=workspace).first()
+            if parent_comment and not parent_comment.is_system:
+                comment_metadata['parent_id'] = str(parent_comment.id)
+            else:
+                if request.headers.get('x-requested-with') == 'XMLHttpRequest' or 'application/json' in request.headers.get('accept', ''):
+                    return JsonResponse({'status': 'error', 'message': 'Parent comment not found or ineligible for reply.'}, status=400)
+                messages.error(request, "Parent comment not found or ineligible for reply.")
+                return redirect(f"{reverse('tasks:task_detail', kwargs={'slug': slug, 'task_code': task.task_code})}?tab=comments")
+        except Exception:
+            if request.headers.get('x-requested-with') == 'XMLHttpRequest' or 'application/json' in request.headers.get('accept', ''):
+                return JsonResponse({'status': 'error', 'message': 'Invalid parent comment identifier.'}, status=400)
+            messages.error(request, "Invalid parent comment identifier.")
+            return redirect(f"{reverse('tasks:task_detail', kwargs={'slug': slug, 'task_code': task.task_code})}?tab=comments")
+
     if content:
-        TaskComment.objects.create(
+        comment = TaskComment.objects.create(
             task=task,
             author=request.user,
             comment_type=TaskComment.CommentType.USER,
             code_review=code_review,
-            content=content
+            content=content,
+            metadata=comment_metadata
         )
         snippet = content[:60] + ('...' if len(content) > 60 else '')
-        if code_review:
+        if parent_comment:
+            parent_author = parent_comment.author.full_name if parent_comment.author else "team member"
+            activity_msg = f'Replied to {parent_author}: "{snippet}"'
+        elif code_review:
             activity_msg = f'Added reviewer feedback on {code_review.review_code}: "{snippet}"'
         else:
             activity_msg = f'Added a comment: "{snippet}"'
@@ -741,8 +1647,8 @@ def task_comment_add_view(request, slug, task_code):
             elif u.contributor_id and f"@{u.contributor_id}" in content:
                 mentioned_users.add(u)
 
+        actor_name = request.user.full_name or request.user.email
         if mentioned_users:
-            actor_name = request.user.full_name or request.user.email
             for u in mentioned_users:
                 try:
                     create_notification(
@@ -770,8 +1676,34 @@ def task_comment_add_view(request, slug, task_code):
                 except Exception:
                     pass
 
-        messages.success(request, "Comment posted successfully.")
+        # Notify parent comment author if not mentioned already and not the actor
+        if parent_comment and parent_comment.author and parent_comment.author != request.user and parent_comment.author not in mentioned_users:
+            try:
+                create_notification(
+                    recipient=parent_comment.author,
+                    category=NotificationCategory.TASK,
+                    notification_type=NotificationType.TASK_ASSIGNED,
+                    title=f"{actor_name} replied to your comment on Task #{task.task_code}",
+                    body=f"{actor_name} replied: '{snippet}'",
+                    workspace=workspace,
+                    actor=request.user,
+                    action_url=f"/tasks/w/{workspace.slug}/{task.task_code}/?tab=comments"
+                )
+            except Exception:
+                pass
+
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest' or 'application/json' in request.headers.get('accept', ''):
+            return JsonResponse({
+                'status': 'success',
+                'comment_id': str(comment.id),
+                'is_reply': comment.is_reply,
+                'parent_id': comment.parent_id
+            })
+
+        messages.success(request, "Reply posted." if parent_comment else "Comment posted successfully.")
     else:
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest' or 'application/json' in request.headers.get('accept', ''):
+            return JsonResponse({'status': 'error', 'message': 'Comment content cannot be empty.'}, status=400)
         messages.error(request, "Comment content cannot be empty.")
 
     return redirect(f"{reverse('tasks:task_detail', kwargs={'slug': slug, 'task_code': task.task_code})}?tab=comments")
@@ -802,10 +1734,17 @@ def task_comment_edit_view(request, slug, task_code, comment_id):
     if request.method == 'POST':
         content = request.POST.get('content', '').strip()
         if not content:
+            if request.headers.get('x-requested-with') == 'XMLHttpRequest' or 'application/json' in request.headers.get('accept', ''):
+                return JsonResponse({'status': 'error', 'message': 'Comment content cannot be empty.'}, status=400)
             messages.error(request, "Comment content cannot be empty.")
         else:
             comment.content = content
-            comment.save(update_fields=['content', 'updated_at'])
+            meta = dict(comment.metadata or {})
+            meta['is_edited'] = True
+            comment.metadata = meta
+            comment.save(update_fields=['content', 'metadata', 'updated_at'])
+            if request.headers.get('x-requested-with') == 'XMLHttpRequest' or 'application/json' in request.headers.get('accept', ''):
+                return JsonResponse({'status': 'success', 'content': comment.content})
             messages.success(request, "Comment updated successfully.")
 
     return redirect(f"{reverse('tasks:task_detail', kwargs={'slug': slug, 'task_code': task.task_code})}?tab=comments")
@@ -835,7 +1774,56 @@ def task_comment_delete_view(request, slug, task_code, comment_id):
 
     if request.method == 'POST':
         comment.delete()
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest' or 'application/json' in request.headers.get('accept', ''):
+            return JsonResponse({'status': 'success', 'message': 'Comment removed.'})
         messages.success(request, "Comment removed.")
+
+    return redirect(f"{reverse('tasks:task_detail', kwargs={'slug': slug, 'task_code': task.task_code})}?tab=comments")
+
+
+@workspace_member_required
+def task_comment_react_view(request, slug, task_code, comment_id):
+    """
+    Toggle thumbs_up reaction on a user comment via comment.metadata['reactions'].
+    Zero-migration approach storing list of user IDs in metadata['reactions']['thumbs_up'].
+    """
+    if request.method != 'POST':
+        return redirect('tasks:task_detail', slug=slug, task_code=task_code)
+
+    workspace = request.workspace
+    clean_code = task_code.lstrip('#').replace('T-', '').replace('t-', '')
+    task = get_object_or_404(Task, workspace=workspace, task_code=clean_code)
+    comment = get_object_or_404(TaskComment, id=comment_id, task=task)
+
+    if comment.is_system:
+        from django.core.exceptions import PermissionDenied
+        raise PermissionDenied("System-generated events cannot be reacted to.")
+
+    reaction_type = request.POST.get('reaction', 'thumbs_up')
+    meta = dict(comment.metadata or {})
+    reactions = dict(meta.get('reactions', {}))
+    user_list = list(reactions.get(reaction_type, []))
+
+    user_id_str = str(request.user.id)
+    if user_id_str in user_list:
+        user_list.remove(user_id_str)
+        has_reacted = False
+    else:
+        user_list.append(user_id_str)
+        has_reacted = True
+
+    reactions[reaction_type] = user_list
+    meta['reactions'] = reactions
+    comment.metadata = meta
+    comment.save(update_fields=['metadata'])
+
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest' or 'application/json' in request.headers.get('accept', ''):
+        return JsonResponse({
+            'status': 'success',
+            'reaction': reaction_type,
+            'count': len(user_list),
+            'has_reacted': has_reacted
+        })
 
     return redirect(f"{reverse('tasks:task_detail', kwargs={'slug': slug, 'task_code': task.task_code})}?tab=comments")
 
@@ -870,7 +1858,7 @@ def task_bug_attach_view(request, slug, task_code):
                 logger.exception("Failed to attach bug to task %s: %s", getattr(task, 'id', None), e)
                 messages.error(request, "Failed to attach bug. An unexpected error occurred.")
 
-    return redirect(f"{reverse('tasks:task_detail', kwargs={'slug': slug, 'task_code': task.task_code})}?tab=comments")
+    return redirect(f"{reverse('tasks:task_detail', kwargs={'slug': slug, 'task_code': task.task_code})}?tab=defects")
 
 
 @workspace_member_required
@@ -900,7 +1888,7 @@ def task_bug_detach_view(request, slug, task_code, bug_code=None, bug_id=None):
             logger.exception("Failed to detach bug from task %s: %s", getattr(task, 'id', None), e)
             messages.error(request, "Failed to detach bug. An unexpected error occurred.")
 
-    return redirect(f"{reverse('tasks:task_detail', kwargs={'slug': slug, 'task_code': task.task_code})}?tab=comments")
+    return redirect(f"{reverse('tasks:task_detail', kwargs={'slug': slug, 'task_code': task.task_code})}?tab=defects")
 
 
 @workspace_member_required
@@ -1011,6 +1999,67 @@ def subtask_delete_view(request, slug, task_code, subtask_id):
 
 
 @workspace_member_required
+def subtask_update_view(request, slug, task_code, subtask_id):
+    """
+    Update a subtask's title.
+    Supports both JSON/AJAX and traditional POST.
+    """
+    if request.method != 'POST':
+        return HttpResponseBadRequest("POST required")
+
+    workspace = request.workspace
+    clean_code = task_code.lstrip('#').replace('T-', '').replace('t-', '')
+    task = get_object_or_404(Task, workspace=workspace, task_code=clean_code)
+    st = get_object_or_404(Subtask, id=subtask_id, task=task)
+
+    title = ''
+    if request.content_type == 'application/json':
+        try:
+            import json
+            data = json.loads(request.body)
+            title = data.get('title', '').strip()
+        except (ValueError, TypeError):
+            title = ''
+    else:
+        title = request.POST.get('title', '').strip()
+
+    if not title:
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.content_type == 'application/json':
+            return JsonResponse({'success': False, 'error': 'Title is required'}, status=400)
+        messages.error(request, "Subtask title cannot be empty.")
+        return redirect(f"{reverse('tasks:task_detail', kwargs={'slug': slug, 'task_code': task.task_code})}?tab=subtasks")
+
+    st.title = title
+    st.save(update_fields=['title', 'updated_at'])
+
+    if request.user:
+        TaskActivity.objects.create(
+            task=task,
+            actor=request.user,
+            action=TaskActivity.Action.UPDATED,
+            new_value=title,
+            message=f"Updated subtask: '{title}'"
+        )
+
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.content_type == 'application/json':
+        return JsonResponse({
+            'success': True,
+            'subtask': {
+                'id': str(st.id),
+                'title': st.title,
+                'is_completed': st.is_completed,
+                'order': st.order,
+            },
+            'total_count': task.subtask_count,
+            'completed_count': task.completed_subtask_count,
+            'progress_percentage': task.subtask_progress_percentage,
+        })
+
+    messages.success(request, f"Updated subtask '{st.title}'.")
+    return redirect(f"{reverse('tasks:task_detail', kwargs={'slug': slug, 'task_code': task.task_code})}?tab=subtasks")
+
+
+@workspace_member_required
 def task_attachment_upload_view(request, slug, task_code):
     """
     Handle task file attachments.
@@ -1019,14 +2068,59 @@ def task_attachment_upload_view(request, slug, task_code):
     """
     workspace = request.workspace
     clean_code = task_code.lstrip('#').replace('T-', '').replace('t-', '')
-    task = get_object_or_404(Task, workspace=workspace, task_code=clean_code)
-
     if request.method != 'POST':
         return HttpResponseBadRequest("POST required")
+    task = get_object_or_404(Task, workspace=workspace, task_code=clean_code)
+
+    attachment_type = request.POST.get('attachment_type', 'file')
+    external_url = request.POST.get('external_url', '').strip()
+
+    # Handle external document links (Google Docs, Figma, Notion, Sheets, etc.)
+    if external_url or attachment_type == 'link':
+        from core.utils import validate_external_url
+        from files.models import FileCategory
+        from files.services import detect_external_provider
+
+        is_valid, clean_url, error_msg = validate_external_url(external_url)
+        if not is_valid:
+            messages.error(request, error_msg or "Invalid document URL provided.")
+            return redirect(f"{reverse('tasks:task_detail', kwargs={'slug': slug, 'task_code': task.task_code})}?tab=attachments")
+
+        link_name = request.POST.get('name', '').strip()
+        if not link_name:
+            provider = detect_external_provider(clean_url)
+            link_name = f"{provider} Document"
+
+        try:
+            stored_file = StoredFile.objects.create(
+                workspace=workspace,
+                uploaded_by=request.user,
+                name=link_name,
+                original_name=link_name,
+                external_url=clean_url,
+                is_external_link=True,
+                mime_type='text/uri-list',
+                category=FileCategory.URL_LINK,
+                size_bytes=0,
+                description=f"Attached document link to task #{task.task_code}"
+            )
+            TaskAttachment.objects.create(task=task, file=stored_file)
+            TaskActivity.objects.create(
+                task=task,
+                actor=request.user,
+                action=TaskActivity.Action.UPDATED,
+                message=f"Attached document link '{link_name}'"
+            )
+            messages.success(request, f"Document link '{link_name}' attached successfully.")
+        except Exception as e:
+            logger.exception("Failed to attach document link to task %s: %s", getattr(task, 'id', None), e)
+            messages.error(request, "Failed to attach document link. An unexpected error occurred.")
+
+        return redirect(f"{reverse('tasks:task_detail', kwargs={'slug': slug, 'task_code': task.task_code})}?tab=attachments")
 
     file_obj = request.FILES.get('file')
     if not file_obj:
-        messages.error(request, "Please select a file to upload.")
+        messages.error(request, "Please select a file to upload or enter a document URL.")
         return redirect(f"{reverse('tasks:task_detail', kwargs={'slug': slug, 'task_code': task.task_code})}?tab=attachments")
 
     if file_obj.size > MAX_FILE_SIZE_BYTES:

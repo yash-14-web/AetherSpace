@@ -14,7 +14,7 @@
   input[type="search"],
   select,
   textarea {
-    @apply bg-white dark:bg-[#0c1322] text-slate-900 dark:text-zinc-100 border-slate-200 dark:border-zinc-800 placeholder-slate-400 dark:placeholder-zinc-500 text-sm;
+    @apply bg-white dark:bg-obsidian-900 text-slate-900 dark:text-zinc-100 border-slate-200 dark:border-zinc-800 placeholder-slate-400 dark:placeholder-zinc-500 text-sm;
   }
 
   /* Custom scrollbar for dark/light theme */
@@ -32,7 +32,7 @@
     @apply bg-slate-400 dark:bg-zinc-700;
   }
 
-  /* Chat bubble compact reset - eliminates unwanted spacing */
+  /* Chat bubble & rich-text compact reset with explicit list styles */
   .chat-bubble p {
     margin: 0;
   }
@@ -42,9 +42,46 @@
   .chat-bubble blockquote {
     margin: 0.25rem 0;
   }
-  .chat-bubble ul, .chat-bubble ol {
-    margin: 0.25rem 0;
-    padding-left: 1.25rem;
+  .aether-chat-editor ul,
+  .chat-bubble ul,
+  .aether-message-content ul,
+  .rich-text-content ul {
+    list-style-type: disc !important;
+    margin: 0.35rem 0 !important;
+    padding-left: 1.35rem !important;
+  }
+
+  .aether-chat-editor ol,
+  .chat-bubble ol,
+  .aether-message-content ol,
+  .rich-text-content ol {
+    list-style-type: decimal !important;
+    margin: 0.35rem 0 !important;
+    padding-left: 1.35rem !important;
+  }
+
+  .aether-chat-editor li,
+  .chat-bubble li,
+  .aether-message-content li,
+  .rich-text-content li {
+    display: list-item !important;
+    margin: 0.15rem 0 !important;
+  }
+
+  .aether-chat-editor ul ul,
+  .chat-bubble ul ul,
+  .aether-message-content ul ul,
+  .rich-text-content ul ul {
+    list-style-type: circle !important;
+    margin: 0.15rem 0 !important;
+  }
+
+  .aether-chat-editor ol ol,
+  .chat-bubble ol ol,
+  .aether-message-content ol ol,
+  .rich-text-content ol ol {
+    list-style-type: lower-alpha !important;
+    margin: 0.15rem 0 !important;
   }
 }
 
@@ -112,8 +149,8 @@
   .dark .meet-hub-section-card,
   html.dark .meet-hub-section-card,
   :is(.dark *) .meet-hub-section-card {
-    background-color: #0b132b !important;
-    border-color: #17233f !important;
+    background-color: #18181b !important;
+    border-color: #27272a !important;
     color: #f4f4f5 !important;
     box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.5) !important;
   }
@@ -131,8 +168,8 @@
   .dark .meet-hub-inner-panel,
   html.dark .meet-hub-inner-panel,
   :is(.dark *) .meet-hub-inner-panel {
-    background-color: #070c1a !important;
-    border-color: #17233f !important;
+    background-color: #141416 !important;
+    border-color: #27272a !important;
     color: #f4f4f5 !important;
   }
 
@@ -151,15 +188,15 @@
   .dark .meet-hub-pill-btn,
   html.dark .meet-hub-pill-btn,
   :is(.dark *) .meet-hub-pill-btn {
-    background-color: #111c35 !important;
-    border-color: #1c2a4a !important;
+    background-color: #18181b !important;
+    border-color: #27272a !important;
     color: #cbd5e1 !important;
   }
   .dark .meet-hub-pill-btn:hover,
   html.dark .meet-hub-pill-btn:hover,
   :is(.dark *) .meet-hub-pill-btn:hover {
-    background-color: #172547 !important;
-    border-color: #2b3d68 !important;
+    background-color: #27272a !important;
+    border-color: #3f3f46 !important;
     color: #ffffff !important;
   }
 
@@ -176,13 +213,13 @@
   .dark .meet-hub-member-card,
   html.dark .meet-hub-member-card,
   :is(.dark *) .meet-hub-member-card {
-    background-color: #070c1a !important;
-    border-color: #17233f !important;
+    background-color: #141416 !important;
+    border-color: #27272a !important;
   }
   .dark .meet-hub-member-card:hover,
   html.dark .meet-hub-member-card:hover,
   :is(.dark *) .meet-hub-member-card:hover {
-    background-color: #0c142b !important;
+    background-color: #1f1f23 !important;
     border-color: #2563eb !important;
   }
 
@@ -392,6 +429,34 @@
 
   .animate-slow-spin {
     animation: slow-spin 10s linear infinite;
+  }
+
+  /* Visual Identity Icon Grid & Selector Styles */
+  .identity-icon-grid {
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 0.5rem !important;
+  }
+  @media (min-width: 640px) {
+    .identity-icon-grid {
+      grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+    }
+  }
+  .identity-icon-btn {
+    aspect-ratio: 1 / 1 !important;
+    width: 100% !important;
+    height: 2.75rem !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 0.75rem !important;
+    transition: all 0.15s ease-in-out !important;
+    cursor: pointer !important;
+  }
+  @media (min-width: 640px) {
+    .identity-icon-btn {
+      height: 3rem !important;
+    }
   }
 }
 

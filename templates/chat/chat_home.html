@@ -2,131 +2,218 @@
 {% load static %}
 
 {% block chat_content %}
-<div class="flex-1 overflow-y-auto p-6 space-y-6">
+<div class="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8 bg-slate-50 dark:bg-[#090d16]">
 
-    <!-- 1. Welcome Banner matching Mockup Panel 1 -->
-    <div class="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-700 text-white p-6 sm:p-8 shadow-lg">
-        <div class="relative z-10 max-w-2xl">
-            <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-white/10 text-blue-100 backdrop-blur-md mb-3">
-                Workspace Communication Hub
-            </span>
-            <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-white mb-2">
-                Team Chat & Collaboration
-            </h1>
-            <p class="text-sm text-blue-100/90 leading-relaxed">
-                Connect, collaborate, and coordinate with {{ workspace.name }} across channels, instant direct messages, shared files, and pinned assets.
-            </p>
-            <div class="mt-4 flex flex-wrap items-center gap-3">
-                <a href="{% url 'chat:channel_create' slug=workspace.slug %}" 
-                   class="inline-flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-bold bg-white text-blue-700 hover:bg-blue-50 shadow-sm transition-colors">
-                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                    </svg>
-                    <span>Create Channel</span>
-                </a>
-                <button type="button" @click="newDmModalOpen = true"
-                        class="inline-flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-bold bg-white/20 text-white hover:bg-white/30 backdrop-blur-sm transition-colors">
-                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
-                    </svg>
-                    <span>Start Direct Message</span>
-                </button>
+    <!-- 1. Hero Banner Matching Approved Mockup -->
+    <div class="relative overflow-hidden rounded-3xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-700 text-white p-6 sm:p-8 lg:p-9 shadow-xl border border-white/10">
+        <!-- Background Lighting Glows -->
+        <div class="absolute -top-24 -left-24 w-72 h-72 bg-blue-400/25 rounded-full blur-3xl pointer-events-none"></div>
+        <div class="absolute -bottom-24 -right-24 w-80 h-80 bg-purple-400/25 rounded-full blur-3xl pointer-events-none"></div>
+
+        <div class="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+            <div class="max-w-xl space-y-3.5">
+                <!-- Workspace Pill -->
+                <div class="inline-flex items-center space-x-2 px-3 py-1 rounded-full text-xs font-semibold bg-white/15 text-white backdrop-blur-md border border-white/20">
+                    <span class="w-1.5 h-1.5 rounded-full bg-cyan-300"></span>
+                    <span>{{ workspace.name }}</span>
+                </div>
+                
+                <h1 class="text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight text-white leading-tight">
+                    Team Chat & Collaboration
+                </h1>
+
+                <p class="text-xs sm:text-sm text-blue-100/95 leading-relaxed max-w-lg">
+                    Connect, collaborate, and coordinate with your team across channels, instant direct messages, shared files, and pinned assets.
+                </p>
+
+                <div class="pt-2 flex flex-wrap items-center gap-3">
+                    {% if membership.is_admin or membership.is_manager or not workspace.is_strict_channel_creation %}
+                    <a href="{% url 'chat:channel_create' slug=workspace.slug %}" 
+                       class="inline-flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-bold bg-white text-blue-700 hover:bg-blue-50 shadow-md transition-all active:scale-95">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
+                        </svg>
+                        <span>Create Channel</span>
+                    </a>
+                    {% endif %}
+
+                    <button type="button" @click="newDmModalOpen = true"
+                            class="inline-flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-bold bg-white/20 hover:bg-white/30 text-white backdrop-blur-md border border-white/20 transition-all active:scale-95 shadow-sm">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+                        </svg>
+                        <span>Start Direct Message</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 3D-styled Layered Collaboration Graphic -->
+            <div class="hidden sm:flex lg:flex items-center justify-center shrink-0 lg:pr-6">
+                <div class="relative w-48 h-36 sm:w-60 sm:h-44 flex items-center justify-center select-none pointer-events-none">
+                    <!-- Layer 1: Left floating chat bubble -->
+                    <div class="absolute -top-1 left-2 p-3.5 bg-gradient-to-tr from-cyan-500 to-blue-500 rounded-2xl shadow-xl transform -rotate-6 border border-white/30">
+                        <svg class="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z"/>
+                        </svg>
+                    </div>
+
+                    <!-- Layer 2: Right floating paper plane -->
+                    <div class="absolute top-3 right-3 p-4 bg-gradient-to-tr from-indigo-500 to-purple-600 rounded-3xl shadow-2xl transform rotate-12 border border-white/30">
+                        <svg class="w-9 h-9 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+                        </svg>
+                    </div>
+
+                    <!-- Layer 3: Central floating document/card -->
+                    <div class="absolute -bottom-1 left-12 p-3 bg-gradient-to-tr from-blue-600 to-indigo-700 rounded-2xl shadow-lg border border-white/20 transform -rotate-3">
+                        <svg class="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                        </svg>
+                    </div>
+
+                    <!-- Glowing stars and sparkles -->
+                    <span class="absolute top-2 left-32 text-amber-300 text-sm animate-pulse">✦</span>
+                    <span class="absolute bottom-5 right-8 text-cyan-200 text-xs">✦</span>
+                    <span class="absolute top-14 left-1 text-white/90 text-sm">✨</span>
+                    <span class="absolute -bottom-2 right-20 text-purple-200 text-xs">✨</span>
+                </div>
             </div>
         </div>
-        <!-- Decorative Glow -->
-        <div class="absolute -right-10 -bottom-10 w-64 h-64 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
     </div>
 
-    <!-- 2. Four Stat Cards matching Panel 1 -->
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    <!-- 2. Four Sleek Statistics Cards (Row Layout) -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+        
         <!-- Card 1: Total Channels -->
-        <div class="p-4 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800/80 shadow-sm">
+        <a href="{% url 'chat:channel_view' slug=workspace.slug channel_slug=first_channel_slug|default:'general' %}" 
+           class="p-4 sm:p-5 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800/80 shadow-xs hover:border-blue-500/50 dark:hover:border-blue-500/50 hover:shadow-md transition-all group">
             <div class="flex items-center justify-between">
-                <span class="text-xs font-semibold text-slate-500 dark:text-zinc-400">Total Channels</span>
-                <div class="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center">
-                    #
+                <div class="flex items-center space-x-3">
+                    <div class="w-9 h-9 rounded-xl bg-blue-600/10 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-sm">
+                        #
+                    </div>
+                    <span class="text-xs font-semibold text-slate-600 dark:text-zinc-300">Total Channels</span>
                 </div>
+                <svg class="w-4 h-4 text-slate-400 group-hover:text-blue-500 group-hover:translate-x-0.5 transition-all" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                </svg>
             </div>
-            <div class="mt-2 flex items-baseline space-x-2">
-                <span class="text-2xl font-bold text-slate-900 dark:text-zinc-100">{{ total_channels }}</span>
-                <span class="text-xs text-slate-400 dark:text-zinc-500">active</span>
+            <div class="mt-3 flex items-baseline space-x-2">
+                <span class="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-zinc-100 tracking-tight">{{ total_channels }}</span>
+                <span class="text-xs font-medium text-slate-500 dark:text-zinc-400">active</span>
             </div>
-        </div>
+        </a>
 
-        <!-- Card 2: Total Members -->
-        <div class="p-4 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800/80 shadow-sm">
+        <!-- Card 2: Workspace Members -->
+        <a href="{% url 'workspaces:team' slug=workspace.slug %}" 
+           class="p-4 sm:p-5 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800/80 shadow-xs hover:border-emerald-500/50 dark:hover:border-emerald-500/50 hover:shadow-md transition-all group">
             <div class="flex items-center justify-between">
-                <span class="text-xs font-semibold text-slate-500 dark:text-zinc-400">Workspace Members</span>
-                <div class="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
-                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
-                    </svg>
+                <div class="flex items-center space-x-3">
+                    <div class="w-9 h-9 rounded-xl bg-emerald-600/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold text-sm">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
+                        </svg>
+                    </div>
+                    <span class="text-xs font-semibold text-slate-600 dark:text-zinc-300">Workspace Members</span>
                 </div>
+                <svg class="w-4 h-4 text-slate-400 group-hover:text-emerald-500 group-hover:translate-x-0.5 transition-all" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                </svg>
             </div>
-            <div class="mt-2 flex items-baseline space-x-2">
-                <span class="text-2xl font-bold text-slate-900 dark:text-zinc-100">{{ total_members }}</span>
-                <span class="text-xs text-slate-400 dark:text-zinc-500">collaborators</span>
+            <div class="mt-3 flex items-baseline space-x-2">
+                <span class="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-zinc-100 tracking-tight">{{ total_members }}</span>
+                <span class="text-xs font-medium text-slate-500 dark:text-zinc-400">collaborators</span>
             </div>
-        </div>
+        </a>
 
         <!-- Card 3: Unread Messages -->
-        <div class="p-4 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800/80 shadow-sm">
+        <div class="p-4 sm:p-5 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800/80 shadow-xs hover:border-amber-500/50 dark:hover:border-amber-500/50 hover:shadow-md transition-all group">
             <div class="flex items-center justify-between">
-                <span class="text-xs font-semibold text-slate-500 dark:text-zinc-400">Unread</span>
-                <div class="w-8 h-8 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center">
-                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
-                    </svg>
+                <div class="flex items-center space-x-3">
+                    <div class="w-9 h-9 rounded-xl bg-amber-600/10 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold text-sm">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                        </svg>
+                    </div>
+                    <span class="text-xs font-semibold text-slate-600 dark:text-zinc-300">Unread Messages</span>
                 </div>
+                <svg class="w-4 h-4 text-slate-400 group-hover:text-amber-500 group-hover:translate-x-0.5 transition-all" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                </svg>
             </div>
-            <div class="mt-2 flex items-baseline space-x-2">
-                <span class="text-2xl font-bold text-slate-900 dark:text-zinc-100">{{ unread_messages_count }}</span>
-                <span class="text-xs text-slate-400 dark:text-zinc-500">inbox caught up</span>
+            <div class="mt-3 flex items-baseline space-x-2">
+                <span class="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-zinc-100 tracking-tight">{{ unread_messages_count }}</span>
+                <span class="text-xs font-medium text-slate-500 dark:text-zinc-400">inbox caught up</span>
             </div>
         </div>
 
         <!-- Card 4: Mentions -->
-        <div class="p-4 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800/80 shadow-sm">
+        <div class="p-4 sm:p-5 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800/80 shadow-xs hover:border-purple-500/50 dark:hover:border-purple-500/50 hover:shadow-md transition-all group">
             <div class="flex items-center justify-between">
-                <span class="text-xs font-semibold text-slate-500 dark:text-zinc-400">Mentions</span>
-                <div class="w-8 h-8 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center">
-                    @
+                <div class="flex items-center space-x-3">
+                    <div class="w-9 h-9 rounded-xl bg-purple-600/10 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 flex items-center justify-center font-bold text-sm">
+                        @
+                    </div>
+                    <span class="text-xs font-semibold text-slate-600 dark:text-zinc-300">Mentions</span>
                 </div>
+                <svg class="w-4 h-4 text-slate-400 group-hover:text-purple-500 group-hover:translate-x-0.5 transition-all" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                </svg>
             </div>
-            <div class="mt-2 flex items-baseline space-x-2">
-                <span class="text-2xl font-bold text-slate-900 dark:text-zinc-100">{{ mentions_count }}</span>
-                <span class="text-xs text-slate-400 dark:text-zinc-500">direct tags</span>
+            <div class="mt-3 flex items-baseline space-x-2">
+                <span class="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-zinc-100 tracking-tight">{{ mentions_count }}</span>
+                <span class="text-xs font-medium text-slate-500 dark:text-zinc-400">direct tags</span>
             </div>
         </div>
+
     </div>
 
-    <!-- 3. Two-Column Split: Recent Conversations & Quick Actions / Mentions -->
+    <!-- 3. Main Split Section: Recent Channel Activity (Left 2/3) & Quick Actions (Right 1/3) -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-        <!-- Left 2 Cols: Recent Channel & Discussion Stream -->
+        <!-- Left 2 Cols: Recent Channel Activity -->
         <div class="lg:col-span-2 space-y-4">
-            <div class="p-5 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800/80 shadow-sm">
-                <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-zinc-800">
-                    <h2 class="text-sm font-bold text-slate-900 dark:text-zinc-100 flex items-center space-x-2">
-                        <span>Recent Channel Activity</span>
-                        <span class="text-xs font-normal text-slate-400">({{ recent_channel_messages|length }})</span>
+            <div class="p-5 sm:p-6 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800/80 shadow-xs">
+                <!-- Header -->
+                <div class="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-zinc-800">
+                    <h2 class="text-sm font-bold text-slate-900 dark:text-zinc-100">
+                        Recent Channel Activity
                     </h2>
-                    <span class="text-xs text-slate-400 dark:text-zinc-500">Live Workspace Pulse</span>
+                    <a href="{% url 'chat:channel_view' slug=workspace.slug channel_slug=first_channel_slug|default:'general' %}" 
+                       class="inline-flex items-center space-x-1 text-xs font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors">
+                        <span>View All</span>
+                        <span>&rarr;</span>
+                    </a>
                 </div>
 
-                <div class="divide-y divide-slate-100 dark:divide-zinc-800/60 mt-2">
+                <!-- Activity Feed Items -->
+                <div class="divide-y divide-slate-100 dark:divide-zinc-800/60">
                     {% for msg in recent_channel_messages %}
-                        <div class="py-3 flex items-start space-x-3 group">
-                            <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-bold text-xs flex items-center justify-center shrink-0">
-                                {{ msg.sender.first_name|slice:":1"|default:msg.sender.email|slice:":1"|upper }}
+                        <a href="{% url 'chat:channel_view' slug=workspace.slug channel_slug=msg.channel.slug %}" 
+                           class="py-3.5 flex items-start space-x-3.5 group rounded-xl px-2 hover:bg-slate-50 dark:hover:bg-zinc-800/40 transition-colors">
+                            
+                            <!-- Sender Avatar with Status Dot -->
+                            <div class="relative shrink-0 mt-0.5">
+                                {% include 'components/avatar.html' with user=msg.sender size='w-8 h-8' text_size='text-[10px]' %}
+                                <span class="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full ring-2 ring-white dark:ring-[#0c1322]
+                                    {% if msg.sender.availability_status == 'available' %}bg-emerald-500
+                                    {% elif msg.sender.availability_status == 'busy' %}bg-rose-500
+                                    {% elif msg.sender.availability_status == 'dnd' %}bg-red-600
+                                    {% elif msg.sender.availability_status == 'away' %}bg-amber-400
+                                    {% elif msg.sender.availability_status == 'ooo' %}bg-slate-400
+                                    {% elif msg.sender.availability_status == 'offline' %}bg-zinc-500
+                                    {% else %}bg-emerald-500{% endif %}"></span>
                             </div>
+
+                            <!-- Activity Details -->
                             <div class="flex-1 min-w-0">
-                                <div class="flex items-center justify-between">
+                                <!-- Top Row: Name, Channel Badge, Relative Timestamp -->
+                                <div class="flex items-center justify-between gap-2">
                                     <div class="flex items-center space-x-2 truncate">
-                                        <span class="text-xs font-bold text-slate-900 dark:text-zinc-100 truncate">
+                                        <span class="text-xs font-bold text-slate-900 dark:text-zinc-100 truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                                             {{ msg.sender.full_name|default:msg.sender.email }}
                                         </span>
-                                        <span class="text-[10px] font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded">
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300">
                                             #{{ msg.channel.name }}
                                         </span>
                                     </div>
@@ -134,113 +221,138 @@
                                         {{ msg.created_at|timesince }} ago
                                     </span>
                                 </div>
-                                <p class="text-xs text-slate-600 dark:text-zinc-300 mt-1 line-clamp-2">
-                                    {{ msg.content }}
-                                </p>
+
+                                <!-- Message Preview or Attachment/Call Event -->
+                                <div class="text-xs text-slate-600 dark:text-zinc-300 mt-1 line-clamp-2 leading-relaxed">
+                                    {% if msg.attachments.exists %}
+                                        <div class="flex items-center space-x-1.5 text-slate-700 dark:text-zinc-200 font-medium">
+                                            <span>Shared a file: {{ msg.attachments.first.file_name }}</span>
+                                            <span class="text-slate-400">📎</span>
+                                        </div>
+                                    {% elif msg.content|slice:':11' == 'CALL_INVITE' %}
+                                        <span class="font-mono text-purple-600 dark:text-purple-400 font-medium">{{ msg.content }}</span>
+                                    {% elif msg.content|slice:':10' == 'CALL_ENDED' %}
+                                        <span class="font-mono text-slate-400 font-medium">{{ msg.content }}</span>
+                                    {% else %}
+                                        {{ msg.content|truncatechars:140 }}
+                                    {% endif %}
+                                </div>
                             </div>
-                            <a href="{% url 'chat:channel_view' slug=workspace.slug channel_slug=msg.channel.slug %}" 
-                               class="opacity-0 group-hover:opacity-100 px-2 py-1 text-xs font-semibold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/50 rounded-lg transition-all">
-                                Jump &rarr;
-                            </a>
-                        </div>
+                        </a>
                     {% empty %}
-                        <div class="text-center py-10">
+                        <div class="text-center py-12">
                             <div class="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 mx-auto flex items-center justify-center mb-3">
                                 #
                             </div>
-                            <p class="text-xs font-semibold text-slate-700 dark:text-zinc-300">No recent messages yet.</p>
-                            <p class="text-xs text-slate-400 dark:text-zinc-500 mt-1">Start the conversation in <a href="{% url 'chat:channel_view' slug=workspace.slug channel_slug='general' %}" class="text-blue-600 dark:text-blue-400 underline font-semibold">#general</a>!</p>
+                            <p class="text-xs font-semibold text-slate-700 dark:text-zinc-300">No recent channel activity yet.</p>
+                            <p class="text-xs text-slate-400 dark:text-zinc-500 mt-1">
+                                Jump into <a href="{% url 'chat:channel_view' slug=workspace.slug channel_slug=first_channel_slug|default:'general' %}" class="text-blue-600 dark:text-blue-400 underline font-semibold">#{{ first_channel_slug|default:'general' }}</a> to start collaborating!
+                            </p>
                         </div>
                     {% endfor %}
                 </div>
             </div>
         </div>
 
-        <!-- Right 1 Col: Quick Links & Mentions -->
+        <!-- Right 1 Col: Quick Actions (Clean, No Mentions Panel) -->
         <div class="space-y-6">
-
-            <!-- Quick Actions -->
-            <div class="p-5 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800/80 shadow-sm">
-                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500 mb-3">
+            <div class="p-5 sm:p-6 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800/80 shadow-xs">
+                <h3 class="text-sm font-bold text-slate-900 dark:text-zinc-100 mb-4">
                     Quick Actions
                 </h3>
-                <div class="space-y-2">
+                
+                <div class="space-y-3">
+                    <!-- Action 1: Create Channel -->
+                    {% if membership.is_admin or membership.is_manager or not workspace.is_strict_channel_creation %}
                     <a href="{% url 'chat:channel_create' slug=workspace.slug %}" 
-                       class="flex items-center justify-between p-2.5 rounded-xl border border-slate-200 dark:border-zinc-800 hover:border-blue-500 dark:hover:border-blue-500 hover:bg-blue-50/50 dark:hover:bg-blue-950/30 transition-all text-xs font-semibold text-slate-800 dark:text-zinc-200">
-                        <div class="flex items-center space-x-2.5">
-                            <div class="w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center">
-                                +
+                       class="flex items-center justify-between p-3 rounded-xl border border-slate-200/80 dark:border-zinc-800/80 hover:border-blue-500 dark:hover:border-blue-500 hover:bg-blue-50/40 dark:hover:bg-blue-950/20 transition-all group">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold text-sm shadow-xs">
+                                #
                             </div>
-                            <span>Create Channel</span>
+                            <div>
+                                <h4 class="text-xs font-bold text-slate-900 dark:text-zinc-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                                    Create Channel
+                                </h4>
+                                <p class="text-[11px] text-slate-400 dark:text-zinc-500">
+                                    Start a new channel for your team
+                                </p>
+                            </div>
                         </div>
-                        <span class="text-slate-400">&rarr;</span>
+                        <svg class="w-4 h-4 text-slate-400 group-hover:text-blue-500 group-hover:translate-x-0.5 transition-all" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                        </svg>
                     </a>
+                    {% endif %}
 
+                    <!-- Action 2: Direct Message -->
                     <button type="button" @click="newDmModalOpen = true"
-                            class="w-full flex items-center justify-between p-2.5 rounded-xl border border-slate-200 dark:border-zinc-800 hover:border-indigo-500 dark:hover:border-indigo-500 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/30 transition-all text-xs font-semibold text-slate-800 dark:text-zinc-200">
-                        <div class="flex items-center space-x-2.5">
-                            <div class="w-7 h-7 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+                            class="w-full flex items-center justify-between p-3 rounded-xl border border-slate-200/80 dark:border-zinc-800/80 hover:border-purple-500 dark:hover:border-purple-500 hover:bg-purple-50/40 dark:hover:bg-purple-950/20 transition-all group text-left">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-9 h-9 rounded-xl bg-purple-600 text-white flex items-center justify-center font-bold text-sm shadow-xs">
                                 @
                             </div>
-                            <span>Direct Message</span>
+                            <div>
+                                <h4 class="text-xs font-bold text-slate-900 dark:text-zinc-100 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
+                                    Direct Message
+                                </h4>
+                                <p class="text-[11px] text-slate-400 dark:text-zinc-500">
+                                    Chat with a team member
+                                </p>
+                            </div>
                         </div>
-                        <span class="text-slate-400">&rarr;</span>
+                        <svg class="w-4 h-4 text-slate-400 group-hover:text-purple-500 group-hover:translate-x-0.5 transition-all" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                        </svg>
                     </button>
 
+                    <!-- Action 3: Pinned Assets -->
                     <a href="{% url 'chat:pinned_assets' slug=workspace.slug %}" 
-                       class="flex items-center justify-between p-2.5 rounded-xl border border-slate-200 dark:border-zinc-800 hover:border-amber-500 dark:hover:border-amber-500 hover:bg-amber-50/50 dark:hover:bg-amber-950/30 transition-all text-xs font-semibold text-slate-800 dark:text-zinc-200">
-                        <div class="flex items-center space-x-2.5">
-                            <div class="w-7 h-7 rounded-lg bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center">
-                                📌
+                       class="flex items-center justify-between p-3 rounded-xl border border-slate-200/80 dark:border-zinc-800/80 hover:border-rose-500 dark:hover:border-rose-500 hover:bg-rose-50/40 dark:hover:bg-rose-950/20 transition-all group">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-9 h-9 rounded-xl bg-rose-500 text-white flex items-center justify-center shadow-xs">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/>
+                                </svg>
                             </div>
-                            <span>Pinned Assets</span>
+                            <div>
+                                <h4 class="text-xs font-bold text-slate-900 dark:text-zinc-100 group-hover:text-rose-500 dark:group-hover:text-rose-400 transition-colors">
+                                    Pinned Assets
+                                </h4>
+                                <p class="text-[11px] text-slate-400 dark:text-zinc-500">
+                                    View your pinned items
+                                </p>
+                            </div>
                         </div>
-                        <span class="text-slate-400">&rarr;</span>
+                        <svg class="w-4 h-4 text-slate-400 group-hover:text-rose-500 group-hover:translate-x-0.5 transition-all" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                        </svg>
                     </a>
 
+                    <!-- Action 4: Shared Files -->
                     <a href="{% url 'chat:shared_files' slug=workspace.slug %}" 
-                       class="flex items-center justify-between p-2.5 rounded-xl border border-slate-200 dark:border-zinc-800 hover:border-emerald-500 dark:hover:border-emerald-500 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/30 transition-all text-xs font-semibold text-slate-800 dark:text-zinc-200">
-                        <div class="flex items-center space-x-2.5">
-                            <div class="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
-                                📁
+                       class="flex items-center justify-between p-3 rounded-xl border border-slate-200/80 dark:border-zinc-800/80 hover:border-amber-500 dark:hover:border-amber-500 hover:bg-amber-50/40 dark:hover:bg-amber-950/20 transition-all group">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center shadow-xs">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
+                                </svg>
                             </div>
-                            <span>Shared Files</span>
+                            <div>
+                                <h4 class="text-xs font-bold text-slate-900 dark:text-zinc-100 group-hover:text-amber-500 dark:group-hover:text-amber-400 transition-colors">
+                                    Shared Files
+                                </h4>
+                                <p class="text-[11px] text-slate-400 dark:text-zinc-500">
+                                    Access shared files and documents
+                                </p>
+                            </div>
                         </div>
-                        <span class="text-slate-400">&rarr;</span>
+                        <svg class="w-4 h-4 text-slate-400 group-hover:text-amber-500 group-hover:translate-x-0.5 transition-all" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                        </svg>
                     </a>
                 </div>
             </div>
-
-            <!-- Mentions & Highlights -->
-            <div class="p-5 rounded-2xl bg-white dark:bg-[#0c1322] border border-slate-200 dark:border-zinc-800/80 shadow-sm">
-                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500 mb-3">
-                    Recent Mentions
-                </h3>
-                <div class="space-y-3">
-                    {% for mention in recent_mentions %}
-                        <div class="p-3 rounded-xl bg-slate-50 dark:bg-zinc-900/60 border border-slate-200/80 dark:border-zinc-800 text-xs">
-                            <div class="flex items-center justify-between mb-1">
-                                <span class="font-bold text-slate-900 dark:text-zinc-100 truncate">
-                                    {{ mention.sender.full_name|default:mention.sender.email }}
-                                </span>
-                                <span class="text-[10px] text-slate-400">{{ mention.created_at|timesince }} ago</span>
-                            </div>
-                            <p class="text-slate-600 dark:text-zinc-400 line-clamp-2 mb-2 font-mono text-[11px]">
-                                {{ mention.content }}
-                            </p>
-                            {% if mention.channel %}
-                                <a href="{% url 'chat:channel_view' slug=workspace.slug channel_slug=mention.channel.slug %}" 
-                                   class="text-[11px] font-semibold text-blue-600 dark:text-blue-400 hover:underline">
-                                    View in #{{ mention.channel.name }} &rarr;
-                                </a>
-                            {% endif %}
-                        </div>
-                    {% empty %}
-                        <p class="text-xs text-slate-400 dark:text-zinc-500 py-3 text-center">No recent mentions found.</p>
-                    {% endfor %}
-                </div>
-            </div>
-
         </div>
 
     </div>

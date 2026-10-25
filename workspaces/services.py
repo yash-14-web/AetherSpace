@@ -16,20 +16,26 @@ logger = logging.getLogger(__name__)
 # Upload constraints for workspace logo
 MAX_LOGO_SIZE_BYTES = 2 * 1024 * 1024  # 2 MB hard limit
 ALLOWED_LOGO_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp', 'svg', 'gif'}
+ALLOWED_WORKSPACE_ICONS = {
+    'hash', 'terminal', 'rocket', 'sparkles', 'megaphone', 'chat',
+    'briefcase', 'bulb', 'bug', 'folder', 'lock', 'globe', 'shield', 'cube'
+}
 
 
-def process_and_save_workspace_logo(workspace, file_obj=None, logo_url=None, remove_logo=False):
+def process_and_save_workspace_logo(workspace, file_obj=None, logo_url=None, icon_key=None, remove_logo=False):
     """
-    Process, validate, compress, and store the workspace logo:
+    Process, validate, compress, and store the workspace logo or selected icon:
     1. If remove_logo is True: Clears the workspace logo and restores default initials emblem.
-    2. If logo_url is provided: Validates the external/cloud URL and updates workspace.logo.
-    3. If file_obj is provided: Validates size (<= 2 MB) and format, optimizes raster images
+    2. If icon_key is provided: Validates against ALLOWED_WORKSPACE_ICONS, clears old logo file,
+       and updates workspace.logo to reference the curated built-in icon ('icon:<name>').
+    3. If logo_url is provided: Validates the external/cloud URL and updates workspace.logo.
+    4. If file_obj is provided: Validates size (<= 2 MB) and format, optimizes raster images
        to a 256x256 square thumbnail (or sanitizes SVG), and stores in Supabase Storage
        (with local fallback).
     """
     if remove_logo:
         old_logo = workspace.logo
-        if old_logo and not old_logo.startswith(('http://', 'https://')):
+        if old_logo and not old_logo.startswith(('http://', 'https://', 'icon:')):
             try:
                 if default_storage.exists(old_logo):
                     default_storage.delete(old_logo)
@@ -39,6 +45,23 @@ def process_and_save_workspace_logo(workspace, file_obj=None, logo_url=None, rem
         workspace.logo = ''
         workspace.save(update_fields=['logo'])
         return True, "Workspace logo removed. Default initials emblem restored."
+
+    if icon_key is not None:
+        clean_key = str(icon_key).strip().lower().replace('icon:', '')
+        if clean_key:
+            if clean_key not in ALLOWED_WORKSPACE_ICONS:
+                return False, f"Invalid icon identifier '{clean_key}'. Please select a supported icon."
+            old_logo = workspace.logo
+            if old_logo and not old_logo.startswith(('http://', 'https://', 'icon:')):
+                try:
+                    if default_storage.exists(old_logo):
+                        default_storage.delete(old_logo)
+                except Exception as e:
+                    logger.warning(f"Failed deleting old logo {old_logo}: {e}")
+
+            workspace.logo = f"icon:{clean_key}"
+            workspace.save(update_fields=['logo'])
+            return True, f"Workspace icon updated to '{clean_key}'."
 
     if logo_url:
         from core.utils import validate_image_url

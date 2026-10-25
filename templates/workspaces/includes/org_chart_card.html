@@ -1,0 +1,94 @@
+{% comment %}
+Org Chart Member Card Component
+Props:
+  node: WorkspaceMembership object
+  workspace: Workspace object
+  membership: WorkspaceMembership of the current user
+{% endcomment %}
+<div class="relative z-10 group"
+     :class="{
+         'ring-2 ring-blue-500 shadow-xl shadow-blue-500/25 scale-105 z-20': hierarchySearch && ('{{ node.user.full_name|escapejs }} {{ node.user.email|escapejs }} {{ node.functional_role|escapejs }} {{ node.user.contributor_id|escapejs }} {{ node.role }} {{ node.role_tag|escapejs }}'.toLowerCase().includes(hierarchySearch.toLowerCase())),
+         'opacity-40': hierarchySearch && !('{{ node.user.full_name|escapejs }} {{ node.user.email|escapejs }} {{ node.functional_role|escapejs }} {{ node.user.contributor_id|escapejs }} {{ node.role }} {{ node.role_tag|escapejs }}'.toLowerCase().includes(hierarchySearch.toLowerCase()))
+     }">
+    <div class="w-[280px] sm:w-[300px] shrink-0 rounded-2xl p-3.5 bg-white dark:bg-[#18181b] border {% if node.user == workspace.owner or node.role == 'ADMIN' %}border-purple-500/70 dark:border-purple-500/60 shadow-purple-500/5{% elif node.role == 'MANAGER' %}border-blue-500/70 dark:border-blue-500/60 shadow-blue-500/5{% else %}border-teal-500/70 dark:border-teal-500/60 shadow-teal-500/5{% endif %} shadow-md hover:shadow-xl transition-all duration-200">
+        <div class="flex items-center gap-3.5">
+            <!-- Avatar with Role-Themed Ring & Availability Indicator -->
+            <div class="relative shrink-0">
+                <div class="w-12 h-12 shrink-0 rounded-full overflow-hidden flex items-center justify-center ring-2 {% if node.user == workspace.owner or node.role == 'ADMIN' %}ring-purple-500{% elif node.role == 'MANAGER' %}ring-blue-500{% else %}ring-teal-500{% endif %} bg-slate-100 dark:bg-zinc-800">
+                    {% include 'components/avatar.html' with user=node.user size="w-12 h-12" rounded="rounded-full" text_size="text-sm font-bold" %}
+                </div>
+                <span class="absolute bottom-0 right-0 w-3 h-3 rounded-full ring-2 ring-white dark:ring-[#18181b]
+                    {% if node.user.availability_status == 'available' or not node.user.availability_status %}bg-emerald-500
+                    {% elif node.user.availability_status == 'busy' %}bg-rose-500
+                    {% elif node.user.availability_status == 'dnd' %}bg-red-600
+                    {% elif node.user.availability_status == 'away' %}bg-amber-400
+                    {% elif node.user.availability_status == 'ooo' %}bg-slate-400
+                    {% elif node.user.availability_status == 'offline' %}bg-zinc-500
+                    {% else %}bg-emerald-500{% endif %}"
+                    title="{{ node.user.availability_status|default:'available'|capfirst }}"></span>
+            </div>
+
+            <!-- Identity & Roles -->
+            <div class="flex-1 min-w-0 space-y-1 text-left">
+                <div class="flex items-center space-x-1.5 flex-wrap">
+                    {% include 'components/people_hover_card.html' with target_user=node.user workspace_slug=workspace.slug target_member=node show_name=True avatar_size='hidden' name_classes='font-bold text-xs sm:text-sm text-slate-900 dark:text-zinc-50 max-w-[160px]' %}
+                    {% if node.user == workspace.owner %}
+                        <span class="px-1.5 py-0.2 rounded text-[9px] font-black uppercase tracking-wider bg-amber-500 text-white shadow-2xs">
+                            Owner
+                        </span>
+                    {% elif node.role_tag %}
+                        <span class="px-1.5 py-0.2 rounded text-[9px] font-bold uppercase tracking-wider {% if node.role == 'ADMIN' %}bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20{% elif node.role == 'MANAGER' %}bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20{% else %}bg-teal-500/10 text-teal-600 dark:text-teal-400 border border-teal-500/20{% endif %}">
+                            {{ node.role_tag }}
+                        </span>
+                    {% endif %}
+                </div>
+
+                <div class="text-[11px] font-medium text-slate-600 dark:text-zinc-300 truncate">
+                    {{ node.functional_role|default:node.get_role_display }}
+                </div>
+
+                <div class="flex items-center space-x-1.5 pt-0.5">
+                    <span class="px-1.5 py-0.2 rounded text-[10px] font-mono font-bold bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 border border-slate-200/80 dark:border-zinc-700/80">
+                        #{{ node.user.contributor_id|default:"MBR" }}
+                    </span>
+                    <span class="px-1.5 py-0.2 rounded text-[9px] font-black uppercase tracking-wider
+                        {% if node.user == workspace.owner or node.role == 'ADMIN' %}bg-purple-600 text-white
+                        {% elif node.role == 'MANAGER' %}bg-blue-600 text-white
+                        {% else %}bg-teal-600 text-white{% endif %}">
+                        {{ node.get_role_display }}
+                    </span>
+                </div>
+
+                {% if node.hierarchy_reports %}
+                    <div class="text-[10px] text-slate-400 dark:text-zinc-500 font-medium flex items-center space-x-1 pt-0.5">
+                        <svg class="w-3 h-3 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        </svg>
+                        <span>{{ node.hierarchy_reports|length }} Report{{ node.hierarchy_reports|length|pluralize }}</span>
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Optional Admin Edit Action -->
+            {% if membership.can_manage_workspace %}
+                <button type="button"
+                        @click.stop="openEditModal({
+                            id: '{{ node.id }}',
+                            name: '{{ node.user.full_name|default:node.user.email|escapejs }}',
+                            email: '{{ node.user.email|escapejs }}',
+                            role: '{{ node.role }}',
+                            functional_role: '{{ node.functional_role|escapejs }}',
+                            role_tag: '{{ node.role_tag|escapejs }}',
+                            reporting_to_id: '{{ node.reporting_to_id|default:'' }}',
+                            actionUrl: '{% url 'workspaces:update_member_role' slug=workspace.slug member_id=node.id %}'
+                        })"
+                        class="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-slate-400 hover:text-blue-500 dark:hover:text-blue-400"
+                        title="Edit Role & Designation">
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
+                    </svg>
+                </button>
+            {% endif %}
+        </div>
+    </div>
+</div>

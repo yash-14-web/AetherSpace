@@ -18,11 +18,18 @@
         <div class="flex items-center space-x-3 text-sm text-zinc-300">
             <span class="font-medium text-white tracking-wide" x-text="currentTimeStr">12:00 PM</span>
             <span class="text-zinc-600 font-light">|</span>
-            <span class="font-medium text-zinc-200 tracking-wider lowercase select-all cursor-pointer hover:text-white transition"
-                  @click="copyMeetingCode('{{ meeting_code_formatted|default:meeting.meeting_code }}')"
-                  title="Click to copy meeting code">
-                {{ meeting_code_formatted|default:meeting.meeting_code }}
-            </span>
+            <button type="button"
+                    @click="copyMeetingCode('{{ meeting_code_formatted|default:meeting.meeting_code }}')"
+                    @keydown.enter.prevent="copyMeetingCode('{{ meeting_code_formatted|default:meeting.meeting_code }}')"
+                    @keydown.space.prevent="copyMeetingCode('{{ meeting_code_formatted|default:meeting.meeting_code }}')"
+                    class="group inline-flex items-center space-x-1.5 px-2 py-0.5 rounded-lg hover:bg-zinc-800/80 transition focus:outline-none focus:ring-1 focus:ring-blue-500/60"
+                    title="Click to copy meeting code">
+                <span class="font-medium text-zinc-200 tracking-wider lowercase select-all group-hover:text-white transition"
+                      x-text="copiedCodeNotice ? 'Copied code!' : '{{ meeting_code_formatted|default:meeting.meeting_code }}'">
+                    {{ meeting_code_formatted|default:meeting.meeting_code }}
+                </span>
+                <span x-show="copiedCodeNotice" x-cloak class="text-emerald-400 text-xs font-bold">✓</span>
+            </button>
             <!-- Info circle button (i) -->
             <div class="relative" x-data="{ openInfo: false }">
                 <button @click="openInfo = !openInfo" 
@@ -42,7 +49,7 @@
                      x-transition:enter="transition ease-out duration-150"
                      x-transition:enter-start="opacity-0 scale-95"
                      x-transition:enter-end="opacity-100 scale-100"
-                     class="absolute left-0 top-8 w-80 p-4 rounded-2xl bg-[#202124] border border-zinc-700/80 shadow-2xl z-50 text-left">
+                     class="absolute left-0 top-8 w-[calc(100vw-2rem)] sm:w-80 max-w-sm p-4 rounded-2xl bg-[#202124] border border-zinc-700/80 shadow-2xl z-50 text-left">
                     <div class="flex items-center justify-between mb-3">
                         <h4 class="text-sm font-semibold text-white">Joining info</h4>
                         <button @click="openInfo = false" class="text-zinc-400 hover:text-white text-xs">✕</button>
@@ -233,9 +240,9 @@
                 <div class="text-xs text-zinc-500 mb-6 font-mono">
                     Meeting duration: <span x-text="formatTimer(timerSeconds)">00:00:00</span>
                 </div>
-                <a href="{% url 'workspaces:workspace_dashboard' slug=workspace.slug %}"
+                <a href="{% url 'meetings:meet_hub' slug=workspace.slug %}"
                    class="inline-flex items-center justify-center w-full py-3 px-6 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-medium text-sm transition shadow-lg">
-                    Return to Workspace Dashboard
+                    Return to Meet Hub
                 </a>
             </div>
         </div>
@@ -244,7 +251,7 @@
         <div class="flex-1 flex flex-col w-full h-full relative" id="jitsi-conference-wrapper">
             <!-- Jitsi Connection / Initialization Error State (AetherSpace UI) -->
             <div id="jitsi-error-container" 
-                 x-show="jitsiError" 
+                 x-show="jitsiError || connectionState === 'failed'" 
                  x-cloak
                  class="absolute inset-0 z-40 flex items-center justify-center p-6 bg-[#131314]/95 backdrop-blur-md">
                 <div class="max-w-md w-full p-8 rounded-3xl bg-[#202124] border border-zinc-700/80 shadow-2xl text-center">
@@ -254,16 +261,55 @@
                         </svg>
                     </div>
                     <h3 class="text-xl font-bold text-white mb-2">Conference Connection Issue</h3>
-                    <p class="text-sm text-zinc-400 mb-6" x-text="jitsiErrorMessage || 'Unable to initialize the conference media engine.'"></p>
+                    
+                    <template x-if="jitsiErrorCode">
+                        <div class="mb-3">
+                            <span class="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-mono font-semibold bg-rose-950/80 border border-rose-800 text-rose-300" x-text="jitsiErrorCode"></span>
+                        </div>
+                    </template>
+                    
+                    <p class="text-sm text-zinc-300 mb-4" x-text="jitsiErrorMessage || 'Unable to initialize the conference media engine.'"></p>
+                    
+                    <template x-if="jitsiErrorHint || hasCameraError || hasMicError">
+                        <div class="p-3 mb-5 rounded-xl bg-amber-950/40 border border-amber-800/60 text-left text-xs text-amber-300 flex items-start space-x-2.5">
+                            <svg class="w-4 h-4 text-amber-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span x-text="jitsiErrorHint || 'Please check that camera and microphone permissions are allowed in your browser address bar.'"></span>
+                        </div>
+                    </template>
+                    
                     <div class="flex items-center space-x-3">
-                        <button type="button" @click="location.reload()" 
-                                class="flex-1 py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-medium text-xs transition shadow-md">
-                            Retry Connection
+                        <button type="button" @click="retryConnection()" 
+                                class="flex-1 py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-medium text-xs transition shadow-md cursor-pointer flex items-center justify-center space-x-1.5">
+                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                            <span>Retry Connection</span>
                         </button>
-                        <a href="{% url 'workspaces:workspace_dashboard' slug=workspace.slug %}" 
-                           class="flex-1 py-3 px-4 rounded-xl bg-zinc-700 hover:bg-zinc-600 text-zinc-200 font-medium text-xs transition text-center">
-                            Return to Workspace
+                        <a href="{% url 'meetings:meet_hub' slug=workspace.slug %}" 
+                           class="flex-1 py-3 px-4 rounded-xl bg-zinc-700 hover:bg-zinc-600 text-zinc-200 font-medium text-xs transition text-center cursor-pointer">
+                            Return to Meet Hub
                         </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Conference Connecting Loading State (AetherSpace UI) -->
+            <div id="jitsi-loading-container"
+                 x-show="isConnecting && !jitsiError && connectionState !== 'failed' && connectionState !== 'ready_to_join' && connectionState !== 'connected'" 
+                 x-cloak
+                 class="absolute inset-0 z-30 flex flex-col items-center justify-center p-6 bg-[#131314]/95 backdrop-blur-xs transition-opacity duration-300 pointer-events-none">
+                <div class="flex flex-col items-center space-y-3.5 text-center">
+                    <div class="relative w-12 h-12 flex items-center justify-center">
+                        <div class="w-12 h-12 rounded-full border-2 border-blue-500/30 border-t-blue-500 animate-spin"></div>
+                        <div class="absolute inset-0 flex items-center justify-center">
+                            <span class="w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse"></span>
+                        </div>
+                    </div>
+                    <div>
+                        <p class="text-sm font-semibold text-white tracking-wide">Connecting to conference…</p>
+                        <p class="text-xs text-zinc-400 mt-1">Initializing media engine for {{ meeting_code_formatted|default:meeting.meeting_code }}</p>
                     </div>
                 </div>
             </div>
@@ -285,10 +331,19 @@ function aetherMeetRoomState() {
         jitsiApi: null,
         jitsiError: false,
         jitsiErrorMessage: '',
+        jitsiErrorCode: '',
+        jitsiErrorHint: '',
+        hasCameraError: false,
+        hasMicError: false,
+        isConnecting: true,
+        connectionState: 'initializing_media', // 'idle' | 'initializing_media' | 'connecting' | 'ready_to_join' | 'connected' | 'failed' | 'reconnecting' | 'ended'
+        initTimeoutTimer: null,
+        scriptLoadAttempted: false,
         participantsCount: 1,
         duplicateTabWarning: false,
         meetingChannel: null,
         copiedShareNotice: false,
+        copiedCodeNotice: false,
         isLeaving: false,
         callEnded: false,
         callEndedMessage: '',
@@ -317,6 +372,12 @@ function aetherMeetRoomState() {
                             this.meetingChannel.postMessage({ type: 'tab_pong' });
                         } else if (event.data && event.data.type === 'tab_pong') {
                             this.duplicateTabWarning = true;
+                        } else if (event.data && event.data.type === 'meeting_ended') {
+                            this.callEnded = true;
+                            this.callEndedMessage = "The meeting was ended by the host.";
+                            if (this.jitsiApi) {
+                                try { this.jitsiApi.dispose(); } catch (e) {}
+                            }
                         }
                     };
                 } catch (e) {}
@@ -324,6 +385,12 @@ function aetherMeetRoomState() {
 
             // Initialize Jitsi Meet media engine
             this.initJitsi();
+
+            // Periodic heartbeat ping to keep presence fresh, update timestamp, and detect ejections
+            this.sendHeartbeat();
+            this.heartbeatInterval = setInterval(() => {
+                this.sendHeartbeat();
+            }, 25000);
 
             // Accidental closure, back navigation, or refresh warning
             window.addEventListener('beforeunload', (e) => {
@@ -334,9 +401,66 @@ function aetherMeetRoomState() {
                 }
             });
 
-            // Cleanly record attendance departure when page is unloaded
+            // Non-destructive departure notification on page unload (e.g. reload or duplicate tab close)
             window.addEventListener('pagehide', () => {
-                this.leaveMeeting('leave', true);
+                if (!this.isLeaving && navigator.sendBeacon) {
+                    const endUrl = "{% url 'meetings:meeting_end_api' slug=workspace.slug meeting_code=meeting.meeting_code %}";
+                    const payload = JSON.stringify({ action: 'leave', is_unload: true });
+                    const blob = new Blob([payload], { type: 'application/json' });
+                    navigator.sendBeacon(endUrl, blob);
+                }
+            });
+        },
+
+        clearInitTimeout() {
+            if (this.initTimeoutTimer) {
+                clearTimeout(this.initTimeoutTimer);
+                this.initTimeoutTimer = null;
+            }
+        },
+
+        startInitTimeout(seconds = 18) {
+            this.clearInitTimeout();
+            this.initTimeoutTimer = setTimeout(() => {
+                if (this.connectionState === 'connecting' || this.connectionState === 'initializing_media' || this.isConnecting) {
+                    console.warn(`Meeting media initialization timed out after ${seconds}s.`);
+                    this.connectionState = 'failed';
+                    this.isConnecting = false;
+                    this.jitsiError = true;
+                    this.jitsiErrorCode = 'ERR_MEDIA_INIT_TIMEOUT';
+                    this.jitsiErrorMessage = "Media engine initialization timed out. The conference did not respond within the expected time window.";
+                    this.jitsiErrorHint = "Please check that camera and microphone permissions are allowed in your browser address bar and verify your internet connection.";
+                }
+            }, seconds * 1000);
+        },
+
+        retryConnection() {
+            this.clearInitTimeout();
+            this.connectionState = 'reconnecting';
+            this.isConnecting = true;
+            this.jitsiError = false;
+            this.jitsiErrorMessage = '';
+            this.jitsiErrorCode = '';
+            this.jitsiErrorHint = '';
+            this.hasCameraError = false;
+            this.hasMicError = false;
+
+            if (this.jitsiApi) {
+                try {
+                    this.jitsiApi.dispose();
+                } catch (e) {
+                    console.warn("Jitsi dispose notice on retry:", e);
+                }
+                this.jitsiApi = null;
+            }
+
+            const container = document.getElementById('jitsi-meet-container');
+            if (container) {
+                container.innerHTML = '';
+            }
+
+            this.$nextTick(() => {
+                this.initJitsi();
             });
         },
 
@@ -345,11 +469,20 @@ function aetherMeetRoomState() {
             const height = 750;
             const left = Math.max(0, (window.screen.width - width) / 2);
             const top = Math.max(0, (window.screen.height - height) / 2);
-            window.open(
-                window.location.href,
-                'aether_meet_companion_{{ meeting.meeting_code }}',
-                `width=${width},height=${height},left=${left},top=${top},menubar=no,toolbar=no,location=no,status=no,resizable=yes`
-            );
+            try {
+                const companionWin = window.open(
+                    window.location.href,
+                    'aether_meet_companion_{{ meeting.meeting_code }}',
+                    `width=${width},height=${height},left=${left},top=${top},menubar=no,toolbar=no,location=no,status=no,resizable=yes`
+                );
+                if (!companionWin || companionWin.closed || typeof companionWin.closed === 'undefined') {
+                    alert("Pop-up blocked: Please allow pop-ups for AetherSpace to launch the companion meeting window.");
+                    return;
+                }
+            } catch (err) {
+                console.warn("Pop-out companion window creation error:", err);
+                alert("Could not open companion window. Please verify pop-up permissions in your browser.");
+            }
         },
 
         updateClock() {
@@ -372,31 +505,80 @@ function aetherMeetRoomState() {
             if (this.jitsiApi) return;
 
             {% if jaas_error %}
+            this.connectionState = 'failed';
             this.jitsiError = true;
+            this.jitsiErrorCode = 'ERR_JAAS_AUTH';
             this.jitsiErrorMessage = "8x8 JaaS Configuration Error: {{ jaas_error|escapejs }}";
+            this.isConnecting = false;
             return;
             {% endif %}
 
             if (!{{ jitsi_meet_enabled|yesno:"true,false" }}) {
+                this.connectionState = 'failed';
                 this.jitsiError = true;
+                this.jitsiErrorCode = 'ERR_MEDIA_DISABLED';
                 this.jitsiErrorMessage = "The conference media engine is currently disabled in workspace settings.";
+                this.isConnecting = false;
                 return;
             }
 
             const container = document.getElementById('jitsi-meet-container');
             if (!container) {
+                this.connectionState = 'failed';
                 this.jitsiError = true;
+                this.jitsiErrorCode = 'ERR_CONTAINER_NOT_FOUND';
                 this.jitsiErrorMessage = "Meeting room container could not be found.";
+                this.isConnecting = false;
                 return;
             }
 
             if (typeof JitsiMeetExternalAPI === 'undefined') {
+                const scriptEl = document.getElementById('jitsi-external-api-script');
+                if (scriptEl && !this.scriptLoadAttempted) {
+                    this.scriptLoadAttempted = true;
+                    this.connectionState = 'initializing_media';
+                    this.isConnecting = true;
+                    scriptEl.addEventListener('load', () => {
+                        this.initJitsi();
+                    });
+                    scriptEl.addEventListener('error', () => {
+                        this.connectionState = 'failed';
+                        this.jitsiError = true;
+                        this.jitsiErrorCode = 'ERR_SCRIPT_LOAD_FAILED';
+                        this.jitsiErrorMessage = "Failed to load conference media library from the provider. Please check your network connection.";
+                        this.isConnecting = false;
+                    });
+                    let attempts = 0;
+                    const pollTimer = setInterval(() => {
+                        attempts++;
+                        if (typeof JitsiMeetExternalAPI !== 'undefined') {
+                            clearInterval(pollTimer);
+                            this.initJitsi();
+                        } else if (attempts >= 40) {
+                            clearInterval(pollTimer);
+                            this.connectionState = 'failed';
+                            this.jitsiError = true;
+                            this.jitsiErrorCode = 'ERR_SCRIPT_TIMEOUT';
+                            this.jitsiErrorMessage = "The conference media engine (Jitsi API) timed out while loading. Please check your network connection or try refreshing.";
+                            this.isConnecting = false;
+                        }
+                    }, 100);
+                    return;
+                }
+
+                this.connectionState = 'failed';
                 this.jitsiError = true;
+                this.jitsiErrorCode = 'ERR_SCRIPT_UNAVAILABLE';
                 this.jitsiErrorMessage = "The conference media engine (Jitsi API) could not be loaded. Please check your network connection or try refreshing.";
+                this.isConnecting = false;
                 return;
             }
 
             try {
+                this.connectionState = 'connecting';
+                this.isConnecting = true;
+                this.startInitTimeout(18);
+
                 const domain = "{{ jitsi_domain }}";
                 const toolbarButtons = [
                     'microphone',
@@ -426,9 +608,13 @@ function aetherMeetRoomState() {
                     parentNode: container,
                     userInfo: {{ jitsi_user_info_json|safe|default:'{}' }},
                     configOverwrite: {
+                        prejoinConfig: {
+                            enabled: false
+                        },
+                        prejoinPageEnabled: false,
+                        requireDisplayName: false,
                         startWithAudioMuted: false,
                         startWithVideoMuted: false,
-                        prejoinPageEnabled: false,
                         disableDeepLinking: true,
                         enableWelcomePage: false,
                         enableClosePage: false,
@@ -472,7 +658,51 @@ function aetherMeetRoomState() {
                 // Jitsi Participant Lifecycle Listeners
                 this.jitsiApi.addEventListener('videoConferenceJoined', (event) => {
                     console.info("Connected to Jitsi conference:", event);
+                    this.clearInitTimeout();
+                    this.connectionState = 'connected';
+                    this.isConnecting = false;
+                    this.jitsiError = false;
                     syncCount();
+                });
+
+                this.jitsiApi.addEventListener('prejoinScreenLoaded', (event) => {
+                    console.info("Jitsi prejoin screen loaded. Releasing loading overlay to allow user interaction:", event);
+                    this.clearInitTimeout();
+                    this.connectionState = 'ready_to_join';
+                    this.isConnecting = false;
+                });
+
+                this.jitsiApi.addEventListener('cameraError', (err) => {
+                    console.warn("Jitsi camera error / permission denied:", err);
+                    this.hasCameraError = true;
+                    this.jitsiErrorHint = "Camera access was denied or not detected. You can still participate with audio.";
+                });
+
+                this.jitsiApi.addEventListener('micError', (err) => {
+                    console.warn("Jitsi microphone error / permission denied:", err);
+                    this.hasMicError = true;
+                    this.jitsiErrorHint = "Microphone access was denied or not detected. Please verify microphone permissions in your browser.";
+                });
+
+                this.jitsiApi.addEventListener('videoConferenceFailed', (err) => {
+                    console.error("Jitsi conference failed to join:", err);
+                    this.clearInitTimeout();
+                    this.connectionState = 'failed';
+                    this.isConnecting = false;
+                    this.jitsiError = true;
+                    this.jitsiErrorCode = 'ERR_CONFERENCE_FAILED';
+                    this.jitsiErrorMessage = "Conference connection failed. Please check your network or credentials.";
+                    this.jitsiErrorHint = "Verify your internet connection or try reconnecting.";
+                });
+
+                this.jitsiApi.addEventListener('browserError', (err) => {
+                    console.warn("Jitsi browser compatibility error:", err);
+                    this.clearInitTimeout();
+                    this.connectionState = 'failed';
+                    this.isConnecting = false;
+                    this.jitsiError = true;
+                    this.jitsiErrorCode = 'ERR_BROWSER_INCOMPATIBLE';
+                    this.jitsiErrorMessage = "Your browser does not support required WebRTC media features.";
                 });
 
                 this.jitsiApi.addEventListener('participantJoined', (event) => {
@@ -490,26 +720,45 @@ function aetherMeetRoomState() {
                 });
 
                 this.jitsiApi.addEventListener('videoConferenceLeft', () => {
+                    this.connectionState = 'ended';
                     this.leaveMeeting('leave');
                 });
 
                 this.jitsiApi.addEventListener('readyToClose', () => {
+                    this.connectionState = 'ended';
                     this.leaveMeeting('leave');
                 });
 
             } catch (err) {
                 console.error("Failed to initialize Jitsi conference:", err);
+                this.clearInitTimeout();
+                this.connectionState = 'failed';
                 this.jitsiError = true;
+                this.jitsiErrorCode = 'ERR_LAUNCH_EXCEPTION';
                 this.jitsiErrorMessage = "An unexpected error occurred while launching the conference engine.";
+                this.isConnecting = false;
             }
         },
 
         leaveMeeting(action = 'leave', isUnload = false) {
             if (this.isLeaving) return;
             this.isLeaving = true;
+            this.clearInitTimeout();
+            this.connectionState = 'ended';
+            if (this.heartbeatInterval) {
+                clearInterval(this.heartbeatInterval);
+                this.heartbeatInterval = null;
+            }
+            if (this.timerInterval) {
+                clearInterval(this.timerInterval);
+                this.timerInterval = null;
+            }
 
             if (this.meetingChannel) {
                 try {
+                    if (action === 'end') {
+                        this.meetingChannel.postMessage({ type: 'meeting_ended' });
+                    }
                     this.meetingChannel.close();
                 } catch (e) {}
                 this.meetingChannel = null;
@@ -540,7 +789,7 @@ function aetherMeetRoomState() {
                     },
                     body: payload
                 }).finally(() => {
-                    window.location.href = "{% url 'workspaces:workspace_dashboard' slug=workspace.slug %}";
+                    window.location.href = "{% url 'meetings:meet_hub' slug=workspace.slug %}";
                 });
             }
         },
@@ -556,8 +805,35 @@ function aetherMeetRoomState() {
         },
 
         copyMeetingCode(code) {
-            if (navigator.clipboard) {
-                navigator.clipboard.writeText(code);
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(code).then(() => {
+                    this.copiedCodeNotice = true;
+                    setTimeout(() => this.copiedCodeNotice = false, 2500);
+                }).catch(() => {
+                    this.fallbackCopy(code);
+                });
+            } else {
+                this.fallbackCopy(code);
+            }
+        },
+
+        fallbackCopy(text) {
+            try {
+                const ta = document.createElement('textarea');
+                ta.value = text;
+                ta.style.position = 'fixed';
+                ta.style.left = '-9999px';
+                document.body.appendChild(ta);
+                ta.focus();
+                ta.select();
+                const ok = document.execCommand('copy');
+                document.body.removeChild(ta);
+                if (ok) {
+                    this.copiedCodeNotice = true;
+                    setTimeout(() => this.copiedCodeNotice = false, 2500);
+                }
+            } catch (e) {
+                console.warn("Fallback copy failed:", e);
             }
         },
 
@@ -567,6 +843,32 @@ function aetherMeetRoomState() {
                 this.copiedShareNotice = true;
                 setTimeout(() => this.copiedShareNotice = false, 3000);
             }
+        },
+
+        sendHeartbeat() {
+            if (this.isLeaving || this.callEnded) return;
+            const pingUrl = "{% url 'meetings:meeting_ping_api' slug=workspace.slug meeting_code=meeting.meeting_code %}";
+            fetch(pingUrl, {
+                method: "POST",
+                headers: {
+                    "X-CSRFToken": "{{ csrf_token }}",
+                    "X-Requested-With": "XMLHttpRequest",
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ action: 'ping' })
+            }).then(r => r.json()).then(data => {
+                if (data && (data.status === 'removed' || data.status === 'ENDED' || data.status === 'ended')) {
+                    if (data.status === 'removed') {
+                        window.location.href = data.redirect_url || "{% url 'meetings:meet_hub' slug=workspace.slug %}";
+                    } else {
+                        this.callEnded = true;
+                        this.callEndedMessage = "This meeting has ended.";
+                        if (this.jitsiApi) {
+                            try { this.jitsiApi.dispose(); } catch(e) {}
+                        }
+                    }
+                }
+            }).catch(() => {});
         }
     };
 }

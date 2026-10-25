@@ -19,53 +19,31 @@
 
     <!-- 2. Profile Hero Card (Obsidian Dark & Slate Light) -->
     <div class="aether-card overflow-hidden rounded-2xl border border-slate-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm">
-        <!-- Banner Gradient or Custom Photo Header -->
-        <div class="h-36 sm:h-48 relative overflow-hidden bg-cover bg-center
-            {% if not profile.banner or profile.banner|slice:':7' == 'preset:' %}
-                {% if profile.banner == 'preset:cyberpunk' %}bg-gradient-to-r from-fuchsia-600 via-pink-600 to-rose-700
-                {% elif profile.banner == 'preset:emerald' %}bg-gradient-to-r from-emerald-700 via-teal-700 to-cyan-800
-                {% elif profile.banner == 'preset:sunset' %}bg-gradient-to-r from-amber-600 via-orange-600 to-rose-700
-                {% elif profile.banner == 'preset:obsidian' %}bg-gradient-to-r from-zinc-900 via-zinc-800 to-slate-900
-                {% elif profile.banner == 'preset:electric' %}bg-gradient-to-r from-indigo-900 via-purple-800 to-pink-700
-                {% else %}bg-gradient-to-r from-blue-700 via-indigo-600 to-purple-800{% endif %}
-            {% endif %}"
-            {% if profile.banner and profile.banner|slice:':7' != 'preset:' %}style="background-image: url('{{ profile.banner }}');"{% endif %}>
+        <!-- Banner Photo Container: Permanent Shared Moonlit Mountain Banner -->
+        <div class="h-44 sm:h-56 md:h-64 relative overflow-hidden bg-cover bg-center transition-all"
+             style="background-image: url('{% static 'images/default_banner_mountain.webp' %}'); background-position: center 35%;">
             
-            {% if not profile.banner or profile.banner|slice:':7' == 'preset:' %}
-                <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.18),transparent_50%)]"></div>
-                <div class="absolute inset-0 bg-[radial-gradient(circle_at_bottom_left,rgba(0,0,0,0.25),transparent_60%)]"></div>
-            {% else %}
-                <div class="absolute inset-0 bg-black/25"></div>
-            {% endif %}
+            <!-- Contrast Overlays: Vignette & Bottom Shadow for seamless avatar overlap -->
+            <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-black/10"></div>
+            <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.12),transparent_60%)]"></div>
             
-            <!-- Top Right Identity Pill & Edit Shortcut -->
-            <div class="absolute top-3 right-4 sm:top-4 sm:right-6 flex items-center space-x-2">
-                {% if is_own_profile %}
-                    <a href="{% url 'user_settings:profile' %}" 
-                       class="px-2.5 py-1 rounded-full bg-black/40 hover:bg-black/60 backdrop-blur-md border border-white/20 text-[11px] font-semibold text-white tracking-wide flex items-center space-x-1.5 shadow-sm transition-all"
-                       title="Change Banner Photo">
-                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                        </svg>
-                        <span class="hidden sm:inline">Change Banner</span>
-                    </a>
-                {% endif %}
-                <div class="px-3 py-1 rounded-full bg-black/30 backdrop-blur-md border border-white/15 text-[11px] font-semibold text-white/90 tracking-wide flex items-center space-x-1.5 shadow-sm">
-                    <span class="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></span>
-                    <span>AetherSpace Identity &bull; {{ profile_user.role|default:"Member" }}</span>
+            <!-- Top Right Identity Pill -->
+            <div class="absolute top-3 right-3 sm:top-4 sm:right-6 flex items-center space-x-2">
+                <div class="px-3 py-1.5 rounded-full bg-black/40 backdrop-blur-md border border-white/15 text-xs font-semibold text-white/90 tracking-wide flex items-center space-x-2 shadow-sm">
+                    <span class="w-2 h-2 rounded-full {% if profile.availability_status == 'available' %}bg-emerald-400 animate-pulse{% elif profile.availability_status == 'busy' %}bg-rose-400{% elif profile.availability_status == 'away' %}bg-amber-400{% else %}bg-slate-400{% endif %}"></span>
+                    <span>AetherSpace &bull; {{ profile_user.role|default:"CONTRIBUTOR" }}</span>
                 </div>
             </div>
         </div>
 
-        <!-- Profile Details Body (Clean card surface, zero banner overlap) -->
+        <!-- Profile Details Body -->
         <div class="px-5 sm:px-8 pb-6 pt-0 relative">
             <!-- Top Row: Avatar on left, Action buttons on right -->
-            <div class="flex items-end justify-between -mt-14 sm:-mt-16 mb-2">
-                <!-- Avatar with Ring -->
+            <div class="flex items-end justify-between -mt-14 sm:-mt-16 mb-4 flex-wrap gap-4">
+                <!-- Avatar with Ring and Availability Indicator -->
                 <div class="relative group">
                     {% if profile_user.avatar and profile_user.avatar|slice:":7" == "preset:" %}
-                        <div class="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl flex items-center justify-center text-white font-black text-2xl sm:text-3xl shadow-xl ring-4 ring-white dark:ring-zinc-900
+                        <div class="w-28 h-28 sm:w-32 sm:h-32 rounded-2xl flex items-center justify-center text-white font-black text-3xl sm:text-4xl shadow-2xl ring-4 ring-white dark:ring-zinc-900
                             {% if profile_user.avatar == 'preset:teal' %}bg-gradient-to-tr from-emerald-500 to-teal-700
                             {% elif profile_user.avatar == 'preset:purple' %}bg-gradient-to-tr from-purple-600 to-pink-600
                             {% elif profile_user.avatar == 'preset:amber' %}bg-gradient-to-tr from-amber-500 to-orange-600
@@ -77,17 +55,26 @@
                     {% elif profile_user.avatar %}
                         <img src="{{ profile_user.avatar }}" 
                              alt="{{ profile_user.full_name|default:profile_user.email }}" 
-                             class="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl object-cover ring-4 ring-white dark:ring-zinc-900 shadow-xl bg-slate-100 dark:bg-zinc-800">
+                             class="w-28 h-28 sm:w-32 sm:h-32 rounded-2xl object-cover ring-4 ring-white dark:ring-zinc-900 shadow-2xl bg-slate-900">
                     {% else %}
-                        <div class="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-700 text-white font-black text-2xl sm:text-3xl flex items-center justify-center shadow-xl ring-4 ring-white dark:ring-zinc-900">
+                        <div class="w-28 h-28 sm:w-32 sm:h-32 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-700 text-white font-black text-3xl sm:text-4xl flex items-center justify-center shadow-2xl ring-4 ring-white dark:ring-zinc-900">
                             {{ profile_user.full_name|default:profile_user.email|slice:":2"|upper }}
                         </div>
                     {% endif %}
 
+                    <!-- Availability indicator dot badge on avatar -->
+                    <span class="absolute bottom-1 right-1 w-4 h-4 rounded-full ring-2 ring-white dark:ring-zinc-900 shadow-sm
+                        {% if profile.availability_status == 'available' %}bg-emerald-500
+                        {% elif profile.availability_status == 'busy' %}bg-rose-500
+                        {% elif profile.availability_status == 'away' %}bg-amber-500
+                        {% else %}bg-slate-400 dark:bg-zinc-500{% endif %}"
+                        title="Status: {{ profile.availability_status|title }}">
+                    </span>
+
                     {% if is_own_profile and active_tab != 'edit' %}
                         <a href="{% url 'accounts:profile_edit' %}" 
-                           title="Edit avatar & details"
-                           class="absolute bottom-0 right-0 p-1.5 rounded-lg bg-blue-600 text-white shadow-md hover:bg-blue-700 transition-colors">
+                           title="Edit avatar & profile photo"
+                           class="absolute top-1 right-1 p-1.5 rounded-lg bg-black/60 hover:bg-black/80 text-white shadow-md transition-colors backdrop-blur-xs">
                             <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                             </svg>
@@ -95,13 +82,13 @@
                     {% endif %}
                 </div>
 
-                <!-- Right Action Button -->
-                {% if is_own_profile %}
-                    <div class="pb-1">
+                <!-- Right Action Buttons -->
+                <div class="pb-1 flex items-center space-x-2.5 flex-wrap gap-y-2">
+                    {% if is_own_profile %}
                         {% if active_tab == 'edit' %}
                             <a href="{% url 'accounts:profile' %}" 
                                class="px-4 py-2 text-xs font-semibold rounded-xl bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors inline-flex items-center space-x-1.5 shadow-sm">
-                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                                 </svg>
@@ -109,125 +96,120 @@
                             </a>
                         {% else %}
                             <a href="{% url 'accounts:profile_edit' %}" 
-                               class="px-4 py-2 text-xs font-semibold rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-colors inline-flex items-center space-x-1.5 shadow-sm">
-                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                class="px-4 py-2 text-xs font-semibold rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-colors inline-flex items-center space-x-1.5 shadow-sm">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                 </svg>
                                 <span>Edit Profile</span>
                             </a>
                         {% endif %}
-                    </div>
-                {% endif %}
+                    {% else %}
+                        <a href="mailto:{{ profile_user.email }}" 
+                           class="px-3.5 py-2 text-xs font-semibold rounded-xl bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700 transition-colors inline-flex items-center space-x-1.5 shadow-xs">
+                            <svg class="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                            </svg>
+                            <span>Send Email</span>
+                        </a>
+                        {% if shared_roles %}
+                            <a href="/chat/w/{{ shared_roles.0.workspace_slug }}/dm/{{ profile_user.id }}/" 
+                               class="px-4 py-2 text-xs font-semibold rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-colors inline-flex items-center space-x-1.5 shadow-sm">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                                </svg>
+                                <span>Start Direct Chat</span>
+                            </a>
+                        {% endif %}
+                    {% endif %}
+                </div>
             </div>
 
-            <!-- Profile Info: Name, Role Tags, Headline & Metadata (All completely below banner) -->
-            <div class="space-y-2 text-left mb-6">
-                <!-- Name and Badges -->
-                <div class="flex items-center space-x-2.5 flex-wrap gap-y-2">
-                    <h1 class="text-2xl sm:text-3xl font-black tracking-tight text-slate-900 dark:text-zinc-50">
+            <!-- Profile Info: Name, Badges, Workspace Role Row, Headline, Contact Metadata -->
+            <div class="space-y-2.5 mb-6">
+                <!-- 1. Name and Identity Badges -->
+                <div class="flex items-center flex-wrap gap-2.5">
+                    <h1 class="text-2xl sm:text-3xl font-black tracking-tight text-slate-900 dark:text-zinc-50 leading-tight">
                         {{ profile_user.full_name|default:profile_user.email }}
                     </h1>
 
-                    <!-- Contributor ID Badge -->
-                    {% if profile_user.contributor_id %}
-                        <span class="px-2.5 py-0.5 text-[11px] font-mono font-bold rounded-lg bg-slate-100 dark:bg-zinc-800 text-slate-800 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700 inline-flex items-center space-x-1.5 shadow-sm" title="Contributor ID">
-                            <span class="text-slate-400 dark:text-zinc-500 font-sans font-semibold text-[10px] uppercase">ID</span>
-                            <span class="text-aether-blue dark:text-blue-400 font-extrabold">{{ profile_user.contributor_id }}</span>
-                        </span>
-                    {% endif %}
-                    
-                    <!-- System Role -->
-                    <span class="px-2.5 py-0.5 text-[11px] font-bold rounded-lg bg-blue-50 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-900/60 uppercase tracking-wider">
-                        {{ profile_user.role|default:"CONTRIBUTOR" }}
-                    </span>
-
-                    <!-- Verified Badge -->
-                    {% if profile_user.is_verified %}
-                        <span class="px-2 py-0.5 text-[11px] font-semibold rounded-lg bg-emerald-50 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900/60 inline-flex items-center space-x-1">
-                            <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
-                            </svg>
-                            <span>Verified</span>
-                        </span>
-                    {% endif %}
-                </div>
-
-                <!-- Role & Responsibility Ribbon: { Designation Role • Tagging Role • Workspace Name } -->
-                <div class="py-2 px-3.5 rounded-xl bg-slate-50 dark:bg-zinc-800/60 border border-slate-200/80 dark:border-zinc-700/60 shadow-2xs flex items-center justify-between flex-wrap gap-2.5 my-2.5">
-                    <div class="flex items-center gap-2 flex-wrap text-xs">
-                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500 flex items-center gap-1">
-                            <svg class="w-3.5 h-3.5 text-blue-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
-                            </svg>
-                            <span>Scope:</span>
-                        </span>
-
-                        <!-- Designation (e.g. Engineering Lead, Full Stack Developer, Backend Developer, QA / Test Engineer) -->
-                        <span class="font-bold text-sm text-slate-900 dark:text-zinc-100">
-                            {{ primary_role.designation|default:profile_user.get_role_display|default:profile_user.role }}
-                        </span>
-
-                        <!-- Bullet separator -->
-                        {% if primary_role.role_tag %}
-                            <span class="text-slate-300 dark:text-zinc-600 font-black text-[11px]">&bull;</span>
-                            <!-- Tagging Role Badge (e.g. Management, Backend, Full Stack, QA, Frontend) -->
-                            <span class="px-2.5 py-0.5 rounded-lg text-[11px] font-bold tracking-wide bg-purple-50 dark:bg-purple-950/70 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800/60">
-                                {{ primary_role.role_tag }}
+                    <div class="flex items-center flex-wrap gap-1.5">
+                        {% if primary_role.is_owner %}
+                            <span class="px-2 py-0.5 text-[11px] font-bold rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/25 inline-flex items-center space-x-1" title="Workspace Owner">
+                                <span>★ OWNER</span>
                             </span>
                         {% endif %}
 
-                        <!-- Bullet separator -->
-                        {% if primary_role.workspace_name %}
-                            <span class="text-slate-300 dark:text-zinc-600 font-black text-[11px]">&bull;</span>
-                            <!-- Workspace Name Badge (e.g. AetherSpace Core) -->
-                            <a href="{% url 'workspaces:workspace_dashboard' slug=primary_role.workspace_slug %}" 
-                               class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-[11px] font-semibold text-slate-700 dark:text-zinc-200 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 hover:text-blue-600 dark:hover:text-blue-400 hover:border-blue-400 transition-colors shadow-2xs">
-                                <svg class="w-3.5 h-3.5 text-blue-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
-                                </svg>
-                                <span>{{ primary_role.workspace_name }}</span>
-                            </a>
+                        {% if profile_user.contributor_id %}
+                            <span class="px-2 py-0.5 text-[11px] font-mono font-bold rounded-md bg-slate-100 dark:bg-zinc-800 text-slate-800 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700 inline-flex items-center space-x-1 shadow-2xs" title="Contributor ID">
+                                <span class="text-slate-400 dark:text-zinc-500 font-sans font-semibold text-[10px] uppercase">ID</span>
+                                <span class="text-blue-600 dark:text-blue-400 font-extrabold">{{ profile_user.contributor_id }}</span>
+                            </span>
                         {% endif %}
 
-                        {% if primary_role.is_owner %}
-                            <span class="px-2 py-0.5 text-[10px] font-bold rounded-md bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400 border border-amber-200 dark:border-amber-900/60 uppercase">
-                                Workspace Owner
+                        <span class="px-2 py-0.5 text-[11px] font-bold rounded-md bg-blue-50 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-900/60 uppercase tracking-wider">
+                            {{ profile_user.role|default:"CONTRIBUTOR" }}
+                        </span>
+
+                        {% if profile_user.is_verified %}
+                            <span class="px-2 py-0.5 text-[11px] font-semibold rounded-md bg-emerald-50 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900/60 inline-flex items-center space-x-1" title="Verified Account">
+                                <svg class="w-3 h-3 text-emerald-600 dark:text-emerald-400" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                                </svg>
+                                <span>Verified</span>
                             </span>
                         {% endif %}
                     </div>
+                </div>
 
-                    <!-- Right side: Reports To Supervisor or Direct Reports -->
+                <!-- 2. Workspace Role Row: Job Title · Tagging Department · Workspace Name -->
+                <div class="flex items-center flex-wrap gap-x-2 gap-y-1 text-sm text-slate-700 dark:text-zinc-300 leading-normal">
+                    <!-- Job Title / Functional Role -->
+                    <span class="font-bold text-slate-900 dark:text-zinc-100">
+                        {{ primary_role.designation|default:profile_user.get_role_display|default:profile_user.role }}
+                    </span>
+
+                    {% if primary_role.role_tag %}
+                        <span class="text-slate-300 dark:text-zinc-600 font-black text-xs select-none">&bull;</span>
+                        <span class="px-2 py-0.5 rounded-md text-xs font-semibold bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800/60">
+                            {{ primary_role.role_tag }}
+                        </span>
+                    {% endif %}
+
+                    {% if primary_role.workspace_name %}
+                        <span class="text-slate-300 dark:text-zinc-600 font-black text-xs select-none">&bull;</span>
+                        <a href="{% url 'workspaces:workspace_dashboard' slug=primary_role.workspace_slug %}" 
+                           class="font-semibold text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1 truncate max-w-[280px]"
+                           title="Workspace: {{ primary_role.workspace_name }}">
+                            <svg class="w-3.5 h-3.5 text-blue-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                            </svg>
+                            <span class="truncate">{{ primary_role.workspace_name }}</span>
+                        </a>
+                    {% endif %}
+
                     {% if primary_role.reporting_to_name and not primary_role.is_owner %}
-                        <div class="flex items-center gap-1.5 text-xs text-slate-500 dark:text-zinc-400">
-                            <span class="text-[10px] font-medium text-slate-400 dark:text-zinc-500 uppercase tracking-wider">Reports to:</span>
-                            <div class="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-white dark:bg-zinc-900 border border-slate-200/80 dark:border-zinc-700">
-                                {% if primary_role.reporting_to_user %}
-                                    {% include 'components/avatar.html' with user=primary_role.reporting_to_user size="w-4 h-4" rounded="rounded-full" text_size="text-[9px]" %}
-                                {% endif %}
-                                <span class="font-bold text-slate-800 dark:text-zinc-200">
-                                    {{ primary_role.reporting_to_name }}
-                                </span>
-                                {% if primary_role.reporting_to_role %}
-                                    <span class="text-[10px] text-slate-400 dark:text-zinc-500">({{ primary_role.reporting_to_role }})</span>
-                                {% endif %}
-                            </div>
-                        </div>
+                        <span class="text-slate-300 dark:text-zinc-600 font-black text-xs select-none">&bull;</span>
+                        <span class="text-xs text-slate-500 dark:text-zinc-400 inline-flex items-center gap-1">
+                            <span>Reports to</span>
+                            <span class="font-semibold text-slate-800 dark:text-zinc-200">{{ primary_role.reporting_to_name }}</span>
+                        </span>
                     {% elif primary_role.direct_reports_count > 0 %}
-                        <div class="flex items-center gap-1 text-xs text-slate-500 dark:text-zinc-400">
-                            <span class="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60">
-                                Supervises {{ primary_role.direct_reports_count }} Contributor{{ primary_role.direct_reports_count|pluralize }}
-                            </span>
-                        </div>
+                        <span class="text-slate-300 dark:text-zinc-600 font-black text-xs select-none">&bull;</span>
+                        <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60">
+                            Supervises {{ primary_role.direct_reports_count }} Contributor{{ primary_role.direct_reports_count|pluralize }}
+                        </span>
                     {% endif %}
                 </div>
 
-                <!-- Professional Headline -->
-                <p class="text-sm font-medium text-slate-600 dark:text-zinc-300">
-                    {{ profile.headline|default:"Platform Contributor & Team Collaborator" }}
-                </p>
+                <!-- 3. Professional Description directly beneath workspace row -->
+                {% if profile.headline %}
+                    <p class="text-xs text-slate-600 dark:text-zinc-400 font-medium">
+                        {{ profile.headline }}
+                    </p>
+                {% endif %}
 
-                <!-- Contact & Hierarchy Metadata -->
-                <div class="flex items-center flex-wrap gap-x-4 gap-y-2 pt-1 text-xs text-slate-500 dark:text-zinc-400">
+                <!-- 4. Contact & Identity Metadata Row -->
+                <div class="flex items-center flex-wrap gap-x-4 gap-y-1.5 pt-0.5 text-xs text-slate-500 dark:text-zinc-400">
                     <span class="inline-flex items-center space-x-1.5">
                         <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
@@ -307,11 +289,10 @@
         </div>
     </div>
 
-    {% if is_own_profile %}
-    <!-- 3. Sub-Navigation Tabs Bar (Screens 53 - 58) -->
+    <!-- 3. Sub-Navigation Tabs Bar -->
     <div class="flex items-center space-x-1 border-b border-slate-200 dark:border-zinc-800 overflow-x-auto no-scrollbar">
-        <!-- Tab 1: Overview (Screen 53) -->
-        <a href="{% url 'accounts:profile' %}" 
+        <!-- Tab 1: Overview -->
+        <a href="{% if is_own_profile %}{% url 'accounts:profile' %}{% else %}{% url 'accounts:public_profile' user_id=profile_user.id %}{% endif %}" 
            class="px-4 py-2.5 text-xs sm:text-sm font-bold transition-colors whitespace-nowrap border-b-2 inline-flex items-center space-x-2
                   {% if active_tab == 'overview' %}
                       border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-500
@@ -324,73 +305,79 @@
             <span>Overview</span>
         </a>
 
-        <!-- Tab 2: My Tasks (Screen 55) -->
-        <a href="{% url 'accounts:profile_tasks' %}" 
-           class="px-4 py-2.5 text-xs sm:text-sm font-bold transition-colors whitespace-nowrap border-b-2 inline-flex items-center space-x-2
-                  {% if active_tab == 'tasks' %}
-                      border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-500
-                  {% else %}
-                      border-transparent text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200
-                  {% endif %}">
-            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-            </svg>
-            <span>My Tasks</span>
-            <span class="ml-1 px-1.5 py-0.2 text-[10px] rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300">
-                {{ metrics.total_assigned_tasks }}
-            </span>
-        </a>
-
-        <!-- Tab 3: My Bugs (Screen 56) -->
-        <a href="{% url 'accounts:profile_bugs' %}" 
-           class="px-4 py-2.5 text-xs sm:text-sm font-bold transition-colors whitespace-nowrap border-b-2 inline-flex items-center space-x-2
-                  {% if active_tab == 'bugs' %}
-                      border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-500
-                  {% else %}
-                      border-transparent text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200
-                  {% endif %}">
-            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-            <span>My Bugs</span>
-            <span class="ml-1 px-1.5 py-0.2 text-[10px] rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300">
-                {{ metrics.assigned_bugs_count }}
-            </span>
-        </a>
-
-        <!-- Tab 4: Activity (Screen 57) -->
-        <a href="{% url 'accounts:profile_activity' %}" 
-           class="px-4 py-2.5 text-xs sm:text-sm font-bold transition-colors whitespace-nowrap border-b-2 inline-flex items-center space-x-2
-                  {% if active_tab == 'activity' %}
-                      border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-500
-                  {% else %}
-                      border-transparent text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200
-                  {% endif %}">
-            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span>Activity</span>
-        </a>
-
-        <!-- Tab 5: Workspace Roles (Screen 58) -->
-        <a href="{% url 'accounts:profile_roles' %}" 
-           class="px-4 py-2.5 text-xs sm:text-sm font-bold transition-colors whitespace-nowrap border-b-2 inline-flex items-center space-x-2
-                  {% if active_tab == 'roles' %}
-                      border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-500
-                  {% else %}
-                      border-transparent text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200
-                  {% endif %}">
-            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-            </svg>
-            <span>Workspace Roles</span>
-            <span class="ml-1 px-1.5 py-0.2 text-[10px] rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300">
-                {{ metrics.workspaces_count }}
-            </span>
-        </a>
-
+        <!-- Tab 2: Workspaces -->
         {% if is_own_profile %}
-            <!-- Edit Profile Tab (Screen 54) -->
+            <a href="{% url 'accounts:profile_roles' %}" 
+               class="px-4 py-2.5 text-xs sm:text-sm font-bold transition-colors whitespace-nowrap border-b-2 inline-flex items-center space-x-2
+                      {% if active_tab == 'roles' %}
+                          border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-500
+                      {% else %}
+                          border-transparent text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200
+                      {% endif %}">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                </svg>
+                <span>Workspaces</span>
+                {% if metrics.workspaces_count %}
+                    <span class="ml-1 px-1.5 py-0.2 text-[10px] rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300">
+                        {{ metrics.workspaces_count }}
+                    </span>
+                {% endif %}
+            </a>
+
+            <!-- Tab 3: Activity -->
+            <a href="{% url 'accounts:profile_activity' %}" 
+               class="px-4 py-2.5 text-xs sm:text-sm font-bold transition-colors whitespace-nowrap border-b-2 inline-flex items-center space-x-2
+                      {% if active_tab == 'activity' %}
+                          border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-500
+                      {% else %}
+                          border-transparent text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200
+                      {% endif %}">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>Activity</span>
+            </a>
+
+            <!-- Tab 4: My Tasks -->
+            <a href="{% url 'accounts:profile_tasks' %}" 
+               class="px-4 py-2.5 text-xs sm:text-sm font-bold transition-colors whitespace-nowrap border-b-2 inline-flex items-center space-x-2
+                      {% if active_tab == 'tasks' %}
+                          border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-500
+                      {% else %}
+                          border-transparent text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200
+                      {% endif %}">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+                <span>My Tasks</span>
+                {% if metrics.total_assigned_tasks %}
+                    <span class="ml-1 px-1.5 py-0.2 text-[10px] rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300">
+                        {{ metrics.total_assigned_tasks }}
+                    </span>
+                {% endif %}
+            </a>
+
+            <!-- Tab 5: My Bugs -->
+            <a href="{% url 'accounts:profile_bugs' %}" 
+               class="px-4 py-2.5 text-xs sm:text-sm font-bold transition-colors whitespace-nowrap border-b-2 inline-flex items-center space-x-2
+                      {% if active_tab == 'bugs' %}
+                          border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-500
+                      {% else %}
+                          border-transparent text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200
+                      {% endif %}">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <span>My Bugs</span>
+                {% if metrics.assigned_bugs_count %}
+                    <span class="ml-1 px-1.5 py-0.2 text-[10px] rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300">
+                        {{ metrics.assigned_bugs_count }}
+                    </span>
+                {% endif %}
+            </a>
+
+            <!-- Edit Profile / Settings -->
             <a href="{% url 'accounts:profile_edit' %}" 
                class="px-4 py-2.5 text-xs sm:text-sm font-bold transition-colors whitespace-nowrap border-b-2 inline-flex items-center space-x-2 ml-auto
                       {% if active_tab == 'edit' %}
@@ -406,7 +393,6 @@
             </a>
         {% endif %}
     </div>
-    {% endif %}
 
     <!-- 4. Profile Tab Specific Content -->
     {% block profile_content %}{% endblock %}

@@ -1,0 +1,89 @@
+{% comment %}
+Reusable Identity Badge for Workspaces and Channels
+Renders:
+1. Uploaded Image Avatar if configured
+2. Built-in Curated Icon if selected
+3. Intentional fallback:
+   - For Channels: # for public, lock for private
+   - For Workspaces: 2-letter uppercase initials on rich gradient
+{% endcomment %}
+<div class="{{ size|default:'w-8 h-8' }} {{ radius|default:'rounded-xl' }} flex items-center justify-center shrink-0 overflow-hidden relative border border-slate-200/80 dark:border-zinc-800 {{ extra_class|default:'' }}"
+     {% if entity.icon_name %}data-icon="{{ entity.icon_name }}"{% endif %}>
+    {% if entity.avatar_url %}
+        <img src="{{ entity.avatar_url }}" alt="{{ entity.name }}" class="w-full h-full object-cover">
+    {% elif entity.logo_url %}
+        <img src="{{ entity.logo_url }}" alt="{{ entity.name }}" class="w-full h-full object-cover">
+    {% elif entity.icon_name == 'hash' %}
+        <div class="w-full h-full bg-blue-600/10 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 font-bold font-mono flex items-center justify-center {{ text_size|default:'text-xs' }}">
+            #
+        </div>
+    {% elif entity.icon_name == 'terminal' %}
+        <div class="w-full h-full bg-slate-900 text-emerald-400 flex items-center justify-center">
+            <svg class="w-1/2 h-1/2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+        </div>
+    {% elif entity.icon_name == 'rocket' %}
+        <div class="w-full h-full bg-gradient-to-tr from-purple-600 to-indigo-600 text-white flex items-center justify-center">
+            <svg class="w-1/2 h-1/2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.59 14.37a6 6 0 01-5.84 7.38v-4.8m5.84-2.58a14.98 14.98 0 006.16-12.12A14.98 14.98 0 009.63 8.41m5.96 5.96a14.926 14.926 0 01-5.841 2.58m-.119-8.54a6 6 0 00-7.381 5.84h4.8m2.58-5.84a14.927 14.927 0 00-2.58 5.84m2.699 2.7a3 3 0 11-4.243-4.243 3 3 0 014.243 4.243z"/></svg>
+        </div>
+    {% elif entity.icon_name == 'sparkles' %}
+        <div class="w-full h-full bg-gradient-to-tr from-amber-500 to-rose-500 text-white flex items-center justify-center">
+            <svg class="w-1/2 h-1/2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/></svg>
+        </div>
+    {% elif entity.icon_name == 'megaphone' %}
+        <div class="w-full h-full bg-gradient-to-tr from-blue-600 to-cyan-500 text-white flex items-center justify-center">
+            <svg class="w-1/2 h-1/2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"/></svg>
+        </div>
+    {% elif entity.icon_name == 'chat' %}
+        <div class="w-full h-full bg-blue-500 text-white flex items-center justify-center">
+            <svg class="w-1/2 h-1/2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+        </div>
+    {% elif entity.icon_name == 'briefcase' %}
+        <div class="w-full h-full bg-slate-700 text-slate-100 flex items-center justify-center">
+            <svg class="w-1/2 h-1/2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+        </div>
+    {% elif entity.icon_name == 'bulb' %}
+        <div class="w-full h-full bg-amber-500 text-amber-950 flex items-center justify-center">
+            <svg class="w-1/2 h-1/2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+        </div>
+    {% elif entity.icon_name == 'bug' %}
+        <div class="w-full h-full bg-rose-600 text-white flex items-center justify-center">
+            <svg class="w-1/2 h-1/2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-4v4m0-4H8m8 0a4 4 0 00-8 0v1a4 4 0 008 0v-1zm4-6l-2 1m-10-1l2 1m10 5l2 1m-14-1l-2 1M9 7a3 3 0 016 0v1H9V7z"/></svg>
+        </div>
+    {% elif entity.icon_name == 'folder' %}
+        <div class="w-full h-full bg-indigo-600 text-white flex items-center justify-center">
+            <svg class="w-1/2 h-1/2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
+        </div>
+    {% elif entity.icon_name == 'lock' %}
+        <div class="w-full h-full bg-amber-500/10 text-amber-500 flex items-center justify-center">
+            <svg class="w-1/2 h-1/2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+        </div>
+    {% elif entity.icon_name == 'globe' %}
+        <div class="w-full h-full bg-cyan-600 text-white flex items-center justify-center">
+            <svg class="w-1/2 h-1/2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/></svg>
+        </div>
+    {% elif entity.icon_name == 'shield' %}
+        <div class="w-full h-full bg-emerald-600 text-white flex items-center justify-center">
+            <svg class="w-1/2 h-1/2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+        </div>
+    {% elif entity.icon_name == 'cube' %}
+        <div class="w-full h-full bg-indigo-700 text-white flex items-center justify-center">
+            <svg class="w-1/2 h-1/2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+        </div>
+    {% else %}
+        {% if is_channel or entity.topic is not None %}
+            {# Channel Fallback #}
+            <div class="w-full h-full {% if entity.is_private %}bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400{% else %}bg-blue-600/10 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400{% endif %} flex items-center justify-center font-bold {{ text_size|default:'text-xs' }}">
+                {% if entity.is_private %}
+                    <svg class="w-1/2 h-1/2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                {% else %}
+                    #
+                {% endif %}
+            </div>
+        {% else %}
+            {# Workspace Fallback #}
+            <div class="w-full h-full bg-gradient-to-tr from-blue-600 to-indigo-700 text-white font-bold flex items-center justify-center {{ text_size|default:'text-xs' }}">
+                {{ entity.name|slice:":2"|upper }}
+            </div>
+        {% endif %}
+    {% endif %}
+</div>

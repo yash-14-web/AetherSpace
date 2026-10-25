@@ -155,9 +155,13 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
             msg = post_direct_message(conv, self.user, content=text)
 
         sender_initial = (self.user.full_name or self.user.email)[:1].upper()
+        from core.templatetags.rich_text import render_rich_text
+        rendered_content = str(render_rich_text(msg.content))
+
         return {
             "id": str(msg.id),
             "content": msg.content,
+            "rendered_content": rendered_content,
             "sender_id": str(self.user.id),
             "sender_name": self.user.full_name or self.user.email,
             "sender_initial": sender_initial,

@@ -5,8 +5,7 @@
 {% block content %}
 <div class="space-y-6 max-w-7xl mx-auto py-4 sm:py-6 px-4 sm:px-6" 
      x-data="{ 
-         currentTab: 'directory',
-         hierarchyViewMode: 'organogram',
+         currentTab: new URLSearchParams(window.location.search).get('view') === 'list' ? 'directory' : 'hierarchy',
          organogramZoom: 100,
          inviteModalOpen: false, 
          editModalOpen: false,
@@ -78,129 +77,166 @@
          }
      }">
     
-    <!-- Header & Breadcrumbs -->
-    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-slate-200 dark:border-zinc-800 pb-5">
-        <div>
-            <div class="flex items-center space-x-2 text-xs text-slate-500 dark:text-zinc-400 mb-1">
-                <a href="{% url 'workspaces:workspace_dashboard' slug=workspace.slug %}" class="hover:text-aether-blue transition-colors">{{ workspace.name }}</a>
-                <span>/</span>
-                <span class="text-slate-900 dark:text-zinc-200 font-medium">Team & Hierarchy</span>
+    <!-- Header & Breadcrumbs (V2 Design) -->
+    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 border-b border-slate-200 dark:border-zinc-800 pb-5">
+        <div class="flex items-center space-x-3.5">
+            <div class="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 flex items-center justify-center shrink-0">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+                </svg>
             </div>
-            <h1 class="text-xl sm:text-2xl font-black tracking-tight text-slate-900 dark:text-zinc-50">
-                Team Directory & Reporting Hierarchy
-            </h1>
-            <p class="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
-                Manage roles, designations, reporting lines, and member permissions for {{ workspace.name }}.
-            </p>
+            <div>
+                <div class="flex items-center space-x-2 text-xs text-slate-500 dark:text-zinc-400 mb-0.5">
+                    <a href="{% url 'workspaces:workspace_dashboard' slug=workspace.slug %}" class="hover:text-blue-500 transition-colors font-medium">{{ workspace.name }}</a>
+                    <span>/</span>
+                    <span class="text-slate-800 dark:text-zinc-200 font-semibold">Team &amp; Hierarchy</span>
+                </div>
+                <h1 class="text-xl sm:text-2xl font-black tracking-tight text-slate-900 dark:text-zinc-50">
+                    Organizational Structure
+                </h1>
+                <p class="text-xs text-slate-500 dark:text-zinc-400">
+                    Hierarchical visualization of workspace leadership, functional managers, and team contributors.
+                </p>
+            </div>
         </div>
 
-        <div class="flex items-center space-x-3">
-            <!-- View Mode Switcher -->
+        <div class="flex items-center flex-wrap gap-3">
+            <!-- Controls: Org Chart & List View ONLY (Card View completely removed) -->
             <div class="flex items-center p-1 bg-slate-100 dark:bg-zinc-800/80 rounded-xl border border-slate-200/80 dark:border-zinc-700/80 text-xs">
                 <button type="button" 
-                        @click="currentTab = 'directory'"
-                        :class="currentTab === 'directory' ? 'bg-white dark:bg-zinc-900 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'"
-                        class="px-3 py-1.5 font-bold rounded-lg transition-all flex items-center space-x-1.5">
-                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
-                    </svg>
-                    <span>Directory List</span>
-                </button>
-                <button type="button" 
                         @click="currentTab = 'hierarchy'"
-                        :class="currentTab === 'hierarchy' ? 'bg-white dark:bg-zinc-900 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'"
-                        class="px-3 py-1.5 font-bold rounded-lg transition-all flex items-center space-x-1.5">
+                        :class="currentTab === 'hierarchy' ? 'bg-blue-600 text-white shadow-xs font-bold' : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200 font-semibold'"
+                        class="px-3.5 py-1.5 rounded-lg transition-all flex items-center space-x-1.5">
                     <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/>
                     </svg>
-                    <span>Org Hierarchy</span>
+                    <span>Org Chart</span>
+                </button>
+                <button type="button" 
+                        @click="currentTab = 'directory'"
+                        :class="currentTab === 'directory' ? 'bg-blue-600 text-white shadow-xs font-bold' : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200 font-semibold'"
+                        class="px-3.5 py-1.5 rounded-lg transition-all flex items-center space-x-1.5">
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
+                    </svg>
+                    <span>List View</span>
                 </button>
             </div>
 
+            <!-- Zoom Controls (Responsive for Org Chart) -->
+            <div x-show="currentTab === 'hierarchy'" class="flex items-center space-x-1 bg-slate-100 dark:bg-zinc-800/80 p-1 rounded-xl border border-slate-200 dark:border-zinc-700 text-xs">
+                <button type="button" @click="if (organogramZoom > 50) organogramZoom -= 10" title="Zoom Out" class="px-2 py-1 rounded-lg hover:bg-white dark:hover:bg-zinc-900 text-slate-600 dark:text-zinc-400 font-bold">
+                    &minus;
+                </button>
+                <span class="px-1.5 text-[11px] font-mono font-bold text-slate-700 dark:text-zinc-300" x-text="`${organogramZoom}%`">100%</span>
+                <button type="button" @click="if (organogramZoom < 150) organogramZoom += 10" title="Zoom In" class="px-2 py-1 rounded-lg hover:bg-white dark:hover:bg-zinc-900 text-slate-600 dark:text-zinc-400 font-bold">
+                    +
+                </button>
+                <button type="button" @click="organogramZoom = 100" title="Reset to 100%" class="p-1 rounded-lg hover:bg-white dark:hover:bg-zinc-900 text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200">
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5"/>
+                    </svg>
+                </button>
+            </div>
+
+
             {% if membership.can_manage_workspace or membership.is_manager %}
                 <button type="button" @click="directAddModalOpen = true; directSearchQuery = ''; directSearchResults = []; selectedCandidate = null;" 
-                        class="aether-button-secondary text-xs px-3.5 py-2 flex items-center space-x-1.5 border-purple-300 dark:border-purple-800 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/40">
-                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        class="aether-button-secondary text-xs px-3 py-1.5 flex items-center space-x-1.5 border-purple-300 dark:border-purple-800 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/40">
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/>
                     </svg>
-                    <span>Direct Add Member</span>
+                    <span>Direct Add</span>
                 </button>
-                <button type="button" @click="inviteModalOpen = true" class="aether-button-primary text-xs px-4 py-2 flex items-center space-x-1.5 shadow-md shadow-blue-500/20">
-                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <button type="button" @click="inviteModalOpen = true" class="aether-button-primary text-xs px-3.5 py-1.5 flex items-center space-x-1.5 shadow-md shadow-blue-500/20">
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
                     </svg>
-                    <span>Invite via Email</span>
+                    <span>Invite</span>
                 </button>
             {% endif %}
         </div>
     </div>
 
-    <!-- 4 Top Metric Cards -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <!-- Assigned Seats -->
-        <div class="aether-card p-4 space-y-2">
-            <div class="flex items-center justify-between text-xs text-slate-500 dark:text-zinc-400">
-                <span class="font-medium">Assigned Seats</span>
-                {% if current_membership.can_manage_workspace %}
-                    <a href="{% url 'workspaces:settings' slug=workspace.slug %}" class="text-[10px] text-aether-blue hover:underline font-semibold">
-                        Increase &rarr;
-                    </a>
-                {% else %}
-                    <span class="text-[10px] px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-950/60 text-aether-blue font-semibold">Workspace</span>
-                {% endif %}
+    <!-- 5 Top Metric Cards (Version 2 Design Direction) -->
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
+        <!-- 1. Total Members -->
+        <div class="rounded-2xl p-4 bg-white dark:bg-[#18181b] border border-slate-200/80 dark:border-zinc-800/80 shadow-xs flex items-center space-x-3.5">
+            <div class="w-11 h-11 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center justify-center shrink-0">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
+                </svg>
             </div>
-            <div class="flex items-baseline space-x-1.5">
-                <span class="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-zinc-50">{{ workspace.seats_assigned }}</span>
-                <span class="text-sm font-semibold text-slate-400">/ {{ workspace.max_seats }}</span>
-                <span class="text-[11px] font-medium text-slate-500 dark:text-zinc-400 ml-1">seats</span>
-            </div>
-            <div class="w-full bg-slate-100 dark:bg-zinc-800 rounded-full h-1.5 mt-2 overflow-hidden">
-                <div class="{% if workspace.is_seats_full %}bg-rose-500{% else %}bg-aether-blue{% endif %} h-1.5 rounded-full transition-all" style="width: {{ workspace.seats_percentage }}%"></div>
+            <div class="min-w-0">
+                <span class="text-[11px] font-semibold text-slate-500 dark:text-zinc-400 block truncate">Total Members</span>
+                <div class="flex items-baseline space-x-1.5">
+                    <span class="text-xl sm:text-2xl font-black text-slate-900 dark:text-zinc-50 tracking-tight">{{ members|length }}</span>
+                    <span class="text-[11px] font-bold text-emerald-600 dark:text-emerald-400">Active</span>
+                </div>
             </div>
         </div>
 
-        <!-- Active Members -->
-        <div class="aether-card p-4 space-y-2">
-            <div class="flex items-center justify-between text-xs text-slate-500 dark:text-zinc-400">
-                <span class="font-medium">Total Members</span>
-                <span class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 font-semibold">Active</span>
+        <!-- 2. Leadership / Leads -->
+        <div class="rounded-2xl p-4 bg-white dark:bg-[#18181b] border border-slate-200/80 dark:border-zinc-800/80 shadow-xs flex items-center space-x-3.5">
+            <div class="w-11 h-11 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 flex items-center justify-center shrink-0">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/>
+                </svg>
             </div>
-            <div class="flex items-baseline space-x-2">
-                <span class="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-zinc-50">{{ members|length }}</span>
-                <span class="text-[11px] font-medium text-emerald-600 dark:text-emerald-400">Confirmed</span>
-            </div>
-            <div class="w-full bg-slate-100 dark:bg-zinc-800 rounded-full h-1.5 mt-2 overflow-hidden">
-                <div class="bg-emerald-500 h-1.5 rounded-full" style="width: 100%"></div>
-            </div>
-        </div>
-
-        <!-- Hierarchy Roots / Leads -->
-        <div class="aether-card p-4 space-y-2">
-            <div class="flex items-center justify-between text-xs text-slate-500 dark:text-zinc-400">
-                <span class="font-medium">Leadership / Leads</span>
-                <span class="text-[10px] px-1.5 py-0.5 rounded bg-purple-50 dark:bg-purple-950/60 text-purple-600 font-semibold">Hierarchy</span>
-            </div>
-            <div class="flex items-baseline space-x-2">
-                <span class="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-zinc-50">{{ root_members|length }}</span>
-                <span class="text-[11px] font-medium text-slate-500 dark:text-zinc-400">Owner & Leads</span>
-            </div>
-            <div class="w-full bg-slate-100 dark:bg-zinc-800 rounded-full h-1.5 mt-2 overflow-hidden">
-                <div class="bg-purple-500 h-1.5 rounded-full" style="width: 100%"></div>
+            <div class="min-w-0">
+                <span class="text-[11px] font-semibold text-slate-500 dark:text-zinc-400 block truncate">Leadership / Leads</span>
+                <div class="flex items-baseline space-x-1.5">
+                    <span class="text-xl sm:text-2xl font-black text-slate-900 dark:text-zinc-50 tracking-tight">{{ leadership_count|default:root_members|length }}</span>
+                    <span class="text-[11px] font-semibold text-purple-600 dark:text-purple-400 truncate">Owner &amp; Leads</span>
+                </div>
             </div>
         </div>
 
-        <!-- Pending Invites -->
-        <div class="aether-card p-4 space-y-2">
-            <div class="flex items-center justify-between text-xs text-slate-500 dark:text-zinc-400">
-                <span class="font-medium">Pending Invites</span>
-                <span class="text-[10px] px-1.5 py-0.5 rounded bg-amber-50 dark:bg-amber-950/60 text-amber-600 font-semibold">Invitations</span>
+        <!-- 3. Managers -->
+        <div class="rounded-2xl p-4 bg-white dark:bg-[#18181b] border border-slate-200/80 dark:border-zinc-800/80 shadow-xs flex items-center space-x-3.5">
+            <div class="w-11 h-11 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 flex items-center justify-center shrink-0">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+                </svg>
             </div>
-            <div class="flex items-baseline space-x-2">
-                <span class="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-zinc-50">{{ invitations|length }}</span>
-                <span class="text-[11px] font-medium text-amber-500">Awaiting join</span>
+            <div class="min-w-0">
+                <span class="text-[11px] font-semibold text-slate-500 dark:text-zinc-400 block truncate">Managers</span>
+                <div class="flex items-baseline space-x-1.5">
+                    <span class="text-xl sm:text-2xl font-black text-slate-900 dark:text-zinc-50 tracking-tight">{{ managers_count }}</span>
+                    <span class="text-[11px] font-semibold text-blue-600 dark:text-blue-400 truncate">Functional Managers</span>
+                </div>
             </div>
-            <div class="w-full bg-slate-100 dark:bg-zinc-800 rounded-full h-1.5 mt-2 overflow-hidden">
-                <div class="bg-amber-500 h-1.5 rounded-full" style="width: {% if invitations %}75%{% else %}0%{% endif %}"></div>
+        </div>
+
+        <!-- 4. Contributors -->
+        <div class="rounded-2xl p-4 bg-white dark:bg-[#18181b] border border-slate-200/80 dark:border-zinc-800/80 shadow-xs flex items-center space-x-3.5">
+            <div class="w-11 h-11 rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 border border-teal-500/20 flex items-center justify-center shrink-0">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                </svg>
+            </div>
+            <div class="min-w-0">
+                <span class="text-[11px] font-semibold text-slate-500 dark:text-zinc-400 block truncate">Contributors</span>
+                <div class="flex items-baseline space-x-1.5">
+                    <span class="text-xl sm:text-2xl font-black text-slate-900 dark:text-zinc-50 tracking-tight">{{ contributors_count }}</span>
+                    <span class="text-[11px] font-semibold text-teal-600 dark:text-teal-400 truncate">Team Members</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 5. Pending Invites -->
+        <div class="rounded-2xl p-4 bg-white dark:bg-[#18181b] border border-slate-200/80 dark:border-zinc-800/80 shadow-xs flex items-center space-x-3.5">
+            <div class="w-11 h-11 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 flex items-center justify-center shrink-0">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                </svg>
+            </div>
+            <div class="min-w-0">
+                <span class="text-[11px] font-semibold text-slate-500 dark:text-zinc-400 block truncate">Pending Invites</span>
+                <div class="flex items-baseline space-x-1.5">
+                    <span class="text-xl sm:text-2xl font-black text-slate-900 dark:text-zinc-50 tracking-tight">{{ invitations|length }}</span>
+                    <span class="text-[11px] font-semibold text-amber-600 dark:text-amber-400 truncate">Awaiting join</span>
+                </div>
             </div>
         </div>
     </div>
@@ -282,6 +318,7 @@
                             
                             <!-- 1. Member info with Hover Card -->
                             <td class="py-3.5 px-5">
+                                <div class="flex items-center space-x-3">
                                     <div class="relative shrink-0">
                                         {% include 'components/people_hover_card.html' with target_user=m.user workspace_slug=workspace.slug target_member=m show_name=False avatar_size='w-8 h-8' %}
                                         <span class="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full ring-2 ring-white dark:ring-obsidian-900 pointer-events-none
@@ -296,7 +333,7 @@
                                     </div>
                                     <div class="min-w-0">
                                         <div class="flex items-center space-x-1.5 flex-wrap">
-                                            {% include 'components/people_hover_card.html' with target_user=m.user workspace_slug=workspace.slug target_member=m show_name=True avatar_size='hidden' %}
+                                            {% include 'components/people_hover_card.html' with target_user=m.user workspace_slug=workspace.slug target_member=m show_name=True avatar_size='hidden' name_classes='max-w-[200px]' %}
                                             {% if m.user == user %}
                                                 <span class="text-[10px] text-aether-blue font-normal">(You)</span>
                                             {% endif %}
@@ -373,32 +410,67 @@
 
                             <!-- 6. Actions (Workspace Admins Only) -->
                             {% if membership.can_manage_workspace %}
-                                <td class="py-3.5 px-5 text-right whitespace-nowrap space-x-1">
-                                    <!-- Edit Button (Opens Modal) -->
-                                    <button type="button" 
-                                            @click="openEditModal({
-                                                id: '{{ m.id }}',
-                                                name: '{{ m.user.full_name|default:m.user.email|escapejs }}',
-                                                email: '{{ m.user.email|escapejs }}',
-                                                role: '{{ m.role }}',
-                                                functional_role: '{{ m.functional_role|escapejs }}',
-                                                role_tag: '{{ m.role_tag|escapejs }}',
-                                                reporting_to_id: '{{ m.reporting_to_id|default:'' }}',
-                                                actionUrl: '{% url 'workspaces:update_member_role' slug=workspace.slug member_id=m.id %}'
-                                            })"
-                                            class="text-blue-600 dark:text-blue-400 hover:text-blue-800 font-semibold text-xs px-2 py-1 rounded hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors">
-                                        Edit
-                                    </button>
+                                <td class="py-3.5 px-5 text-right whitespace-nowrap"
+                                    x-data="{ actionOpen: false }"
+                                    @keydown.escape.stop="actionOpen = false">
+                                    <div class="relative inline-block text-left">
+                                        <button type="button" 
+                                                @click.stop="actionOpen = !actionOpen"
+                                                :aria-expanded="actionOpen"
+                                                class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                                title="Member Actions">
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"/>
+                                            </svg>
+                                        </button>
 
-                                    <!-- Remove Button -->
-                                    {% if m.user != user %}
-                                        <form method="post" action="{% url 'workspaces:remove_member' slug=workspace.slug member_id=m.id %}" onsubmit="return confirm('Are you sure you want to remove {{ m.user.full_name|default:m.user.email }} from this workspace?');" class="inline">
-                                            {% csrf_token %}
-                                            <button type="submit" class="text-rose-500 hover:text-rose-700 font-semibold text-xs px-2 py-1 rounded hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors">
-                                                Remove
+                                        <!-- Dropdown Menu -->
+                                        <div x-show="actionOpen"
+                                             @click.outside="actionOpen = false"
+                                             x-transition:enter="transition ease-out duration-100"
+                                             x-transition:enter-start="transform opacity-0 scale-95"
+                                             x-transition:enter-end="transform opacity-100 scale-100"
+                                             x-transition:leave="transition ease-in duration-75"
+                                             x-transition:leave-start="transform opacity-100 scale-100"
+                                             x-transition:leave-end="transform opacity-0 scale-95"
+                                             style="display: none;"
+                                             class="absolute right-0 top-full mt-1 w-44 z-50 rounded-xl bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 shadow-xl py-1 text-xs">
+                                            
+                                            <!-- Edit Member Role & Reporting -->
+                                            <button type="button"
+                                                    @click="actionOpen = false; openEditModal({
+                                                        id: '{{ m.id }}',
+                                                        name: '{{ m.user.full_name|default:m.user.email|escapejs }}',
+                                                        email: '{{ m.user.email|escapejs }}',
+                                                        role: '{{ m.role }}',
+                                                        functional_role: '{{ m.functional_role|escapejs }}',
+                                                        role_tag: '{{ m.role_tag|escapejs }}',
+                                                        reporting_to_id: '{{ m.reporting_to_id|default:'' }}',
+                                                        actionUrl: '{% url 'workspaces:update_member_role' slug=workspace.slug member_id=m.id %}'
+                                                    })"
+                                                    class="w-full flex items-center space-x-2 px-3 py-2 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700/60 text-left transition-colors">
+                                                <svg class="w-3.5 h-3.5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
+                                                </svg>
+                                                <span>Edit Role &amp; Reports</span>
                                             </button>
-                                        </form>
-                                    {% endif %}
+
+                                            <!-- Remove Member -->
+                                            {% if m.user != user %}
+                                                <div class="border-t border-slate-100 dark:border-zinc-700/60 my-1"></div>
+                                                <form method="post" action="{% url 'workspaces:remove_member' slug=workspace.slug member_id=m.id %}" onsubmit="return confirm('Are you sure you want to remove {{ m.user.full_name|default:m.user.email|escapejs }} from this workspace?');">
+                                                    {% csrf_token %}
+                                                    <button type="submit" 
+                                                            class="w-full flex items-center space-x-2 px-3 py-2 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-left transition-colors">
+                                                        <svg class="w-3.5 h-3.5 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                                        </svg>
+                                                        <span>Remove Member</span>
+                                                    </button>
+                                                </form>
+                                            {% endif %}
+                                        </div>
+                                    </div>
                                 </td>
                             {% endif %}
                         </tr>
@@ -413,433 +485,163 @@
         </div>
     </div>
 
-    <!-- TAB 2: Team Hierarchy & Organogram View -->
+    <!-- TAB 2: Version 2 Visual Organizational Chart -->
     <div x-show="currentTab === 'hierarchy'" class="space-y-6">
-        <!-- Organogram Header Toolbar & Legend -->
-        <div class="aether-card p-4 sm:p-5 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-            <div class="space-y-1">
-                <div class="flex items-center space-x-2.5">
-                    <span class="px-2.5 py-1 text-xs font-mono font-black tracking-wider uppercase rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
-                        ORGANOGRAM
+        <!-- Main Canvas Area -->
+        <div class="rounded-3xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-obsidian-950 min-h-[640px] p-6 sm:p-12 relative overflow-auto shadow-inner select-none transition-colors"
+             style="background-image: radial-gradient(rgba(148, 163, 184, 0.15) 1px, transparent 1px); background-size: 24px 24px;">
+
+            <!-- Floating Hierarchy Navigator / Minimap (Bottom-Left) -->
+            <div class="hidden lg:block absolute bottom-6 left-6 z-20 w-52 rounded-2xl bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md border border-slate-200/90 dark:border-zinc-800 shadow-2xl p-3 select-none pointer-events-auto">
+                <div class="flex items-center justify-between pb-2 mb-2 border-b border-slate-100 dark:border-zinc-800/80 text-[10px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">
+                    <span class="flex items-center space-x-1.5">
+                        <svg class="w-3.5 h-3.5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/>
+                        </svg>
+                        <span>Navigator</span>
                     </span>
-                    <h2 class="text-sm sm:text-base font-black text-slate-900 dark:text-zinc-100 tracking-tight">
-                        Organizational Structure & Reporting Lines
-                    </h2>
+                    <span class="text-[9px] font-mono text-slate-400" x-text="`${organogramZoom}%`"></span>
                 </div>
-                <p class="text-xs text-slate-500 dark:text-zinc-400">
-                    Hierarchical visualization of workspace leadership, functional managers, and team contributors.
-                </p>
-            </div>
-
-            <!-- Controls & Tier Legend -->
-            <div class="flex flex-wrap items-center gap-3">
-                <!-- Color Legend (Image 3 Reference) -->
-                <div class="hidden sm:flex items-center space-x-3 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-zinc-800/80 text-[11px] font-bold border border-slate-200 dark:border-zinc-700/60">
-                    <div class="flex items-center space-x-1.5">
-                        <span class="w-2.5 h-2.5 rounded-full bg-purple-500 ring-2 ring-purple-500/30"></span>
-                        <span class="text-slate-700 dark:text-zinc-300">Leadership</span>
-                    </div>
-                    <span class="text-slate-300 dark:text-zinc-600">•</span>
-                    <div class="flex items-center space-x-1.5">
-                        <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/30"></span>
-                        <span class="text-slate-700 dark:text-zinc-300">Managers / Leads</span>
-                    </div>
-                    <span class="text-slate-300 dark:text-zinc-600">•</span>
-                    <div class="flex items-center space-x-1.5">
-                        <span class="w-2.5 h-2.5 rounded-full bg-blue-500 ring-2 ring-blue-500/30"></span>
-                        <span class="text-slate-700 dark:text-zinc-300">Contributors</span>
-                    </div>
-                </div>
-
-                <!-- Zoom Controls (Only for Organogram) -->
-                <div x-show="hierarchyViewMode === 'organogram'" class="flex items-center space-x-1 bg-slate-100 dark:bg-zinc-800/80 p-1 rounded-xl border border-slate-200 dark:border-zinc-700 text-xs">
-                    <button type="button" @click="if (organogramZoom > 60) organogramZoom -= 10" title="Zoom Out" class="px-2 py-1 rounded-lg hover:bg-white dark:hover:bg-zinc-900 text-slate-600 dark:text-zinc-400 font-bold">
-                        &minus;
-                    </button>
-                    <span class="px-1.5 text-[11px] font-mono font-bold text-slate-700 dark:text-zinc-300" x-text="`${organogramZoom}%`">100%</span>
-                    <button type="button" @click="if (organogramZoom < 140) organogramZoom += 10" title="Zoom In" class="px-2 py-1 rounded-lg hover:bg-white dark:hover:bg-zinc-900 text-slate-600 dark:text-zinc-400 font-bold">
-                        +
-                    </button>
-                    <button type="button" @click="organogramZoom = 100" title="Reset Zoom" class="px-1.5 py-1 text-[10px] rounded hover:bg-white dark:hover:bg-zinc-900 text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200">
-                        Reset
-                    </button>
-                </div>
-
-                <!-- View Switcher -->
-                <div class="flex items-center p-1 bg-slate-100 dark:bg-zinc-800/80 rounded-xl border border-slate-200 dark:border-zinc-700 text-xs font-bold">
-                    <button type="button" 
-                            @click="hierarchyViewMode = 'organogram'"
-                            :class="hierarchyViewMode === 'organogram' ? 'bg-white dark:bg-zinc-900 text-purple-600 dark:text-purple-400 shadow-xs' : 'text-slate-500 hover:text-slate-800 dark:hover:text-zinc-200'"
-                            class="px-3 py-1.5 rounded-lg transition-all flex items-center space-x-1.5">
-                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"/>
-                        </svg>
-                        <span>Organogram</span>
-                    </button>
-                    <button type="button" 
-                            @click="hierarchyViewMode = 'tree_list'"
-                            :class="hierarchyViewMode === 'tree_list' ? 'bg-white dark:bg-zinc-900 text-purple-600 dark:text-purple-400 shadow-xs' : 'text-slate-500 hover:text-slate-800 dark:hover:text-zinc-200'"
-                            class="px-3 py-1.5 rounded-lg transition-all flex items-center space-x-1.5">
-                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"/>
-                        </svg>
-                        <span>Card List</span>
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <!-- 1. VISUAL ORGANOGRAM CANVAS (Matching Image 3) -->
-        <div x-show="hierarchyViewMode === 'organogram'" 
-             class="aether-card p-6 sm:p-12 rounded-2xl overflow-x-auto min-h-[550px] flex justify-center bg-slate-50/50 dark:bg-[#070b14]/90 border border-slate-200/80 dark:border-zinc-800 shadow-inner select-none">
-            
-            <div :style="`transform: scale(${organogramZoom / 100}); transform-origin: top center; transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);`"
-                 class="inline-flex flex-col items-center space-y-12 min-w-max pb-8">
-                
-                {% for root in root_members %}
-                    <div class="flex flex-col items-center">
-                        
-                        <!-- LEVEL 1: Leadership / Root Node (Purple Theme) -->
-                        <div class="flex flex-col items-center group relative z-10">
-                            <!-- Concentric Circular Avatar Node (Image 3 Reference) -->
-                            <div class="w-24 h-24 rounded-full p-1.5 bg-white dark:bg-zinc-900 border-4 border-purple-500 shadow-xl shadow-purple-500/20 ring-8 ring-purple-500/15 flex items-center justify-center transition-all group-hover:scale-105 group-hover:ring-purple-500/30 cursor-pointer overflow-hidden">
-                                {% include 'components/avatar.html' with user=root.user size="w-full h-full" rounded="rounded-full" text_size="text-2xl" %}
+                <!-- Mini Tree Representation -->
+                <div class="relative h-24 w-full rounded-xl bg-slate-100/70 dark:bg-zinc-950 border border-slate-200/60 dark:border-zinc-800/60 flex flex-col items-center justify-center p-2 overflow-hidden">
+                    <!-- Mini Root Node -->
+                    <div class="w-8 h-2.5 rounded bg-purple-500 shadow-xs mb-1"></div>
+                    <div class="w-0.5 h-2 bg-purple-500/70"></div>
+                    <!-- Mini Level 2 -->
+                    <div class="flex items-center space-x-3 relative">
+                        <div class="absolute -top-1 left-2 right-2 h-0.5 bg-blue-500/70"></div>
+                        <div class="flex flex-col items-center">
+                            <div class="w-7 h-2 rounded bg-blue-500 mb-1"></div>
+                            <div class="w-0.5 h-1.5 bg-teal-500/70"></div>
+                            <!-- Mini Level 3 -->
+                            <div class="flex items-center space-x-1.5 relative">
+                                <div class="absolute -top-0.5 left-1 right-1 h-0.5 bg-teal-500/70"></div>
+                                <div class="w-4 h-1.5 rounded bg-teal-500"></div>
+                                <div class="w-4 h-1.5 rounded bg-teal-500"></div>
                             </div>
+                        </div>
+                        <div class="flex flex-col items-center">
+                            <div class="w-7 h-2 rounded bg-blue-500"></div>
+                        </div>
+                    </div>
+                    <!-- Viewport Focus Frame -->
+                    <div class="absolute inset-2 border border-blue-500/50 rounded bg-blue-500/5 pointer-events-none"></div>
+                </div>
+            </div>
 
-                            <!-- Member Name & Position Pill -->
-                            <div class="mt-3 flex flex-col items-center text-center space-y-1">
-                                <div class="flex items-center space-x-1.5">
-                                    {% include 'components/people_hover_card.html' with target_user=root.user workspace_slug=workspace.slug target_member=root show_name=True avatar_size='hidden' %}
-                                    {% if root.user == workspace.owner %}
-                                        <span class="px-1.5 py-0.2 rounded text-[9px] font-black uppercase bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 border border-amber-300 dark:border-amber-800">
-                                            Owner
-                                        </span>
-                                    {% endif %}
-                                </div>
+            <!-- Floating Hierarchy Legend (Right Side) -->
+            <div class="hidden xl:block absolute top-6 right-6 z-20 w-60 rounded-2xl bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md border border-slate-200/90 dark:border-zinc-800 shadow-2xl p-4 space-y-4 select-none pointer-events-auto">
+                <div class="space-y-1">
+                    <h3 class="text-xs font-black text-slate-900 dark:text-zinc-100 tracking-tight">Hierarchy Legend</h3>
+                    <p class="text-[10px] text-slate-400 dark:text-zinc-500">Tier definitions &amp; structure metrics</p>
+                </div>
 
-                                <span class="text-[11px] font-black text-purple-600 dark:text-purple-400 uppercase tracking-wider">
-                                    {{ root.functional_role|default:"Lead Executive / Architect" }}
-                                </span>
+                <!-- Tiers -->
+                <div class="space-y-2 text-xs">
+                    <div class="flex items-center space-x-2.5">
+                        <span class="w-2.5 h-2.5 rounded-full bg-purple-500 ring-2 ring-purple-500/30 shrink-0"></span>
+                        <span class="font-medium text-slate-700 dark:text-zinc-300">Owner / Leadership</span>
+                    </div>
+                    <div class="flex items-center space-x-2.5">
+                        <span class="w-2.5 h-2.5 rounded-full bg-blue-500 ring-2 ring-blue-500/30 shrink-0"></span>
+                        <span class="font-medium text-slate-700 dark:text-zinc-300">Managers / Leads</span>
+                    </div>
+                    <div class="flex items-center space-x-2.5">
+                        <span class="w-2.5 h-2.5 rounded-full bg-teal-500 ring-2 ring-teal-500/30 shrink-0"></span>
+                        <span class="font-medium text-slate-700 dark:text-zinc-300">Contributors</span>
+                    </div>
+                    <div class="flex items-center space-x-2.5">
+                        <span class="w-2.5 h-2.5 rounded-full bg-slate-400 ring-2 ring-slate-400/30 shrink-0"></span>
+                        <span class="font-medium text-slate-500 dark:text-zinc-400">Pending / Inactive</span>
+                    </div>
+                </div>
 
-                                <div class="flex items-center space-x-1.5">
-                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
-                                        #{{ root.user.contributor_id|default:"ROOT" }}
-                                    </span>
-                                    <span class="text-[9px] px-1.5 py-0.2 rounded font-bold uppercase bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300">
-                                        {{ root.get_role_display }}
-                                    </span>
-                                </div>
+                <!-- Divider -->
+                <div class="border-t border-slate-100 dark:border-zinc-800/80"></div>
 
-                                <span class="text-[10px] font-semibold text-slate-400 dark:text-zinc-500">
-                                    👥 {{ root.hierarchy_reports|length }} Direct Report{% if root.hierarchy_reports|length != 1 %}s{% endif %}
-                                </span>
+                <!-- Metrics -->
+                <div class="space-y-2 text-xs">
+                    <div class="flex items-center justify-between text-slate-600 dark:text-zinc-300">
+                        <div class="flex items-center space-x-2">
+                            <svg class="w-3.5 h-3.5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+                            </svg>
+                            <span class="text-[11px] font-medium">Levels</span>
+                        </div>
+                        <span class="font-mono font-bold text-slate-900 dark:text-zinc-100">{{ hierarchy_levels_count }}</span>
+                    </div>
+                    <div class="flex items-center justify-between text-slate-600 dark:text-zinc-300">
+                        <div class="flex items-center space-x-2">
+                            <svg class="w-3.5 h-3.5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
+                            </svg>
+                            <span class="text-[11px] font-medium">Active Members</span>
+                        </div>
+                        <span class="font-mono font-bold text-slate-900 dark:text-zinc-100">{{ members|length }}</span>
+                    </div>
+                    <div class="flex items-center justify-between text-slate-600 dark:text-zinc-300">
+                        <div class="flex items-center space-x-2">
+                            <svg class="w-3.5 h-3.5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 11.5V14m0-2.5v-6a1.5 1.5 0 113 0m-3 6a1.5 1.5 0 00-3 0v2a7.5 7.5 0 0015 0v-5a1.5 1.5 0 00-3 0m-6-3V11m0-5.5v-1a1.5 1.5 0 013 0v1m0 0V11m0-5.5a1.5 1.5 0 013 0v3m0 0V11"/>
+                            </svg>
+                            <span class="text-[11px] font-medium">Reports Mapped</span>
+                        </div>
+                        <span class="font-mono font-bold text-slate-900 dark:text-zinc-100">{{ reports_mapped_count }}</span>
+                    </div>
+                    <div class="flex items-center justify-between text-slate-600 dark:text-zinc-300">
+                        <div class="flex items-center space-x-2">
+                            <svg class="w-3.5 h-3.5 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>
+                            </svg>
+                            <span class="text-[11px] font-medium">Unassigned</span>
+                        </div>
+                        <span class="font-mono font-bold text-slate-900 dark:text-zinc-100">{{ unassigned_count }}</span>
+                    </div>
+                </div>
+            </div>
 
-                                {% if membership.can_manage_workspace %}
-                                    <button type="button"
-                                            @click="openEditModal({
-                                                id: '{{ root.id }}',
-                                                name: '{{ root.user.full_name|default:root.user.email|escapejs }}',
-                                                email: '{{ root.user.email|escapejs }}',
-                                                role: '{{ root.role }}',
-                                                functional_role: '{{ root.functional_role|escapejs }}',
-                                                role_tag: '{{ root.role_tag|escapejs }}',
-                                                reporting_to_id: '{{ root.reporting_to_id|default:'' }}',
-                                                actionUrl: '{% url 'workspaces:update_member_role' slug=workspace.slug member_id=root.id %}'
-                                            })"
-                                            class="mt-1 text-[10px] font-bold text-purple-600 dark:text-purple-400 hover:underline px-2 py-0.5 rounded bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800">
-                                        Edit Role &rarr;
-                                    </button>
+            <!-- Scaled Interactive Organizational Tree Canvas -->
+            <div :style="`transform: scale(${organogramZoom / 100}); transform-origin: top center; transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);`"
+                 class="inline-flex flex-col items-center min-w-full pb-16 pt-4">
+
+                {% if root_members %}
+                    <div class="flex items-start justify-center space-x-12 sm:space-x-16">
+                        {% for root in root_members %}
+                            <div class="flex flex-col items-center">
+                                <!-- Level 1: Root / Leadership Node Card -->
+                                {% include 'workspaces/includes/org_chart_card.html' with node=root %}
+
+                                <!-- Level 2+ Children Sub-branches -->
+                                {% if root.hierarchy_reports %}
+                                    <!-- Vertical Stem Down from Root -->
+                                    <div class="w-0.5 h-8 bg-slate-300 dark:bg-zinc-700 z-0"></div>
+
+                                    <!-- Children Row Container -->
+                                    <div class="flex items-start justify-center relative z-0">
+                                        {% for sub in root.hierarchy_reports %}
+                                            {% include 'workspaces/includes/org_chart_branch.html' with node=sub siblings_count=root.hierarchy_reports|length is_first=forloop.first is_last=forloop.last %}
+                                        {% endfor %}
+                                    </div>
                                 {% endif %}
                             </div>
-                        </div>
-
-                        <!-- LEVEL 1 -> LEVEL 2 Branching Connectors -->
-                        {% if root.hierarchy_reports %}
-                            <!-- Vertical Spine Stem Down (Purple) -->
-                            <div class="w-1 h-12 bg-purple-500 dark:bg-purple-400"></div>
-
-                            <!-- Level 2 Children Row -->
-                            <div class="flex items-start justify-center pt-0">
-                                {% for sub in root.hierarchy_reports %}
-                                    <div class="flex flex-col items-center px-6 relative">
-                                        
-                                        <!-- Horizontal Crossbar Connector (Purple) -->
-                                        {% if root.hierarchy_reports|length > 1 %}
-                                            {% if forloop.first %}
-                                                <div class="absolute top-0 left-1/2 right-0 h-1 bg-purple-500 dark:bg-purple-400"></div>
-                                            {% elif forloop.last %}
-                                                <div class="absolute top-0 left-0 right-1/2 h-1 bg-purple-500 dark:bg-purple-400"></div>
-                                            {% else %}
-                                                <div class="absolute top-0 left-0 right-0 h-1 bg-purple-500 dark:bg-purple-400"></div>
-                                            {% endif %}
-                                        {% endif %}
-
-                                        <!-- Vertical Drop Line into Child (Purple) -->
-                                        <div class="w-1 h-10 bg-purple-500 dark:bg-purple-400"></div>
-
-                                        <!-- LEVEL 2: Middle Manager / Lead Node (Emerald Green Theme) -->
-                                        <div class="flex flex-col items-center group relative z-10">
-                                            <!-- Concentric Circular Avatar Node -->
-                                            <div class="w-20 h-20 rounded-full p-1.5 bg-white dark:bg-zinc-900 border-4 border-emerald-500 shadow-lg shadow-emerald-500/20 ring-6 ring-emerald-500/15 flex items-center justify-center transition-all group-hover:scale-105 group-hover:ring-emerald-500/30 cursor-pointer overflow-hidden">
-                                                {% include 'components/avatar.html' with user=sub.user size="w-full h-full" rounded="rounded-full" text_size="text-lg" %}
-                                            </div>
-
-                                            <!-- Member Name & Position Pill -->
-                                            <div class="mt-2.5 flex flex-col items-center text-center space-y-1">
-                                                {% include 'components/people_hover_card.html' with target_user=sub.user workspace_slug=workspace.slug target_member=sub show_name=True avatar_size='hidden' %}
-
-                                                <span class="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
-                                                    {{ sub.functional_role|default:"Lead / Manager" }}
-                                                </span>
-
-                                                <div class="flex items-center space-x-1">
-                                                    <span class="px-1.5 py-0.2 rounded-full text-[9px] font-mono font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                                                        #{{ sub.user.contributor_id|default:"MGR" }}
-                                                    </span>
-                                                    <span class="text-[8px] px-1 py-0.2 rounded font-bold uppercase bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
-                                                        {{ sub.get_role_display }}
-                                                    </span>
-                                                </div>
-
-                                                {% if sub.hierarchy_reports %}
-                                                    <span class="text-[9px] font-bold text-emerald-600 dark:text-emerald-400">
-                                                        👥 {{ sub.hierarchy_reports|length }} Reports
-                                                    </span>
-                                                {% endif %}
-
-                                                {% if membership.can_manage_workspace %}
-                                                    <button type="button"
-                                                            @click="openEditModal({
-                                                                id: '{{ sub.id }}',
-                                                                name: '{{ sub.user.full_name|default:sub.user.email|escapejs }}',
-                                                                email: '{{ sub.user.email|escapejs }}',
-                                                                role: '{{ sub.role }}',
-                                                                functional_role: '{{ sub.functional_role|escapejs }}',
-                                                                role_tag: '{{ sub.role_tag|escapejs }}',
-                                                                reporting_to_id: '{{ sub.reporting_to_id|default:'' }}',
-                                                                actionUrl: '{% url 'workspaces:update_member_role' slug=workspace.slug member_id=sub.id %}'
-                                                            })"
-                                                            class="mt-0.5 text-[9px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline px-1.5 py-0.2 rounded bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800">
-                                                        Edit &rarr;
-                                                    </button>
-                                                {% endif %}
-                                            </div>
-                                        </div>
-
-                                        <!-- LEVEL 2 -> LEVEL 3 Branching Connectors (Emerald Green) -->
-                                        {% if sub.hierarchy_reports %}
-                                            <!-- Vertical Spine Stem Down (Green) -->
-                                            <div class="w-1 h-10 bg-emerald-500 dark:bg-emerald-400"></div>
-
-                                            <!-- Level 3 Children Row -->
-                                            <div class="flex items-start justify-center pt-0">
-                                                {% for leaf in sub.hierarchy_reports %}
-                                                    <div class="flex flex-col items-center px-4 relative">
-                                                        
-                                                        <!-- Horizontal Crossbar Connector (Emerald Green) -->
-                                                        {% if sub.hierarchy_reports|length > 1 %}
-                                                            {% if forloop.first %}
-                                                                <div class="absolute top-0 left-1/2 right-0 h-1 bg-emerald-500 dark:bg-emerald-400"></div>
-                                                            {% elif forloop.last %}
-                                                                <div class="absolute top-0 left-0 right-1/2 h-1 bg-emerald-500 dark:bg-emerald-400"></div>
-                                                            {% else %}
-                                                                <div class="absolute top-0 left-0 right-0 h-1 bg-emerald-500 dark:bg-emerald-400"></div>
-                                                            {% endif %}
-                                                        {% endif %}
-
-                                                        <!-- Vertical Drop Line into Child (Green) -->
-                                                        <div class="w-1 h-8 bg-emerald-500 dark:bg-emerald-400"></div>
-
-                                                        <!-- LEVEL 3: Contributor / Engineer Node (Blue Theme) -->
-                                                        <div class="flex flex-col items-center group relative z-10">
-                                                            <!-- Concentric Circular Avatar Node -->
-                                                            <div class="w-16 h-16 rounded-full p-1 bg-white dark:bg-zinc-900 border-3 border-blue-500 shadow-md shadow-blue-500/15 ring-4 ring-blue-500/15 flex items-center justify-center transition-all group-hover:scale-105 group-hover:ring-blue-500/30 cursor-pointer overflow-hidden">
-                                                                {% include 'components/avatar.html' with user=leaf.user size="w-full h-full" rounded="rounded-full" text_size="text-sm" %}
-                                                            </div>
-
-                                                            <!-- Member Name & Position Pill -->
-                                                            <div class="mt-2 flex flex-col items-center text-center space-y-0.5">
-                                                                {% include 'components/people_hover_card.html' with target_user=leaf.user workspace_slug=workspace.slug target_member=leaf show_name=True avatar_size='hidden' %}
-
-                                                                <span class="text-[9px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">
-                                                                    {{ leaf.functional_role|default:"Contributor" }}
-                                                                </span>
-
-                                                                <span class="px-1.5 py-0.2 rounded-full text-[8px] font-mono font-medium bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
-                                                                    #{{ leaf.user.contributor_id|default:"DEV" }}
-                                                                </span>
-
-                                                                {% if membership.can_manage_workspace %}
-                                                                    <button type="button"
-                                                                            @click="openEditModal({
-                                                                                id: '{{ leaf.id }}',
-                                                                                name: '{{ leaf.user.full_name|default:leaf.user.email|escapejs }}',
-                                                                                email: '{{ leaf.user.email|escapejs }}',
-                                                                                role: '{{ leaf.role }}',
-                                                                                functional_role: '{{ leaf.functional_role|escapejs }}',
-                                                                                role_tag: '{{ leaf.role_tag|escapejs }}',
-                                                                                reporting_to_id: '{{ leaf.reporting_to_id|default:'' }}',
-                                                                                actionUrl: '{% url 'workspaces:update_member_role' slug=workspace.slug member_id=leaf.id %}'
-                                                                            })"
-                                                                            class="mt-0.5 text-[8px] font-semibold text-blue-600 dark:text-blue-400 hover:underline">
-                                                                        Edit
-                                                                    </button>
-                                                                {% endif %}
-                                                            </div>
-                                                        </div>
-
-                                                    </div>
-                                                {% endfor %}
-                                            </div>
-                                        {% endif %}
-
-                                    </div>
-                                {% endfor %}
-                            </div>
-                        {% endif %}
-
+                        {% endfor %}
                     </div>
-                {% endfor %}
+                {% else %}
+                    <!-- Empty State -->
+                    <div class="py-16 flex flex-col items-center justify-center text-center space-y-3">
+                        <div class="w-14 h-14 rounded-2xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center">
+                            <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
+                            </svg>
+                        </div>
+                        <h3 class="text-base font-bold text-slate-900 dark:text-zinc-50">No hierarchy members defined</h3>
+                        <p class="text-xs text-slate-500 dark:text-zinc-400 max-w-sm">
+                            Invite team members and assign reporting lines to visualize your workspace's organizational structure.
+                        </p>
+                    </div>
+                {% endif %}
 
             </div>
-        </div>
-
-        <!-- 2. DETAILED TREE CARDS LIST (Secondary Tabular View) -->
-        <div x-show="hierarchyViewMode === 'tree_list'" style="display: none;" class="space-y-6">
-            {% for root in root_members %}
-                <div class="aether-card p-6 rounded-2xl border border-slate-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm space-y-6">
-                    <!-- Root Lead Card -->
-                    <div class="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-xl bg-gradient-to-r from-purple-50 via-indigo-50 to-blue-50 dark:from-purple-950/40 dark:via-indigo-950/40 dark:to-blue-950/40 border border-purple-200/80 dark:border-purple-900/60 gap-4">
-                        <div class="flex items-center space-x-3.5">
-                            {% include 'components/avatar.html' with user=root.user size="w-12 h-12" rounded="rounded-2xl" text_size="text-base" extra_classes="shadow-md ring-2 ring-white dark:ring-zinc-800" %}
-                            <div>
-                                <div class="flex items-center space-x-2 flex-wrap">
-                                    <a href="{% url 'accounts:public_profile' user_id=root.user.id %}" class="text-sm font-black text-slate-900 dark:text-zinc-50 hover:text-purple-600 dark:hover:text-purple-400 transition-colors">
-                                        {{ root.user.full_name|default:root.user.email }}
-                                    </a>
-                                    {% if root.user == workspace.owner %}
-                                        <span class="px-2 py-0.2 rounded text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300 border border-amber-300 dark:border-amber-800 uppercase">
-                                            Owner
-                                        </span>
-                                    {% endif %}
-                                    <span class="px-2 py-0.2 rounded text-[10px] font-bold uppercase bg-purple-100 text-purple-800 dark:bg-purple-900/60 dark:text-purple-300">
-                                        {{ root.get_role_display }}
-                                    </span>
-                                </div>
-                                <div class="flex items-center space-x-2 text-xs text-slate-600 dark:text-zinc-400 mt-0.5">
-                                    <span>{{ root.functional_role|default:"Lead / Administrator" }}</span>
-                                    {% if root.role_tag %}
-                                        <span>&bull;</span>
-                                        <span class="text-purple-600 dark:text-purple-400 font-semibold">{{ root.role_tag }}</span>
-                                    {% endif %}
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="flex items-center space-x-2">
-                            <span class="px-2.5 py-1 rounded-lg bg-white dark:bg-zinc-800 text-xs font-bold text-slate-700 dark:text-zinc-300 border border-slate-200 dark:border-zinc-700">
-                                👥 {{ root.hierarchy_reports|length }} Direct Report{% if root.hierarchy_reports|length != 1 %}s{% endif %}
-                            </span>
-                            {% if membership.can_manage_workspace %}
-                                <button type="button" 
-                                        @click="openEditModal({
-                                            id: '{{ root.id }}',
-                                            name: '{{ root.user.full_name|default:root.user.email|escapejs }}',
-                                            email: '{{ root.user.email|escapejs }}',
-                                            role: '{{ root.role }}',
-                                            functional_role: '{{ root.functional_role|escapejs }}',
-                                            role_tag: '{{ root.role_tag|escapejs }}',
-                                            reporting_to_id: '{{ root.reporting_to_id|default:'' }}',
-                                            actionUrl: '{% url 'workspaces:update_member_role' slug=workspace.slug member_id=root.id %}'
-                                        })"
-                                        class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-purple-600 text-white hover:bg-purple-700 transition-colors shadow-sm">
-                                    Edit
-                                </button>
-                            {% endif %}
-                        </div>
-                    </div>
-
-                    <!-- Direct Reports List -->
-                    {% if root.hierarchy_reports %}
-                        <div class="pl-4 sm:pl-8 border-l-2 border-dashed border-slate-200 dark:border-zinc-800 space-y-4">
-                            <p class="text-[11px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">
-                                Direct Reports to {{ root.user.full_name|default:root.user.email }} ({{ root.hierarchy_reports|length }})
-                            </p>
-
-                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
-                                {% for sub in root.hierarchy_reports %}
-                                    <div class="p-4 rounded-xl border border-slate-200/70 dark:border-zinc-800/80 bg-slate-50/50 dark:bg-zinc-800/40 hover:border-emerald-500/50 transition-all flex flex-col justify-between space-y-3">
-                                        <div class="flex items-start justify-between gap-2">
-                                            <div class="flex items-center space-x-2.5 min-w-0">
-                                                {% include 'components/avatar.html' with user=sub.user size="w-8 h-8" rounded="rounded-lg" text_size="text-xs" %}
-                                                <div class="min-w-0">
-                                                    <a href="{% url 'accounts:public_profile' user_id=sub.user.id %}" class="text-xs font-bold text-slate-900 dark:text-zinc-100 hover:text-emerald-600 truncate block">
-                                                        {{ sub.user.full_name|default:sub.user.email }}
-                                                    </a>
-                                                    <span class="text-[10px] text-slate-400 dark:text-zinc-500 truncate block">
-                                                        {{ sub.user.email }}
-                                                    </span>
-                                                </div>
-                                            </div>
-
-                                            <span class="px-1.5 py-0.2 rounded text-[9px] font-bold uppercase
-                                                {% if sub.is_admin %}bg-purple-100 text-purple-700 dark:bg-purple-950/80 dark:text-purple-300
-                                                {% elif sub.is_manager %}bg-emerald-100 text-emerald-700 dark:bg-emerald-950/80 dark:text-emerald-300
-                                                {% else %}bg-slate-200 text-slate-700 dark:bg-zinc-700 dark:text-zinc-300{% endif %}">
-                                                {{ sub.get_role_display }}
-                                            </span>
-                                        </div>
-
-                                        <div class="space-y-1">
-                                            {% if sub.functional_role %}
-                                                <p class="text-xs font-bold text-slate-800 dark:text-zinc-200">
-                                                    {{ sub.functional_role }}
-                                                </p>
-                                            {% endif %}
-
-                                            <div class="flex items-center space-x-1.5 flex-wrap">
-                                                {% if sub.role_tag %}
-                                                    <span class="px-1.5 py-0.2 text-[9px] font-bold rounded bg-cyan-100 text-cyan-800 dark:bg-cyan-950/80 dark:text-cyan-300">
-                                                        {{ sub.role_tag }}
-                                                    </span>
-                                                {% endif %}
-                                                {% if sub.hierarchy_reports %}
-                                                    <span class="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
-                                                        👥 {{ sub.hierarchy_reports|length }} reports
-                                                    </span>
-                                                {% endif %}
-                                            </div>
-                                        </div>
-
-                                        {% if membership.can_manage_workspace %}
-                                            <div class="pt-2 border-t border-slate-200/50 dark:border-zinc-800 flex justify-end">
-                                                <button type="button" 
-                                                        @click="openEditModal({
-                                                            id: '{{ sub.id }}',
-                                                            name: '{{ sub.user.full_name|default:sub.user.email|escapejs }}',
-                                                            email: '{{ sub.user.email|escapejs }}',
-                                                            role: '{{ sub.role }}',
-                                                            functional_role: '{{ sub.functional_role|escapejs }}',
-                                                            role_tag: '{{ sub.role_tag|escapejs }}',
-                                                            reporting_to_id: '{{ sub.reporting_to_id|default:'' }}',
-                                                            actionUrl: '{% url 'workspaces:update_member_role' slug=workspace.slug member_id=sub.id %}'
-                                                        })"
-                                                        class="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 hover:underline">
-                                                    Edit Reporting / Role &rarr;
-                                                </button>
-                                            </div>
-                                        {% endif %}
-                                    </div>
-                                {% endfor %}
-                            </div>
-                        </div>
-                    {% else %}
-                        <p class="text-xs text-slate-400 dark:text-zinc-500 italic pl-4">
-                            No direct reports assigned under this lead yet.
-                        </p>
-                    {% endif %}
-                </div>
-            {% endfor %}
         </div>
     </div>
 

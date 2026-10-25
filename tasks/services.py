@@ -1,7 +1,10 @@
+import logging
 import secrets
 from django.db import transaction
 from django.utils import timezone
 from .models import Task, TaskActivity, TaskComment, TaskStatus, TaskPriority, CodeReviewRequest, CodeReviewStatus
+
+logger = logging.getLogger(__name__)
 
 
 def generate_unique_task_code() -> str:
@@ -35,8 +38,10 @@ def create_task(workspace, reporter, title, description='', status=TaskStatus.TO
     """
     task_code = generate_unique_task_code()
     
-    if sprint_ref and not sprint:
+    if sprint_ref:
         sprint = sprint_ref.name
+    elif not sprint:
+        sprint = 'Backlog'
 
     task = Task.objects.create(
         task_code=task_code,
@@ -49,7 +54,7 @@ def create_task(workspace, reporter, title, description='', status=TaskStatus.TO
         assignee=assignee,
         due_date=due_date,
         estimated_hours=estimated_hours,
-        sprint=sprint or 'Sprint 01',
+        sprint=sprint,
         sprint_ref=sprint_ref,
         tags=tags or ''
     )
@@ -69,7 +74,7 @@ def create_task(workspace, reporter, title, description='', status=TaskStatus.TO
         author=reporter,
         comment_type=TaskComment.CommentType.SYSTEM,
         system_event_type=TaskComment.SystemEventType.TASK_CREATED,
-        content=task.description or '',
+        content=f"Task #{task.task_code} created by {reporter.full_name or reporter.username if reporter else 'System'} in '{workspace.name}'",
         metadata={
             'task_code': task.task_code,
             'display_code': task.display_code,
@@ -80,6 +85,7 @@ def create_task(workspace, reporter, title, description='', status=TaskStatus.TO
             'status_display': task.get_status_display(),
             'requester': (reporter.full_name or reporter.email) if reporter else 'Unknown',
             'assignee': (assignee.full_name or assignee.email) if assignee else 'Unassigned',
+            'sprint': task.sprint_display if hasattr(task, 'sprint_display') else (task.sprint or 'Backlog'),
             'description': task.description or '',
             'due_date': str(due_date) if due_date else None,
         }
@@ -205,6 +211,28 @@ def update_task(task: Task, actor, **kwargs) -> Task:
                 new_value=new_assignee_name,
                 message=f"Reassigned from {old_assignee_name} to {new_assignee_name}"
             )
+            # Create concise system comment on reassignment (no full description dump)
+            sprint_name = task.sprint_display if hasattr(task, 'sprint_display') else (task.sprint or 'Backlog')
+            TaskComment.objects.create(
+                task=task,
+                author=actor,
+                comment_type=TaskComment.CommentType.SYSTEM,
+                system_event_type=getattr(TaskComment.SystemEventType, 'TASK_ASSIGNED', 'TASK_ASSIGNED'),
+                content=f"T-{task.task_code} — {task.title} was assigned to {new_assignee_name}.",
+                metadata={
+                    'task_code': task.task_code,
+                    'display_code': task.display_code,
+                    'title': task.title,
+                    'previous_assignee': old_assignee_name,
+                    'assignee': new_assignee_name,
+                    'assignee_name': new_assignee_name,
+                    'assignee_id': target_assignee.id if target_assignee else None,
+                    'sprint': sprint_name,
+                    'status': task.get_status_display(),
+                    'priority': task.get_priority_display(),
+                    'actor': actor.full_name or actor.email if actor else 'System',
+                }
+            )
             # Notify new assignee
             try:
                 from notifications.services import create_notification
@@ -254,8 +282,39 @@ def update_task(task: Task, actor, **kwargs) -> Task:
             task.due_date = target_due
         updated_fields.append('due_date')
 
+    # Check sprint change
+    if 'sprint_ref' in kwargs or 'sprint' in kwargs:
+        target_sprint_ref = kwargs.get('sprint_ref')
+        target_sprint_name = kwargs.get('sprint')
+        if target_sprint_ref:
+            target_sprint_name = target_sprint_ref.name
+        elif target_sprint_name is None and target_sprint_ref is None:
+            target_sprint_name = 'Backlog'
+
+        current_sprint_ref = db_task.sprint_ref if db_task else task.sprint_ref
+        current_sprint_name = db_task.sprint if db_task else task.sprint
+
+        if target_sprint_ref != current_sprint_ref or target_sprint_name != current_sprint_name:
+            old_display = current_sprint_ref.name if current_sprint_ref else (current_sprint_name or "Backlog")
+            new_display = target_sprint_ref.name if target_sprint_ref else (target_sprint_name or "Backlog")
+            task.sprint_ref = target_sprint_ref
+            task.sprint = new_display
+            TaskActivity.objects.create(
+                task=task,
+                actor=actor,
+                action=TaskActivity.Action.UPDATED,
+                old_value=old_display,
+                new_value=new_display,
+                message=f"Moved task to sprint '{new_display}'"
+            )
+            updated_fields.extend(['sprint_ref', 'sprint'])
+        else:
+            task.sprint_ref = target_sprint_ref
+            task.sprint = target_sprint_name or task.sprint
+            updated_fields.extend(['sprint_ref', 'sprint'])
+
     # Direct attribute updates
-    for field in ['title', 'description', 'estimated_hours', 'sprint', 'tags']:
+    for field in ['title', 'description', 'estimated_hours', 'tags']:
         if field in kwargs:
             target_val = kwargs[field]
             current_val = getattr(db_task, field) if db_task else getattr(task, field)
@@ -420,12 +479,12 @@ def generate_unique_code_review_code() -> str:
 
 
 @transaction.atomic
-def create_code_review_request(task: Task, requester, title: str, github_pr_url: str,
+def create_code_review_request(task: Task, requester, title: str, github_pr_url: str = '',
                                description: str = '', reviewer=None, status=CodeReviewStatus.REQUESTED) -> CodeReviewRequest:
     """
     Creates a new CodeReviewRequest linked to a Task, logs a real TaskActivity entry,
     and automatically posts a structured system comment in Task Comments.
-    Validates requester membership, reviewer membership (if provided), PR URL, and duplicate active requests.
+    Validates requester membership, reviewer membership (if provided), PR URL (if provided), and duplicate active requests.
     """
     import re
     from django.core.exceptions import PermissionDenied, ValidationError
@@ -448,19 +507,20 @@ def create_code_review_request(task: Task, requester, title: str, github_pr_url:
         ).exists():
             raise PermissionDenied("Selected reviewer is not an active member of this workspace.")
 
-    # Validate PR URL format
-    pr_pattern = re.compile(r'^https?://(www\.)?github\.com/[\w.-]+/[\w.-]+/pull/\d+/?$')
-    clean_url = github_pr_url.strip()
-    if not pr_pattern.match(clean_url):
-        raise ValidationError("Invalid GitHub Pull Request URL.")
+    clean_url = (github_pr_url or '').strip()
+    # Validate PR URL format only if provided
+    if clean_url:
+        pr_pattern = re.compile(r'^https?://(www\.)?github\.com/[\w.-]+/[\w.-]+/pull/\d+/?$')
+        if not pr_pattern.match(clean_url):
+            raise ValidationError("Invalid GitHub Pull Request URL.")
 
-    # Check duplicate active review request on the same task for the same PR URL
-    existing = CodeReviewRequest.objects.filter(
-        task=task,
-        github_pr_url=clean_url
-    ).exclude(status__in=[CodeReviewStatus.CLOSED, CodeReviewStatus.MERGED])
-    if existing.exists():
-        raise ValidationError("An active code review request for this pull request already exists on this task.")
+        # Check duplicate active review request on the same task for the same PR URL
+        existing = CodeReviewRequest.objects.filter(
+            task=task,
+            github_pr_url=clean_url
+        ).exclude(status__in=[CodeReviewStatus.CLOSED, CodeReviewStatus.MERGED, CodeReviewStatus.REJECTED])
+        if existing.exists():
+            raise ValidationError("An active code review request for this pull request already exists on this task.")
 
     review_code = generate_unique_code_review_code()
     cr = CodeReviewRequest.objects.create(
@@ -475,13 +535,14 @@ def create_code_review_request(task: Task, requester, title: str, github_pr_url:
     )
 
     # 1. Structured System Comment in COMMENTS
+    pr_suffix = f" for PR: {clean_url}" if clean_url else ""
     TaskComment.objects.create(
         task=task,
         author=requester,
         comment_type=TaskComment.CommentType.SYSTEM,
         system_event_type=TaskComment.SystemEventType.CODE_REVIEW_REQUESTED,
         code_review=cr,
-        content=f"Code Review {review_code} requested for PR: {clean_url}",
+        content=f"Code Review {review_code} requested{pr_suffix}",
         metadata={
             'review_code': review_code,
             'title': cr.title,
@@ -501,7 +562,7 @@ def create_code_review_request(task: Task, requester, title: str, github_pr_url:
         actor=requester,
         action=TaskActivity.Action.UPDATED,
         new_value=review_code,
-        message=f"Created Code Review Request {review_code}{reviewer_text} for PR: {clean_url}"
+        message=f"Created Code Review Request {review_code}{reviewer_text}{pr_suffix}"
     )
 
     return cr
@@ -571,6 +632,158 @@ def update_code_review_status(code_review: CodeReviewRequest, actor, new_status:
         new_value=new_status_display,
         message=f"🔵 Code Review {code_review.review_code} status changed: {old_status_display} → {new_status_display} by {actor.full_name or actor.email if actor else 'System'}"
     )
+
+    return code_review
+
+
+@transaction.atomic
+def submit_code_review_decision(code_review_id, actor, decision: str, message: str) -> CodeReviewRequest:
+    """
+    Submits an authoritative review decision (Approved, Changes Requested, or Rejected)
+    for a CodeReviewRequest within an isolated database transaction with row locking.
+
+    Requirements:
+    1. Validates decision is one of APPROVED, CHANGES_REQUESTED, REJECTED.
+    2. Validates non-empty, meaningful decision message (>= 3 chars).
+    3. Validates status transitions: can only decide on active reviewable states (REQUESTED, IN_REVIEW, or CHANGES_REQUESTED).
+       Terminal states (APPROVED, REJECTED, MERGED, CLOSED) cannot be decided upon.
+       Duplicate decision (same status) is rejected.
+    4. RBAC: Only assigned reviewer or workspace Admin/Manager can submit a decision.
+    5. Persists decision, updates CodeReviewRequest.
+    6. Creates structured audit TaskComment on the review's history timeline.
+    7. Creates user discussion TaskComment on the review's discussion feed.
+    8. Creates TaskActivity on the linked task with review code, status, reviewer, message, and review URL.
+    9. Dispatches in-app notification to the review requester (preventing self-notifications).
+    """
+    from django.core.exceptions import ValidationError, PermissionDenied
+    from django.urls import reverse
+    from workspaces.models import WorkspaceMembership, WorkspaceRole, MembershipStatus
+    from notifications.services import create_notification
+    from notifications.models import NotificationCategory, NotificationType
+
+    # 1. Allowed decisions
+    valid_decisions = [
+        CodeReviewStatus.APPROVED,
+        CodeReviewStatus.CHANGES_REQUESTED,
+        CodeReviewStatus.REJECTED
+    ]
+    if decision not in valid_decisions:
+        raise ValidationError(f"Invalid decision '{decision}'. Must be Approved, Changes Requested, or Rejected.")
+
+    # 2. Validate message
+    clean_message = (message or '').strip()
+    if len(clean_message) < 5:
+        raise ValidationError("A meaningful decision message is required (minimum 5 characters).")
+
+    # 3. Lock row to prevent race conditions or concurrent duplicate decisions
+    try:
+        code_review = CodeReviewRequest.objects.select_for_update().get(pk=code_review_id)
+    except CodeReviewRequest.DoesNotExist:
+        raise ValidationError("Code review request does not exist.")
+
+    # Load related task, workspace, and relationships separately after acquiring
+    # the review-row lock, without extending the FOR UPDATE locking query across nullable joins.
+    task = Task.objects.select_related('workspace').get(id=code_review.task_id)
+    code_review.task = task
+    workspace = task.workspace
+
+    # 4. RBAC check: Assigned reviewer or workspace Admin/Manager
+    is_assigned_reviewer = (code_review.reviewer_id and actor.id == code_review.reviewer_id)
+    is_admin_or_manager = WorkspaceMembership.objects.filter(
+        workspace=workspace,
+        user=actor,
+        role__in=[WorkspaceRole.ADMIN, WorkspaceRole.MANAGER],
+        status=MembershipStatus.ACTIVE
+    ).exists()
+
+    if not (is_assigned_reviewer or is_admin_or_manager):
+        raise PermissionDenied("Only the assigned reviewer or a workspace Admin/Manager can submit a review decision.")
+
+    # 5. Validate status transition
+    if code_review.status == decision:
+        raise ValidationError(f"Review is already {code_review.get_status_display()}.")
+
+    terminal_statuses = [
+        CodeReviewStatus.APPROVED,
+        CodeReviewStatus.REJECTED,
+        CodeReviewStatus.MERGED,
+        CodeReviewStatus.CLOSED
+    ]
+    if code_review.status in terminal_statuses:
+        raise ValidationError(
+            f"Cannot submit decision on a review that is already {code_review.get_status_display()}."
+        )
+
+    old_status_display = code_review.get_status_display()
+    code_review.status = decision
+    code_review.save(update_fields=['status', 'updated_at'])
+    decision_display = code_review.get_status_display()
+
+    reviewer_name = actor.full_name or actor.email
+
+    review_url = reverse('tasks:code_review_detail', kwargs={
+        'slug': workspace.slug,
+        'review_code': code_review.review_code
+    })
+
+    # 6. System audit event for the review's Activity & History timeline (Tab 3)
+    TaskComment.objects.create(
+        task=code_review.task,
+        author=actor,
+        comment_type=TaskComment.CommentType.SYSTEM,
+        system_event_type=TaskComment.SystemEventType.CODE_REVIEW_STATUS_CHANGED,
+        code_review=code_review,
+        content=f"Review decision submitted: {decision_display}\n\n{clean_message}",
+        metadata={
+            'review_code': code_review.review_code,
+            'decision': decision,
+            'decision_display': decision_display,
+            'reviewer_name': reviewer_name,
+            'reviewer_id': str(actor.id),
+            'message': clean_message,
+            'old_status': old_status_display,
+            'new_status': decision_display,
+        }
+    )
+
+    # 7. Discussion comment for the review's Comments & Decision stream (Tab 2)
+    TaskComment.objects.create(
+        task=code_review.task,
+        author=actor,
+        comment_type=TaskComment.CommentType.USER,
+        code_review=code_review,
+        content=f"**Review Decision: {decision_display}**\n\n{clean_message}"
+    )
+
+    # 8. Linked Task Activity Feed entry (TaskActivity)
+    TaskActivity.objects.create(
+        task=code_review.task,
+        actor=actor,
+        action=TaskActivity.Action.STATUS_CHANGED,
+        old_value=old_status_display,
+        new_value=decision_display,
+        message=(
+            f"Code review {code_review.review_code} decided as '{decision_display}' by {reviewer_name}. "
+            f"Message: {clean_message} "
+            f"(Review: {review_url})"
+        )
+    )
+
+    # 9. In-App Notification to Requester (suppressing self-notification)
+    if code_review.requester and code_review.requester_id != actor.id:
+        try:
+            create_notification(
+                recipient=code_review.requester,
+                category=NotificationCategory.TASK,
+                notification_type=NotificationType.TASK_STATUS_CHANGED,
+                title=f"Code Review {decision_display}: {code_review.review_code}",
+                body=f"{reviewer_name} marked '{code_review.title}' as {decision_display}: {clean_message}",
+                workspace=workspace,
+                actor=actor,
+                action_url=review_url
+            )
+        except Exception as e:
+            logger.error(f"Failed to create notification for code review decision: {e}")
 
     return code_review
 

@@ -388,28 +388,6 @@ def profile_edit_view(request):
                         messages.error(request, err)
                 return redirect('accounts:profile_edit')
 
-        elif action == 'update_banner':
-            file_obj = request.FILES.get('banner_file')
-            banner_url = request.POST.get('banner_url', '').strip()
-            preset_gradient = request.POST.get('preset_gradient', '').strip()
-
-            success, msg = process_and_save_banner(
-                user,
-                file_obj=file_obj,
-                banner_url=banner_url,
-                preset_gradient=preset_gradient
-            )
-            if success:
-                messages.success(request, msg)
-            else:
-                messages.error(request, msg)
-            return redirect('accounts:profile_edit')
-
-        elif action == 'remove_banner':
-            remove_user_banner(user)
-            messages.success(request, "Banner removed. Default theme gradient restored.")
-            return redirect('accounts:profile_edit')
-
         elif action == 'update_profile':
             profile_form = ProfileUpdateForm(request.POST)
             if profile_form.is_valid():
@@ -420,7 +398,11 @@ def profile_edit_view(request):
                 profile.headline = profile_form.cleaned_data.get('headline', '').strip()
                 profile.bio = profile_form.cleaned_data.get('bio', '').strip()
                 profile.phone = profile_form.cleaned_data.get('phone', '').strip()
-                profile.save(update_fields=['headline', 'bio', 'phone', 'updated_at'])
+
+                skills_raw = profile_form.cleaned_data.get('skills', '')
+                skills_list = [s.strip() for s in skills_raw.split(',') if s.strip()]
+                profile.set_skills(skills_list)
+                profile.save(update_fields=['headline', 'bio', 'phone', 'preferences', 'updated_at'])
 
                 messages.success(request, "Your profile details have been saved successfully.")
                 return redirect('accounts:profile')
@@ -435,6 +417,7 @@ def profile_edit_view(request):
             'bio': profile.bio,
             'phone': profile.phone,
             'timezone': user.timezone or 'UTC',
+            'skills': ', '.join(profile.skills),
         })
         avatar_form = AvatarUploadForm()
 
@@ -445,11 +428,84 @@ def profile_edit_view(request):
         'profile_form': profile_form,
         'avatar_form': avatar_form,
         'preset_themes': PRESET_AVATAR_THEMES,
-        'preset_banners': PRESET_BANNER_THEMES,
         'active_tab': 'edit',
         'is_own_profile': True,
         'title': 'Edit Profile — AetherSpace',
     })
+
+
+@login_required
+@require_POST
+def profile_skills_update_view(request):
+    """
+    Authorized Skills Management Endpoint:
+    Allows profile owners to add, update, and remove skills stored in profile preferences.
+    Supports both JSON (AJAX) and form submissions.
+    """
+    import json
+    user = request.user
+    profile = get_or_create_user_profile(user)
+
+    skills_data = []
+    if request.content_type == 'application/json':
+        try:
+            data = json.loads(request.body.decode('utf-8'))
+            if 'skills' in data and isinstance(data['skills'], list):
+                skills_data = data['skills']
+            elif 'skill' in data and data.get('action') == 'add':
+                current = list(profile.skills)
+                current.append(str(data['skill']))
+                skills_data = current
+            elif 'skill' in data and data.get('action') == 'remove':
+                target = str(data['skill']).strip().lower()
+                skills_data = [s for s in profile.skills if s.strip().lower() != target]
+        except Exception:
+            return JsonResponse({'success': False, 'error': 'Invalid JSON format.'}, status=400)
+    else:
+        action = request.POST.get('action', 'set')
+        if action == 'add':
+            new_skill = request.POST.get('skill', '').strip()
+            current = list(profile.skills)
+            if new_skill:
+                current.append(new_skill)
+            skills_data = current
+        elif action == 'remove':
+            target = request.POST.get('skill', '').strip().lower()
+            skills_data = [s for s in profile.skills if s.strip().lower() != target]
+        else:
+            raw_skills = request.POST.get('skills', '')
+            if isinstance(raw_skills, str):
+                skills_data = [s.strip() for s in raw_skills.split(',') if s.strip()]
+            elif isinstance(raw_skills, list):
+                skills_data = raw_skills
+
+    # Server-side cleaning and validation
+    cleaned = []
+    seen = set()
+    for item in skills_data:
+        s = str(item).strip()
+        if not s:
+            continue
+        s = s[:50]
+        if s.lower() not in seen:
+            seen.add(s.lower())
+            cleaned.append(s)
+
+    if len(cleaned) > 30:
+        cleaned = cleaned[:30]
+
+    profile.set_skills(cleaned)
+    profile.save(update_fields=['preferences', 'updated_at'])
+
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.content_type == 'application/json':
+        return JsonResponse({
+            'success': True,
+            'skills': profile.skills,
+            'message': 'Skills updated successfully.'
+        })
+
+    messages.success(request, 'Skills updated successfully.')
+    return redirect('accounts:profile')
 
 
 @login_required
@@ -748,16 +804,31 @@ def api_user_hover_card(request, user_identifier):
             viewer_in_ws = WorkspaceMembership.objects.filter(workspace=workspace, user=request.user, status='ACTIVE').exists()
             if not viewer_in_ws and not is_admin:
                 raise PermissionDenied("You do not have access to this workspace.")
-            target_ws_membership = WorkspaceMembership.objects.filter(workspace=workspace, user=target_user, status='ACTIVE').first()
+            target_ws_membership = WorkspaceMembership.objects.filter(workspace=workspace, user=target_user, status='ACTIVE').select_related('workspace').first()
 
-    if not is_self and not is_admin and not getattr(request.user, 'is_manager_role', False) and not workspace:
-        shared_workspace = WorkspaceMembership.objects.filter(
+    # Query all active memberships of the target user that the current viewer is authorized to see
+    if is_self or is_admin:
+        memberships_qs = list(WorkspaceMembership.objects.filter(
+            user=target_user,
+            status='ACTIVE',
+            workspace__status='ACTIVE'
+        ).select_related('workspace').order_by('workspace__name'))
+    else:
+        viewer_ws_ids = WorkspaceMembership.objects.filter(
             user=request.user,
             status='ACTIVE',
-            workspace__memberships__user=target_user,
-            workspace__memberships__status='ACTIVE'
-        ).exists()
-        if not shared_workspace:
+            workspace__status='ACTIVE'
+        ).values_list('workspace_id', flat=True)
+        memberships_qs = list(WorkspaceMembership.objects.filter(
+            user=target_user,
+            status='ACTIVE',
+            workspace__status='ACTIVE',
+            workspace_id__in=viewer_ws_ids
+        ).select_related('workspace').order_by('workspace__name'))
+
+    # If the viewer does not share any workspace with the target user, return minimal profile
+    if not is_self and not is_admin and not getattr(request.user, 'is_manager_role', False) and not workspace:
+        if not memberships_qs:
             profile = getattr(target_user, 'profile', None)
             sys_role = target_user.get_role_display() if hasattr(target_user, 'get_role_display') else target_user.role
             headline = getattr(profile, 'headline', '') if profile else ''
@@ -784,19 +855,27 @@ def api_user_hover_card(request, user_identifier):
                 'mailto_url': f"mailto:{target_user.email}",
                 'profile_url': f"/auth/profile/u/{target_user.id}/",
                 'is_self': False,
+                'memberships': [],
             })
 
-    if not target_ws_membership:
-        shared_membership = WorkspaceMembership.objects.filter(
-            user=target_user,
-            status='ACTIVE',
-            workspace__memberships__user=request.user,
-            workspace__memberships__status='ACTIVE'
-        ).select_related('workspace').first()
-        if shared_membership:
-            target_ws_membership = shared_membership
-            if not workspace:
-                workspace = shared_membership.workspace
+    if not target_ws_membership and memberships_qs:
+        target_ws_membership = memberships_qs[0]
+        if not workspace:
+            workspace = target_ws_membership.workspace
+
+    # Serialize authorized memberships
+    serialized_memberships = []
+    for m in memberships_qs:
+        ws = m.workspace
+        serialized_memberships.append({
+            'workspace_name': ws.name,
+            'workspace_slug': ws.slug,
+            'role': m.role,
+            'role_display': m.get_role_display(),
+            'functional_role': m.functional_role or '',
+            'tagging_role': m.role_tag or '',
+            'is_owner': (ws.owner_id == target_user.id),
+        })
 
     tagging_role = ''
     functional_role = ''
@@ -806,11 +885,14 @@ def api_user_hover_card(request, user_identifier):
 
     workspace_name = workspace.name if workspace else (target_ws_membership.workspace.name if target_ws_membership and target_ws_membership.workspace else '')
     workspace_role = target_ws_membership.get_role_display() if target_ws_membership else None
-    is_owner = False
-    if workspace and workspace.owner_id == target_user.id:
-        is_owner = True
-    elif target_ws_membership and target_ws_membership.workspace and target_ws_membership.workspace.owner_id == target_user.id:
-        is_owner = True
+    
+    # Ownership determination:
+    # If in a specific workspace context, reflects ownership of that workspace.
+    # Otherwise, True if the user is an owner of any authorized visible workspace.
+    if workspace:
+        is_owner = (workspace.owner_id == target_user.id)
+    else:
+        is_owner = any(m['is_owner'] for m in serialized_memberships)
 
     profile = getattr(target_user, 'profile', None)
     headline = getattr(profile, 'headline', '') if profile else ''
@@ -829,11 +911,17 @@ def api_user_hover_card(request, user_identifier):
 
     reporting_to_name = ''
     reporting_to_role = ''
+    direct_reports_count = 0
     if target_ws_membership:
         mgr = target_ws_membership.effective_reporting_to
         if mgr and mgr.user_id != target_user.id:
             reporting_to_name = mgr.user.full_name or mgr.user.email
             reporting_to_role = mgr.get_role_display()
+        direct_reports_count = WorkspaceMembership.objects.filter(
+            workspace=target_ws_membership.workspace,
+            reporting_to=target_ws_membership,
+            status='ACTIVE'
+        ).count()
 
     dm_url = f"/chat/w/{workspace.slug}/dm/{target_user.id}/" if (workspace and not is_self) else None
     mailto_url = f"mailto:{target_user.email}"
@@ -855,6 +943,7 @@ def api_user_hover_card(request, user_identifier):
         'is_owner': is_owner,
         'reporting_to_name': reporting_to_name,
         'reporting_to_role': reporting_to_role,
+        'direct_reports_count': direct_reports_count,
         'headline': headline,
         'availability_status': getattr(target_user, 'availability_status', 'available'),
         'status_message': getattr(target_user, 'status_message', ''),
@@ -862,6 +951,7 @@ def api_user_hover_card(request, user_identifier):
         'mailto_url': mailto_url,
         'profile_url': profile_url,
         'is_self': is_self,
+        'memberships': serialized_memberships,
     })
 
 

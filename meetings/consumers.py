@@ -53,6 +53,9 @@ class MeetingSignalingConsumer(AsyncJsonWebsocketConsumer):
         )
         await self.accept()
 
+        # Track active sockets for this user in this meeting
+        user_socket_count = await self.record_meeting_socket_connect(self.meeting_id, self.user.id)
+
         # Register participant presence in DB
         participant_data = await self.record_join(self.meeting_id, self.user)
         self.user_display_name = participant_data["name"]
@@ -71,33 +74,35 @@ class MeetingSignalingConsumer(AsyncJsonWebsocketConsumer):
             "is_host": self.is_host,
         })
 
-        # Broadcast peer_joined to all other participants in the room
-        await self.channel_layer.group_send(
-            self.room_group_name,
-            {
-                "type": "room_peer_joined",
-                "peer": participant_data,
-                "sender_channel": self.channel_name,
-            }
-        )
+        # Broadcast peer_joined to all other participants in the room only on the first socket connection
+        if user_socket_count == 1:
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {
+                    "type": "room_peer_joined",
+                    "peer": participant_data,
+                    "sender_channel": self.channel_name,
+                }
+            )
 
     async def disconnect(self, close_code):
         if hasattr(self, "room_group_name"):
-            # Record leave in database
+            remaining_sockets = 0
             if hasattr(self, "meeting_id"):
-                await self.record_leave(self.meeting_id, self.user.id)
-                # If this meeting has a 1-on-1 CallSession, end it and notify remaining peer
-                call_ended = await self.end_call_session_if_active(self.meeting_id, self.user)
-                if call_ended:
-                    await self.channel_layer.group_send(
-                        self.room_group_name,
-                        {
-                            "type": "room_call_ended",
-                            "message": f"{getattr(self, 'user_display_name', 'Participant')} has left the call.",
-                        }
-                    )
+                remaining_sockets = await self.record_meeting_socket_disconnect(self.meeting_id, self.user.id)
 
-            # Notify peers that this user left
+            # If user has other active sockets in this room (e.g. Pop-out window, duplicate tab),
+            # DO NOT broadcast peer_left or disrupt the active meeting.
+            if remaining_sockets > 0:
+                await self.channel_layer.group_discard(
+                    self.room_group_name,
+                    self.channel_name
+                )
+                return
+
+            # All sockets for this user in this room have disconnected.
+            # Broadcast peer_left to notify peers, but DO NOT destroy the meeting on disconnect.
+            # Reconnecting users or reloads are accommodated within reconnect grace.
             await self.channel_layer.group_send(
                 self.room_group_name,
                 {
@@ -497,6 +502,23 @@ class MeetingSignalingConsumer(AsyncJsonWebsocketConsumer):
         return peers
 
     @database_sync_to_async
+    def record_meeting_socket_connect(self, meeting_id, user_id):
+        from django.core.cache import cache
+        key = f"meeting_{meeting_id}_user_{user_id}_sockets"
+        count = cache.get(key, 0) + 1
+        cache.set(key, count, timeout=86400)
+        return count
+
+    @database_sync_to_async
+    def record_meeting_socket_disconnect(self, meeting_id, user_id):
+        from django.core.cache import cache
+        key = f"meeting_{meeting_id}_user_{user_id}_sockets"
+        count = cache.get(key, 1)
+        new_count = max(0, count - 1)
+        cache.set(key, new_count, timeout=86400)
+        return new_count
+
+    @database_sync_to_async
     def record_leave(self, meeting_id, user_id):
         now = timezone.now()
         MeetingParticipant.objects.filter(
@@ -505,12 +527,9 @@ class MeetingSignalingConsumer(AsyncJsonWebsocketConsumer):
             left_at__isnull=True
         ).update(left_at=now, is_hand_raised=False)
 
-        # If no active participants remain, close meeting
-        meeting = Meeting.objects.filter(id=meeting_id).first()
-        if meeting and not meeting.participants.filter(left_at__isnull=True).exists():
-            meeting.status = MeetingStatus.ENDED
-            meeting.actual_end = now
-            meeting.save(update_fields=["status", "actual_end", "updated_at"])
+        # Clear socket count in cache upon explicit leave
+        from django.core.cache import cache
+        cache.delete(f"meeting_{meeting_id}_user_{user_id}_sockets")
 
     @database_sync_to_async
     def update_hand_raise(self, meeting_id, user_id, raised):
@@ -750,8 +769,8 @@ class GlobalCallConsumer(AsyncJsonWebsocketConsumer):
 
     async def call_accepted(self, event):
         """Forward accepted call state to client (navigates to room)."""
-        logger.info("[CALL-DIAG] GlobalCallConsumer.call_accepted RELAYING to user=%s call_id=%s room_url=%s",
-                    self.user.id, event.get('call_id', '?'), event.get('room_url', '?'))
+        logger.info("[CALL-DIAG] GlobalCallConsumer.call_accepted RELAYING to user=%s call_id=%s",
+                    self.user.id, event.get('call_id', '?'))
         await self.send_json(event)
         logger.info("[CALL-DIAG] GlobalCallConsumer.call_accepted SENT to user=%s", self.user.id)
 
